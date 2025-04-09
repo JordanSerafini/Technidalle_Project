@@ -17,8 +17,7 @@ INSERT INTO project_stages (project_id, name, description, start_date, end_date,
 (2, 'Chape appartement 2', 'Réalisation de la chape appartement 2', '2023-12-15', '2023-12-17', 'termine', 13, 3, 3, 100, 'Chape réalisée selon les normes'),
 (2, 'Carrelage sol appartement 2', 'Pose du carrelage au sol appartement 2', '2023-12-18', '2023-12-20', 'termine', 14, 3, 3, 100, 'Carrelage posé avec soin'),
 (2, 'Carrelage mur appartement 2', 'Pose du carrelage mural appartement 2', '2023-12-21', '2023-12-22', 'termine', 15, 2, 2, 100, 'Finitions soignées'),
-(2, 'Jointoiement appartement 2', 'Jointoiement et finitions appartement 2', '2023-12-23', '2023-12-23', 'termine', 16, 1, 1, 100, 'Jointoiement propre')
-ON CONFLICT (project_id, name) DO NOTHING;
+(2, 'Jointoiement appartement 2', 'Jointoiement et finitions appartement 2', '2023-12-23', '2023-12-23', 'termine', 16, 1, 1, 100, 'Jointoiement propre');
 
 -- Insertion des étapes pour le projet PRJ-2023-003
 INSERT INTO project_stages (project_id, name, description, start_date, end_date, status, order_index, estimated_duration, actual_duration, completion_percentage, notes) VALUES
@@ -79,7 +78,7 @@ INSERT INTO project_staff (project_id, staff_id, stage_id, role_description, sta
 (3, 10, 1, 'Chapiste', '2023-12-01', '2024-01-15', 100, 100),
 
 -- Projet PRJ-2023-004
-(4, 2, 1, 'Chef de chantier', '2023-12-10', '2024-01-25', 160, 160),
+(4, 6, 1, 'Chef de chantier', '2023-12-10', '2024-01-25', 160, 160),
 (4, 3, 1, 'Technicien senior', '2023-12-10', '2024-01-25', 140, 140),
 (4, 4, 1, 'Technicien', '2023-12-10', '2024-01-25', 140, 140),
 (4, 5, 1, 'Apprenti', '2023-12-10', '2024-01-25', 100, 100),
@@ -114,7 +113,6 @@ INSERT INTO documents (project_id, client_id, type, reference, status, amount, t
 -- Projet PRJ-2024-001
 (5, 8, 'devis', 'DEV-2024-001', 'valide', 15000.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Devis accepté rapidement'),
 (5, 8, 'facture', 'FAC-2024-001', 'valide', 7500.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-28', 'virement', 'Premier acompte payé'),
-(5, 8, 'facture', 'FAC-2024-002', 'valide', 7500.00, 20.00, '2024-02-15', '2024-02-28', NULL, NULL, 'En attente de paiement')
-ON CONFLICT (reference) DO NOTHING;
+(5, 8, 'facture', 'FAC-2024-002', 'valide', 7500.00, 20.00, '2024-02-15', '2024-02-28', NULL, NULL, 'En attente de paiement');
 
 COMMIT; 

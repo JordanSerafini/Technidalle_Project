@@ -16,8 +16,7 @@ INSERT INTO project_materials (project_id, material_id, stage_id, quantity_plann
 (2, 2, 15, 90, 90, 29.90, 'Carrelage mural appartement 2 utilisé en totalité'),
 (2, 3, 14, 500, 500, 1.20, 'Mortier colle utilisé en totalité'),
 (2, 4, 13, 2000, 2000, 0.85, 'Chape réalisée selon les normes'),
-(2, 5, 16, 50, 50, 2.50, 'Joint silicone utilisé en totalité')
-ON CONFLICT (project_id, material_id, stage_id) DO NOTHING;
+(2, 5, 16, 50, 50, 2.50, 'Joint silicone utilisé en totalité');
 
 -- Insertion des matériaux utilisés pour le projet PRJ-2023-003
 INSERT INTO project_materials (project_id, material_id, stage_id, quantity_planned, quantity_used, unit_price, notes) VALUES
