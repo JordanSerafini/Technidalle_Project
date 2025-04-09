@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL,
+    client_id INTEGER,
     type document_type NOT NULL,
     reference VARCHAR(50) UNIQUE NOT NULL,
     status document_status DEFAULT 'brouillon',
@@ -133,7 +134,7 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_document_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    CONSTRAINT check_document_dates CHECK (due_date IS NULL OR due_date >= issue_date)
+    CONSTRAINT fk_document_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 );
 
 -- Table des étapes du projet
