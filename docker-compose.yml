@@ -25,7 +25,7 @@ services:
     depends_on:
       - postgres
 
-  clients_service:
+  client:
     build:
       context: ./Backend/clients_service
       dockerfile: Dockerfile
@@ -34,7 +34,7 @@ services:
     depends_on:
       - api-gateway
 
-  projects_service:
+  projects:
     build:
       context: ./Backend/projects_service
       dockerfile: Dockerfile
