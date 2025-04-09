@@ -8,12 +8,12 @@ export class ProjectsService {
 
   // Projects
   async getAllProjects() {
-    return await this.prisma.project.findMany({
+    return await this.prisma.projects.findMany({
       include: {
-        stages: true,
-        tags: {
+        project_stages: true,
+        project_tags: {
           include: {
-            tag: true,
+            tags: true,
           },
         },
       },
@@ -21,13 +21,13 @@ export class ProjectsService {
   }
 
   async getProjectById(id: number) {
-    return await this.prisma.project.findUnique({
+    return await this.prisma.projects.findUnique({
       where: { id },
       include: {
-        stages: true,
-        tags: {
+        project_stages: true,
+        project_tags: {
           include: {
-            tag: true,
+            tags: true,
           },
         },
       },
@@ -35,30 +35,30 @@ export class ProjectsService {
   }
 
   async createProject(data: Prisma.projectsCreateInput) {
-    return await this.prisma.project.create({ data });
+    return await this.prisma.projects.create({ data });
   }
 
   async updateProject(id: number, data: Prisma.projectsUpdateInput) {
-    return await this.prisma.project.update({
+    return await this.prisma.projects.update({
       where: { id },
       data,
     });
   }
 
   async deleteProject(id: number) {
-    return await this.prisma.project.delete({
+    return await this.prisma.projects.delete({
       where: { id },
     });
   }
 
   // Stages
   async getStagesByProjectId(projectId: number) {
-    return await this.prisma.projectStage.findMany({
-      where: { projectId },
+    return await this.prisma.project_stages.findMany({
+      where: { project_id: projectId },
       include: {
-        tags: {
+        stage_tags: {
           include: {
-            tag: true,
+            tags: true,
           },
         },
       },
@@ -66,10 +66,10 @@ export class ProjectsService {
   }
 
   async createStage(projectId: number, data: Prisma.project_stagesCreateInput) {
-    return await this.prisma.projectStage.create({
+    return await this.prisma.project_stages.create({
       data: {
         ...data,
-        project: {
+        projects: {
           connect: { id: projectId },
         },
       },
@@ -77,38 +77,38 @@ export class ProjectsService {
   }
 
   async updateStage(id: number, data: Prisma.project_stagesUpdateInput) {
-    return await this.prisma.projectStage.update({
+    return await this.prisma.project_stages.update({
       where: { id },
       data,
     });
   }
 
   async deleteStage(id: number) {
-    return await this.prisma.projectStage.delete({
+    return await this.prisma.project_stages.delete({
       where: { id },
     });
   }
 
   // Tags
   async getAllTags() {
-    return await this.prisma.tag.findMany();
+    return await this.prisma.tags.findMany();
   }
 
   async addTagToProject(projectId: number, tagId: number): Promise<void> {
-    await this.prisma.projectTag.create({
+    await this.prisma.project_tags.create({
       data: {
-        project: { connect: { id: projectId } },
-        tag: { connect: { id: tagId } },
+        projects: { connect: { id: projectId } },
+        tags: { connect: { id: tagId } },
       },
     });
   }
 
   async removeTagFromProject(projectId: number, tagId: number): Promise<void> {
-    await this.prisma.projectTag.delete({
+    await this.prisma.project_tags.delete({
       where: {
-        projectId_tagId: {
-          projectId,
-          tagId,
+        project_id_tag_id: {
+          project_id: projectId,
+          tag_id: tagId,
         },
       },
     });
