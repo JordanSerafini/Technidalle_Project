@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model addresses {
+  id                 Int        @id @default(autoincrement())
+  street_number      String?    @db.VarChar(10)
+  street_name        String     @db.VarChar(255)
+  additional_address String?    @db.VarChar(255)
+  zip_code           String     @db.VarChar(10)
+  city               String     @db.VarChar(100)
+  country            String?    @default("France") @db.VarChar(100)
+  latitude           Decimal?   @db.Decimal(9, 6)
+  longitude          Decimal?   @db.Decimal(9, 6)
+  created_at         DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?  @default(now()) @db.Timestamp(6)
+  clients            clients[]
+  projects           projects[]
+  staff              staff[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model clients {
+  id           Int         @id @default(autoincrement())
+  company_name String?     @db.VarChar(255)
+  firstname    String      @db.VarChar(100)
+  lastname     String      @db.VarChar(100)
+  email        String      @unique @db.VarChar(255)
+  phone        String?     @db.VarChar(20)
+  mobile       String?     @db.VarChar(20)
+  address_id   Int?
+  siret        String?     @db.VarChar(14)
+  notes        String?
+  created_at   DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at   DateTime?   @default(now()) @db.Timestamp(6)
+  addresses    addresses?  @relation(fields: [address_id], references: [id], onUpdate: NoAction, map: "fk_client_address")
+  documents    documents[]
+  events       events[]
+  projects     projects[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model document_tags {
+  document_id         Int
+  tag_id              Int
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  synced_at           DateTime? @db.Timestamp(6)
+  synced_by_device_id String?   @db.VarChar(100)
+  documents           documents @relation(fields: [document_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_dt_document")
+  tags                tags      @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_dt_tag")
+
+  @@id([document_id, tag_id])
+  @@index([document_id], map: "idx_document_tags_document")
+  @@index([synced_at], map: "idx_document_tags_synced")
+  @@index([tag_id], map: "idx_document_tags_tag")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model documents {
+  id             Int              @id @default(autoincrement())
+  project_id     Int
+  client_id      Int?
+  type           document_type
+  reference      String           @unique @db.VarChar(50)
+  status         document_status? @default(brouillon)
+  amount         Decimal?         @db.Decimal(12, 2)
+  tva_rate       Decimal?         @default(20.00) @db.Decimal(5, 2)
+  issue_date     DateTime         @db.Date
+  due_date       DateTime?        @db.Date
+  payment_date   DateTime?        @db.Date
+  payment_method String?          @db.VarChar(50)
+  notes          String?
+  file_path      String?          @db.VarChar(255)
+  created_at     DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(6)
+  document_tags  document_tags[]
+  clients        clients?         @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "fk_document_client")
+  projects       projects         @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_document_project")
+
+  @@index([project_id], map: "idx_documents_project")
+  @@index([status], map: "idx_documents_status")
+  @@index([type], map: "idx_documents_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model events {
+  id          Int        @id @default(autoincrement())
+  title       String     @db.VarChar(255)
+  description String?
+  event_type  event_type
+  start_date  DateTime   @db.Timestamp(6)
+  end_date    DateTime   @db.Timestamp(6)
+  all_day     Boolean?   @default(false)
+  location    String?    @db.VarChar(255)
+  project_id  Int?
+  staff_id    Int?
+  client_id   Int?
+  status      String?    @default("planifié") @db.VarChar(50)
+  color       String?    @db.VarChar(50)
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamp(6)
+  clients     clients?   @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "fk_event_client")
+  projects    projects?  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_event_project")
+  staff       staff?     @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_event_staff")
+
+  @@index([start_date, end_date], map: "idx_events_dates")
+  @@index([project_id], map: "idx_events_project")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model materials {
+  id                 Int                 @id @default(autoincrement())
+  name               String              @db.VarChar(255)
+  description        String?
+  reference          String?             @unique @db.VarChar(50)
+  unit               String              @db.VarChar(50)
+  price              Decimal?            @db.Decimal(10, 2)
+  stock_quantity     Int?                @default(0)
+  minimum_stock      Int?                @default(0)
+  supplier           String?             @db.VarChar(255)
+  supplier_reference String?             @db.VarChar(50)
+  created_at         DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?           @default(now()) @db.Timestamp(6)
+  project_materials  project_materials[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_materials {
+  id               Int             @id @default(autoincrement())
+  project_id       Int
+  material_id      Int
+  stage_id         Int?
+  quantity_planned Int
+  quantity_used    Int?            @default(0)
+  unit_price       Decimal         @db.Decimal(10, 2)
+  notes            String?
+  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamp(6)
+  materials        materials       @relation(fields: [material_id], references: [id], onUpdate: NoAction, map: "fk_project_material_material")
+  projects         projects        @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_material_project")
+  project_stages   project_stages? @relation(fields: [stage_id], references: [id], onUpdate: NoAction, map: "fk_project_material_stage")
+
+  @@index([material_id], map: "idx_project_materials_material")
+  @@index([project_id], map: "idx_project_materials_project")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_media {
+  id                  Int             @id @default(autoincrement())
+  project_id          Int?
+  stage_id            Int?
+  staff_id            Int?
+  media_type          String?         @db.VarChar(50)
+  file_path           String
+  description         String?
+  created_at          DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?       @default(now()) @db.Timestamp(6)
+  synced_at           DateTime?       @db.Timestamp(6)
+  synced_by_device_id String?         @db.VarChar(100)
+  projects            projects?       @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_pm_project")
+  staff               staff?          @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_pm_staff")
+  project_stages      project_stages? @relation(fields: [stage_id], references: [id], onUpdate: NoAction, map: "fk_pm_stage")
+
+  @@index([project_id], map: "idx_project_media_project")
+  @@index([staff_id], map: "idx_project_media_staff")
+  @@index([stage_id], map: "idx_project_media_stage")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_staff {
+  id               Int             @id @default(autoincrement())
+  project_id       Int
+  staff_id         Int
+  stage_id         Int?
+  role_description String?         @db.VarChar(100)
+  start_date       DateTime        @db.Date
+  end_date         DateTime?       @db.Date
+  hours_planned    Int?
+  hours_worked     Int?            @default(0)
+  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamp(6)
+  projects         projects        @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_staff_project")
+  staff            staff           @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_project_staff_staff")
+  project_stages   project_stages? @relation(fields: [stage_id], references: [id], onUpdate: NoAction, map: "fk_project_staff_stage")
+
+  @@index([project_id], map: "idx_project_staff_project")
+  @@index([staff_id], map: "idx_project_staff_staff")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_stages {
+  id                    Int                 @id @default(autoincrement())
+  project_id            Int
+  name                  String              @db.VarChar(255)
+  description           String?
+  start_date            DateTime?           @db.Date
+  end_date              DateTime?           @db.Date
+  status                String?             @default("non_commencee") @db.VarChar(50)
+  order_index           Int
+  estimated_duration    Int?
+  actual_duration       Int?
+  completion_percentage Int?                @default(0)
+  notes                 String?
+  created_at            DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?           @default(now()) @db.Timestamp(6)
+  synced_at             DateTime?           @db.Timestamp(6)
+  synced_by_device_id   String?             @db.VarChar(100)
+  project_materials     project_materials[]
+  project_media         project_media[]
+  project_staff         project_staff[]
+  projects              projects            @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stage_project")
+  site_reports          site_reports[]
+  stage_checklists      stage_checklists[]
+  stage_tags            stage_tags[]
+  tasks                 tasks[]
+  time_logs             time_logs[]
+
+  @@index([project_id], map: "idx_project_stages_project")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_tags {
+  project_id          Int
+  tag_id              Int
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  synced_at           DateTime? @db.Timestamp(6)
+  synced_by_device_id String?   @db.VarChar(100)
+  projects            projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_pt_project")
+  tags                tags      @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_pt_tag")
+
+  @@id([project_id, tag_id])
+  @@index([project_id], map: "idx_project_tags_project")
+  @@index([synced_at], map: "idx_project_tags_synced")
+  @@index([tag_id], map: "idx_project_tags_tag")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model projects {
+  id                 Int                 @id @default(autoincrement())
+  reference          String              @unique @db.VarChar(50)
+  name               String              @db.VarChar(255)
+  description        String?
+  client_id          Int
+  address_id         Int?
+  status             project_status?     @default(prospect)
+  start_date         DateTime?           @db.Date
+  end_date           DateTime?           @db.Date
+  estimated_duration Int?
+  budget             Decimal?            @db.Decimal(12, 2)
+  actual_cost        Decimal?            @db.Decimal(12, 2)
+  margin             Decimal?            @db.Decimal(12, 2)
+  priority           Int?
+  notes              String?
+  created_at         DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?           @default(now()) @db.Timestamp(6)
+  documents          documents[]
+  events             events[]
+  project_materials  project_materials[]
+  project_media      project_media[]
+  project_staff      project_staff[]
+  project_stages     project_stages[]
+  project_tags       project_tags[]
+  addresses          addresses?          @relation(fields: [address_id], references: [id], onUpdate: NoAction, map: "fk_project_address")
+  clients            clients             @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "fk_project_client")
+  site_reports       site_reports[]
+  time_logs          time_logs[]
+
+  @@index([client_id], map: "idx_projects_client")
+  @@index([start_date, end_date], map: "idx_projects_dates")
+  @@index([status], map: "idx_projects_status")
+}
+
+model roles {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(50)
+  description String?
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  staff       staff[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model site_reports {
+  id                  Int             @id @default(autoincrement())
+  project_id          Int
+  staff_id            Int?
+  stage_id            Int?
+  report_type         String?         @db.VarChar(50)
+  description         String
+  status              String?         @default("ouvert") @db.VarChar(50)
+  created_at          DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?       @default(now()) @db.Timestamp(6)
+  synced_at           DateTime?       @db.Timestamp(6)
+  synced_by_device_id String?         @db.VarChar(100)
+  projects            projects        @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sr_project")
+  staff               staff?          @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_sr_staff")
+  project_stages      project_stages? @relation(fields: [stage_id], references: [id], onUpdate: NoAction, map: "fk_sr_stage")
+
+  @@index([project_id], map: "idx_site_reports_project")
+  @@index([staff_id], map: "idx_site_reports_staff")
+  @@index([status], map: "idx_site_reports_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model staff {
+  id               Int                @id @default(autoincrement())
+  firstname        String             @db.VarChar(100)
+  lastname         String             @db.VarChar(100)
+  email            String             @unique @db.VarChar(255)
+  role_id          Int
+  phone            String?            @db.VarChar(20)
+  mobile           String?            @db.VarChar(20)
+  address_id       Int?
+  hire_date        DateTime           @db.Date
+  is_available     Boolean?           @default(true)
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
+  events           events[]
+  project_media    project_media[]
+  project_staff    project_staff[]
+  site_reports     site_reports[]
+  addresses        addresses?         @relation(fields: [address_id], references: [id], onUpdate: NoAction, map: "fk_staff_address")
+  roles            roles              @relation(fields: [role_id], references: [id], onUpdate: NoAction, map: "fk_staff_role")
+  stage_checklists stage_checklists[]
+  tasks            tasks[]
+  time_logs        time_logs[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model stage_checklists {
+  id                  Int            @id @default(autoincrement())
+  stage_id            Int
+  label               String
+  is_done             Boolean?       @default(false)
+  staff_id            Int?
+  comment             String?
+  created_at          DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?      @default(now()) @db.Timestamp(6)
+  synced_at           DateTime?      @db.Timestamp(6)
+  synced_by_device_id String?        @db.VarChar(100)
+  staff               staff?         @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_sc_staff")
+  project_stages      project_stages @relation(fields: [stage_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sc_stage")
+
+  @@index([staff_id], map: "idx_stage_checklists_staff")
+  @@index([stage_id], map: "idx_stage_checklists_stage")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model stage_tags {
+  stage_id            Int
+  tag_id              Int
+  created_at          DateTime?      @default(now()) @db.Timestamp(6)
+  synced_at           DateTime?      @db.Timestamp(6)
+  synced_by_device_id String?        @db.VarChar(100)
+  project_stages      project_stages @relation(fields: [stage_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_st_stage")
+  tags                tags           @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_st_tag")
+
+  @@id([stage_id, tag_id])
+  @@index([stage_id], map: "idx_stage_tags_stage")
+  @@index([synced_at], map: "idx_stage_tags_synced")
+  @@index([tag_id], map: "idx_stage_tags_tag")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tags {
+  id            Int             @id @default(autoincrement())
+  label         String          @unique @db.VarChar(50)
+  color         String?         @db.VarChar(20)
+  created_at    DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(6)
+  document_tags document_tags[]
+  project_tags  project_tags[]
+  stage_tags    stage_tags[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tasks {
+  id                  Int            @id @default(autoincrement())
+  stage_id            Int
+  label               String
+  description         String?
+  assigned_to         Int?
+  due_date            DateTime?      @db.Date
+  status              String?        @default("à_faire") @db.VarChar(50)
+  priority            Int?
+  created_at          DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?      @default(now()) @db.Timestamp(6)
+  synced_at           DateTime?      @db.Timestamp(6)
+  synced_by_device_id String?        @db.VarChar(100)
+  staff               staff?         @relation(fields: [assigned_to], references: [id], onUpdate: NoAction, map: "fk_task_staff")
+  project_stages      project_stages @relation(fields: [stage_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_task_stage")
+
+  @@index([assigned_to], map: "idx_tasks_assigned")
+  @@index([due_date], map: "idx_tasks_due_date")
+  @@index([stage_id], map: "idx_tasks_stage")
+  @@index([status], map: "idx_tasks_status")
+  @@index([synced_at], map: "idx_tasks_synced")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model time_logs {
+  id                  Int             @id @default(autoincrement())
+  staff_id            Int
+  project_id          Int
+  stage_id            Int?
+  check_in            DateTime        @db.Timestamp(6)
+  check_out           DateTime?       @db.Timestamp(6)
+  comment             String?
+  gps_lat             Decimal?        @db.Decimal(9, 6)
+  gps_long            Decimal?        @db.Decimal(9, 6)
+  created_at          DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?       @default(now()) @db.Timestamp(6)
+  synced_at           DateTime?       @db.Timestamp(6)
+  synced_by_device_id String?         @db.VarChar(100)
+  projects            projects        @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tl_project")
+  staff               staff           @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_tl_staff")
+  project_stages      project_stages? @relation(fields: [stage_id], references: [id], onUpdate: NoAction, map: "fk_tl_stage")
+
+  @@index([check_in, check_out], map: "idx_time_logs_dates")
+  @@index([project_id], map: "idx_time_logs_project")
+  @@index([staff_id], map: "idx_time_logs_staff")
+}
+
+enum document_status {
+  brouillon
+  en_attente
+  valide
+  refuse
+  annule
+}
+
+enum document_type {
+  devis
+  facture
+  bon_de_commande
+  bon_de_livraison
+  fiche_technique
+  photo_chantier
+  plan
+  autre
+}
+
+enum event_type {
+  appel_telephonique
+  reunion_chantier
+  visite_technique
+  rendez_vous_client
+  reunion_interne
+  formation
+  livraison_materiaux
+  intervention_urgente
+  maintenance
+  autre
+}
+
+enum project_status {
+  prospect
+  devis_en_cours
+  devis_accepte
+  en_preparation
+  en_cours
+  en_pause
+  termine
+  annule
+}
