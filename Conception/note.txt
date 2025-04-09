@@ -1,0 +1,144 @@
+1. Service d'Authentification (auth-service)
+Tables gérées :
+staff
+roles
+API REST :
+POST /auth/login : Authentification
+POST /auth/refresh : Rafraîchir le token
+GET /staff : Liste du personnel
+GET /staff/:id : Détails d'un membre du personnel
+POST /staff : Créer un utilisateur
+PUT /staff/:id : Modifier un utilisateur
+DELETE /staff/:id : Supprimer un utilisateur
+GET /roles : Liste des rôles
+POST /roles : Créer un rôle
+Port : 3001
+
+2. Service Clients (clients-service)
+Tables gérées :
+clients
+addresses (pour les adresses de clients)
+API REST :
+GET /clients : Liste des clients
+GET /clients/:id : Détails d'un client
+POST /clients : Créer un client
+PUT /clients/:id : Modifier un client
+DELETE /clients/:id : Supprimer un client
+GET /clients/:id/addresses : Adresses d'un client
+POST /clients/:id/addresses : Ajouter une adresse
+PUT /addresses/:id : Modifier une adresse
+DELETE /addresses/:id : Supprimer une adresse
+Port : 3002
+
+3. Service Projets (projects-service)
+Tables gérées :
+projects (vos chantiers)
+project_stages (étapes des chantiers)
+tags
+project_tags
+stage_tags
+API REST :
+GET /projects : Liste des projets/chantiers
+GET /projects/:id : Détails d'un projet
+POST /projects : Créer un projet
+PUT /projects/:id : Modifier un projet
+DELETE /projects/:id : Supprimer un projet
+GET /projects/:id/stages : Étapes d'un projet
+POST /projects/:id/stages : Ajouter une étape
+PUT /stages/:id : Modifier une étape
+DELETE /stages/:id : Supprimer une étape
+GET /tags : Liste des tags
+POST /projects/:id/tags : Ajouter un tag à un projet
+DELETE /projects/:id/tags/:tagId : Retirer un tag
+Port : 3003
+
+4. Service Documents (documents-service)
+Tables gérées :
+documents (devis, factures, etc.)
+document_tags
+API REST :
+GET /documents : Liste des documents
+GET /documents/:id : Détails d'un document
+POST /documents : Créer un document
+PUT /documents/:id : Modifier un document
+DELETE /documents/:id : Supprimer un document
+GET /projects/:id/documents : Documents d'un projet
+GET /documents/types : Types de documents disponibles
+GET /documents/:id/download : Télécharger un document
+Port : 3004
+
+5. Service Ressources (resources-service)
+Tables gérées :
+materials (matériaux)
+project_materials (matériaux par projet)
+project_staff (personnel par projet)
+API REST :
+GET /materials : Liste des matériaux
+GET /materials/:id : Détails d'un matériau
+POST /materials : Ajouter un matériau
+PUT /materials/:id : Modifier un matériau
+DELETE /materials/:id : Supprimer un matériau
+GET /projects/:id/materials : Matériaux d'un projet
+POST /projects/:id/materials : Ajouter un matériau à un projet
+PUT /projects/:id/materials/:materialId : Modifier la quantité
+GET /projects/:id/staff : Personnel affecté à un projet
+POST /projects/:id/staff : Affecter du personnel à un projet
+DELETE /projects/:id/staff/:staffId : Retirer du personnel
+Port : 3005
+
+6. Service Planification (planning-service)
+Tables gérées :
+events (rendez-vous, réunions)
+tasks (tâches)
+stage_checklists (listes de vérification)
+API REST :
+GET /events : Liste des événements
+GET /events/:id : Détails d'un événement
+POST /events : Créer un événement
+PUT /events/:id : Modifier un événement
+DELETE /events/:id : Supprimer un événement
+GET /tasks : Liste des tâches
+POST /tasks : Créer une tâche
+PUT /tasks/:id : Modifier une tâche
+DELETE /tasks/:id : Supprimer une tâche
+GET /stages/:id/checklists : Checklists d'une étape
+POST /stages/:id/checklists : Ajouter une checklist
+Port : 3006
+
+7. Service Terrain (field-service)
+Tables gérées :
+time_logs (pointages)
+site_reports (rapports de chantier)
+project_media (photos, vidéos)
+API REST :
+GET /timelogs : Liste des pointages
+POST /timelogs : Créer un pointage
+PUT /timelogs/:id : Modifier un pointage
+GET /projects/:id/timelogs : Pointages d'un projet
+GET /reports : Liste des rapports
+POST /reports : Créer un rapport
+PUT /reports/:id : Modifier un rapport
+GET /projects/:id/reports : Rapports d'un projet
+POST /projects/:id/media : Ajouter un média
+GET /projects/:id/media : Médias d'un projet
+DELETE /media/:id : Supprimer un média
+Port : 3007
+
+8. Service Synchronisation Mobile (sync-service)
+Champs concernés :
+Toutes les tables avec synced_at et synced_by_device_id
+API REST :
+POST /sync : Synchroniser les données
+GET /sync/status : État de la synchronisation
+POST /sync/upload : Envoyer des données depuis l'appareil
+GET /sync/download : Télécharger des données sur l'appareil
+Port : 3008
+
+9. API Gateway
+Responsabilités :
+Routage vers les services appropriés
+Authentification centralisée
+Documentation unifiée avec Swagger
+API REST :
+Expose tous les endpoints des services précédents sous /api/v1/*
+Port : 3000 (port principal exposé)
