@@ -9,7 +9,7 @@ import { ProjectsController } from './projects.controller';
         name: 'PROJECTS_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: '0.0.0.0',
+          host: 'projects',
           port: 3003,
         },
       },
