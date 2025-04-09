@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsInt, IsISO8601 } from 'class-validator';
-import { Tag } from './tag.interface';
+import { Tag } from './project.interface';
 
 export interface Stage {
   id: number;
