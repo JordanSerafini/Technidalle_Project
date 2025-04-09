@@ -14,5 +14,36 @@ services:
       - ./Database/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
       - ./Database/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
 
+  api-gateway:
+    build:
+      context: ./Backend/api_gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      - postgres
+
+  clients_service:
+    build:
+      context: ./Backend/clients_service
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+
+  projects_service:
+    build:
+      context: ./Backend/projects_service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
