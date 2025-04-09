@@ -1,94 +1,81 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller } from '@nestjs/common';
+import { MessagePattern } from '@nestjs/microservices';
 import { ProjectsService } from './projects.service';
 import { Prisma } from '../../generated/prisma';
 
-@Controller('projects')
+@Controller()
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
-  @Get()
+  @MessagePattern({ cmd: 'get_all_projects' })
   async getAllProjects() {
     return this.projectsService.getAllProjects();
   }
 
-  @Get(':id')
-  async getProjectById(@Param('id', ParseIntPipe) id: number) {
-    return this.projectsService.getProjectById(id);
+  @MessagePattern({ cmd: 'get_project_by_id' })
+  async getProjectById(data: { id: number }) {
+    return this.projectsService.getProjectById(data.id);
   }
 
-  @Post()
-  async createProject(@Body() data: Prisma.projectsCreateInput) {
+  @MessagePattern({ cmd: 'create_project' })
+  async createProject(data: Prisma.projectsCreateInput) {
     return this.projectsService.createProject(data);
   }
 
-  @Put(':id')
-  async updateProject(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() data: Prisma.projectsUpdateInput,
-  ) {
-    return this.projectsService.updateProject(id, data);
+  @MessagePattern({ cmd: 'update_project' })
+  async updateProject(data: {
+    id: number;
+    projectDto: Prisma.projectsUpdateInput;
+  }) {
+    return this.projectsService.updateProject(data.id, data.projectDto);
   }
 
-  @Delete(':id')
-  async deleteProject(@Param('id', ParseIntPipe) id: number) {
-    return this.projectsService.deleteProject(id);
+  @MessagePattern({ cmd: 'delete_project' })
+  async deleteProject(data: { id: number }) {
+    return this.projectsService.deleteProject(data.id);
   }
 
-  @Get(':projectId/stages')
-  async getStagesByProjectId(
-    @Param('projectId', ParseIntPipe) projectId: number,
-  ) {
-    return this.projectsService.getStagesByProjectId(projectId);
+  @MessagePattern({ cmd: 'get_stages_by_project_id' })
+  async getStagesByProjectId(data: { projectId: number }) {
+    return this.projectsService.getStagesByProjectId(data.projectId);
   }
 
-  @Post(':projectId/stages')
-  async createStage(
-    @Param('projectId', ParseIntPipe) projectId: number,
-    @Body() data: Prisma.project_stagesCreateInput,
-  ) {
-    return this.projectsService.createStage(projectId, data);
+  @MessagePattern({ cmd: 'create_stage' })
+  async createStage(data: {
+    projectId: number;
+    stageDto: Prisma.project_stagesCreateInput;
+  }) {
+    return this.projectsService.createStage(data.projectId, data.stageDto);
   }
 
-  @Put(':projectId/stages/:stageId')
-  async updateStage(
-    @Param('stageId', ParseIntPipe) stageId: number,
-    @Body() data: Prisma.project_stagesUpdateInput,
-  ) {
-    return this.projectsService.updateStage(stageId, data);
+  @MessagePattern({ cmd: 'update_stage' })
+  async updateStage(data: {
+    id: number;
+    stageDto: Prisma.project_stagesUpdateInput;
+  }) {
+    return this.projectsService.updateStage(data.id, data.stageDto);
   }
 
-  @Delete(':projectId/stages/:stageId')
-  async deleteStage(@Param('stageId', ParseIntPipe) stageId: number) {
-    return this.projectsService.deleteStage(stageId);
+  @MessagePattern({ cmd: 'delete_stage' })
+  async deleteStage(data: { id: number }) {
+    return this.projectsService.deleteStage(data.id);
   }
 
-  @Get('tags')
+  @MessagePattern({ cmd: 'get_all_tags' })
   async getAllTags() {
     return this.projectsService.getAllTags();
   }
 
-  @Post(':projectId/tags/:tagId')
-  async addTagToProject(
-    @Param('projectId', ParseIntPipe) projectId: number,
-    @Param('tagId', ParseIntPipe) tagId: number,
-  ) {
-    return this.projectsService.addTagToProject(projectId, tagId);
+  @MessagePattern({ cmd: 'add_tag_to_project' })
+  async addTagToProject(data: { projectId: number; tagId: number }) {
+    return this.projectsService.addTagToProject(data.projectId, data.tagId);
   }
 
-  @Delete(':projectId/tags/:tagId')
-  async removeTagFromProject(
-    @Param('projectId', ParseIntPipe) projectId: number,
-    @Param('tagId', ParseIntPipe) tagId: number,
-  ) {
-    return this.projectsService.removeTagFromProject(projectId, tagId);
+  @MessagePattern({ cmd: 'remove_tag_from_project' })
+  async removeTagFromProject(data: { projectId: number; tagId: number }) {
+    return this.projectsService.removeTagFromProject(
+      data.projectId,
+      data.tagId,
+    );
   }
 }
