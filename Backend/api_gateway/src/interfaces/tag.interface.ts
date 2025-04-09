@@ -34,4 +34,4 @@ export class UpdateTagDto {
   @IsOptional()
   @IsString()
   color?: string;
-} 
+}

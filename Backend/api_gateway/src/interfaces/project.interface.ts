@@ -1,6 +1,24 @@
 import { IsString, IsOptional, IsInt, IsISO8601 } from 'class-validator';
-import { Stage } from './stage.interface';
-import { Tag } from './tag.interface';
+
+export interface Stage {
+  id: number;
+  name: string;
+  description?: string;
+  projectId: number;
+  startDate?: string;
+  endDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Project {
   id: number;
