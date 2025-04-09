@@ -45,5 +45,16 @@ services:
     depends_on:
       - postgres
 
+  resources:
+    build:
+      context: ./Backend/resources_service
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
