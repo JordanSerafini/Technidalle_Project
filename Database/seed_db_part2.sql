@@ -17,8 +17,8 @@ INSERT INTO project_stages (project_id, name, description, start_date, end_date,
 (2, 'Chape appartement 2', 'Réalisation de la chape appartement 2', '2023-12-15', '2023-12-17', 'termine', 13, 3, 3, 100, 'Chape réalisée selon les normes'),
 (2, 'Carrelage sol appartement 2', 'Pose du carrelage au sol appartement 2', '2023-12-18', '2023-12-20', 'termine', 14, 3, 3, 100, 'Carrelage posé avec soin'),
 (2, 'Carrelage mur appartement 2', 'Pose du carrelage mural appartement 2', '2023-12-21', '2023-12-22', 'termine', 15, 2, 2, 100, 'Finitions soignées'),
-(2, 'Jointoiement appartement 2', 'Jointoiement et finitions appartement 2', '2023-12-23', '2023-12-23', 'termine', 16, 1, 1, 100, 'Jointoiement propre'),
-(2, 'Nettoyage et réception', 'Nettoyage final et réception des travaux', '2023-12-24', '2023-12-24', 'termine', 17, 1, 1, 100, 'Client satisfait');
+(2, 'Jointoiement appartement 2', 'Jointoiement et finitions appartement 2', '2023-12-23', '2023-12-23', 'termine', 16, 1, 1, 100, 'Jointoiement propre')
+ON CONFLICT (project_id, name) DO NOTHING;
 
 -- Insertion des étapes pour le projet PRJ-2023-003
 INSERT INTO project_stages (project_id, name, description, start_date, end_date, status, order_index, estimated_duration, actual_duration, completion_percentage, notes) VALUES
@@ -95,25 +95,26 @@ INSERT INTO project_staff (project_id, staff_id, stage_id, role_description, sta
 (5, 10, 1, 'Chapiste', '2024-01-15', '2024-02-28', 100, 30);
 
 -- Insertion des documents pour les autres projets
-INSERT INTO documents (project_id, type, reference, status, amount, tva_rate, issue_date, due_date, payment_date, payment_method, notes) VALUES
+INSERT INTO documents (project_id, client_id, type, reference, status, amount, tva_rate, issue_date, due_date, payment_date, payment_method, notes) VALUES
 -- Projet PRJ-2023-002
-(2, 'devis', 'DEV-2023-002', 'valide', 75000.00, 20.00, '2023-10-15', '2023-10-30', '2023-10-25', 'virement', 'Devis accepté rapidement'),
-(2, 'facture', 'FAC-2023-003', 'valide', 37500.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-28', 'virement', 'Premier acompte payé'),
-(2, 'facture', 'FAC-2023-004', 'valide', 37500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Solde payé'),
+(2, 4, 'devis', 'DEV-2023-002', 'valide', 75000.00, 20.00, '2023-10-15', '2023-10-30', '2023-10-25', 'virement', 'Devis accepté rapidement'),
+(2, 4, 'facture', 'FAC-2023-003', 'valide', 37500.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-28', 'virement', 'Premier acompte payé'),
+(2, 4, 'facture', 'FAC-2023-004', 'valide', 37500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Solde payé'),
 
 -- Projet PRJ-2023-003
-(3, 'devis', 'DEV-2023-003', 'valide', 85000.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-25', 'virement', 'Devis accepté rapidement'),
-(3, 'facture', 'FAC-2023-005', 'valide', 42500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-28', 'virement', 'Premier acompte payé'),
-(3, 'facture', 'FAC-2023-006', 'valide', 42500.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-25', 'virement', 'Solde payé'),
+(3, 4, 'devis', 'DEV-2023-003', 'valide', 85000.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-25', 'virement', 'Devis accepté rapidement'),
+(3, 4, 'facture', 'FAC-2023-005', 'valide', 42500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-28', 'virement', 'Premier acompte payé'),
+(3, 4, 'facture', 'FAC-2023-006', 'valide', 42500.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-25', 'virement', 'Solde payé'),
 
 -- Projet PRJ-2023-004
-(4, 'devis', 'DEV-2023-004', 'valide', 32000.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-25', 'virement', 'Devis accepté rapidement'),
-(4, 'facture', 'FAC-2023-007', 'valide', 16000.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-28', 'virement', 'Premier acompte payé'),
-(4, 'facture', 'FAC-2023-008', 'valide', 16000.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-25', 'virement', 'Solde payé'),
+(4, 6, 'devis', 'DEV-2023-004', 'valide', 32000.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-25', 'virement', 'Devis accepté rapidement'),
+(4, 6, 'facture', 'FAC-2023-007', 'valide', 16000.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-28', 'virement', 'Premier acompte payé'),
+(4, 6, 'facture', 'FAC-2023-008', 'valide', 16000.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-25', 'virement', 'Solde payé'),
 
 -- Projet PRJ-2024-001
-(5, 'devis', 'DEV-2024-001', 'valide', 15000.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Devis accepté rapidement'),
-(5, 'facture', 'FAC-2024-001', 'valide', 7500.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-28', 'virement', 'Premier acompte payé'),
-(5, 'facture', 'FAC-2024-002', 'valide', 7500.00, 20.00, '2024-02-15', '2024-02-28', NULL, NULL, 'En attente de paiement');
+(5, 8, 'devis', 'DEV-2024-001', 'valide', 15000.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Devis accepté rapidement'),
+(5, 8, 'facture', 'FAC-2024-001', 'valide', 7500.00, 20.00, '2024-01-15', '2024-01-30', '2024-01-28', 'virement', 'Premier acompte payé'),
+(5, 8, 'facture', 'FAC-2024-002', 'valide', 7500.00, 20.00, '2024-02-15', '2024-02-28', NULL, NULL, 'En attente de paiement')
+ON CONFLICT (reference) DO NOTHING;
 
 COMMIT; 

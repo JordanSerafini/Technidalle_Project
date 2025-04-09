@@ -11,7 +11,8 @@ INSERT INTO roles (name, description) VALUES
 ('COMPTABLE', 'Gestion comptable et facturation'),
 ('CHEF_DE_CHANTIER', 'Supervision des chantiers'),
 ('CARRELEUR', 'Spécialiste carrelage'),
-('CHAPISTE', 'Spécialiste chapes et ragréages');
+('CHAPISTE', 'Spécialiste chapes et ragréages')
+ON CONFLICT (name) DO NOTHING;
 
 -- Insertion des adresses pour le personnel
 INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country) VALUES
