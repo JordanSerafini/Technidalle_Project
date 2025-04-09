@@ -30,7 +30,7 @@ services:
       context: ./Backend/clients_service
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "3002:3002"
     depends_on:
       - api-gateway
 
@@ -39,7 +39,7 @@ services:
       context: ./Backend/projects_service
       dockerfile: Dockerfile
     ports:
-      - "3001:3001"
+      - "3003:3003"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
     depends_on:

@@ -12,7 +12,7 @@ import { ClientsController } from './clients.controller';
         name: 'CLIENTS_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: '0.0.0.0',
+          host: 'client',
           port: 3002,
         },
       },
