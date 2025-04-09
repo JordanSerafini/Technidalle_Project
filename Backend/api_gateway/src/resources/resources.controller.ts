@@ -75,7 +75,10 @@ export class ResourcesController {
   ): Promise<Material> {
     try {
       return await firstValueFrom(
-        this.resourcesService.send({ cmd: 'create_material' }, createMaterialDto),
+        this.resourcesService.send(
+          { cmd: 'create_material' },
+          createMaterialDto,
+        ),
       );
     } catch (error) {
       console.error('Erreur lors de la création du matériau:', error);
@@ -135,7 +138,10 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de la récupération des matériaux du projet:', error);
+      console.error(
+        'Erreur lors de la récupération des matériaux du projet:',
+        error,
+      );
       throw new HttpException(
         'Erreur lors de la récupération des matériaux du projet',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -156,9 +162,9 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de l\'ajout du matériau au projet:', error);
+      console.error("Erreur lors de l'ajout du matériau au projet:", error);
       throw new HttpException(
-        'Erreur lors de l\'ajout du matériau au projet',
+        "Erreur lors de l'ajout du matériau au projet",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -182,7 +188,10 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du matériau du projet:', error);
+      console.error(
+        'Erreur lors de la mise à jour du matériau du projet:',
+        error,
+      );
       throw new HttpException(
         'Erreur lors de la mise à jour du matériau du projet',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -203,7 +212,10 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de la suppression du matériau du projet:', error);
+      console.error(
+        'Erreur lors de la suppression du matériau du projet:',
+        error,
+      );
       throw new HttpException(
         'Erreur lors de la suppression du matériau du projet',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -222,7 +234,10 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de la récupération du personnel du projet:', error);
+      console.error(
+        'Erreur lors de la récupération du personnel du projet:',
+        error,
+      );
       throw new HttpException(
         'Erreur lors de la récupération du personnel du projet',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -243,9 +258,9 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de l\'ajout du personnel au projet:', error);
+      console.error("Erreur lors de l'ajout du personnel au projet:", error);
       throw new HttpException(
-        'Erreur lors de l\'ajout du personnel au projet',
+        "Erreur lors de l'ajout du personnel au projet",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -269,7 +284,10 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du personnel du projet:', error);
+      console.error(
+        'Erreur lors de la mise à jour du personnel du projet:',
+        error,
+      );
       throw new HttpException(
         'Erreur lors de la mise à jour du personnel du projet',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -290,11 +308,14 @@ export class ResourcesController {
         ),
       );
     } catch (error) {
-      console.error('Erreur lors de la suppression du personnel du projet:', error);
+      console.error(
+        'Erreur lors de la suppression du personnel du projet:',
+        error,
+      );
       throw new HttpException(
         'Erreur lors de la suppression du personnel du projet',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
-} 
+}
