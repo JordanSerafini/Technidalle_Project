@@ -8,14 +8,10 @@ RUN npm install
 
 COPY . .
 
+RUN npx prisma generate
+
+RUN npm run build
+
 EXPOSE 3002
 
-CMD ["npm", "run", "start:prod"]
-
-FROM nginx:alpine
-
-COPY --from=build /app/build /usr/share/nginx/html
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["npm", "run", "start:prod"] 
