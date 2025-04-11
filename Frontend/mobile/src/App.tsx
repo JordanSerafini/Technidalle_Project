@@ -6,6 +6,7 @@ import { Planning } from './pages/Planning.js'
 import { Clients } from './pages/Clients.js'
 import { Projets } from './pages/Projets.js'
 import { Documents } from './pages/Documents.js'
+import { SearchResults } from './pages/SearchResults.js'
 import { Navigation } from './components/Nav/Navigation.jsx'
 
 export function App() {
@@ -23,6 +24,8 @@ export function App() {
         return <Projets />
       case 'documents':
         return <Documents />
+      case 'search-results':
+        return <SearchResults />
       default:
         return <Dashboard />
     }
@@ -33,7 +36,7 @@ export function App() {
       <view>
         {renderPage()}
       </view>
-      <Navigation />
+      {currentPage !== 'search-results' && <Navigation />}
     </view>
   )
 }

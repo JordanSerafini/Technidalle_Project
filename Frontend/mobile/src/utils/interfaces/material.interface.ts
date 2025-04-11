@@ -13,14 +13,6 @@ export interface Material {
   updated_at?: Date;
 }
 
-export class CreateMaterialDto {
-  name: string;
-  description?: string;
-  unit: string;
-  unitPrice: number;
-  supplier?: string;
-  supplier_reference?: string;
-}
 
 export class UpdateMaterialDto {
   name?: string;
@@ -45,10 +37,6 @@ export interface ProjectMaterial {
   materials?: Material;
 }
 
-export class CreateProjectMaterialDto {
-  materialId: string;
-  quantity: number;
-}
 
 export class UpdateProjectMaterialDto {
   quantity?: number;
