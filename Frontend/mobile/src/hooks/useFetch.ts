@@ -42,7 +42,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
         if (options.limit !== undefined) {
           params.limit = String(options.limit);
         } else {
-          params.limit = '10'; // Limite par défaut
+          params.limit = '10'; 
         }
         
         if (options.offset !== undefined) {

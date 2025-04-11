@@ -36,8 +36,12 @@ export function Clients() {
         {data && data.length > 0 ? (
           data.map((client: Client) => (
             <view key={client.id} className="mb-2 p-2 border-b">
+              <text className="font-medium">{client.company_name}</text>
               <text className="font-medium">{client.lastname} {client.firstname}</text>
-              <text className="text-gray-600">{client.email}</text>
+              <view className="flex flex-row">
+                <text className="text-gray-600">{client.phone}</text>
+                <text className="text-gray-600">{client.mobile}</text>
+              </view>
             </view>
           ))
         ) : (
