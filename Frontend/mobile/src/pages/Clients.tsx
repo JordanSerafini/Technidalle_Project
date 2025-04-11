@@ -3,6 +3,8 @@ import type { Client } from '../utils/interfaces/client.interface.js';
 
 
 export function Clients() {
+
+
   const { data, loading, error } = useFetch<Client[]>('clients', {
     method: 'GET',
     limit: 5,
@@ -12,6 +14,7 @@ export function Clients() {
     }
   });
 
+  // Log de l'état de chargement
   if (loading) {
     return (
       <view className="flex items-center justify-center h-full">
@@ -20,6 +23,7 @@ export function Clients() {
     );
   }
 
+  // Log des erreurs
   if (error) {
     return (
       <view className="flex items-center justify-center h-full">
@@ -27,11 +31,14 @@ export function Clients() {
       </view>
     );
   }
-  
 
   return (
     <view style={{ width: '100%', height: '100%' }} className="flex flex-col items-center p-4">
-      <text className="text-2xl font-bold mb-4">Clients</text>
+      <view className="w-full flex flex-row justify-between mb-4">
+        <text className="text-2xl font-bold">Clients</text>
+      
+      </view>
+      
       <view className="bg-white p-4 rounded shadow-md w-full">
         {data && data.length > 0 ? (
           data.map((client: Client) => (

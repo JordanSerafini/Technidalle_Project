@@ -37,7 +37,11 @@ export class ClientsController {
     return await firstValueFrom(
       this.clientsService.send(
         { cmd: 'get_all_clients' },
-        { limit: limit ? Number(limit) : undefined, offset: offset ? Number(offset) : undefined, searchQuery },
+        {
+          limit: limit ? Number(limit) : undefined,
+          offset: offset ? Number(offset) : undefined,
+          searchQuery,
+        },
       ),
     );
   }
