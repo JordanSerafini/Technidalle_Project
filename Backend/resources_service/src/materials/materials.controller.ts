@@ -9,8 +9,8 @@ export class MaterialsController {
   constructor(private readonly materialsService: MaterialsService) {}
 
   @MessagePattern({ cmd: 'get_all_materials' })
-  async findAll() {
-    return this.materialsService.findAll();
+  async findAll(data?: { limit?: number; offset?: number; searchQuery?: string }) {
+    return this.materialsService.findAll(data?.limit, data?.offset, data?.searchQuery);
   }
 
   @MessagePattern({ cmd: 'get_material_by_id' })

@@ -18,11 +18,28 @@ export class AppService {
   constructor(private prisma: PrismaService) {}
 
   // Clients API
-  async getAllClients(): Promise<Client[]> {
+  async getAllClients(
+    limit?: number,
+    offset?: number,
+    searchQuery?: string,
+  ): Promise<Client[]> {
     const dbClients = await this.prisma.clients.findMany({
+      where: searchQuery
+        ? {
+            OR: [
+              { firstname: { contains: searchQuery } },
+              { lastname: { contains: searchQuery } },
+              { email: { contains: searchQuery } },
+              { phone: { contains: searchQuery } },
+              { company_name: { contains: searchQuery } },
+            ],
+          }
+        : undefined,
       include: {
         addresses: true,
       },
+      skip: offset || 0,
+      take: limit || undefined,
     });
     return dbClients as unknown as Client[];
   }

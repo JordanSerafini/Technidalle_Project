@@ -8,8 +8,16 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @MessagePattern({ cmd: 'get_all_projects' })
-  async getAllProjects() {
-    return this.projectsService.getAllProjects();
+  async getAllProjects(data?: {
+    limit?: number;
+    offset?: number;
+    searchQuery?: string;
+  }) {
+    return this.projectsService.getAllProjects(
+      data?.limit,
+      data?.offset,
+      data?.searchQuery,
+    );
   }
 
   @MessagePattern({ cmd: 'get_project_by_id' })
