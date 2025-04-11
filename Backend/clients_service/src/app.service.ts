@@ -27,11 +27,11 @@ export class AppService {
       where: searchQuery
         ? {
             OR: [
-              { firstname: { contains: searchQuery } },
-              { lastname: { contains: searchQuery } },
-              { email: { contains: searchQuery } },
-              { phone: { contains: searchQuery } },
-              { company_name: { contains: searchQuery } },
+              { firstname: { contains: searchQuery, mode: 'insensitive' } },
+              { lastname: { contains: searchQuery, mode: 'insensitive' } },
+              { email: { contains: searchQuery, mode: 'insensitive' } },
+              { phone: { contains: searchQuery, mode: 'insensitive' } },
+              { company_name: { contains: searchQuery, mode: 'insensitive' } },
             ],
           }
         : undefined,
