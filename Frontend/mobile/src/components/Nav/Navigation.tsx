@@ -1,13 +1,13 @@
-import { useNavigationStore } from '../store/navigationStore.js';
-
+import { useNavigationStore } from '../../store/navigationStore.js';
+import Searchbar from './Searchbar.js';
 export function Navigation() {
   const { currentPage, setCurrentPage } = useNavigationStore();
 
   return (
     <view className="fixed bottom-0 left-0 right-0 flex-col items-start justify-center">
       {/* Search */}
-      <view className="flex flex-row justify-between items-center w-full px-4 border border-gray-700 h-10">
-      <text>ddd</text>
+      <view className=" w-full">
+        <Searchbar />
       </view>
       {/* Navigation */}
       <view className="flex flex-row justify-between items-center w-full bg-gray-800 h-16 px-4 ">
