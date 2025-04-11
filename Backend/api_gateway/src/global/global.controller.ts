@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { GlobalService } from './global.service';
 
-@Controller('global')
+@Controller('')
 export class GlobalController {
   constructor(private readonly globalService: GlobalService) {}
 
@@ -21,7 +21,11 @@ export class GlobalController {
     }
 
     try {
-      return await this.globalService.search(searchQuery);
+      // Nettoyer et normaliser la requête de recherche
+      const normalizedQuery = searchQuery.trim();
+      console.log(`Recherche globale avec requête: "${normalizedQuery}"`);
+
+      return await this.globalService.search(normalizedQuery);
     } catch (error) {
       console.error('Erreur lors de la recherche globale:', error);
       throw new HttpException(

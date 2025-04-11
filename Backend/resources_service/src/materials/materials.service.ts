@@ -12,9 +12,9 @@ export class MaterialsService {
       where: searchQuery
         ? {
             OR: [
-              { name: { contains: searchQuery } },
-              { description: { contains: searchQuery } },
-              { reference: { contains: searchQuery } },
+              { name: { contains: searchQuery, mode: 'insensitive' } },
+              { description: { contains: searchQuery, mode: 'insensitive' } },
+              { reference: { contains: searchQuery, mode: 'insensitive' } },
             ],
           }
         : undefined,
