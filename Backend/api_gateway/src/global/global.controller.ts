@@ -7,13 +7,13 @@ import {
 } from '@nestjs/common';
 import { GlobalService } from './global.service';
 
-@Controller('')
+@Controller('global')
 export class GlobalController {
   constructor(private readonly globalService: GlobalService) {}
 
   @Get('search')
-  async search(@Query('query') query: string) {
-    if (!query || query.trim() === '') {
+  async search(@Query('searchQuery') searchQuery: string) {
+    if (!searchQuery || searchQuery.trim() === '') {
       throw new HttpException(
         'Le paramètre de recherche est requis',
         HttpStatus.BAD_REQUEST,
@@ -21,7 +21,7 @@ export class GlobalController {
     }
 
     try {
-      return await this.globalService.search(query);
+      return await this.globalService.search(searchQuery);
     } catch (error) {
       console.error('Erreur lors de la recherche globale:', error);
       throw new HttpException(
