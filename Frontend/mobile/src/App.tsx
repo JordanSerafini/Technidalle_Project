@@ -1,5 +1,6 @@
 import './App.css'
-import { MemoryRouter, Routes, Route } from 'react-router'
+import { useNavigationStore } from './store/navigationStore.js'
+
 import { Dashboard } from './pages/Dashboard.js'
 import { Planning } from './pages/Planning.js'
 import { Clients } from './pages/Clients.js'
@@ -8,21 +9,31 @@ import { Documents } from './pages/Documents.js'
 import { Navigation } from './components/Navigation.js'
 
 export function App() {
+  const { currentPage } = useNavigationStore()
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <Dashboard />
+      case 'planning':
+        return <Planning />
+      case 'clients':
+        return <Clients />
+      case 'projets':
+        return <Projets />
+      case 'documents':
+        return <Documents />
+      default:
+        return <Dashboard />
+    }
+  }
+
   return (
-    <MemoryRouter>
-      <view style={{ width: '100%', height: '100%', paddingTop: '10px' }} className="bg-gray-100">
-        <view  >
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/planning" element={<Planning />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/projets" element={<Projets />} />
-            <Route path="/documents" element={<Documents />} />
-          </Routes>
-        </view>
-        <Navigation />
+    <view style={{ width: '100%', height: '100%', paddingTop: '10px' }} className="bg-gray-100">
+      <view>
+        {renderPage()}
       </view>
-    </MemoryRouter>
+      <Navigation />
+    </view>
   )
 }
