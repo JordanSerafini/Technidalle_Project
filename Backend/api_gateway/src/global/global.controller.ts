@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { GlobalService } from './global.service';
 
-@Controller('global')
+@Controller('')
 export class GlobalController {
   constructor(private readonly globalService: GlobalService) {}
 
