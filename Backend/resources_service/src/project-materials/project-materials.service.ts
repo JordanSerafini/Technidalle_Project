@@ -11,11 +11,29 @@ export class ProjectMaterialsService {
     private materialsService: MaterialsService,
   ) {}
 
-  async findAllByProjectId(projectId: string) {
+  async findAllByProjectId(
+    projectId: string,
+    limit?: number,
+    offset?: number,
+    searchQuery?: string,
+  ) {
     const projectIdNumber = parseInt(projectId);
     return this.prisma.project_materials.findMany({
-      where: { project_id: projectIdNumber },
+      where: {
+        project_id: projectIdNumber,
+        ...(searchQuery
+          ? {
+              OR: [
+                { materials: { name: { contains: searchQuery } } },
+                { materials: { description: { contains: searchQuery } } },
+                { materials: { reference: { contains: searchQuery } } },
+              ],
+            }
+          : {}),
+      },
       include: { materials: true },
+      skip: offset || 0,
+      take: limit || undefined,
     });
   }
 

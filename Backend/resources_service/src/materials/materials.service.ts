@@ -7,8 +7,20 @@ import { UpdateMaterialDto } from './dto/update-material.dto';
 export class MaterialsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.materials.findMany();
+  async findAll(limit?: number, offset?: number, searchQuery?: string) {
+    return this.prisma.materials.findMany({
+      where: searchQuery
+        ? {
+            OR: [
+              { name: { contains: searchQuery } },
+              { description: { contains: searchQuery } },
+              { reference: { contains: searchQuery } },
+            ],
+          }
+        : undefined,
+      skip: offset || 0,
+      take: limit || undefined,
+    });
   }
 
   async findOne(id: string) {
@@ -41,28 +53,29 @@ export class MaterialsService {
     try {
       const materialId = parseInt(id);
       const data: any = {};
-      
+
       if (updateMaterialDto.name) {
         data.name = updateMaterialDto.name;
       }
-      
+
       if (updateMaterialDto.description !== undefined) {
         data.description = updateMaterialDto.description;
       }
-      
+
       if (updateMaterialDto.unit) {
         data.unit = updateMaterialDto.unit;
       }
-      
+
       if (updateMaterialDto.unitPrice) {
         data.price = updateMaterialDto.unitPrice;
       }
-      
+
       return await this.prisma.materials.update({
         where: { id: materialId },
         data,
       });
-    } catch (_) {
+    } catch (e) {
+      console.log(e);
       throw new NotFoundException(`Matériau avec l'ID ${id} non trouvé`);
     }
   }
@@ -73,7 +86,8 @@ export class MaterialsService {
       return await this.prisma.materials.delete({
         where: { id: materialId },
       });
-    } catch (_) {
+    } catch (e) {
+      console.log(e);
       throw new NotFoundException(`Matériau avec l'ID ${id} non trouvé`);
     }
   }

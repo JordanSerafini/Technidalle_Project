@@ -7,8 +7,17 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
   // Projects
-  async getAllProjects() {
+  async getAllProjects(limit?: number, offset?: number, searchQuery?: string) {
     return await this.prisma.projects.findMany({
+      where: searchQuery
+        ? {
+            OR: [
+              { name: { contains: searchQuery } },
+              { description: { contains: searchQuery } },
+              { reference: { contains: searchQuery } },
+            ],
+          }
+        : undefined,
       include: {
         project_stages: true,
         project_tags: {
@@ -17,6 +26,8 @@ export class ProjectsService {
           },
         },
       },
+      skip: offset || 0,
+      take: limit || undefined,
     });
   }
 

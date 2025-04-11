@@ -11,8 +11,18 @@ export class ProjectMaterialsController {
   ) {}
 
   @MessagePattern({ cmd: 'get_project_materials' })
-  async getProjectMaterials(data: { projectId: string }) {
-    return this.projectMaterialsService.findAllByProjectId(data.projectId);
+  async getProjectMaterials(data: {
+    projectId: string;
+    limit?: number;
+    offset?: number;
+    searchQuery?: string;
+  }) {
+    return this.projectMaterialsService.findAllByProjectId(
+      data.projectId,
+      data.limit,
+      data.offset,
+      data.searchQuery,
+    );
   }
 
   @MessagePattern({ cmd: 'get_project_material' })

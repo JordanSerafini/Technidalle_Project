@@ -18,8 +18,16 @@ export class AppController {
 
   // Clients Endpoints
   @MessagePattern({ cmd: 'get_all_clients' })
-  async getAllClients(): Promise<Client[]> {
-    return await this.appService.getAllClients();
+  async getAllClients(data?: {
+    limit?: number;
+    offset?: number;
+    searchQuery?: string;
+  }): Promise<Client[]> {
+    return await this.appService.getAllClients(
+      data?.limit,
+      data?.offset,
+      data?.searchQuery,
+    );
   }
 
   @MessagePattern({ cmd: 'get_client_by_id' })
