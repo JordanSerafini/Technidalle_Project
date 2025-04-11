@@ -1,4 +1,4 @@
-import { useState } from '@lynx-js/react';
+import { useState, useEffect } from '@lynx-js/react';
 import { useFetch } from '../../hooks/useFetch.js';
 
 interface Client {
@@ -31,12 +31,28 @@ export function Searchbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const { data, loading, error } = useFetch<SearchResults>(
-    isSearching ? 'search' : '',
+    isSearching ? 'global/search' : '',
     { 
       searchQuery: isSearching ? searchQuery : '',
       limit: 20
     }
   );
+
+  // Ajouter des logs pour le débogage
+  useEffect(() => {
+    if (isSearching) {
+      console.log('Recherche active avec:', searchQuery);
+    }
+    if (data) {
+      console.log('Données reçues:', data);
+      console.log('Clients:', data.clients?.length || 0);
+      console.log('Projets:', data.projects?.length || 0);
+      console.log('Matériaux:', data.materials?.length || 0);
+    }
+    if (error) {
+      console.error('Erreur de recherche:', error);
+    }
+  }, [isSearching, searchQuery, data, error]);
 
   const handleInputChange = (e: any) => {
     // Pour lynxjs, l'accès à la valeur peut être différent selon l'implémentation
@@ -48,6 +64,7 @@ export function Searchbar() {
   };
 
   const handleSearch = () => {
+    console.log('Tentative de recherche avec:', searchQuery);
     if (searchQuery.trim().length > 2) {
       setIsSearching(true);
     }
@@ -66,6 +83,17 @@ export function Searchbar() {
       <button onClick={handleSearch} className="ml-2">
         <text className="text-gray-500">🔍</text>
       </button>
+
+      {/* Petit débugger */}
+      <view className="absolute top-12 right-0 bg-black bg-opacity-80 p-2 rounded-md z-20 w-40">
+        <text className="text-xs text-white">Query: {searchQuery}</text>
+        <text className="text-xs text-white">Searching: {isSearching ? 'Oui' : 'Non'}</text>
+        <text className="text-xs text-white">Loading: {loading ? 'Oui' : 'Non'}</text>
+        <text className="text-xs text-white">Error: {error ? 'Oui' : 'Non'}</text>
+        <text className="text-xs text-white">Results: {data ? 
+          `C:${data.clients?.length || 0} P:${data.projects?.length || 0} M:${data.materials?.length || 0}` 
+          : 'Aucun'}</text>
+      </view>
 
       {isSearching && data && (
         <view className="absolute top-12 left-0 right-0 bg-gray-800 rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
