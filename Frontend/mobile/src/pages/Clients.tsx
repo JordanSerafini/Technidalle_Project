@@ -35,13 +35,15 @@ export function Clients() {
       <view className="bg-white p-4 rounded shadow-md w-full">
         {data && data.length > 0 ? (
           data.map((client: Client) => (
-            <view key={client.id} className="mb-2 p-2 border-b">
-              <text className="font-medium">{client.company_name}</text>
-              <text className="font-medium">{client.lastname} {client.firstname}</text>
-              <view className="flex flex-row">
-                <text className="text-gray-600">{client.phone}</text>
-                <text className="text-gray-600">{client.mobile}</text>
+            <view key={client.id} className="mb-2 p-2 border-b ">
+              <view className="flex flex-row w-full justify-between">
+                <text className={`font-medium ${client.company_name == "Particulier" ? ' text-green-800' : 'text-blue-900'}`}>{client.company_name}</text>
+                <text className="font-medium">{client.lastname} {client.firstname}</text>
               </view>
+              <view className="flex flex-row">
+                {client.mobile ? <text className="text-gray-600">{client.mobile}</text> : <text className="text-gray-600">{client.phone}</text>}
+
+               </view>
             </view>
           ))
         ) : (
