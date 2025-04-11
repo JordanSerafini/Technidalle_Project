@@ -10,6 +10,7 @@ import {
   Put,
   HttpException,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
@@ -33,7 +34,11 @@ export class ProjectsController {
   ) {}
 
   @Get()
-  async getAllProjects(): Promise<Project[]> {
+  async getAllProjects(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('searchQuery') searchQuery?: string,
+  ): Promise<Project[]> {
     if (!this.projectsService) {
       throw new HttpException(
         'Service non disponible',
@@ -42,7 +47,14 @@ export class ProjectsController {
     }
     try {
       return await firstValueFrom(
-        this.projectsService.send({ cmd: 'get_all_projects' }, {}),
+        this.projectsService.send(
+          { cmd: 'get_all_projects' },
+          {
+            limit: limit ? Number(limit) : undefined,
+            offset: offset ? Number(offset) : undefined,
+            searchQuery,
+          },
+        ),
       );
     } catch (error) {
       console.error('Erreur lors de la récupération des projets:', error);

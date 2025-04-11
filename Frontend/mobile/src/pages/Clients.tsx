@@ -5,6 +5,7 @@ import type { Client } from '../utils/interfaces/client.interface.js';
 export function Clients() {
   const { data, loading, error } = useFetch<Client[]>('clients', {
     method: 'GET',
+    limit: 5,
     headers: {
       'Accept': 'application/json',
       'Cache-Control': 'no-cache',

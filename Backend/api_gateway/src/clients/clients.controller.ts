@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
@@ -28,9 +29,16 @@ export class ClientsController {
   ) {}
 
   @Get()
-  async getAllClients(): Promise<Client[]> {
+  async getAllClients(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('searchQuery') searchQuery?: string,
+  ): Promise<Client[]> {
     return await firstValueFrom(
-      this.clientsService.send({ cmd: 'get_all_clients' }, {}),
+      this.clientsService.send(
+        { cmd: 'get_all_clients' },
+        { limit: limit ? Number(limit) : undefined, offset: offset ? Number(offset) : undefined, searchQuery },
+      ),
     );
   }
 
