@@ -6,7 +6,7 @@ import { Planning } from './pages/Planning.js'
 import { Clients } from './pages/Clients.js'
 import { Projets } from './pages/Projets.js'
 import { Documents } from './pages/Documents.js'
-import { Navigation } from './components/Navigation.js'
+import { Navigation } from './components/Nav/Navigation.jsx'
 
 export function App() {
   const { currentPage } = useNavigationStore()
