@@ -9,6 +9,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
@@ -34,7 +35,11 @@ export class ResourcesController {
 
   /* Materials Endpoints */
   @Get('materials')
-  async getAllMaterials(): Promise<Material[]> {
+  async getAllMaterials(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('searchQuery') searchQuery?: string,
+  ): Promise<Material[]> {
     if (!this.resourcesService) {
       throw new HttpException(
         'Service non disponible',
@@ -43,7 +48,14 @@ export class ResourcesController {
     }
     try {
       return await firstValueFrom(
-        this.resourcesService.send({ cmd: 'get_all_materials' }, {}),
+        this.resourcesService.send(
+          { cmd: 'get_all_materials' },
+          {
+            limit: limit ? Number(limit) : undefined,
+            offset: offset ? Number(offset) : undefined,
+            searchQuery,
+          },
+        ),
       );
     } catch (error) {
       console.error('Erreur lors de la récupération des matériaux:', error);
@@ -129,12 +141,20 @@ export class ResourcesController {
   @Get('projects/:id/materials')
   async getProjectMaterials(
     @Param('id') id: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('searchQuery') searchQuery?: string,
   ): Promise<ProjectMaterial[]> {
     try {
       return await firstValueFrom(
         this.resourcesService.send(
           { cmd: 'get_project_materials' },
-          { projectId: id },
+          {
+            projectId: id,
+            limit: limit ? Number(limit) : undefined,
+            offset: offset ? Number(offset) : undefined,
+            searchQuery,
+          },
         ),
       );
     } catch (error) {

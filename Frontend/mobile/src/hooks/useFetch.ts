@@ -10,28 +10,12 @@ interface FetchOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: HeadersInit;
   body?: any;
+  limit?: number;
+  offset?: number;
+  searchQuery?: string;
 }
 
 const API_BASE_URL = 'http://192.168.20.200:3000/';
-
-// Fonction pour vérifier la connexion
-const checkConnection = async (url: string): Promise<boolean> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const response = await fetch(url, { 
-      method: 'HEAD',
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch (error) {
-    console.error('Erreur de vérification de connexion:', error);
-    return false;
-  }
-};
 
 export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
   const [state, setState] = useState<FetchState<T>>({
@@ -48,8 +32,40 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
       try {
         setState(prev => ({ ...prev, loading: true, error: null }));
 
-        const url = `${API_BASE_URL}${endpoint}`;
-        console.log('Tentative de connexion à:', url);
+        // Construire l'URL de base
+        let url = `${API_BASE_URL}${endpoint}`;
+
+        // Construire l'objet de paramètres
+        const params: Record<string, string> = {};
+        
+        // Ajouter les paramètres de pagination et recherche
+        if (options.limit !== undefined) {
+          params.limit = String(options.limit);
+        } else {
+          params.limit = '10'; // Limite par défaut
+        }
+        
+        if (options.offset !== undefined) {
+          params.offset = String(options.offset);
+        }
+        
+        if (options.searchQuery) {
+          params.searchQuery = options.searchQuery;
+        }
+
+        // Conversion des paramètres en chaîne de requête
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          queryParams.append(key, value);
+        });
+
+        const queryString = queryParams.toString();
+        if (queryString) {
+          url += `?${queryString}`;
+        }
+
+        console.log('Fetch URL avec paramètres:', url);
+        console.log('Params envoyés:', params);
 
         const requestOptions: RequestInit = {
           method: options.method || 'GET',
@@ -73,6 +89,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
         }
 
         const data = await response.json();
+        console.log('Données reçues:', data.length || 'Pas un tableau ou vide');
         
         if (isMounted) {
           setState({
@@ -99,7 +116,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
       isMounted = false;
       controller.abort();
     };
-  }, [endpoint, options.method]);
+  }, [endpoint, options.method, options.limit, options.offset, options.searchQuery]);
 
   return state;
 } 
