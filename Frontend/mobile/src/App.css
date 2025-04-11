@@ -8,12 +8,3 @@
   --color-text: #fff;
 }
 
-/* Styles spécifiques à l'application */
-.rounded {
-  border-radius: 8px;
-}
-
-.p-4 {
-  padding: 16px;
-}
-

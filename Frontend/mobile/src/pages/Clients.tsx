@@ -1,10 +1,6 @@
 import { useFetch } from '../hooks/useFetch.js';
+import type { Client } from '../utils/interfaces/client.interface.js';
 
-interface Client {
-  id: number;
-  nom: string;
-  email: string;
-}
 
 export function Clients() {
   const { data, loading, error } = useFetch<Client[]>('clients', {
@@ -31,7 +27,6 @@ export function Clients() {
     );
   }
   
-  console.log("Données des clients:", JSON.stringify(data, null, 2));
 
   return (
     <view style={{ width: '100%', height: '100%' }} className="flex flex-col items-center p-4">
@@ -40,7 +35,7 @@ export function Clients() {
         {data && data.length > 0 ? (
           data.map((client: Client) => (
             <view key={client.id} className="mb-2 p-2 border-b">
-              <text className="font-medium">{client.nom}</text>
+              <text className="font-medium">{client.lastname} {client.firstname}</text>
               <text className="text-gray-600">{client.email}</text>
             </view>
           ))
