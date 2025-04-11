@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:15
+    container_name: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,48 +14,84 @@ services:
       - ./Database/seed_db_part1.sql:/docker-entrypoint-initdb.d/seed_db_part1.sql
       - ./Database/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
       - ./Database/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
-
-  api-gateway:
-    build:
-      context: ./Backend/api_gateway
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
-    depends_on:
-      - postgres
-
-  client:
-    build:
-      context: ./Backend/clients_service
-      dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
-    depends_on:
-      - api-gateway
-
-  projects:
-    build:
-      context: ./Backend/projects_service
-      dockerfile: Dockerfile
-    ports:
-      - "3003:3003"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
-    depends_on:
-      - postgres
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   resources:
     build:
       context: ./Backend/resources_service
       dockerfile: Dockerfile
+    container_name: resources
     ports:
       - "3005:3005"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - PORT=3005
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  projects:
+    build:
+      context: ./Backend/projects_service
+      dockerfile: Dockerfile
+    container_name: projects
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  client:
+    build:
+      context: ./Backend/clients_service
+      dockerfile: Dockerfile
+    container_name: client
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  api-gateway:
+    build:
+      context: ./Backend/api_gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      resources:
+        condition: service_started
+      projects:
+        condition: service_started
+      client:
+        condition: service_started
+    networks:
+      - app-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:

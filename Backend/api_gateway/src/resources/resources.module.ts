@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import {
+  ClientsModule as NestClientsModule,
+  Transport,
+} from '@nestjs/microservices';
 import { ResourcesController } from './resources.controller';
 
 @Module({
   imports: [
-    ClientsModule.register([
+    NestClientsModule.register([
       {
         name: 'RESOURCES_SERVICE',
         transport: Transport.TCP,
