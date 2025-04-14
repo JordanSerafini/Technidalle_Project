@@ -10,6 +10,6 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3003
+EXPOSE 3004
 
 CMD npx prisma generate && npm run start:dev 
