@@ -46,11 +46,12 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
           ) : error ? (
             <Text className="text-red-500">Erreur lors du chargement des documents</Text>
           ) : documents && documents.length > 0 ? (
-            <View className="w-full">
+            <View className="w-full ">
               {documents.map((doc, index) => (
                 <TouchableOpacity 
                   key={index}
-                  className="flex-row items-center mb-3 w-full"
+                  className="flex-row items-center w-full"
+                  style={{ marginBottom: 10 }}
                   onPress={() => onDocumentPress(doc.file_path || undefined)}
                 >
                   <MaterialCommunityIcons 

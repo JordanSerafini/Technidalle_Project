@@ -62,9 +62,6 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
   onToggle,
   onProjectPress
 }) => {
-  // Debug des statuts des projets
-  console.log('Projets:', projects?.map(p => ({ id: p.id, name: p.name, status: p.status })));
-  console.log('project_status enum:', project_status);
   
   // Fonction pour obtenir les styles selon le statut
   const getStatusStyles = (status: string | undefined) => {
@@ -116,15 +113,6 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
           ) : projects && projects.length > 0 ? (
             <View className="w-full">
               {projects.map((project: Project) => {
-                // Debug du statut de chaque projet
-                console.log(`Projet ${project.id} (${project.name}): status="${project.status}", comparaison avec enum:`, 
-                  {
-                    'project.status === project_status.en_cours': project.status === project_status.en_cours,
-                    'project.status === project_status.termine': project.status === project_status.termine,
-                    'project.status === project_status.prospect': project.status === project_status.prospect
-                  }
-                );
-                
                 // Détermine les styles pour le statut
                 const statusStyles = getStatusStyles(project.status);
                 const statusText = getStatusText(project.status);
@@ -132,7 +120,8 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
                 return (
                   <TouchableOpacity 
                     key={project.id}
-                    className="flex-row items-center mb-3 w-full"
+                    className="flex-row items-center w-full"
+                    style={{ marginBottom: 10 }}
                     onPress={() => onProjectPress(project.id)}
                   >
                     <MaterialCommunityIcons name="home-variant" size={24} color="#2563eb" />
