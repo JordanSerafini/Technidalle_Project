@@ -17,6 +17,13 @@ export enum DocumentStatus {
   ANNULE = 'annule',
 }
 
+export enum MediaType {
+  PHOTO = 'photo',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  DOCUMENT = 'document',
+}
+
 export interface Document {
   id: number;
   project_id: number;
@@ -34,6 +41,23 @@ export interface Document {
   file_path: string | null;
   created_at: Date | null;
   updated_at: Date | null;
+}
+
+export interface ProjectMedia {
+  id: number;
+  project_id: number | null;
+  stage_id: number | null;
+  staff_id: number | null;
+  media_type: string | null;
+  file_path: string;
+  description: string | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+  synced_at: Date | null;
+  synced_by_device_id: string | null;
+  projects?: any;
+  staff?: any;
+  project_stages?: any;
 }
 
 export interface CreateDocumentDto {
@@ -66,4 +90,22 @@ export interface UpdateDocumentDto {
   payment_method?: string | null;
   notes?: string | null;
   file_path?: string | null;
+}
+
+export interface CreateProjectMediaDto {
+  project_id?: number | null;
+  stage_id?: number | null;
+  staff_id?: number | null;
+  media_type?: string | null;
+  file_path: string;
+  description?: string | null;
+}
+
+export interface UpdateProjectMediaDto {
+  project_id?: number | null;
+  stage_id?: number | null;
+  staff_id?: number | null;
+  media_type?: string | null;
+  file_path?: string;
+  description?: string | null;
 }
