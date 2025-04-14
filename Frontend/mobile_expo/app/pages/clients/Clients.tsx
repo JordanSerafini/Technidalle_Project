@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Linking, Alert } from 'react-native';
-import { useFetch } from '../hooks/useFetch';
-import { Client } from '../utils/interfaces/client.interface';
+import { useFetch } from '../../hooks/useFetch';
+import { Client } from '../../utils/interfaces/client.interface';
 import { Ionicons } from '@expo/vector-icons';
+import { useClientsStore } from '../../store/clientsStore';
+import { useRouter } from 'expo-router';
 
 export function Clients() {
+  const router = useRouter();
+  const { clients, setClients, setSelectedClient } = useClientsStore();
   const { data, loading, error } = useFetch<Client[]>('clients', { limit: 20 });
   const [showPhoneModal, setShowPhoneModal] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedClientForModal, setSelectedClientForModal] = useState<Client | null>(null);
+
+  // Stocker les données dans le store une fois chargées
+  useEffect(() => {
+    if (data && !loading) {
+      setClients(data);
+    }
+  }, [data, loading, setClients]);
 
   // Log de l'état de chargement
   if (loading) {
@@ -28,8 +39,11 @@ export function Clients() {
     );
   }
 
-  const handlePhonePress = (client: Client) => {
-    setSelectedClient(client);
+  const handlePhonePress = (client: Client, event: any) => {
+    // Empêcher la propagation pour éviter de naviguer vers le détail
+    event.stopPropagation();
+    
+    setSelectedClientForModal(client);
     
     if (client.phone && client.mobile) {
       setShowPhoneModal(true);
@@ -47,8 +61,23 @@ export function Clients() {
     setShowPhoneModal(false);
   };
 
-  const handleEmailPress = (email: string) => {
+  const handleEmailPress = (email: string, event: any) => {
+    // Empêcher la propagation pour éviter de naviguer vers le détail
+    event.stopPropagation();
+    
     Linking.openURL(`mailto:${email}`);
+  };
+
+  const navigateToClientDetail = (client: Client) => {
+    // Stockage du client dans le store global
+    setSelectedClient(client);
+    
+    try {
+      router.push('/pages/clients/ClientDetailRedirect');
+    } catch (error) {
+      console.error('Erreur de navigation:', error);
+      router.push('/pages/clients/ClientDetail');
+    }
   };
 
   return (
@@ -56,9 +85,13 @@ export function Clients() {
      
       <ScrollView className="w-full">
         <View className="bg-white p-4 rounded shadow w-full">
-          {data && data.length > 0 ? (
-            data.map((client: Client) => (
-              <View key={client.id} className="flex flex-row justify-between w-full mb-2 p-2 border-b ">
+          {clients && clients.length > 0 ? (
+            clients.map((client: Client) => (
+              <TouchableOpacity 
+                key={client.id} 
+                onPress={() => navigateToClientDetail(client)}
+                className="flex flex-row justify-between w-full mb-2 p-2 border-b"
+              >
                 {/* Nom et société */}
                 <View className="flex-col gap-y-1">
                   <Text className="font-bold text-blue-900">
@@ -71,17 +104,17 @@ export function Clients() {
                 {/* Boutons pour appeler et envoyer un email */}
                 <View className="flex-row gap-x-3">
                   {(client.phone || client.mobile) && (
-                    <TouchableOpacity onPress={() => handlePhonePress(client)}>
+                    <TouchableOpacity onPress={(e) => handlePhonePress(client, e)}>
                       <Ionicons name="call-outline" size={24} color="#2563eb" />
                     </TouchableOpacity>
                   )}
                   {client.email && (
-                    <TouchableOpacity onPress={() => handleEmailPress(client.email)}>
+                    <TouchableOpacity onPress={(e) => handleEmailPress(client.email, e)}>
                       <Ionicons name="mail-outline" size={24} color="#2563eb" />
                     </TouchableOpacity>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           ) : (
             <Text className="text-gray-500">Aucun client trouvé</Text>
@@ -100,23 +133,23 @@ export function Clients() {
           <View className="bg-white rounded-lg p-4 w-80">
             <Text className="text-lg font-bold mb-4 text-center">Choisir un numéro</Text>
             
-            {selectedClient?.phone && (
+            {selectedClientForModal?.phone && (
               <TouchableOpacity 
                 className="flex-row items-center p-3 border-b border-gray-200"
-                onPress={() => handleCall(selectedClient.phone || '')}
+                onPress={() => handleCall(selectedClientForModal.phone || '')}
               >
                 <Ionicons name="call-outline" size={24} color="#2563eb" />
-                <Text className="ml-3">{selectedClient.phone} (Fixe)</Text>
+                <Text className="ml-3">{selectedClientForModal.phone} (Fixe)</Text>
               </TouchableOpacity>
             )}
             
-            {selectedClient?.mobile && (
+            {selectedClientForModal?.mobile && (
               <TouchableOpacity 
                 className="flex-row items-center p-3"
-                onPress={() => handleCall(selectedClient.mobile || '')}
+                onPress={() => handleCall(selectedClientForModal.mobile || '')}
               >
                 <Ionicons name="phone-portrait-outline" size={24} color="#2563eb" />
-                <Text className="ml-3">{selectedClient.mobile} (Mobile)</Text>
+                <Text className="ml-3">{selectedClientForModal.mobile} (Mobile)</Text>
               </TouchableOpacity>
             )}
             

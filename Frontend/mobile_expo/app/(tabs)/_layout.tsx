@@ -62,7 +62,7 @@ export default function TabLayout() {
         options={{
           title: 'Recherche',
           tabBarIcon: ({ color }) => <Text style={{ color }}>🔍</Text>,
-          tabBarButton: () => null, // Cache cet onglet dans la barre d'onglets
+          tabBarButton: () => null,
         }}
       />
     </Tabs>
