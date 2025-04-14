@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { project_status } from '../../utils/interfaces/project.interface';
 import { useProjectStore } from '../../store/projectStore';
 
@@ -27,6 +26,145 @@ const statusColors: Record<project_status, string> = {
   annule: '#F44336'
 };
 
+// Fonction utilitaire pour formater les dates
+const formatDate = (date: Date | null): string => {
+    if (!date) return 'Non défini';
+    return date.toLocaleDateString('fr-FR');
+};
+
+// Composant de sélection de date personnalisé
+const CustomDatePicker = ({ 
+  visible, 
+  setVisible, 
+  onSelect, 
+  currentDate 
+}: { 
+  visible: boolean; 
+  setVisible: (visible: boolean) => void;
+  onSelect: (date: Date) => void;
+  currentDate: Date | null;
+}) => {
+  const [selectedYear, setSelectedYear] = useState(currentDate?.getFullYear() || new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate?.getMonth() || new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState(currentDate?.getDate() || new Date().getDate());
+  
+  const months = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+  
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
+  
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+  
+  const days = Array.from({ length: getDaysInMonth(selectedYear, selectedMonth) }, (_, i) => i + 1);
+  
+  const handleSelect = () => {
+    const date = new Date(selectedYear, selectedMonth, selectedDay);
+    onSelect(date);
+    setVisible(false);
+  };
+  
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="slide"
+      onRequestClose={() => setVisible(false)}
+    >
+      <View className="flex-1 justify-center items-center bg-black bg-opacity-50">
+        <View className="w-4/5 bg-white rounded-lg p-4">
+          <Text className="text-lg font-bold text-center mb-4">Sélectionner une date</Text>
+          
+          {/* Mois */}
+          <View className="mb-4">
+            <Text className="text-gray-700 mb-2">Mois</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row">
+                {months.map((month, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => setSelectedMonth(index)}
+                    className={`mr-2 px-3 py-2 rounded-full ${
+                      selectedMonth === index ? 'bg-blue-500' : 'bg-gray-200'
+                    }`}
+                  >
+                    <Text className={selectedMonth === index ? 'text-white' : 'text-gray-700'}>
+                      {month}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+          
+          {/* Jours */}
+          <View className="mb-4">
+            <Text className="text-gray-700 mb-2">Jour</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row flex-wrap">
+                {days.map(day => (
+                  <TouchableOpacity
+                    key={day}
+                    onPress={() => setSelectedDay(day)}
+                    className={`mr-2 mb-2 w-10 h-10 rounded-full items-center justify-center ${
+                      selectedDay === day ? 'bg-blue-500' : 'bg-gray-200'
+                    }`}
+                  >
+                    <Text className={selectedDay === day ? 'text-white' : 'text-gray-700'}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+          
+          {/* Années */}
+          <View className="mb-4">
+            <Text className="text-gray-700 mb-2">Année</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row">
+                {years.map(year => (
+                  <TouchableOpacity
+                    key={year}
+                    onPress={() => setSelectedYear(year)}
+                    className={`mr-2 px-3 py-2 rounded-full ${
+                      selectedYear === year ? 'bg-blue-500' : 'bg-gray-200'
+                    }`}
+                  >
+                    <Text className={selectedYear === year ? 'text-white' : 'text-gray-700'}>
+                      {year}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+          
+          {/* Boutons d'action */}
+          <View className="flex-row justify-end mt-4">
+            <TouchableOpacity
+              onPress={() => setVisible(false)}
+              className="mr-2 px-4 py-2 bg-gray-300 rounded-lg"
+            >
+              <Text>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSelect}
+              className="px-4 py-2 bg-blue-500 rounded-lg"
+            >
+              <Text className="text-white">Valider</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function ProjectFilter() {
     // Utiliser le store au lieu de l'état local
     const {
@@ -42,12 +180,14 @@ export default function ProjectFilter() {
     const { searchQuery, selectedStatuses, startDate, endDate } = filters;
     
     // États locaux pour les sélecteurs de dates
-    const [showStartDatePicker, setShowStartDatePicker] = React.useState(false);
-    const [showEndDatePicker, setShowEndDatePicker] = React.useState(false);
+    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
-    const formatDate = (date: Date | null) => {
-        if (!date) return 'Non défini';
-        return date.toLocaleDateString('fr-FR');
+    // Gestionnaire pour le bouton Appliquer
+    const handleApplyFilters = () => {
+        // Appliquer les filtres
+        applyFilters();
+        // Le modal sera fermé automatiquement grâce au système d'événements dans projectStore
     };
 
     return (
@@ -108,51 +248,56 @@ export default function ProjectFilter() {
             <View className='mb-6'>
                 <Text className='text-gray-700 font-medium mb-2'>Période</Text>
                 
-                <View className='flex-row justify-between mb-2'>
+                <View className='mb-3'>
+                    <View className='flex-row justify-between mb-1'>
+                        <Text className='text-gray-600'>Date début</Text>
+                        {startDate && (
+                            <TouchableOpacity onPress={() => setStartDate(null)}>
+                                <Text className='text-blue-500'>Effacer</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                     <TouchableOpacity 
                         onPress={() => setShowStartDatePicker(true)}
-                        className='flex-1 mr-2 border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 flex-row items-center'
+                        className='border border-gray-300 rounded-lg px-3 py-3 bg-gray-50 flex-row items-center'
                     >
                         <Ionicons name="calendar-outline" size={20} color="#666" />
-                        <Text className='ml-2 text-gray-700'>{startDate ? formatDate(startDate) : 'Date début'}</Text>
+                        <Text className='ml-2 text-gray-700'>{startDate ? formatDate(startDate) : 'Sélectionner une date'}</Text>
                     </TouchableOpacity>
-                    
+                </View>
+                
+                <View>
+                    <View className='flex-row justify-between mb-1'>
+                        <Text className='text-gray-600'>Date fin</Text>
+                        {endDate && (
+                            <TouchableOpacity onPress={() => setEndDate(null)}>
+                                <Text className='text-blue-500'>Effacer</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                     <TouchableOpacity 
                         onPress={() => setShowEndDatePicker(true)}
-                        className='flex-1 ml-2 border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 flex-row items-center'
+                        className='border border-gray-300 rounded-lg px-3 py-3 bg-gray-50 flex-row items-center'
                     >
                         <Ionicons name="calendar-outline" size={20} color="#666" />
-                        <Text className='ml-2 text-gray-700'>{endDate ? formatDate(endDate) : 'Date fin'}</Text>
+                        <Text className='ml-2 text-gray-700'>{endDate ? formatDate(endDate) : 'Sélectionner une date'}</Text>
                     </TouchableOpacity>
                 </View>
 
-                {showStartDatePicker && (
-                    <DateTimePicker
-                        value={startDate || new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
-                            setShowStartDatePicker(false);
-                            if (selectedDate) {
-                                setStartDate(selectedDate);
-                            }
-                        }}
-                    />
-                )}
-
-                {showEndDatePicker && (
-                    <DateTimePicker
-                        value={endDate || new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
-                            setShowEndDatePicker(false);
-                            if (selectedDate) {
-                                setEndDate(selectedDate);
-                            }
-                        }}
-                    />
-                )}
+                {/* Custom Date Pickers */}
+                <CustomDatePicker
+                  visible={showStartDatePicker}
+                  setVisible={setShowStartDatePicker}
+                  onSelect={setStartDate}
+                  currentDate={startDate}
+                />
+                
+                <CustomDatePicker
+                  visible={showEndDatePicker}
+                  setVisible={setShowEndDatePicker}
+                  onSelect={setEndDate}
+                  currentDate={endDate}
+                />
             </View>
 
             {/* Boutons d'action */}
@@ -165,7 +310,7 @@ export default function ProjectFilter() {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    onPress={applyFilters}
+                    onPress={handleApplyFilters}
                     className='flex-1 ml-2 py-3 bg-blue-600 rounded-lg items-center'
                 >
                     <Text className='text-white font-medium'>Appliquer</Text>

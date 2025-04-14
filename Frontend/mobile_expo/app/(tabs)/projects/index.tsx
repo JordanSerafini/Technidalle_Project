@@ -38,7 +38,9 @@ export default function ProjetsScreen() {
     setProjects, 
     projects, 
     filteredProjects, 
-    applyFilters 
+    applyFilters,
+    addApplyListener,
+    removeApplyListener
   } = useProjectStore();
   
   // Fetch des projets
@@ -56,6 +58,22 @@ export default function ProjetsScreen() {
       setProjects(data);
     }
   }, [data, setProjects]);
+  
+  // Écouter l'événement d'application des filtres pour fermer automatiquement le modal
+  useEffect(() => {
+    const handleApplyFilters = () => {
+      // Fermer le modal quand les filtres sont appliqués
+      setShowFilter(false);
+    };
+    
+    // Ajouter l'écouteur d'événement
+    addApplyListener(handleApplyFilters);
+    
+    // Nettoyer l'écouteur à la destruction du composant
+    return () => {
+      removeApplyListener(handleApplyFilters);
+    };
+  }, [addApplyListener, removeApplyListener]);
 
   const navigateToProjectDetail = (projectId: number) => {
     if (projectId) {
@@ -64,12 +82,6 @@ export default function ProjetsScreen() {
         params: { id: projectId.toString() }
       });
     }
-  };
-
-  // Fermer le modal de filtre et appliquer les filtres
-  const handleCloseFilter = () => {
-    setShowFilter(false);
-    applyFilters();
   };
 
   if (loading) {
@@ -157,13 +169,13 @@ export default function ProjetsScreen() {
         animationType="slide"
         transparent={true}
         visible={showFilter}
-        onRequestClose={handleCloseFilter}
+        onRequestClose={() => setShowFilter(false)}
       >
         <View className="flex-1 justify-end">
           <View className="bg-white rounded-t-3xl shadow-lg">
             <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
               <Text className="font-bold text-lg">Filtres</Text>
-              <TouchableOpacity onPress={handleCloseFilter}>
+              <TouchableOpacity onPress={() => setShowFilter(false)}>
                 <Ionicons name="close" size={24} color="#000" />
               </TouchableOpacity>
             </View>
