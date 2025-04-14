@@ -12,6 +12,8 @@ export default function ClientDetail() {
   const { selectedClient } = useClientsStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(`/documents/client/${selectedClient?.id}`);
+  console.log(documents);
 
   // Configuration de l'en-tête
   useEffect(() => {

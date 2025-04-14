@@ -139,13 +139,17 @@ export class DocumentsController {
 
   @Get('client/:clientId')
   async getDocumentsByClientId(
-    @Param('clientId') clientId: number,
+    @Param('clientId') clientId: string,
   ): Promise<Document[]> {
     try {
+      const clientIdNumber = parseInt(clientId, 10);
+      if (isNaN(clientIdNumber)) {
+        throw new HttpException('ID client invalide', HttpStatus.BAD_REQUEST);
+      }
       return await firstValueFrom(
         this.documentsService.send(
           { cmd: 'get_documents_by_client_id' },
-          { clientId },
+          { clientId: clientIdNumber },
         ),
       );
     } catch (error) {
@@ -153,6 +157,7 @@ export class DocumentsController {
         `Erreur lors de la récupération des documents du client ${clientId}:`,
         error,
       );
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Erreur lors de la récupération des documents du client',
         HttpStatus.INTERNAL_SERVER_ERROR,
