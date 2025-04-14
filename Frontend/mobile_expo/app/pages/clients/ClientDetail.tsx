@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert, Platform } from 'react-native';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Document } from '@/app/utils/types/document';
 import { useFetch } from '../../hooks/useFetch';
 import { useClientsStore } from '../../store/clientsStore';
@@ -9,13 +9,39 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ClientDetail() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { selectedClient, setSelectedClient } = useClientsStore();
+  const params = useLocalSearchParams<{ id: string }>();
+  const { selectedClient, setSelectedClient, clients, setClients } = useClientsStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Ne faire le fetch que si selectedClient existe
+  // Utiliser l'ID du paramètre d'URL si disponible
+  const clientId = params.id || (selectedClient?.id?.toString() || null);
+  
+  // Charger le client depuis l'API si nécessaire
+  useEffect(() => {
+    if (clientId && !selectedClient) {
+      setLoading(true);
+      fetch(`${process.env.EXPO_PUBLIC_API_URL}/clients/${clientId}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Erreur lors du chargement du client');
+          }
+          return response.json();
+        })
+        .then(data => {
+          setSelectedClient(data);
+          setLoading(false);
+        })
+        .catch(err => {
+          setError(err.message);
+          setLoading(false);
+        });
+    }
+  }, [clientId, selectedClient]);
+  
+  // Ne faire le fetch des documents que si un client est sélectionné
   const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(
-    selectedClient ? `documents/client/${selectedClient.id}` : null
+    clientId ? `documents/client/${clientId}` : null
   );
 
   // États pour gérer l'ouverture/fermeture des sections
@@ -55,16 +81,39 @@ export default function ClientDetail() {
     }
   }, [selectedClient, navigation, router]);
 
-  // Si aucun client n'est sélectionné, retourner à la liste des clients
-  useEffect(() => {
-    if (!selectedClient) {
-      router.navigate('/(tabs)/clients');
-    }
-  }, [selectedClient]);
+  // État de chargement
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text className="mt-4 text-gray-600">Chargement du client...</Text>
+      </View>
+    );
+  }
+
+  // État d'erreur
+  if (error) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text className="text-red-500">Erreur: {error}</Text>
+        <TouchableOpacity 
+          onPress={() => router.navigate('/(tabs)/clients')}
+          className="mt-4 bg-blue-500 p-3 rounded-lg"
+        >
+          <Text className="text-white">Retour à la liste des clients</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Si aucun client n'est sélectionné, ne rien afficher pendant la redirection
   if (!selectedClient) {
-    return null;
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text className="mt-4 text-gray-600">Chargement...</Text>
+      </View>
+    );
   }
 
   const client = selectedClient;
