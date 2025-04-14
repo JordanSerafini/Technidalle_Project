@@ -69,6 +69,7 @@ export default function ClientDetailScreen() {
     if (selectedClient) {
       navigation.setOptions({
         title: `CLI00${selectedClient.id}`,
+        headerShown: true
         // La flèche de retour standard sera utilisée automatiquement
       });
 
