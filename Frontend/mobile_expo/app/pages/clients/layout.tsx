@@ -2,11 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Slot, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigationStore } from '../../store/navigationStore';
 
 export default function ClientsLayout() {
   const router = useRouter();
-  const { setCurrentPage } = useNavigationStore();
 
   return (
     <>
@@ -21,18 +19,14 @@ export default function ClientsLayout() {
           },
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => {
-                console.log("Layout - Clic sur le bouton retour");
-                setCurrentPage('dashboard');
-                console.log("Layout - CurrentPage mis à jour");
-                router.back();
-                console.log("Layout - Navigation back effectuée");
-              }}
+              onPress={() => router.navigate('/(tabs)')}
               style={{ marginLeft: 10, padding: 10 }}
             >
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
           ),
+          headerBackVisible: true,
+          headerBackTitle: 'Retour',
         }}
       >
         <Stack.Screen
@@ -52,12 +46,21 @@ export default function ClientsLayout() {
             ),
           }}
         />
+        
         <Stack.Screen
           name="ClientDetail"
           options={{
             title: '',
             headerBackTitle: 'Retour',
             headerBackVisible: true,
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={() => router.navigate('/(tabs)/clients')}
+                style={{ marginLeft: 10, padding: 10 }}
+              >
+                <Ionicons name="chevron-back" size={24} color="white" />
+              </TouchableOpacity>
+            ),
           }}
         />
       </Stack>

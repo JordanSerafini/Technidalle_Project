@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert, Platform } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { Document } from '@/app/utils/types/document';
 import { useFetch } from '../../hooks/useFetch';
@@ -33,6 +33,11 @@ export default function ClientDetail() {
     }));
   };
 
+  const handleBack = () => {
+    setSelectedClient(null);
+    router.navigate('/(tabs)/clients');
+  };
+
   // Configuration de l'en-tête
   useEffect(() => {
     if (selectedClient) {
@@ -42,16 +47,10 @@ export default function ClientDetail() {
         headerBackVisible: true,
         headerLeft: () => (
           <TouchableOpacity 
-            onPress={() => {
-              console.log("ClientDetail - Clic sur le bouton retour");
-              setSelectedClient(null);
-              console.log("ClientDetail - Client réinitialisé");
-              router.push('/clients');
-              console.log("ClientDetail - Navigation vers /clients effectuée");
-            }}
+            onPress={handleBack}
             style={{ marginLeft: 10, padding: 10 }}
           >
-            <Ionicons name="chevron-back" size={24} color="#2563eb" />
+            <Ionicons name="chevron-back" size={24} color="#000000" />
           </TouchableOpacity>
         )
       });
@@ -63,9 +62,9 @@ export default function ClientDetail() {
 
       return unsubscribe;
     }
-  }, [selectedClient, navigation, router, setSelectedClient]);
+  }, [selectedClient, navigation, router]);
 
-  // Si aucun client n'est sélectionné, rediriger vers la liste des clients
+  // Si aucun client n'est sélectionné, retourner à la liste des clients
   useEffect(() => {
     if (!selectedClient) {
       router.push('/clients');
