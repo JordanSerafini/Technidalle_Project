@@ -43,16 +43,6 @@ export default function ClientDetail() {
     if (selectedClient) {
       navigation.setOptions({
         title: `CLI00${selectedClient.id}`,
-        headerBackTitle: 'Retour',
-        headerBackVisible: true,
-        headerLeft: () => (
-          <TouchableOpacity 
-            onPress={handleBack}
-            style={{ marginLeft: 10, padding: 10 }}
-          >
-            <Ionicons name="chevron-back" size={24} color="#000000" />
-          </TouchableOpacity>
-        )
       });
 
       // Ajouter un listener pour le focus de l'écran

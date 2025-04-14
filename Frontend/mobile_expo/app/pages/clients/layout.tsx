@@ -52,15 +52,6 @@ export default function ClientsLayout() {
           options={{
             title: '',
             headerBackTitle: 'Retour',
-            headerBackVisible: true,
-            headerLeft: () => (
-              <TouchableOpacity 
-                onPress={() => router.navigate('/(tabs)/clients')}
-                style={{ marginLeft: 10, padding: 10 }}
-              >
-                <Ionicons name="chevron-back" size={24} color="white" />
-              </TouchableOpacity>
-            ),
           }}
         />
       </Stack>
