@@ -25,6 +25,19 @@ export class ProjectsController {
     return this.projectsService.getProjectById(data.id);
   }
 
+  @MessagePattern({ cmd: 'get_projects_by_client_id' })
+  async getProjectsByClientId(data: {
+    clientId: number;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.projectsService.getProjectsByClientId(
+      data.clientId,
+      data.limit,
+      data.offset,
+    );
+  }
+
   @MessagePattern({ cmd: 'create_project' })
   async createProject(data: Prisma.projectsCreateInput) {
     return this.projectsService.createProject(data);

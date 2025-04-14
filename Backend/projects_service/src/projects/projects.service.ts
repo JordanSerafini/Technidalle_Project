@@ -45,6 +45,26 @@ export class ProjectsService {
     });
   }
 
+  async getProjectsByClientId(
+    clientId: number,
+    limit?: number,
+    offset?: number,
+  ) {
+    return await this.prisma.projects.findMany({
+      where: { client_id: clientId },
+      include: {
+        project_stages: true,
+        project_tags: {
+          include: {
+            tags: true,
+          },
+        },
+      },
+      skip: offset || 0,
+      take: limit || undefined,
+    });
+  }
+
   async createProject(data: Prisma.projectsCreateInput) {
     return await this.prisma.projects.create({ data });
   }
