@@ -17,8 +17,10 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
   onToggle,
   onDocumentPress
 }) => {
-  const { data: documents, loading, error } = useFetch<Document[]>(`documents/project/${projectId}`);
-  console.log("documents details!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", documents);
+  // Assurez-vous que le projectId est bien converti en nombre
+  const endpoint = `documents/project/${Number(projectId)}`;
+  const { data: documents, loading, error } = useFetch<Document[]>(endpoint);
+  console.log(`Documents pour le projet ${projectId}:`, documents);
 
   // Fonction pour obtenir l'icône selon le type de document
   const getDocumentIcon = (type: string) => {
@@ -31,8 +33,14 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
         return <MaterialIcons name="assignment" size={20} color="#2563eb" />;
       case 'plan': 
         return <MaterialIcons name="architecture" size={20} color="#2563eb" />;
-      case 'photo': 
+      case 'photo_chantier': 
         return <MaterialIcons name="photo" size={20} color="#2563eb" />;
+      case 'bon_de_commande': 
+        return <MaterialIcons name="shopping-cart" size={20} color="#2563eb" />;
+      case 'bon_de_livraison': 
+        return <MaterialIcons name="local-shipping" size={20} color="#2563eb" />;
+      case 'fiche_technique': 
+        return <MaterialIcons name="description" size={20} color="#2563eb" />;
       default: 
         return <MaterialIcons name="insert-drive-file" size={20} color="#2563eb" />;
     }
@@ -44,11 +52,10 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
     
     switch(status.toLowerCase()) {
       case 'brouillon': return { label: 'Brouillon', color: 'bg-gray-500' };
-      case 'envoyé': return { label: 'Envoyé', color: 'bg-blue-500' };
-      case 'accepté': return { label: 'Accepté', color: 'bg-green-500' };
-      case 'refusé': return { label: 'Refusé', color: 'bg-red-500' };
-      case 'payé': return { label: 'Payé', color: 'bg-green-600' };
-      case 'annulé': return { label: 'Annulé', color: 'bg-red-600' };
+      case 'en_attente': return { label: 'En attente', color: 'bg-orange-500' };
+      case 'valide': return { label: 'Validé', color: 'bg-green-500' };
+      case 'refuse': return { label: 'Refusé', color: 'bg-red-500' };
+      case 'annule': return { label: 'Annulé', color: 'bg-red-600' };
       default: return { label: status, color: 'bg-gray-400' };
     }
   };
