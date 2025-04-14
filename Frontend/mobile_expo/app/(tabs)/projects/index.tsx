@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Animated } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
@@ -32,6 +32,29 @@ const statusColors: Record<project_status, string> = {
 export default function ProjetsScreen() {
   const router = useRouter();
   const [showFilter, setShowFilter] = useState(false);
+  
+  // Animation pour le slide du modal
+  const slideAnimation = useRef(new Animated.Value(300)).current;
+  
+  // Effet pour animer l'apparition/disparition du modal
+  useEffect(() => {
+    if (showFilter) {
+      // Reset position puis slide up
+      slideAnimation.setValue(300);
+      Animated.spring(slideAnimation, {
+        toValue: 0,
+        useNativeDriver: true,
+        friction: 8,
+      }).start();
+    } else {
+      // Slide down puis fermer
+      Animated.timing(slideAnimation, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showFilter, slideAnimation]);
   
   // Utiliser le projectStore
   const { 
@@ -166,7 +189,7 @@ export default function ProjetsScreen() {
       
       {/* Modal pour les filtres */}
       <Modal
-        animationType="slide"
+        animationType="fade"  
         transparent={true}
         visible={showFilter}
         onRequestClose={() => setShowFilter(false)}
@@ -180,20 +203,26 @@ export default function ProjetsScreen() {
           activeOpacity={1}
           onPress={() => setShowFilter(false)}
         >
-          <TouchableOpacity 
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+          <Animated.View 
+            style={{
+              transform: [{ translateY: slideAnimation }]
+            }}
           >
-            <View className="bg-white rounded-t-3xl shadow-lg">
-              <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-                <Text className="font-bold text-lg">Filtres</Text>
-                <TouchableOpacity onPress={() => setShowFilter(false)}>
-                  <Ionicons name="close" size={24} color="#000" />
-                </TouchableOpacity>
+            <TouchableOpacity 
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View className="bg-white rounded-t-3xl shadow-lg">
+                <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+                  <Text className="font-bold text-lg">Filtres</Text>
+                  <TouchableOpacity onPress={() => setShowFilter(false)}>
+                    <Ionicons name="close" size={24} color="#000" />
+                  </TouchableOpacity>
+                </View>
+                <ProjectFilter />
               </View>
-              <ProjectFilter />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
         </TouchableOpacity>
       </Modal>
     </View>
