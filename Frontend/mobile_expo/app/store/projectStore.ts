@@ -9,6 +9,8 @@ interface ProjectFilters {
   endDate: Date | null;
 }
 
+type ApplyFilterListener = () => void;
+
 interface ProjectState {
   // Données des projets
   projects: Project[];
@@ -17,6 +19,9 @@ interface ProjectState {
   
   // États des filtres
   filters: ProjectFilters;
+  
+  // Écouteurs d'événements
+  applyListeners: ApplyFilterListener[];
   
   // Actions pour les projets
   setProjects: (projects: Project[]) => void;
@@ -30,6 +35,10 @@ interface ProjectState {
   setEndDate: (date: Date | null) => void;
   resetFilters: () => void;
   applyFilters: () => void;
+  
+  // Gestion des événements
+  addApplyListener: (listener: ApplyFilterListener) => void;
+  removeApplyListener: (listener: ApplyFilterListener) => void;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -44,6 +53,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     startDate: null,
     endDate: null,
   },
+  
+  // Écouteurs d'événements
+  applyListeners: [],
   
   // Actions pour les projets
   setProjects: (projects) => {
@@ -92,7 +104,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     filteredProjects: state.projects
   })),
   
-  applyFilters: () => set((state) => {
+  applyFilters: () => {
+    const state = get();
     const { searchQuery, selectedStatuses, startDate, endDate } = state.filters;
     
     let filtered = [...state.projects];
@@ -130,8 +143,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       );
     }
     
-    return { filteredProjects: filtered };
-  }),
+    set({ filteredProjects: filtered });
+    
+    // Notification de tous les écouteurs
+    state.applyListeners.forEach(listener => listener());
+  },
+  
+  // Gestion des événements
+  addApplyListener: (listener) => set((state) => ({
+    applyListeners: [...state.applyListeners, listener]
+  })),
+  
+  removeApplyListener: (listener) => set((state) => ({
+    applyListeners: state.applyListeners.filter(l => l !== listener)
+  })),
 }));
 
 // Export default pour résoudre l'erreur de routing Expo
