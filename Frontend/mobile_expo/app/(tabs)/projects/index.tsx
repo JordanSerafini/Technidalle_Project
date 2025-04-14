@@ -32,11 +32,31 @@ const statusColors: Record<project_status, string> = {
 export default function ProjetsScreen() {
   const router = useRouter();
   const [showFilter, setShowFilter] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false); // État pour contrôler la visibilité du modal
   
   // Animation pour le slide du modal
   const slideAnimation = useRef(new Animated.Value(300)).current;
   
-  // Effet pour animer l'apparition/disparition du modal
+  // Fonction pour ouvrir le modal avec animation
+  const openFilterModal = () => {
+    setModalVisible(true);
+    setShowFilter(true);
+  };
+  
+  // Fonction pour fermer le modal avec animation
+  const closeFilterModal = () => {
+    setShowFilter(false);
+    // On ferme le modal après l'animation
+    Animated.timing(slideAnimation, {
+      toValue: 300,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setModalVisible(false);
+    });
+  };
+  
+  // Effet pour animer l'apparition du modal
   useEffect(() => {
     if (showFilter) {
       // Reset position puis slide up
@@ -45,13 +65,6 @@ export default function ProjetsScreen() {
         toValue: 0,
         useNativeDriver: true,
         friction: 8,
-      }).start();
-    } else {
-      // Slide down puis fermer
-      Animated.timing(slideAnimation, {
-        toValue: 300,
-        duration: 200,
-        useNativeDriver: true,
       }).start();
     }
   }, [showFilter, slideAnimation]);
@@ -86,7 +99,7 @@ export default function ProjetsScreen() {
   useEffect(() => {
     const handleApplyFilters = () => {
       // Fermer le modal quand les filtres sont appliqués
-      setShowFilter(false);
+      closeFilterModal();
     };
     
     // Ajouter l'écouteur d'événement
@@ -181,7 +194,7 @@ export default function ProjetsScreen() {
       
       {/* Bouton de filtre flottant */}
       <TouchableOpacity 
-        onPress={() => setShowFilter(true)}
+        onPress={openFilterModal}
         className="absolute bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow-lg"
       >
         <Ionicons name="settings" size={24} color="#fff" />
@@ -191,8 +204,8 @@ export default function ProjetsScreen() {
       <Modal
         animationType="fade"  
         transparent={true}
-        visible={showFilter}
-        onRequestClose={() => setShowFilter(false)}
+        visible={modalVisible}
+        onRequestClose={closeFilterModal}
       >
         <TouchableOpacity 
           style={{
@@ -201,7 +214,7 @@ export default function ProjetsScreen() {
             backgroundColor: 'rgba(0,0,0,0.5)'
           }}
           activeOpacity={1}
-          onPress={() => setShowFilter(false)}
+          onPress={closeFilterModal}
         >
           <Animated.View 
             style={{
@@ -215,7 +228,7 @@ export default function ProjetsScreen() {
               <View className="bg-white rounded-t-3xl shadow-lg">
                 <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
                   <Text className="font-bold text-lg">Filtres</Text>
-                  <TouchableOpacity onPress={() => setShowFilter(false)}>
+                  <TouchableOpacity onPress={closeFilterModal}>
                     <Ionicons name="close" size={24} color="#000" />
                   </TouchableOpacity>
                 </View>
