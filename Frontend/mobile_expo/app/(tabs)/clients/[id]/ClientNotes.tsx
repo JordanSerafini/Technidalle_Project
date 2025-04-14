@@ -37,7 +37,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({
       {isOpen && (
         <View className="px-4 pb-4 w-full">
           <View className="flex-row w-full">
-            <MaterialIcons name="format-quote" size={20} color="#64748b" style={{alignSelf: 'flex-start'}} />
+            <MaterialIcons name="format-quote" size={20} color="#64748b" className="self-start" />
             <Text className="text-gray-700 ml-2 flex-1">{notes}</Text>
           </View>
         </View>

@@ -7,12 +7,12 @@ import { useClientsStore } from '@/app/store/clientsStore';
 import { Project } from '@/app/utils/interfaces/project.interface';
 
 // Import des composants refactorisés
-import { ClientHeader } from '@/pages/clients/[id]/ClientHeader';
-import { ClientCoordinates } from '@/pages/clients/[id]/ClientCoordinates';
-import { ClientAddress } from '@/pages/clients/[id]/ClientAddress';
-import { ClientProjects } from '@/pages/clients/[id]/ClientProjects';
-import { ClientDocuments } from '@/pages/clients/[id]/ClientDocuments';
-import { ClientNotes } from '@/pages/clients/[id]/ClientNotes';
+import { ClientHeader } from '@/app/(tabs)/clients/[id]/ClientHeader';
+import { ClientCoordinates } from '@/app/(tabs)/clients/[id]/ClientCoordinates';
+import { ClientAddress } from '@/app/(tabs)/clients/[id]/ClientAddress';
+import { ClientProjects } from '@/app/(tabs)/clients/[id]/ClientProjects';
+import { ClientDocuments } from '@/app/(tabs)/clients/[id]/ClientDocuments';
+import { ClientNotes } from '@/app/(tabs)/clients/[id]/ClientNotes';
 
 export default function ClientDetailScreen() {
   const router = useRouter();
