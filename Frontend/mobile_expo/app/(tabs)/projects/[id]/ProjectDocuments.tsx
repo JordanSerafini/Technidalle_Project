@@ -88,7 +88,7 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
       >
         <View className="flex-row items-center">
           <MaterialIcons name="description" size={22} color="#1e40af" className="mr-2" />
-          <Text className="text-lg font-bold ml-2">Documents</Text>
+          <Text className="text-lg font-bold ml-2">Documents {documents?.length}</Text>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
