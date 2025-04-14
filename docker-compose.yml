@@ -68,6 +68,21 @@ services:
     networks:
       - app-network
 
+  documents:
+    build:
+      context: ./Backend/documents_service
+      dockerfile: Dockerfile
+    container_name: documents
+    ports:
+      - "3004:3004"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
   api-gateway:
     build:
       context: ./Backend/api_gateway
@@ -83,6 +98,8 @@ services:
       projects:
         condition: service_started
       client:
+        condition: service_started
+      documents:
         condition: service_started
     networks:
       - app-network
