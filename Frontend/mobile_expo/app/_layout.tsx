@@ -9,6 +9,7 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="components/modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="pages/clients/ClientDetail" options={{ headerShown: true }} />
       </Stack>
       <StatusBar style="auto" />
     </>
