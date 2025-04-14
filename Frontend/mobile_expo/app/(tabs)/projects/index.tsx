@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import ProjectFilter from '../../components/search/project_filter';
+import { useProjectStore } from '../../store/projectStore';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -29,6 +31,17 @@ const statusColors: Record<project_status, string> = {
 
 export default function ProjetsScreen() {
   const router = useRouter();
+  const [showFilter, setShowFilter] = useState(false);
+  
+  // Utiliser le projectStore
+  const { 
+    setProjects, 
+    projects, 
+    filteredProjects, 
+    applyFilters 
+  } = useProjectStore();
+  
+  // Fetch des projets
   const { data, loading, error } = useFetch<Project[]>('projects', {
     method: 'GET',
     headers: {
@@ -37,6 +50,13 @@ export default function ProjetsScreen() {
     }
   });
 
+  // Mettre à jour le store quand les données sont chargées
+  useEffect(() => {
+    if (data) {
+      setProjects(data);
+    }
+  }, [data, setProjects]);
+
   const navigateToProjectDetail = (projectId: number) => {
     if (projectId) {
       router.navigate({
@@ -44,6 +64,12 @@ export default function ProjetsScreen() {
         params: { id: projectId.toString() }
       });
     }
+  };
+
+  // Fermer le modal de filtre et appliquer les filtres
+  const handleCloseFilter = () => {
+    setShowFilter(false);
+    applyFilters();
   };
 
   if (loading) {
@@ -68,8 +94,8 @@ export default function ProjetsScreen() {
       <ScrollView 
         className="flex-1 px-4 pt-2"
       >
-        {data && data.length > 0 ? (
-          data.map((projet: Project) => (
+        {filteredProjects && filteredProjects.length > 0 ? (
+          filteredProjects.map((projet: Project) => (
             <TouchableOpacity 
               key={projet.id} 
               className="bg-white p-4 rounded-lg shadow-sm mb-4"
@@ -117,6 +143,34 @@ export default function ProjetsScreen() {
           </View>
         )}
       </ScrollView>
+      
+      {/* Bouton de filtre flottant */}
+      <TouchableOpacity 
+        onPress={() => setShowFilter(true)}
+        className="absolute bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow-lg"
+      >
+        <Ionicons name="settings" size={24} color="#fff" />
+      </TouchableOpacity>
+      
+      {/* Modal pour les filtres */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showFilter}
+        onRequestClose={handleCloseFilter}
+      >
+        <View className="flex-1 justify-end">
+          <View className="bg-white rounded-t-3xl shadow-lg">
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <Text className="font-bold text-lg">Filtres</Text>
+              <TouchableOpacity onPress={handleCloseFilter}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            <ProjectFilter />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
