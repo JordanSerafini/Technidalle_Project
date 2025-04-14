@@ -21,14 +21,16 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
   onDocumentPress
 }) => {
   return (
-    <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
+    <View className="bg-white rounded-lg shadow-sm w-full mb-4">
       <TouchableOpacity 
-        className="flex-row justify-between items-center w-full mb-4"
+        className="p-3 flex-row justify-between items-center w-full"
         onPress={onToggle}
       >
         <View className="flex-row items-center">
-          <MaterialIcons name="folder" size={24} color="#1e40af" />
-          <Text className="text-lg font-semibold text-blue-900 ml-2">Documents</Text>
+          <View className="w-8 h-8 flex items-center justify-center">
+            <MaterialIcons name="folder" size={24} color="#1e40af" />
+          </View>
+          <Text className="text-lg font-semibold text-blue-900 ml-3">Documents</Text>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
@@ -38,13 +40,13 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
       </TouchableOpacity>
       
       {isOpen && (
-        <>
+        <View className="px-4 pb-4 w-full">
           {isLoading ? (
             <ActivityIndicator size="large" color="#2563eb" />
           ) : error ? (
             <Text className="text-red-500">Erreur lors du chargement des documents</Text>
           ) : documents && documents.length > 0 ? (
-            <>
+            <View className="w-full">
               {documents.map((doc, index) => (
                 <TouchableOpacity 
                   key={index}
@@ -67,14 +69,14 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
                   <MaterialIcons name="file-download" size={24} color="#2563eb" />
                 </TouchableOpacity>
               ))}
-            </>
+            </View>
           ) : (
             <View className="flex-row items-center">
               <MaterialIcons name="info-outline" size={20} color="#64748b" />
               <Text className="text-gray-500 ml-2">Aucun document disponible</Text>
             </View>
           )}
-        </>
+        </View>
       )}
     </View>
   );
