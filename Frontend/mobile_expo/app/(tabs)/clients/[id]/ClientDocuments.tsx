@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Document } from '@/app/utils/types/document';
+import { Document } from '@/app/utils/interfaces/document';
 
 interface ClientDocumentsProps {
   documents?: Document[];

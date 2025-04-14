@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, TouchableOpacity, Text, Linking, Alert } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
-import { Document } from '@/app/utils/types/document';
+import { Document } from '@/app/utils/interfaces/document';
 import useFetch from '@/app/hooks/useFetch';
 import { useClientsStore } from '@/app/store/clientsStore';
 import { Project } from '@/app/utils/interfaces/project.interface';
