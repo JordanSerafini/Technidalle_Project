@@ -6,7 +6,6 @@ import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import des composants refactorisés
-import { ProjectHeader } from './ProjectHeader';
 import { ProjectInfo } from './ProjectInfo';
 import { ProjectClient } from './ProjectClient';
 import { ProjectAddress } from './ProjectAddress';
@@ -18,27 +17,6 @@ import { ProjectMaterials } from './ProjectMaterials';
 import { ProjectDocuments } from './ProjectDocuments';
 import { ProjectMedia } from './ProjectMedia';
 
-const statusLabels: Record<project_status, string> = {
-  prospect: 'Prospect',
-  devis_en_cours: 'Devis en cours',
-  devis_accepte: 'Devis accepté',
-  en_preparation: 'En préparation',
-  en_cours: 'En cours',
-  en_pause: 'En pause',
-  termine: 'Terminé',
-  annule: 'Annulé'
-};
-
-const statusColors: Record<project_status, string> = {
-  prospect: '#FFC107',
-  devis_en_cours: '#FF9800',
-  devis_accepte: '#4CAF50',
-  en_preparation: '#2196F3',
-  en_cours: '#3F51B5',
-  en_pause: '#9C27B0',
-  termine: '#4CAF50',
-  annule: '#F44336'
-};
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
