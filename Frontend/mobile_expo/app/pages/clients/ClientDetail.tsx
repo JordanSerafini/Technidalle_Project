@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
-import { Client } from '../../utils/interfaces/client.interface';
-import { Document } from '../../types/document';
+import { Document } from '@/app/utils/types/document';
 import { useFetch } from '../../hooks/useFetch';
 import { useClientsStore } from '../../store/clientsStore';
 import { Ionicons } from '@expo/vector-icons';
