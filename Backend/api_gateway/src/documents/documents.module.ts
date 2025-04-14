@@ -12,7 +12,7 @@ import { DocumentsController } from './documents.controller';
         name: 'DOCUMENTS_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: 'client',
+          host: 'documents',
           port: 3004,
         },
       },
