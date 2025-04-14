@@ -16,6 +16,7 @@ import { ProjectNotes } from './ProjectNotes';
 import { ProjectStaff } from './ProjectStaff';
 import { ProjectMaterials } from './ProjectMaterials';
 import { ProjectDocuments } from './ProjectDocuments';
+import { ProjectMedia } from './ProjectMedia';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -60,7 +61,8 @@ export default function ProjectDetailScreen() {
     notes: false,
     personnel: false,
     materiaux: false,
-    documents: false
+    documents: false,
+    medias: false
   });
 
   const toggleSection = (section: keyof typeof sections) => {
@@ -217,6 +219,13 @@ export default function ProjectDetailScreen() {
           isOpen={sections.documents}
           onToggle={() => toggleSection('documents')}
           onDocumentPress={handleDocumentPress}
+        />
+
+        {/* Médias du projet */}
+        <ProjectMedia
+          projectId={id}
+          isOpen={sections.medias}
+          onToggle={() => toggleSection('medias')}
         />
 
         {/* Tags du projet */}
