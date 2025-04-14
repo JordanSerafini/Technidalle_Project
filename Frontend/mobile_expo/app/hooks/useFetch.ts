@@ -16,8 +16,7 @@ interface FetchOptions {
   searchQuery?: string;
 }
 
-
-export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
+export function useFetch<T>(endpoint: string | null, options: FetchOptions = {}) {
   const [state, setState] = useState<FetchState<T>>({
     data: null,
     loading: true,
@@ -25,8 +24,13 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
   });
 
   useEffect(() => {
-    let isMounted = true;
-    let controller = new AbortController();
+    // Si l'endpoint est null, ne rien faire
+    if (!endpoint) {
+      setState({ data: null, loading: false, error: null });
+      return;
+    }
+
+    const abortController = new AbortController();
 
     const fetchData = async () => {
       try {
@@ -41,8 +45,6 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
         // Ajouter les paramètres de pagination et recherche
         if (options.limit !== undefined) {
           params.limit = String(options.limit);
-        } else {
-          params.limit = '10'; 
         }
         
         if (options.offset !== undefined) {
@@ -75,7 +77,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
             ...(options.method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
             ...(options.headers || {}),
           },
-          signal: controller.signal,
+          signal: abortController.signal,
         };
 
         if (options.body) {
@@ -91,7 +93,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
         const data = await response.json();
         console.log('Données reçues:', data.length || 'Pas un tableau ou vide');
         
-        if (isMounted) {
+        if (!abortController.signal.aborted) {
           setState({
             data,
             loading: false,
@@ -100,7 +102,10 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
         }
       } catch (error) {
         console.error('Erreur de fetch:', error);
-        if (isMounted) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        if (!abortController.signal.aborted) {
           setState({
             data: null,
             loading: false,
@@ -113,8 +118,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
     fetchData();
 
     return () => {
-      isMounted = false;
-      controller.abort();
+      abortController.abort();
     };
   }, [endpoint, options.method, options.limit, options.offset, options.searchQuery]);
 

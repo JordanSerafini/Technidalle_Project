@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { Client } from '../../utils/interfaces/client.interface';
-import { Document } from '@/app/utils/interfaces/document.interface';
+import { Document } from '../../types/document';
 import { useFetch } from '../../hooks/useFetch';
 import { useClientsStore } from '../../store/clientsStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,8 +13,12 @@ export default function ClientDetail() {
   const { selectedClient, setSelectedClient } = useClientsStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(`documents/client/${selectedClient?.id}`);
   
+  // Ne faire le fetch que si selectedClient existe
+  const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(
+    selectedClient ? `documents/client/${selectedClient.id}` : null
+  );
+
   // États pour gérer l'ouverture/fermeture des sections
   const [sections, setSections] = useState({
     coordonnees: false,
@@ -36,34 +40,42 @@ export default function ClientDetail() {
       navigation.setOptions({
         title: `CLI00${selectedClient.id}`,
         headerBackTitle: 'Retour',
+        headerBackVisible: true,
         headerLeft: () => (
           <TouchableOpacity 
             onPress={() => {
+              console.log("ClientDetail - Clic sur le bouton retour");
               setSelectedClient(null);
-              router.back();
+              console.log("ClientDetail - Client réinitialisé");
+              router.push('/clients');
+              console.log("ClientDetail - Navigation vers /clients effectuée");
             }}
-            style={{ marginLeft: 10 }}
+            style={{ marginLeft: 10, padding: 10 }}
           >
-            <Ionicons name="arrow-back" size={24} color="#2563eb" />
+            <Ionicons name="chevron-back" size={24} color="#2563eb" />
           </TouchableOpacity>
         )
       });
+
+      // Ajouter un listener pour le focus de l'écran
+      const unsubscribe = navigation.addListener('beforeRemove', () => {
+        setSelectedClient(null);
+      });
+
+      return unsubscribe;
     }
   }, [selectedClient, navigation, router, setSelectedClient]);
 
-  // Si aucun client n'est sélectionné, afficher un message d'erreur
+  // Si aucun client n'est sélectionné, rediriger vers la liste des clients
+  useEffect(() => {
+    if (!selectedClient) {
+      router.push('/clients');
+    }
+  }, [selectedClient]);
+
+  // Si aucun client n'est sélectionné, ne rien afficher pendant la redirection
   if (!selectedClient) {
-    return (
-      <View className="flex-1 items-center justify-center p-4">
-        <Text className="text-gray-700 text-center text-lg">Client non trouvé</Text>
-        <TouchableOpacity 
-          className="mt-6 bg-blue-500 px-4 py-2 rounded-lg"
-          onPress={() => router.replace('/clients')}
-        >
-          <Text className="text-white font-bold">Retour</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return null;
   }
 
   const client = selectedClient;
