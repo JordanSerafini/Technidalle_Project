@@ -5,7 +5,7 @@ import { Client } from '../utils/interfaces/client.interface';
 import { Ionicons } from '@expo/vector-icons';
 
 export function Clients() {
-  const { data, loading, error } = useFetch<Client[]>('clients', { limit: 10 });
+  const { data, loading, error } = useFetch<Client[]>('clients', { limit: 20 });
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
@@ -53,22 +53,23 @@ export function Clients() {
 
   return (
     <View className="flex-1 p-4">
-
-      
+     
       <ScrollView className="w-full">
         <View className="bg-white p-4 rounded shadow w-full">
           {data && data.length > 0 ? (
             data.map((client: Client) => (
-              <View key={client.id} className="mb-2 p-2 border-b">
-                <View className="flex-row w-full justify-between">
-                  <Text className="font-medium text-blue-900">
-                    {client.company_name}
-                  </Text>
-                  <Text className="font-medium">
+              <View key={client.id} className="flex flex-row justify-between w-full mb-2 p-2 border-b ">
+                {/* Nom et société */}
+                <View className="flex-col gap-y-1">
+                  <Text className="font-bold text-blue-900">
                     {client.firstname} {client.lastname}
                   </Text>
+                  <Text className={`font-thin tracking-wide italic ${client.company_name == "Particulier" ? 'text-green-700' : 'text-blue-700'}`}>
+                    {client.company_name}
+                  </Text>
                 </View>
-                <View className="flex-row justify-start mt-2 space-x-3">
+                {/* Boutons pour appeler et envoyer un email */}
+                <View className="flex-row gap-x-3">
                   {(client.phone || client.mobile) && (
                     <TouchableOpacity onPress={() => handlePhonePress(client)}>
                       <Ionicons name="call-outline" size={24} color="#2563eb" />
