@@ -1,0 +1,186 @@
+type: collection.insomnia.rest/5.0
+name: Technidalle
+meta:
+  id: wrk_2e3f7a11858545e7a90d6239a8b1c9da
+  created: 1744209717323
+  modified: 1744209717323
+collection:
+  - name: Api_Gateway
+    meta:
+      id: fld_f00236f42e7c4118aac796b5be944818
+      created: 1744209735758
+      modified: 1744209735758
+      sortKey: -1744209735758
+    children:
+      - name: Clients
+        meta:
+          id: fld_bd37e15f84d74a67b0964892fcb3e16d
+          created: 1744209773293
+          modified: 1744209773293
+          sortKey: -1744209773293
+        children:
+          - url: http://localhost:3000/clients?limit=1
+            name: GetAll
+            meta:
+              id: req_32218f233d104df0b159bbd5940e96c7
+              created: 1744209775242
+              modified: 1744372199293
+              isPrivate: false
+              sortKey: -1744209775242
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/clients/1
+            name: Get By ID
+            meta:
+              id: req_4498ddd422e24d1c8632d7e40eb04e14
+              created: 1744211228432
+              modified: 1744354542287
+              isPrivate: false
+              sortKey: -1744157281346.5
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Projects
+        meta:
+          id: fld_21daa429c70f46ca9de9af88b8da836b
+          created: 1744209924461
+          modified: 1744209924461
+          sortKey: -1744209924461
+        children:
+          - url: http://localhost:3000/projects?limit=2
+            name: GetAll
+            meta:
+              id: req_9c57999da3c0448f9ad63e7ad631fce6
+              created: 1744209931717
+              modified: 1744363249428
+              isPrivate: false
+              sortKey: -1744209927481
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/projects/5
+            name: Get By ID
+            meta:
+              id: req_cdfb4b977baf42a89083cc9316313165
+              created: 1744211212036
+              modified: 1744211219952
+              isPrivate: false
+              sortKey: -1744209851361.5
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: resources
+        meta:
+          id: fld_6a004a4421424502944cb6ae68147fb7
+          created: 1744212194997
+          modified: 1744212198491
+          sortKey: -1744212194997
+        children:
+          - name: Materials
+            meta:
+              id: fld_4d824f77d2fe47b3a60db46a36206c61
+              created: 1744212238702
+              modified: 1744212238702
+              sortKey: -1744212238702
+            children:
+              - url: http://localhost:3000/resources/materials
+                name: GetAll
+                meta:
+                  id: req_87581dd4cbb04fe28cefa1360cdc81e3
+                  created: 1744212200811
+                  modified: 1744212253923
+                  isPrivate: false
+                  sortKey: -1744212241541
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+      - name: Global
+        meta:
+          id: fld_340f08e73c9d493b8e93525fd95d25fb
+          created: 1744371233092
+          modified: 1744371233092
+          sortKey: -1744371233092
+        children:
+          - url: http://localhost:3000/search?searchQuery=par
+            name: SearchQuery
+            meta:
+              id: req_aa8ef3b2b89e49b3bb118d1e16dcae0b
+              created: 1744371240231
+              modified: 1744373887990
+              isPrivate: false
+              sortKey: -1744371240231
+            method: GET
+            body:
+              mimeType: application/json
+            headers:
+              - name: Content-Type
+                value: application/json
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_a8f99178718112cee4e736750e92ab1045dbb26b
+    created: 1744209717325
+    modified: 1744209717325
+environments:
+  name: Base Environment
+  meta:
+    id: env_a8f99178718112cee4e736750e92ab1045dbb26b
+    created: 1744209717324
+    modified: 1744209717324
+    isPrivate: false
