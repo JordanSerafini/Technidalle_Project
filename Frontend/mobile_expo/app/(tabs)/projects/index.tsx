@@ -171,17 +171,30 @@ export default function ProjetsScreen() {
         visible={showFilter}
         onRequestClose={() => setShowFilter(false)}
       >
-        <View className="flex-1 justify-end">
-          <View className="bg-white rounded-t-3xl shadow-lg">
-            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-              <Text className="font-bold text-lg">Filtres</Text>
-              <TouchableOpacity onPress={() => setShowFilter(false)}>
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
+        <TouchableOpacity 
+          style={{
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.5)'
+          }}
+          activeOpacity={1}
+          onPress={() => setShowFilter(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="bg-white rounded-t-3xl shadow-lg">
+              <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+                <Text className="font-bold text-lg">Filtres</Text>
+                <TouchableOpacity onPress={() => setShowFilter(false)}>
+                  <Ionicons name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <ProjectFilter />
             </View>
-            <ProjectFilter />
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
