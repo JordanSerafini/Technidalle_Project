@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { Client } from '../../utils/interfaces/client.interface';
+import { Document } from '@/app/utils/interfaces/document.interface';
 import { useFetch } from '../../hooks/useFetch';
 import { useClientsStore } from '../../store/clientsStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,21 +10,38 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ClientDetail() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { selectedClient } = useClientsStore();
+  const { selectedClient, setSelectedClient } = useClientsStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(`/documents/client/${selectedClient?.id}`);
-  console.log(documents);
+  const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(`documents/client/${selectedClient?.id}`);
+  
+  // États pour gérer l'ouverture/fermeture des sections
+  const [sections, setSections] = useState({
+    coordonnees: false,
+    adresse: false,
+    documents: false,
+    notes: false
+  });
+
+  const toggleSection = (section: keyof typeof sections) => {
+    setSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   // Configuration de l'en-tête
   useEffect(() => {
     if (selectedClient) {
       navigation.setOptions({
-        title: `${selectedClient.firstname} ${selectedClient.lastname}`,
+        title: `CLI00${selectedClient.id}`,
         headerBackTitle: 'Retour',
         headerLeft: () => (
           <TouchableOpacity 
-            onPress={() => router.replace('/clients')}
+            onPress={() => {
+              setSelectedClient(null);
+              router.back();
+            }}
             style={{ marginLeft: 10 }}
           >
             <Ionicons name="arrow-back" size={24} color="#2563eb" />
@@ -31,7 +49,7 @@ export default function ClientDetail() {
         )
       });
     }
-  }, [selectedClient, navigation, router]);
+  }, [selectedClient, navigation, router, setSelectedClient]);
 
   // Si aucun client n'est sélectionné, afficher un message d'erreur
   if (!selectedClient) {
@@ -40,7 +58,7 @@ export default function ClientDetail() {
         <Text className="text-gray-700 text-center text-lg">Client non trouvé</Text>
         <TouchableOpacity 
           className="mt-6 bg-blue-500 px-4 py-2 rounded-lg"
-          onPress={() => router.back()}
+          onPress={() => router.replace('/clients')}
         >
           <Text className="text-white font-bold">Retour</Text>
         </TouchableOpacity>
@@ -67,7 +85,7 @@ export default function ClientDetail() {
   };
 
   const handleLocation = () => {
-    const address = client.addresses;
+    const address = selectedClient.addresses;
     if (address?.latitude && address?.longitude) {
       const url = `https://maps.google.com/?q=${address.latitude},${address.longitude}`;
       Linking.openURL(url);
@@ -89,85 +107,166 @@ export default function ClientDetail() {
         <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
           <View className="flex-row justify-between items-center mb-2">
             <View>
-              <Text className="text-2xl font-bold text-blue-900">{client.firstname} {client.lastname}</Text>
-              <Text className="text-lg italic text-blue-700">{client.company_name}</Text>
+              <Text className="text-2xl font-bold text-blue-900">{selectedClient.firstname} {selectedClient.lastname}</Text>
+              <Text className="text-lg italic text-blue-700">{selectedClient.company_name}</Text>
             </View>
            
           </View>
           
-          {client.siret && (
-            <Text className="text-gray-600 mb-2">SIRET: {client.siret}</Text>
+          {selectedClient.siret && (
+            <Text className="text-gray-600 mb-2">SIRET: {selectedClient.siret}</Text>
           )}
         </View>
 
         {/* Coordonnées */}
         <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
-          <Text className="text-lg font-semibold mb-4 text-blue-900">Coordonnées</Text>
+          <TouchableOpacity 
+            className="flex-row justify-between items-center w-full mb-4"
+            onPress={() => toggleSection('coordonnees')}
+          >
+            <Text className="text-lg font-semibold text-blue-900">Coordonnées</Text>
+            <Ionicons 
+              name={sections.coordonnees ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#2563eb" 
+            />
+          </TouchableOpacity>
           
-          <View className="mb-3">
-            <TouchableOpacity 
-              className="flex-row items-center" 
-              onPress={() => handleEmail(client.email)}
-            >
-              <Ionicons name="mail-outline" size={24} color="#2563eb" />
-              <Text className="ml-3 text-blue-700">{client.email}</Text>
-            </TouchableOpacity>
-          </View>
+          {sections.coordonnees && (
+            <>
+              <View className="mb-3">
+                <TouchableOpacity 
+                  className="flex-row items-center" 
+                  onPress={() => handleEmail(selectedClient.email)}
+                >
+                  <Ionicons name="mail-outline" size={24} color="#2563eb" />
+                  <Text className="ml-3 text-blue-700">{selectedClient.email}</Text>
+                </TouchableOpacity>
+              </View>
 
-          {client.phone && (
-            <View className="mb-3">
-              <TouchableOpacity 
-                className="flex-row items-center" 
-                onPress={() => handleCall(client.phone)}
-              >
-                <Ionicons name="call-outline" size={24} color="#2563eb" />
-                <Text className="ml-3 text-blue-700">{client.phone} (Fixe)</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+              {selectedClient.phone && (
+                <View className="mb-3">
+                  <TouchableOpacity 
+                    className="flex-row items-center" 
+                    onPress={() => handleCall(selectedClient.phone)}
+                  >
+                    <Ionicons name="call-outline" size={24} color="#2563eb" />
+                    <Text className="ml-3 text-blue-700">{selectedClient.phone} (Fixe)</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-          {client.mobile && (
-            <View className="mb-3">
-              <TouchableOpacity 
-                className="flex-row items-center" 
-                onPress={() => handleCall(client.mobile)}
-              >
-                <Ionicons name="phone-portrait-outline" size={24} color="#2563eb" />
-                <Text className="ml-3 text-blue-700">{client.mobile} (Mobile)</Text>
-              </TouchableOpacity>
-            </View>
+              {selectedClient.mobile && (
+                <View className="mb-3">
+                  <TouchableOpacity 
+                    className="flex-row items-center" 
+                    onPress={() => handleCall(selectedClient.mobile)}
+                  >
+                    <Ionicons name="phone-portrait-outline" size={24} color="#2563eb" />
+                    <Text className="ml-3 text-blue-700">{selectedClient.mobile} (Mobile)</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
           )}
         </View>
 
         {/* Adresse */}
-        {client.addresses && (
+        {selectedClient.addresses && (
           <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
-            <Text className="text-lg font-semibold mb-4 text-blue-900">Adresse</Text>
-            
-            <View className="mb-2">
-              <Text className="text-gray-700">
-                {client.addresses.street_number} {client.addresses.street_name}
-                {client.addresses.additional_address && `, ${client.addresses.additional_address}`}
-              </Text>
-              <Text className="text-gray-700">{client.addresses.zip_code} {client.addresses.city}</Text>
-              {client.addresses.country && <Text className="text-gray-700">{client.addresses.country}</Text>}
-            </View>
-            
             <TouchableOpacity 
-              className="flex-row items-center mt-2" 
-              onPress={handleLocation}
+              className="flex-row justify-between items-center w-full mb-4"
+              onPress={() => toggleSection('adresse')}
             >
-              <Ionicons name="location-outline" size={24} color="#2563eb" />
-              <Text className="ml-3 text-blue-700">Voir sur la carte</Text>
+              <Text className="text-lg font-semibold text-blue-900">Adresse</Text>
+              <Ionicons 
+                name={sections.adresse ? "chevron-up" : "chevron-down"} 
+                size={24} 
+                color="#2563eb" 
+              />
             </TouchableOpacity>
+            
+            {sections.adresse && (
+              <>
+                <View className="mb-2">
+                  <Text className="text-gray-700">
+                    {selectedClient.addresses.street_number} {selectedClient.addresses.street_name}
+                    {selectedClient.addresses.additional_address && `, ${selectedClient.addresses.additional_address}`}
+                  </Text>
+                  <Text className="text-gray-700">{selectedClient.addresses.zip_code} {selectedClient.addresses.city}</Text>
+                  {selectedClient.addresses.country && <Text className="text-gray-700">{selectedClient.addresses.country}</Text>}
+                </View>
+                
+                <TouchableOpacity 
+                  className="flex-row items-center mt-2" 
+                  onPress={handleLocation}
+                >
+                  <Ionicons name="location-outline" size={24} color="#2563eb" />
+                  <Text className="ml-3 text-blue-700">Voir sur la carte</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
 
+        {/* Documents */}
+        <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
+          <TouchableOpacity 
+            className="flex-row justify-between items-center w-full mb-4"
+            onPress={() => toggleSection('documents')}
+          >
+            <Text className="text-lg font-semibold text-blue-900">Documents</Text>
+            <Ionicons 
+              name={sections.documents ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#2563eb" 
+            />
+          </TouchableOpacity>
+          
+          {sections.documents && (
+            <>
+              {isDocumentsLoading ? (
+                <ActivityIndicator size="large" color="#2563eb" />
+              ) : documentsError ? (
+                <Text className="text-red-500">Erreur lors du chargement des documents</Text>
+              ) : documents && documents.length > 0 ? (
+                documents.map((doc, index) => (
+                  <TouchableOpacity 
+                    key={index}
+                    className="flex-row items-center mb-3 w-full"
+                    onPress={() => doc.file_path && Linking.openURL(doc.file_path)}
+                  >
+                    <Ionicons name="document-outline" size={24} color="#2563eb" />
+                    <Text className="ml-3 text-blue-700 flex-1">{doc.reference}</Text>
+                    <Text className="text-gray-500 text-sm mr-2">{doc.type}</Text>
+                    <Ionicons name="download-outline" size={24} color="#2563eb" />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text className="text-gray-500">Aucun document disponible</Text>
+              )}
+            </>
+          )}
+        </View>
+
         {/* Notes */}
-        {client.notes && (
+        {selectedClient.notes && (
           <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
-            <Text className="text-lg font-semibold mb-4 text-blue-900">Notes</Text>
-            <Text className="text-gray-700">{client.notes}</Text>
+            <TouchableOpacity 
+              className="flex-row justify-between items-center w-full mb-4"
+              onPress={() => toggleSection('notes')}
+            >
+              <Text className="text-lg font-semibold text-blue-900">Notes</Text>
+              <Ionicons 
+                name={sections.notes ? "chevron-up" : "chevron-down"} 
+                size={24} 
+                color="#2563eb" 
+              />
+            </TouchableOpacity>
+            
+            {sections.notes && (
+              <Text className="text-gray-700">{selectedClient.notes}</Text>
+            )}
           </View>
         )}
       </View>
