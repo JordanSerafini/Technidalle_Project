@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, Modal, Image, Dimensions } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
 import { Document } from '@/app/utils/interfaces/document';
@@ -17,10 +17,30 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
   onToggle,
   onDocumentPress
 }) => {
+  // État pour le modal d'image
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  
   // Assurez-vous que le projectId est bien converti en nombre
   const endpoint = `documents/project/${Number(projectId)}`;
   const { data: documents, loading, error } = useFetch<Document[]>(endpoint);
   console.log(`Documents pour le projet ${projectId}:`, documents);
+
+  // Dimensions de l'écran pour afficher l'image correctement
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
+
+  // Fonction pour gérer le clic sur un document
+  const handleDocumentPress = (document: Document) => {
+    // Si c'est une photo, on ouvre le modal d'image
+    if (document.type === 'photo_chantier' && document.file_path) {
+      setSelectedDocument(document);
+      setImageModalVisible(true);
+    } else {
+      // Sinon, on utilise le comportement par défaut
+      onDocumentPress(document);
+    }
+  };
 
   // Fonction pour obtenir l'icône selon le type de document
   const getDocumentIcon = (type: string) => {
@@ -77,6 +97,40 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
         />
       </TouchableOpacity>
       
+      {/* Modal pour afficher l'image */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={imageModalVisible}
+        onRequestClose={() => setImageModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/80 justify-center items-center">
+          <TouchableOpacity 
+            className="absolute top-10 right-5 z-10"
+            onPress={() => setImageModalVisible(false)}
+          >
+            <Ionicons name="close-circle" size={40} color="white" />
+          </TouchableOpacity>
+          
+          {selectedDocument && selectedDocument.file_path && (
+            <View className="p-2 bg-white rounded-lg">
+              <Image 
+                source={{ uri: selectedDocument.file_path }} 
+                style={{ 
+                  width: screenWidth * 0.9, 
+                  height: screenHeight * 0.7,
+                  borderRadius: 8 
+                }}
+                resizeMode="contain"
+              />
+              <Text className="text-center mt-2 text-gray-700 font-medium">
+                {selectedDocument.notes || selectedDocument.reference}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Modal>
+      
       {isOpen && (
         <View className="mt-4">
           {loading ? (
@@ -91,7 +145,7 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
                 <TouchableOpacity 
                   key={document.id} 
                   className="flex-row items-center justify-between py-3 border-b border-gray-100"
-                  onPress={() => onDocumentPress(document)}
+                  onPress={() => handleDocumentPress(document)}
                 >
                   <View className="flex-row items-center flex-1">
                     {getDocumentIcon(document.type as string)}
