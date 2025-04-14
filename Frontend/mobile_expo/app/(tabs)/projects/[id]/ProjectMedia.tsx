@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Modal, Image, Dimensions, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Modal, Image, Dimensions } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
 
@@ -63,8 +63,9 @@ export const ProjectMedia: React.FC<ProjectMediaProps> = ({
   };
 
   // Rendu d'un élément média
-  const renderMediaItem = ({ item }: { item: ProjectMedia }) => (
+  const renderMediaItem = (item: ProjectMedia) => (
     <TouchableOpacity 
+      key={item.id.toString()}
       className="w-1/3 p-1"
       onPress={() => handleMediaPress(item)}
     >
@@ -87,6 +88,28 @@ export const ProjectMedia: React.FC<ProjectMediaProps> = ({
     </TouchableOpacity>
   );
 
+  // Composant pour afficher la liste des médias
+  const MediaListContent = () => {
+    if (loading) {
+      return <ActivityIndicator size="small" color="#2563eb" />;
+    }
+    
+    if (error) {
+      return <Text className="text-red-500">Erreur lors du chargement des médias</Text>;
+    }
+    
+    if (!mediaList || mediaList.length === 0) {
+      return <Text className="text-gray-500">Aucun média associé à ce projet</Text>;
+    }
+    
+    // Utiliser un View au lieu de FlatList pour éviter les problèmes de VirtualizedList imbriquées
+    return (
+      <View className="flex-row flex-wrap">
+        {mediaList.map(item => renderMediaItem(item))}
+      </View>
+    );
+  };
+
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
       <TouchableOpacity 
@@ -95,7 +118,7 @@ export const ProjectMedia: React.FC<ProjectMediaProps> = ({
       >
         <View className="flex-row items-center">
           <MaterialIcons name="perm-media" size={22} color="#1e40af" className="mr-2" />
-          <Text className="text-lg font-bold ml-2">Médias</Text>
+          <Text className="text-lg font-bold ml-2">Médias {mediaList && mediaList.length > 0 ? `(${mediaList.length})` : ''}</Text>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
@@ -140,21 +163,7 @@ export const ProjectMedia: React.FC<ProjectMediaProps> = ({
       
       {isOpen && (
         <View className="mt-4">
-          {loading ? (
-            <ActivityIndicator size="small" color="#2563eb" />
-          ) : error ? (
-            <Text className="text-red-500">Erreur lors du chargement des médias</Text>
-          ) : mediaList && mediaList.length > 0 ? (
-            <FlatList
-              data={mediaList}
-              renderItem={renderMediaItem}
-              keyExtractor={(item: ProjectMedia) => item.id.toString()}
-              numColumns={3}
-              columnWrapperStyle={{ justifyContent: 'flex-start' }}
-            />
-          ) : (
-            <Text className="text-gray-500">Aucun média associé à ce projet</Text>
-          )}
+          <MediaListContent />
         </View>
       )}
     </View>

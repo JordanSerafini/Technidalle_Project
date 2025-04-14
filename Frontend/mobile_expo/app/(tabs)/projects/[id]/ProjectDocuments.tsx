@@ -24,7 +24,6 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
   // Assurez-vous que le projectId est bien converti en nombre
   const endpoint = `documents/project/${Number(projectId)}`;
   const { data: documents, loading, error } = useFetch<Document[]>(endpoint);
-  console.log(`Documents pour le projet ${projectId}:`, documents);
 
   // Dimensions de l'écran pour afficher l'image correctement
   const screenWidth = Dimensions.get('window').width;
