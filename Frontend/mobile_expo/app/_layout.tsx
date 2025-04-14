@@ -16,14 +16,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="components/modal" options={{ presentation: 'modal' }} />
-        <Stack.Screen 
-          name="pages/clients/ClientDetail" 
-          options={{ 
-            headerShown: true,
-            headerBackTitle: 'Retour',
-            headerBackVisible: true,
-          }} 
-        />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </>

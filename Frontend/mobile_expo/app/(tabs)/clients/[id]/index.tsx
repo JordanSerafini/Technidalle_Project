@@ -2,20 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert, Platform } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Document } from '@/app/utils/types/document';
-import { useFetch } from '../../hooks/useFetch';
-import { useClientsStore } from '../../store/clientsStore';
 import { Ionicons } from '@expo/vector-icons';
+import useFetch from '@/app/hooks/useFetch';
+import { useClientsStore } from '@/app/store/clientsStore';
 
-export default function ClientDetail() {
+export default function ClientDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { selectedClient, setSelectedClient, clients, setClients } = useClientsStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Utiliser l'ID du paramètre d'URL si disponible
-  const clientId = params.id || (selectedClient?.id?.toString() || null);
+  // Utiliser l'ID du paramètre d'URL
+  const clientId = id || (selectedClient?.id?.toString() || null);
   
   // Charger le client depuis l'API si nécessaire
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function ClientDetail() {
       <View className="flex-1 items-center justify-center">
         <Text className="text-red-500">Erreur: {error}</Text>
         <TouchableOpacity 
-          onPress={() => router.navigate('/(tabs)/clients')}
+          onPress={() => router.navigate('/clients')}
           className="mt-4 bg-blue-500 p-3 rounded-lg"
         >
           <Text className="text-white">Retour à la liste des clients</Text>
@@ -280,7 +280,7 @@ export default function ClientDetail() {
               ) : documentsError ? (
                 <Text className="text-red-500">Erreur lors du chargement des documents</Text>
               ) : documents && documents.length > 0 ? (
-                documents.map((doc, index) => (
+                documents.map((doc: any, index: number) => (
                   <TouchableOpacity 
                     key={index}
                     className="flex-row items-center mb-3 w-full"
@@ -322,4 +322,7 @@ export default function ClientDetail() {
       </View>
     </ScrollView>
   );
-} 
+}
+
+// Spécifier explicitement les propriétés pour le routage Expo
+ClientDetailScreen.displayName = 'ClientDetailScreen'; 
