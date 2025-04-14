@@ -17,7 +17,7 @@ export const ClientHeader: React.FC<ClientHeaderProps> = ({
 }) => {
   return (
     <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
-      <View className="flex-row justify-between items-center mb-2">
+      <View className="flex-row justify-center items-center mb-2 w-full">
         <View className="flex-row items-center">
           <FontAwesome5 name="user-tie" size={28} color="#1e40af" />
           <View className="ml-3">
@@ -28,9 +28,9 @@ export const ClientHeader: React.FC<ClientHeaderProps> = ({
       </View>
       
       {siret && (
-        <View className="flex-row h-fit flex items-center mt-2">
+        <View className="flex-row items-center justify-center mt-2 w-full">
           <MaterialCommunityIcons name="identifier" size={20} color="#64748b" />
-          <Text className="text-gray-600 mb-2 ml-2">SIRET: {siret}</Text>
+          <Text className="text-gray-600 ml-2">SIRET: {siret}</Text>
         </View>
       )}
     </View>

@@ -22,14 +22,16 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
   onPhonePress
 }) => {
   return (
-    <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
+    <View className="bg-white rounded-lg shadow-sm w-full mb-4">
       <TouchableOpacity 
-        className="flex-row justify-between items-center w-full mb-4"
+        className="p-3 flex-row justify-between items-center w-full"
         onPress={onToggle}
       >
         <View className="flex-row items-center">
-          <MaterialIcons name="contact-phone" size={24} color="#1e40af" />
-          <Text className="text-lg font-semibold text-blue-900 ml-2">Coordonnées</Text>
+          <View className="w-8 h-8 flex items-center justify-center">
+            <MaterialIcons name="contact-phone" size={24} color="#1e40af" />
+          </View>
+          <Text className="text-lg font-semibold text-blue-900 ml-3">Coordonnées</Text>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
@@ -39,8 +41,8 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
       </TouchableOpacity>
       
       {isOpen && (
-        <>
-          <View className="mb-3">
+        <View className="px-4 pb-4 w-full flex flex-col gap-2 items-center">
+          <View className="mb-3 w-full items-center">
             <TouchableOpacity 
               className="flex-row items-center" 
               onPress={() => onEmailPress(email)}
@@ -51,7 +53,7 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
           </View>
 
           {phone && (
-            <View className="mb-3">
+            <View className="mb-3 w-full items-center">
               <TouchableOpacity 
                 className="flex-row items-center" 
                 onPress={() => onPhonePress(phone)}
@@ -63,7 +65,7 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
           )}
 
           {mobile && (
-            <View className="mb-3">
+            <View className="mb-3 w-full items-center">
               <TouchableOpacity 
                 className="flex-row items-center" 
                 onPress={() => onPhonePress(mobile)}
@@ -73,7 +75,7 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
               </TouchableOpacity>
             </View>
           )}
-        </>
+        </View>
       )}
     </View>
   );

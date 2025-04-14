@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Project, project_status } from '@/app/utils/interfaces/project.interface';
 
@@ -12,6 +12,48 @@ interface ClientProjectsProps {
   onProjectPress: (projectId: number) => void;
 }
 
+// Définir des styles fixes pour les différents statuts
+const styles = StyleSheet.create({
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  enCoursBackground: {
+    backgroundColor: '#2563eb', // Bleu vif
+  },
+  enCoursText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  termineBackground: {
+    backgroundColor: '#16a34a', // Vert vif
+  },
+  termineText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  prospectBackground: {
+    backgroundColor: '#ca8a04', // Jaune vif
+  },
+  prospectText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  defaultBackground: {
+    backgroundColor: '#6b7280', // Gris
+  },
+  defaultText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
+  }
+});
+
 export const ClientProjects: React.FC<ClientProjectsProps> = ({
   projects,
   isLoading,
@@ -20,15 +62,43 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
   onToggle,
   onProjectPress
 }) => {
+  // Debug des statuts des projets
+  console.log('Projets:', projects?.map(p => ({ id: p.id, name: p.name, status: p.status })));
+  console.log('project_status enum:', project_status);
+  
+  // Fonction pour obtenir les styles selon le statut
+  const getStatusStyles = (status: string | undefined) => {
+    if (status === project_status.en_cours) {
+      return { background: styles.enCoursBackground, text: styles.enCoursText };
+    }
+    if (status === project_status.termine) {
+      return { background: styles.termineBackground, text: styles.termineText };
+    }
+    if (status === project_status.prospect) {
+      return { background: styles.prospectBackground, text: styles.prospectText };
+    }
+    return { background: styles.defaultBackground, text: styles.defaultText };
+  };
+  
+  // Fonction pour obtenir le texte du statut
+  const getStatusText = (status: string | undefined) => {
+    if (status === project_status.en_cours) return 'En cours';
+    if (status === project_status.termine) return 'Terminé';
+    if (status === project_status.prospect) return 'Prospect';
+    return 'Autre';
+  };
+  
   return (
-    <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
+    <View className="bg-white rounded-lg shadow-sm w-full mb-4">
       <TouchableOpacity 
-        className="flex-row justify-between items-center w-full mb-4"
+        className="p-3 flex-row justify-between items-center w-full"
         onPress={onToggle}
       >
         <View className="flex-row items-center">
-          <MaterialCommunityIcons name="home-variant" size={24} color="#1e40af" />
-          <Text className="text-lg font-semibold text-blue-900 ml-2">Chantiers</Text>
+          <View className="w-8 h-8 flex items-center justify-center">
+            <MaterialCommunityIcons name="home-variant" size={24} color="#1e40af" />
+          </View>
+          <Text className="text-lg font-semibold text-blue-900 ml-3">Chantiers</Text>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
@@ -38,38 +108,47 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
       </TouchableOpacity>
       
       {isOpen && (
-        <>
+        <View className="px-4 pb-4 w-full">
           {isLoading ? (
             <ActivityIndicator size="large" color="#2563eb" />
           ) : error ? (
             <Text className="text-red-500">Erreur lors du chargement des chantiers</Text>
           ) : projects && projects.length > 0 ? (
             <View className="w-full">
-              {projects.map((project: Project) => (
-                <TouchableOpacity 
-                  key={project.id}
-                  className="flex-row items-center mb-3 w-full"
-                  onPress={() => onProjectPress(project.id)}
-                >
-                  <MaterialCommunityIcons name="home-variant" size={24} color="#2563eb" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-blue-700">{project.name}</Text>
-                    <Text className="text-gray-500 text-sm">{project.reference}</Text>
-                  </View>
-                  <Text className={`text-xs font-semibold px-2 py-1 rounded-full mr-2 ${
-                    project.status === project_status.en_cours ? 'bg-blue-100 text-blue-800' :
-                    project.status === project_status.termine ? 'bg-green-100 text-green-800' :
-                    project.status === project_status.prospect ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {project.status === project_status.en_cours ? 'En cours' :
-                     project.status === project_status.termine ? 'Terminé' :
-                     project.status === project_status.prospect ? 'Prospect' :
-                     'Autre'}
-                  </Text>
-                  <MaterialIcons name="chevron-right" size={24} color="#9ca3af" />
-                </TouchableOpacity>
-              ))}
+              {projects.map((project: Project) => {
+                // Debug du statut de chaque projet
+                console.log(`Projet ${project.id} (${project.name}): status="${project.status}", comparaison avec enum:`, 
+                  {
+                    'project.status === project_status.en_cours': project.status === project_status.en_cours,
+                    'project.status === project_status.termine': project.status === project_status.termine,
+                    'project.status === project_status.prospect': project.status === project_status.prospect
+                  }
+                );
+                
+                // Détermine les styles pour le statut
+                const statusStyles = getStatusStyles(project.status);
+                const statusText = getStatusText(project.status);
+                
+                return (
+                  <TouchableOpacity 
+                    key={project.id}
+                    className="flex-row items-center mb-3 w-full"
+                    onPress={() => onProjectPress(project.id)}
+                  >
+                    <MaterialCommunityIcons name="home-variant" size={24} color="#2563eb" />
+                    <View className="ml-3 flex-1">
+                      <Text className="text-blue-700">{project.name}</Text>
+                      <Text className="text-gray-500 text-sm">{project.reference}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, statusStyles.background]}>
+                      <Text style={statusStyles.text}>
+                        {statusText}
+                      </Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color="#9ca3af" />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ) : (
             <View className="flex-row items-center">
@@ -77,7 +156,7 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
               <Text className="text-gray-500 ml-2">Aucun chantier disponible</Text>
             </View>
           )}
-        </>
+        </View>
       )}
     </View>
   );
