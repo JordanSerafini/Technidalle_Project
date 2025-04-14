@@ -9,7 +9,18 @@ import {
   CreateAddressDto,
   UpdateAddressDto,
 } from './interfaces/address.interface';
+import { GeocodingResponse } from './interfaces/geocoding.interface';
 import { PrismaService } from './prisma/prisma.service';
+
+// Interface pour les réponses de l'API Nominatim
+interface NominatimResponse {
+  lat: string;
+  lon: string;
+  display_name?: string;
+  class?: string;
+  type?: string;
+  importance?: number;
+}
 
 @Injectable()
 export class AppService {
@@ -215,6 +226,239 @@ export class AppService {
         error,
       );
       return false;
+    }
+  }
+
+  // Geocoding API
+  async geocodeAddress(address: string): Promise<GeocodingResponse> {
+    try {
+      this.logger.log(`Géocodage de l'adresse: ${address}`);
+      const encodedAddress = encodeURIComponent(address);
+
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}`,
+        {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'ClientsServiceApp/1.0',
+            'Accept-Language': 'fr',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        this.logger.error(
+          `Erreur HTTP lors du géocodage: ${response.statusText}`,
+        );
+        return {
+          latitude: 0,
+          longitude: 0,
+          address,
+          success: false,
+          error: `Erreur HTTP: ${response.statusText}`,
+        };
+      }
+
+      const geocodeResponse = (await response.json()) as NominatimResponse[];
+
+      if (
+        geocodeResponse.length > 0 &&
+        geocodeResponse[0].lat &&
+        geocodeResponse[0].lon
+      ) {
+        const latitude = parseFloat(geocodeResponse[0].lat);
+        const longitude = parseFloat(geocodeResponse[0].lon);
+
+        if (!isNaN(latitude) && !isNaN(longitude)) {
+          this.logger.log(
+            `Coordonnées trouvées: Lat=${latitude}, Lon=${longitude}`,
+          );
+          return {
+            latitude,
+            longitude,
+            address,
+            success: true,
+          };
+        }
+      }
+
+      this.logger.warn(`Aucune coordonnée trouvée pour l'adresse: ${address}`);
+      return {
+        latitude: 0,
+        longitude: 0,
+        address,
+        success: false,
+        error: 'Aucune coordonnée trouvée pour cette adresse',
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        `Erreur lors du géocodage de l'adresse: ${address}`,
+        error,
+      );
+      return {
+        latitude: 0,
+        longitude: 0,
+        address,
+        success: false,
+        error: `Erreur: ${errorMessage}`,
+      };
+    }
+  }
+
+  async updateAddressCoordinates(
+    addressId: number,
+  ): Promise<GeocodingResponse> {
+    try {
+      // Récupérer l'adresse
+      const address = await this.prisma.addresses.findUnique({
+        where: { id: addressId },
+      });
+
+      if (!address) {
+        this.logger.warn(`Adresse avec ID ${addressId} non trouvée`);
+        return {
+          latitude: 0,
+          longitude: 0,
+          address: '',
+          success: false,
+          error: `Adresse avec ID ${addressId} non trouvée`,
+        };
+      }
+
+      // Construire l'adresse complète
+      const addressParts = [
+        address.street_number,
+        address.street_name,
+        address.additional_address,
+        address.zip_code,
+        address.city,
+        address.country,
+      ].filter(Boolean);
+
+      const fullAddress = addressParts.join(', ');
+
+      // Appeler le géocodage
+      const geocodeResult = await this.geocodeAddress(fullAddress);
+
+      if (geocodeResult.success) {
+        // Mettre à jour les coordonnées dans la base de données
+        await this.prisma.addresses.update({
+          where: { id: addressId },
+          data: {
+            latitude: geocodeResult.latitude,
+            longitude: geocodeResult.longitude,
+          },
+        });
+
+        this.logger.log(
+          `Coordonnées mises à jour pour l'adresse ${addressId}: Lat=${geocodeResult.latitude}, Lon=${geocodeResult.longitude}`,
+        );
+      }
+
+      return {
+        ...geocodeResult,
+        address: fullAddress,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        `Erreur lors de la mise à jour des coordonnées pour l'adresse ${addressId}`,
+        error,
+      );
+      return {
+        latitude: 0,
+        longitude: 0,
+        address: '',
+        success: false,
+        error: `Erreur: ${errorMessage}`,
+      };
+    }
+  }
+
+  async updateAllAddressesCoordinates(): Promise<{
+    totalAddresses: number;
+    updatedAddresses: number;
+    failedAddresses: number;
+    failedAddressDetails: Array<{
+      id: number;
+      address: string;
+      error?: string;
+    }>;
+  }> {
+    const failedAddressDetails: Array<{
+      id: number;
+      address: string;
+      error?: string;
+    }> = [];
+    let updatedAddresses = 0;
+
+    try {
+      const addresses = await this.prisma.addresses.findMany();
+      const totalAddresses = addresses.length;
+
+      this.logger.log(
+        `Début de la mise à jour des coordonnées pour ${totalAddresses} adresses`,
+      );
+
+      for (const address of addresses) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          const result = await this.updateAddressCoordinates(address.id);
+
+          if (result.success) {
+            updatedAddresses++;
+          } else {
+            failedAddressDetails.push({
+              id: address.id,
+              address: result.address,
+              error: result.error,
+            });
+          }
+        } catch (addressError: unknown) {
+          const errorMessage =
+            addressError instanceof Error
+              ? addressError.message
+              : String(addressError);
+
+          failedAddressDetails.push({
+            id: address.id,
+            address: [
+              address.street_number,
+              address.street_name,
+              address.additional_address,
+              address.zip_code,
+              address.city,
+              address.country,
+            ]
+              .filter(Boolean)
+              .join(', '),
+            error: errorMessage,
+          });
+        }
+      }
+
+      this.logger.log(
+        `Mise à jour terminée: ${updatedAddresses}/${totalAddresses} adresses mises à jour avec succès`,
+      );
+
+      return {
+        totalAddresses,
+        updatedAddresses,
+        failedAddresses: failedAddressDetails.length,
+        failedAddressDetails,
+      };
+    } catch (error: unknown) {
+      this.logger.error(
+        'Erreur lors de la mise à jour de toutes les adresses',
+        error,
+      );
+      throw error;
     }
   }
 }

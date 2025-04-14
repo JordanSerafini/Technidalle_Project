@@ -10,6 +10,7 @@ import {
   CreateAddressDto,
   UpdateAddressDto,
 } from './interfaces/address.interface';
+import { GeocodingResponse } from './interfaces/geocoding.interface';
 import { MessagePattern } from '@nestjs/microservices';
 
 @Controller()
@@ -83,5 +84,32 @@ export class AppController {
   @MessagePattern({ cmd: 'delete_address' })
   async deleteAddress(data: { id: number }): Promise<boolean> {
     return await this.appService.deleteAddress(data.id);
+  }
+
+  // Geocoding Endpoint
+  @MessagePattern({ cmd: 'geocode_address' })
+  async geocodeAddress(data: { address: string }): Promise<GeocodingResponse> {
+    return await this.appService.geocodeAddress(data.address);
+  }
+
+  @MessagePattern({ cmd: 'update_address_coordinates' })
+  async updateAddressCoordinates(data: {
+    addressId: number;
+  }): Promise<GeocodingResponse> {
+    return await this.appService.updateAddressCoordinates(data.addressId);
+  }
+
+  @MessagePattern({ cmd: 'update_all_addresses_coordinates' })
+  async updateAllAddressesCoordinates(): Promise<{
+    totalAddresses: number;
+    updatedAddresses: number;
+    failedAddresses: number;
+    failedAddressDetails: Array<{
+      id: number;
+      address: string;
+      error?: string;
+    }>;
+  }> {
+    return await this.appService.updateAllAddressesCoordinates();
   }
 }

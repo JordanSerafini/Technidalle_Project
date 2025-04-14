@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { url as urlConfig } from '../utils/url';
 
 interface FetchState<T> {
   data: T | null;
@@ -14,9 +15,6 @@ interface FetchOptions {
   offset?: number;
   searchQuery?: string;
 }
-
-
-const API_BASE_URL = 'http://192.168.20.200:3000/';
 
 
 export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
@@ -35,7 +33,7 @@ export function useFetch<T>(endpoint: string, options: FetchOptions = {}) {
         setState(prev => ({ ...prev, loading: true, error: null }));
 
         // Construire l'URL de base
-        let url = `${API_BASE_URL}${endpoint}`;
+        let url = `${urlConfig.local}${endpoint}`;
 
         // Construire l'objet de paramètres
         const params: Record<string, string> = {};

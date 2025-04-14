@@ -124,4 +124,28 @@ export class ClientsController {
       this.clientsService.send({ cmd: 'delete_address' }, { id: Number(id) }),
     );
   }
+
+  @Get('geocode')
+  async geocodeAddress(@Query('address') address: string) {
+    return await firstValueFrom(
+      this.clientsService.send({ cmd: 'geocode_address' }, { address }),
+    );
+  }
+
+  @Put('addresses/:id/geocode')
+  async updateAddressCoordinates(@Param('id') id: number) {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'update_address_coordinates' },
+        { addressId: Number(id) },
+      ),
+    );
+  }
+
+  @Post('addresses/geocode-all')
+  async updateAllAddressesCoordinates() {
+    return await firstValueFrom(
+      this.clientsService.send({ cmd: 'update_all_addresses_coordinates' }, {}),
+    );
+  }
 }
