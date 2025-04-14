@@ -35,5 +35,3 @@ export interface Document {
   created_at: Date | null;
   updated_at: Date | null;
 } 
-
-export default Document;

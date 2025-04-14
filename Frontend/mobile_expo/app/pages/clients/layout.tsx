@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Slot, useRouter } from 'expo-router';
+import { Slot, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigationStore } from '../../store/navigationStore';
 
@@ -9,36 +9,59 @@ export default function ClientsLayout() {
   const { setCurrentPage } = useNavigationStore();
 
   return (
-    <View className="flex-1 bg-gray-50">
-      {/* En-tête */}
-      <View className="bg-blue-600 p-4 shadow-md">
-        <View className="flex-row justify-between items-center">
-          <TouchableOpacity 
-            className="flex-row items-center"
-            onPress={() => {
-              setCurrentPage('dashboard');
-              router.back();
-            }}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-            <Text className="text-white font-bold ml-2">Retour</Text>
-          </TouchableOpacity>
-          <Text className="text-white text-xl font-bold">Clients</Text>
-          <TouchableOpacity
-            onPress={() => {
-              // Fonction pour ajouter un nouveau client (à implémenter plus tard)
-              // router.push('/pages/clients/nouveau');
-            }}
-          >
-            <Ionicons name="add-circle-outline" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Contenu principal */}
-      <View className="flex-1">
-        <Slot />
-      </View>
-    </View>
+    <>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#2563eb',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => {
+                console.log("Layout - Clic sur le bouton retour");
+                setCurrentPage('dashboard');
+                console.log("Layout - CurrentPage mis à jour");
+                router.back();
+                console.log("Layout - Navigation back effectuée");
+              }}
+              style={{ marginLeft: 10, padding: 10 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        }}
+      >
+        <Stack.Screen
+          name="index"
+          options={{
+            title: 'Clients',
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={() => {
+                  // Fonction pour ajouter un nouveau client (à implémenter plus tard)
+                  // router.push('/pages/clients/nouveau');
+                }}
+                style={{ marginRight: 10 }}
+              >
+                <Ionicons name="add-circle-outline" size={24} color="white" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <Stack.Screen
+          name="ClientDetail"
+          options={{
+            title: '',
+            headerBackTitle: 'Retour',
+            headerBackVisible: true,
+          }}
+        />
+      </Stack>
+      <Slot />
+    </>
   );
 } 
