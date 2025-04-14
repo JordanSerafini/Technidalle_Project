@@ -163,7 +163,7 @@ export default function ClientDetailScreen() {
 
   const handleProjectPress = (projectId: number) => {
     router.push({
-      pathname: "/(tabs)/projets",
+      pathname: "/(tabs)/projects",
       params: { projectId }
     });
   };

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const tintColor = '#2f95dc';
@@ -26,35 +27,35 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>🏠</Text>,
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="clients"
         options={{
           title: 'Clients',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>👥</Text>,
+          tabBarIcon: ({ color }) => <Ionicons name="people-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="projets"
+        name="projects"
         options={{
           title: 'Projets',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>📁</Text>,
+          tabBarIcon: ({ color }) => <Ionicons name="folder-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="planning"
         options={{
           title: 'Planning',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>📅</Text>,
+          tabBarIcon: ({ color }) => <Ionicons name="calendar-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="documents"
         options={{
           title: 'Documents',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>📄</Text>,
+          tabBarIcon: ({ color }) => <Ionicons name="document-outline" size={24} color={color} />,
         }}
       />
       {/* <Tabs.Screen

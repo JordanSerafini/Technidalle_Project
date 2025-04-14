@@ -41,7 +41,7 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
       </TouchableOpacity>
       
       {isOpen && (
-        <View className="px-4 pb-4 w-full flex flex-col gap-2 items-center shadow-lg">
+        <View className="px-4 pb-4 w-full flex flex-col gap-2 items-center">
           <View className="mb-3 w-full items-center">
             <TouchableOpacity 
               className="flex-row items-center" 
