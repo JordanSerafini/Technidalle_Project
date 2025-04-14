@@ -202,4 +202,49 @@ export class ProjectsController {
       ),
     );
   }
+
+  @Get('client/:clientId')
+  async getProjectsByClientId(
+    @Param('clientId') clientId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ): Promise<Project[]> {
+    if (!this.projectsService) {
+      throw new HttpException(
+        'Service non disponible',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    try {
+      const parsedClientId = Number(clientId);
+      if (isNaN(parsedClientId)) {
+        throw new HttpException(
+          'ID de client invalide',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return await firstValueFrom(
+        this.projectsService.send(
+          { cmd: 'get_projects_by_client_id' },
+          {
+            clientId: parsedClientId,
+            limit: limit ? Number(limit) : undefined,
+            offset: offset ? Number(offset) : undefined,
+          },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error(
+        'Erreur lors de la récupération des projets par client:',
+        error,
+      );
+      throw new HttpException(
+        'Erreur lors de la récupération des projets par client',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

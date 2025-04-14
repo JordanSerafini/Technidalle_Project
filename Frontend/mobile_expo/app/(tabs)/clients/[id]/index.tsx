@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert, Platform, FlatList } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Document } from '@/app/utils/types/document';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import useFetch from '@/app/hooks/useFetch';
 import { useClientsStore } from '@/app/store/clientsStore';
+import { Project, project_status } from '@/app/utils/interfaces/project.interface';
 
 export default function ClientDetailScreen() {
   const router = useRouter();
@@ -39,9 +40,12 @@ export default function ClientDetailScreen() {
     }
   }, [clientId, selectedClient]);
   
-  // Ne faire le fetch des documents que si un client est sélectionné
   const { data: documents, loading: isDocumentsLoading, error: documentsError } = useFetch<Document[]>(
     clientId ? `documents/client/${clientId}` : null
+  );
+
+  const { data: projects, loading: isProjectsLoading, error: projectsError } = useFetch<Project[]>(
+    clientId ? `projects/client/${clientId}` : null
   );
 
   // États pour gérer l'ouverture/fermeture des sections
@@ -49,7 +53,8 @@ export default function ClientDetailScreen() {
     coordonnees: false,
     adresse: false,
     documents: false,
-    notes: false
+    notes: false,
+    projets: false
   });
 
   const toggleSection = (section: keyof typeof sections) => {
@@ -57,11 +62,6 @@ export default function ClientDetailScreen() {
       ...prev,
       [section]: !prev[section]
     }));
-  };
-
-  const handleBack = () => {
-    setSelectedClient(null);
-    router.back();
   };
 
   // Configuration de l'en-tête
@@ -116,8 +116,6 @@ export default function ClientDetailScreen() {
       </View>
     );
   }
-
-  const client = selectedClient;
 
   const handleCall = (phoneNumber: string | undefined) => {
     if (phoneNumber) {
@@ -272,6 +270,70 @@ export default function ClientDetailScreen() {
           </View>
         )}
 
+        {/* Projets */}
+        <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
+          <TouchableOpacity 
+            className="flex-row justify-between items-center w-full mb-4"
+            onPress={() => toggleSection('projets')}
+          >
+            <View className="flex-row items-center">
+              <MaterialCommunityIcons name="home-variant" size={24} color="#1e40af" />
+              <Text className="text-lg font-semibold text-blue-900 ml-2">Chantiers</Text>
+            </View>
+            <Ionicons 
+              name={sections.projets ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#2563eb" 
+            />
+          </TouchableOpacity>
+          
+          {sections.projets && (
+            <>
+              {isProjectsLoading ? (
+                <ActivityIndicator size="large" color="#2563eb" />
+              ) : projectsError ? (
+                <Text className="text-red-500">Erreur lors du chargement des chantiers</Text>
+              ) : projects && projects.length > 0 ? (
+                <View className="w-full">
+                  {projects.map((project: Project) => (
+                    <TouchableOpacity 
+                      key={project.id}
+                      className="flex-row items-center mb-3 w-full"
+                      onPress={() => router.push({
+                        pathname: "/(tabs)/projets",
+                        params: { projectId: project.id }
+                      })}
+                    >
+                      <MaterialCommunityIcons name="home-variant" size={24} color="#2563eb" />
+                      <View className="ml-3 flex-1">
+                        <Text className="text-blue-700">{project.name}</Text>
+                        <Text className="text-gray-500 text-sm">{project.reference}</Text>
+                      </View>
+                      <Text className={`text-xs font-semibold px-2 py-1 rounded-full mr-2 ${
+                        project.status === project_status.en_cours ? 'bg-blue-100 text-blue-800' :
+                        project.status === project_status.termine ? 'bg-green-100 text-green-800' :
+                        project.status === project_status.prospect ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {project.status === project_status.en_cours ? 'En cours' :
+                        project.status === project_status.termine ? 'Terminé' :
+                        project.status === project_status.prospect ? 'Prospect' :
+                        'Autre'}
+                      </Text>
+                      <MaterialIcons name="chevron-right" size={24} color="#9ca3af" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View className="flex-row items-center">
+                  <MaterialIcons name="info-outline" size={20} color="#64748b" />
+                  <Text className="text-gray-500 ml-2">Aucun chantier disponible</Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
         {/* Documents */}
         <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
           <TouchableOpacity 
@@ -327,6 +389,7 @@ export default function ClientDetailScreen() {
             </>
           )}
         </View>
+
 
         {/* Notes */}
         {selectedClient.notes && (
