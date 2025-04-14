@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Linking, Alert } from 'react-native';
+import { useRouter, Link } from 'expo-router';
 import useFetch from '@/app/hooks/useFetch';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { Ionicons } from '@expo/vector-icons';
 import { useClientsStore } from '@/app/store/clientsStore';
-import { useRouter } from 'expo-router';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -74,8 +74,10 @@ export default function ClientsScreen() {
     
     // S'assurer que client.id existe avant de naviguer
     if (client.id) {
-      // Utiliser la route dans la structure correcte
-      router.push(`/clients/${client.id}`);
+      router.navigate({
+        pathname: "/clients/[id]",
+        params: { id: client.id }
+      });
     }
   };
 
@@ -159,7 +161,7 @@ export default function ClientsScreen() {
               <Text className="text-center">Annuler</Text>
             </TouchableOpacity>
           </View>
-        </View>
+    </View>
       </Modal>
     </View>
   );
