@@ -30,7 +30,10 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
           <View className="w-8 h-8 flex items-center justify-center">
             <MaterialIcons name="folder" size={24} color="#1e40af" />
           </View>
-          <Text className="text-lg font-semibold text-blue-900 ml-3">Documents</Text>
+          <View className="flex-row items-center ">
+            <Text className="text-lg font-semibold text-blue-900 ml-3">Documents</Text>
+            <Text className="text-blue-800 px-2 py-0 rounded-full ml-1">{documents?.length}</Text>
+          </View>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
