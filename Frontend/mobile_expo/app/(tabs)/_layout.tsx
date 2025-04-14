@@ -57,14 +57,17 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Text style={{ color }}>📄</Text>,
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="search-results"
         options={{
           title: 'Recherche',
           tabBarIcon: ({ color }) => <Text style={{ color }}>🔍</Text>,
+          // Cacher ce tab de la navigation
           tabBarButton: () => null,
+          // S'assurer que l'écran est bien masqué
+          href: null,
         }}
-      />
+      /> */}
     </Tabs>
   );
 }

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Linking, Alert } from 'react-native';
-import { useFetch } from '../../hooks/useFetch';
-import { Client } from '../../utils/interfaces/client.interface';
+import useFetch from '@/app/hooks/useFetch';
+import { Client } from '@/app/utils/interfaces/client.interface';
 import { Ionicons } from '@expo/vector-icons';
-import { useClientsStore } from '../../store/clientsStore';
+import { useClientsStore } from '@/app/store/clientsStore';
 import { useRouter } from 'expo-router';
 
-export function Clients() {
+export default function ClientsScreen() {
   const router = useRouter();
   const { clients, setClients, setSelectedClient } = useClientsStore();
   const { data, loading, error } = useFetch<Client[]>('clients', { limit: 20 });
@@ -72,11 +72,11 @@ export function Clients() {
     // Stockage du client dans le store global
     setSelectedClient(client);
     
-    // Utiliser une navigation plus propre avec pathname explicite
-    router.push({
-      pathname: '/pages/clients/ClientDetail',
-      params: { id: client.id }
-    });
+    // S'assurer que client.id existe avant de naviguer
+    if (client.id) {
+      // Utiliser la route dans la structure correcte
+      router.push(`/clients/${client.id}`);
+    }
   };
 
   return (
@@ -164,5 +164,3 @@ export function Clients() {
     </View>
   );
 } 
-
-export default Clients;
