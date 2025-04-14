@@ -1,9 +1,21 @@
-import React from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity, Text, Linking, Alert } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { Project, project_status } from '../../../utils/interfaces/project.interface';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
+// Import des composants refactorisés
+import { ProjectHeader } from './ProjectHeader';
+import { ProjectInfo } from './ProjectInfo';
+import { ProjectClient } from './ProjectClient';
+import { ProjectAddress } from './ProjectAddress';
+import { ProjectStages } from './ProjectStages';
+import { ProjectTags } from './ProjectTags';
+import { ProjectNotes } from './ProjectNotes';
+import { ProjectStaff } from './ProjectStaff';
+import { ProjectMaterials } from './ProjectMaterials';
+import { ProjectDocuments } from './ProjectDocuments';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -28,7 +40,8 @@ const statusColors: Record<project_status, string> = {
 };
 
 export default function ProjectDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const navigation = useNavigation();
   const { data: project, loading, error } = useFetch<Project>(`projects/${id}`, {
     method: 'GET',
     headers: {
@@ -36,6 +49,68 @@ export default function ProjectDetailScreen() {
       'Cache-Control': 'no-cache',
     }
   });
+
+  // États pour gérer l'ouverture/fermeture des sections
+  const [sections, setSections] = useState({
+    infos: true,
+    client: false,
+    adresse: false,
+    etapes: false,
+    tags: false,
+    notes: false,
+    personnel: false,
+    materiaux: false,
+    documents: false
+  });
+
+  const toggleSection = (section: keyof typeof sections) => {
+    setSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Configuration de l'en-tête
+  useEffect(() => {
+    if (project) {
+      navigation.setOptions({
+        title: project.name,
+        headerShown: true
+      });
+    }
+  }, [project, navigation]);
+
+  const handleClientPress = (clientId: number) => {
+    router.push({
+      pathname: "/(tabs)/clients/[id]",
+      params: { id: clientId }
+    });
+  };
+
+  const handleLocationPress = () => {
+    const address = project?.addresses;
+    if (address?.latitude && address?.longitude) {
+      const url = `https://maps.google.com/?q=${address.latitude},${address.longitude}`;
+      Linking.openURL(url);
+    } else if (address) {
+      const query = `${address.street_number || ''} ${address.street_name}, ${address.zip_code} ${address.city}, ${address.country || 'France'}`;
+      const url = `https://maps.google.com/?q=${encodeURIComponent(query)}`;
+      Linking.openURL(url);
+    } else {
+      Alert.alert("Information", "Adresse non disponible");
+    }
+  };
+
+  const handleDocumentPress = (document: any) => {
+    if (document.file_path) {
+      Linking.openURL(document.file_path);
+    } else {
+      Alert.alert(
+        "Document", 
+        `Référence: ${document.reference}\nType: ${document.type}\nStatut: ${document.status || 'Non défini'}\nMontant: ${document.amount ? document.amount.toLocaleString('fr-FR') + '€' : 'Non défini'}`
+      );
+    }
+  };
 
   if (loading) {
     return (
@@ -78,169 +153,88 @@ export default function ProjectDetailScreen() {
     <View className="flex-1 bg-gray-50">
       <ScrollView>
         {/* Header avec bouton retour */}
-        <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
-          <TouchableOpacity onPress={() => router.back()} className="mr-4">
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold flex-1">{project.name}</Text>
-        </View>
+        {/* <ProjectHeader name={project.name} /> */}
 
         {/* Informations principales */}
-        <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-          <Text className="text-lg font-bold mb-2">Informations générales</Text>
-          
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Référence:</Text>
-            <Text className="font-medium">{project.reference}</Text>
-          </View>
-          
-          {project.status && (
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-600">Statut:</Text>
-              <View style={{backgroundColor: statusColors[project.status]}} className="py-1 px-3 rounded-full">
-                <Text className="text-white font-medium">{statusLabels[project.status]}</Text>
-              </View>
-            </View>
-          )}
-          
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Date de début:</Text>
-            <Text>{project.start_date ? new Date(project.start_date).toLocaleDateString('fr-FR') : 'Non définie'}</Text>
-          </View>
-          
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Date de fin:</Text>
-            <Text>{project.end_date ? new Date(project.end_date).toLocaleDateString('fr-FR') : 'Non définie'}</Text>
-          </View>
-          
-          {project.budget && (
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-600">Budget:</Text>
-              <Text className="font-medium">{project.budget.toLocaleString('fr-FR')} €</Text>
-            </View>
-          )}
-          
-          {project.description && (
-            <View className="mt-2">
-              <Text className="text-gray-600 mb-1">Description:</Text>
-              <Text className="text-gray-800">{project.description}</Text>
-            </View>
-          )}
-        </View>
+        <ProjectInfo
+          reference={project.reference}
+          name={project.name}
+          status={project.status}
+          start_date={project.start_date}
+          end_date={project.end_date}
+          budget={project.budget}
+          description={project.description}
+          isOpen={sections.infos}
+          onToggle={() => toggleSection('infos')}
+        />
 
         {/* Informations du client */}
         {project.clients && (
-          <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-            <Text className="text-lg font-bold mb-2">Client</Text>
-            
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-600">Nom:</Text>
-              <Text className="font-medium">{project.clients.firstname} {project.clients.lastname}</Text>
-            </View>
-            
-            {project.clients.company_name && (
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-gray-600">Société:</Text>
-                <Text>{project.clients.company_name}</Text>
-              </View>
-            )}
-            
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-600">Email:</Text>
-              <Text>{project.clients.email}</Text>
-            </View>
-            
-            {(project.clients.phone || project.clients.mobile) && (
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-gray-600">Téléphone:</Text>
-                <Text>{project.clients.mobile || project.clients.phone}</Text>
-              </View>
-            )}
-          </View>
+          <ProjectClient
+            client={project.clients}
+            isOpen={sections.client}
+            onToggle={() => toggleSection('client')}
+            onClientPress={handleClientPress}
+          />
         )}
 
         {/* Adresse */}
         {project.addresses && (
-          <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-            <Text className="text-lg font-bold mb-2">Adresse du chantier</Text>
-            
-            <Text className="text-gray-800">
-              {project.addresses.street_number && `${project.addresses.street_number} `}
-              {project.addresses.street_name}
-            </Text>
-            
-            {project.addresses.additional_address && (
-              <Text className="text-gray-800">{project.addresses.additional_address}</Text>
-            )}
-            
-            <Text className="text-gray-800">
-              {project.addresses.zip_code} {project.addresses.city}
-            </Text>
-            
-            {project.addresses.country && (
-              <Text className="text-gray-800">{project.addresses.country}</Text>
-            )}
-          </View>
+          <ProjectAddress
+            address={project.addresses}
+            isOpen={sections.adresse}
+            onToggle={() => toggleSection('adresse')}
+            onLocationPress={handleLocationPress}
+          />
         )}
 
         {/* Étapes du projet */}
-        <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-          <Text className="text-lg font-bold mb-2">Étapes du projet</Text>
-          
-          {project.project_stages && project.project_stages.length > 0 ? (
-            project.project_stages.map((stage, index) => (
-              <View key={stage.id} className="border-l-4 border-blue-500 pl-3 mb-3 py-2">
-                <View className="flex-row justify-between">
-                  <Text className="font-bold">{stage.name}</Text>
-                  {stage.completion_percentage !== undefined && (
-                    <Text>{stage.completion_percentage}%</Text>
-                  )}
-                </View>
-                
-                {stage.description && (
-                  <Text className="text-gray-600 mt-1">{stage.description}</Text>
-                )}
-                
-                <View className="flex-row mt-2">
-                  <Text className="text-gray-600 text-sm">
-                    {stage.start_date ? new Date(stage.start_date).toLocaleDateString('fr-FR') : 'Non défini'} 
-                    {stage.end_date ? ` - ${new Date(stage.end_date).toLocaleDateString('fr-FR')}` : ''}
-                  </Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text className="text-gray-500">Aucune étape définie pour ce projet</Text>
-          )}
-        </View>
+        {project.project_stages && (
+          <ProjectStages
+            stages={project.project_stages}
+            isOpen={sections.etapes}
+            onToggle={() => toggleSection('etapes')}
+          />
+        )}
+
+        {/* Personnel assigné au projet */}
+        <ProjectStaff
+          projectId={id}
+          isOpen={sections.personnel}
+          onToggle={() => toggleSection('personnel')}
+        />
+
+        {/* Matériaux utilisés dans le projet */}
+        <ProjectMaterials
+          projectId={id}
+          isOpen={sections.materiaux}
+          onToggle={() => toggleSection('materiaux')}
+        />
+
+        {/* Documents du projet */}
+        <ProjectDocuments
+          projectId={id}
+          isOpen={sections.documents}
+          onToggle={() => toggleSection('documents')}
+          onDocumentPress={handleDocumentPress}
+        />
 
         {/* Tags du projet */}
         {project.project_tags && project.project_tags.length > 0 && (
-          <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-            <Text className="text-lg font-bold mb-2">Tags</Text>
-            
-            <View className="flex-row flex-wrap">
-              {project.project_tags.map((tagRel) => (
-                tagRel.tags && (
-                  <View 
-                    key={tagRel.tag_id} 
-                    style={{backgroundColor: tagRel.tags.color || '#e0e0e0'}}
-                    className="mr-2 mb-2 py-1 px-3 rounded-full"
-                  >
-                    <Text className="text-white">{tagRel.tags.name}</Text>
-                  </View>
-                )
-              ))}
-            </View>
-          </View>
+          <ProjectTags
+            tags={project.project_tags}
+            isOpen={sections.tags}
+            onToggle={() => toggleSection('tags')}
+          />
         )}
 
         {/* Notes */}
         {project.notes && (
-          <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-            <Text className="text-lg font-bold mb-2">Notes</Text>
-            <Text className="text-gray-800">{project.notes}</Text>
-          </View>
+          <ProjectNotes
+            notes={project.notes}
+            isOpen={sections.notes}
+            onToggle={() => toggleSection('notes')}
+          />
         )}
       </ScrollView>
     </View>
