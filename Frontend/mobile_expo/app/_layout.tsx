@@ -6,10 +6,22 @@ import './global.css';
 export default function RootLayout() {
   return (
     <>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="components/modal" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="pages/clients/ClientDetail" options={{ headerShown: true }} />
+        <Stack.Screen 
+          name="pages/clients/ClientDetail" 
+          options={{ 
+            headerShown: true,
+            headerBackTitle: 'Retour',
+            headerBackVisible: true,
+          }} 
+        />
       </Stack>
       <StatusBar style="auto" />
     </>
