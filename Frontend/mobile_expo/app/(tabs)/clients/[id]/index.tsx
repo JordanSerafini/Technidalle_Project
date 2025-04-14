@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, StyleSheet, Linking, Alert, Platform } from 'react-native';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Document } from '@/app/utils/types/document';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import useFetch from '@/app/hooks/useFetch';
 import { useClientsStore } from '@/app/store/clientsStore';
 
@@ -97,7 +97,7 @@ export default function ClientDetailScreen() {
       <View className="flex-1 items-center justify-center">
         <Text className="text-red-500">Erreur: {error}</Text>
         <TouchableOpacity 
-          onPress={() => router.navigate('/clients')}
+          onPress={() => router.navigate('/(tabs)/clients')}
           className="mt-4 bg-blue-500 p-3 rounded-lg"
         >
           <Text className="text-white">Retour à la liste des clients</Text>
@@ -156,15 +156,21 @@ export default function ClientDetailScreen() {
         {/* En-tête du client */}
         <View className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full items-center tracking-widest">
           <View className="flex-row justify-between items-center mb-2">
-            <View>
-              <Text className="text-2xl font-bold text-blue-900">{selectedClient.firstname} {selectedClient.lastname}</Text>
-              <Text className="text-lg italic text-blue-700">{selectedClient.company_name}</Text>
+            <View className="flex-row items-center">
+              <FontAwesome5 name="user-tie" size={28} color="#1e40af" />
+              <View className="ml-3">
+                <Text className="text-2xl font-bold text-blue-900">{selectedClient.firstname} {selectedClient.lastname}</Text>
+                <Text className="text-lg italic text-blue-700">{selectedClient.company_name}</Text>
+              </View>
             </View>
            
           </View>
           
           {selectedClient.siret && (
-            <Text className="text-gray-600 mb-2">SIRET: {selectedClient.siret}</Text>
+            <View className="flex-row h-fit flex items-center mt-2">
+              <MaterialCommunityIcons name="identifier" size={20} color="#64748b" />
+              <Text className="text-gray-600 mb-2 ml-2">SIRET: {selectedClient.siret}</Text>
+            </View>
           )}
         </View>
 
@@ -174,7 +180,10 @@ export default function ClientDetailScreen() {
             className="flex-row justify-between items-center w-full mb-4"
             onPress={() => toggleSection('coordonnees')}
           >
-            <Text className="text-lg font-semibold text-blue-900">Coordonnées</Text>
+            <View className="flex-row items-center">
+              <MaterialIcons name="contact-phone" size={24} color="#1e40af" />
+              <Text className="text-lg font-semibold text-blue-900 ml-2">Coordonnées</Text>
+            </View>
             <Ionicons 
               name={sections.coordonnees ? "chevron-up" : "chevron-down"} 
               size={24} 
@@ -189,7 +198,7 @@ export default function ClientDetailScreen() {
                   className="flex-row items-center" 
                   onPress={() => handleEmail(selectedClient.email)}
                 >
-                  <Ionicons name="mail-outline" size={24} color="#2563eb" />
+                  <Ionicons name="mail" size={24} color="#2563eb" />
                   <Text className="ml-3 text-blue-700">{selectedClient.email}</Text>
                 </TouchableOpacity>
               </View>
@@ -200,7 +209,7 @@ export default function ClientDetailScreen() {
                     className="flex-row items-center" 
                     onPress={() => handleCall(selectedClient.phone)}
                   >
-                    <Ionicons name="call-outline" size={24} color="#2563eb" />
+                    <Ionicons name="call" size={24} color="#2563eb" />
                     <Text className="ml-3 text-blue-700">{selectedClient.phone} (Fixe)</Text>
                   </TouchableOpacity>
                 </View>
@@ -212,7 +221,7 @@ export default function ClientDetailScreen() {
                     className="flex-row items-center" 
                     onPress={() => handleCall(selectedClient.mobile)}
                   >
-                    <Ionicons name="phone-portrait-outline" size={24} color="#2563eb" />
+                    <Ionicons name="phone-portrait" size={24} color="#2563eb" />
                     <Text className="ml-3 text-blue-700">{selectedClient.mobile} (Mobile)</Text>
                   </TouchableOpacity>
                 </View>
@@ -228,7 +237,10 @@ export default function ClientDetailScreen() {
               className="flex-row justify-between items-center w-full mb-4"
               onPress={() => toggleSection('adresse')}
             >
-              <Text className="text-lg font-semibold text-blue-900">Adresse</Text>
+              <View className="flex-row items-center">
+                <FontAwesome5 name="building" size={22} color="#1e40af" />
+                <Text className="text-lg font-semibold text-blue-900 ml-2">Adresse</Text>
+              </View>
               <Ionicons 
                 name={sections.adresse ? "chevron-up" : "chevron-down"} 
                 size={24} 
@@ -251,7 +263,7 @@ export default function ClientDetailScreen() {
                   className="flex-row items-center mt-2" 
                   onPress={handleLocation}
                 >
-                  <Ionicons name="location-outline" size={24} color="#2563eb" />
+                  <FontAwesome5 name="map-marked-alt" size={22} color="#2563eb" />
                   <Text className="ml-3 text-blue-700">Voir sur la carte</Text>
                 </TouchableOpacity>
               </>
@@ -265,7 +277,10 @@ export default function ClientDetailScreen() {
             className="flex-row justify-between items-center w-full mb-4"
             onPress={() => toggleSection('documents')}
           >
-            <Text className="text-lg font-semibold text-blue-900">Documents</Text>
+            <View className="flex-row items-center">
+              <MaterialIcons name="folder" size={24} color="#1e40af" />
+              <Text className="text-lg font-semibold text-blue-900 ml-2">Documents</Text>
+            </View>
             <Ionicons 
               name={sections.documents ? "chevron-up" : "chevron-down"} 
               size={24} 
@@ -286,14 +301,27 @@ export default function ClientDetailScreen() {
                     className="flex-row items-center mb-3 w-full"
                     onPress={() => doc.file_path && Linking.openURL(doc.file_path)}
                   >
-                    <Ionicons name="document-outline" size={24} color="#2563eb" />
+                    <MaterialCommunityIcons 
+                      name={
+                        doc.type === 'facture' 
+                          ? "file-document-outline" 
+                          : doc.type === 'devis' 
+                            ? "file-chart-outline" 
+                            : "file-document-outline"
+                      } 
+                      size={24} 
+                      color="#2563eb" 
+                    />
                     <Text className="ml-3 text-blue-700 flex-1">{doc.reference}</Text>
                     <Text className="text-gray-500 text-sm mr-2">{doc.type}</Text>
-                    <Ionicons name="download-outline" size={24} color="#2563eb" />
+                    <MaterialIcons name="file-download" size={24} color="#2563eb" />
                   </TouchableOpacity>
                 ))
               ) : (
-                <Text className="text-gray-500">Aucun document disponible</Text>
+                <View className="flex-row items-center">
+                  <MaterialIcons name="info-outline" size={20} color="#64748b" />
+                  <Text className="text-gray-500 ml-2">Aucun document disponible</Text>
+                </View>
               )}
             </>
           )}
@@ -306,7 +334,10 @@ export default function ClientDetailScreen() {
               className="flex-row justify-between items-center w-full mb-4"
               onPress={() => toggleSection('notes')}
             >
-              <Text className="text-lg font-semibold text-blue-900">Notes</Text>
+              <View className="flex-row items-center">
+                <MaterialIcons name="sticky-note-2" size={24} color="#1e40af" />
+                <Text className="text-lg font-semibold text-blue-900 ml-2">Notes</Text>
+              </View>
               <Ionicons 
                 name={sections.notes ? "chevron-up" : "chevron-down"} 
                 size={24} 
@@ -315,7 +346,10 @@ export default function ClientDetailScreen() {
             </TouchableOpacity>
             
             {sections.notes && (
-              <Text className="text-gray-700">{selectedClient.notes}</Text>
+              <View className="flex-row">
+                <MaterialIcons name="format-quote" size={20} color="#64748b" style={{alignSelf: 'flex-start'}} />
+                <Text className="text-gray-700 ml-2 flex-1">{selectedClient.notes}</Text>
+              </View>
             )}
           </View>
         )}
