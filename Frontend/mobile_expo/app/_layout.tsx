@@ -10,6 +10,8 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
+          headerBackTitle: 'Retour',
+          headerBackVisible: true,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -17,16 +17,21 @@ export default function ClientsLayout() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => router.navigate('/(tabs)')}
-              style={{ marginLeft: 10, padding: 10 }}
-            >
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-          ),
-          headerBackVisible: true,
           headerBackTitle: 'Retour',
+          headerBackVisible: true,
+          headerLeft: ({ canGoBack }) => {
+            if (!canGoBack) {
+              return (
+                <TouchableOpacity 
+                  onPress={() => router.navigate('/(tabs)')}
+                  style={{ marginLeft: 10, padding: 10 }}
+                >
+                  <Ionicons name="arrow-back" size={24} color="white" />
+                </TouchableOpacity>
+              );
+            }
+            return undefined; // Important: Retourner undefined pour utiliser le comportement par défaut
+          },
         }}
       >
         <Stack.Screen
@@ -37,7 +42,7 @@ export default function ClientsLayout() {
               <TouchableOpacity
                 onPress={() => {
                   // Fonction pour ajouter un nouveau client (à implémenter plus tard)
-                  // router.push('/pages/clients/nouveau');
+                  // router.navigate('/pages/clients/nouveau');
                 }}
                 style={{ marginRight: 10 }}
               >
@@ -51,7 +56,7 @@ export default function ClientsLayout() {
           name="ClientDetail"
           options={{
             title: '',
-            headerBackTitle: 'Retour',
+            headerShown: true,
           }}
         />
       </Stack>

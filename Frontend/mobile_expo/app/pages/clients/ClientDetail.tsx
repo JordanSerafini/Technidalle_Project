@@ -35,7 +35,7 @@ export default function ClientDetail() {
 
   const handleBack = () => {
     setSelectedClient(null);
-    router.navigate('/(tabs)/clients');
+    router.back();
   };
 
   // Configuration de l'en-tête
@@ -43,6 +43,7 @@ export default function ClientDetail() {
     if (selectedClient) {
       navigation.setOptions({
         title: `CLI00${selectedClient.id}`,
+        // La flèche de retour standard sera utilisée automatiquement
       });
 
       // Ajouter un listener pour le focus de l'écran
@@ -57,7 +58,7 @@ export default function ClientDetail() {
   // Si aucun client n'est sélectionné, retourner à la liste des clients
   useEffect(() => {
     if (!selectedClient) {
-      router.push('/clients');
+      router.navigate('/(tabs)/clients');
     }
   }, [selectedClient]);
 

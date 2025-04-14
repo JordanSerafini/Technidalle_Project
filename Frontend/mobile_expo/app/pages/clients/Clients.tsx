@@ -72,8 +72,8 @@ export function Clients() {
     // Stockage du client dans le store global
     setSelectedClient(client);
     
-    // Redirection directe vers la page de détail sans passer par ClientDetailRedirect
-    router.replace('/pages/clients/ClientDetail');
+    // Utiliser push pour ajouter à la pile de navigation
+    router.push('/pages/clients/ClientDetail');
   };
 
   return (
