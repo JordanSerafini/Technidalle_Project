@@ -50,8 +50,7 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
               {documents.map((doc, index) => (
                 <TouchableOpacity 
                   key={index}
-                  className="flex-row items-center w-full"
-                  style={{ marginBottom: 10 }}
+                  className="flex-row items-center w-full mb-2.5"
                   onPress={() => onDocumentPress(doc.file_path || undefined)}
                 >
                   <MaterialCommunityIcons 

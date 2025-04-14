@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 
 interface Address {
@@ -27,16 +27,16 @@ export const ClientAddress: React.FC<ClientAddressProps> = ({
   if (!address) return null;
 
   return (
-    <View className="bg-white rounded-lg shadow-sm w-full mb-4">
+    <View style={styles.container}>
       <TouchableOpacity 
-        className="p-3 flex-row justify-between items-center w-full"
+        style={styles.header}
         onPress={onToggle}
       >
-        <View className="flex-row items-center">
-          <View className="w-8 h-8 flex items-center justify-center">
+        <View style={styles.headerLeft}>
+          <View style={styles.iconContainer}>
             <FontAwesome5 name="building" size={22} color="#1e40af" />
           </View>
-          <Text className="text-lg font-semibold text-blue-900 ml-3">Adresse</Text>
+          <Text style={styles.headerTitle}>Adresse</Text>
         </View>
         <Ionicons 
           name={isOpen ? "chevron-up" : "chevron-down"} 
@@ -46,25 +46,86 @@ export const ClientAddress: React.FC<ClientAddressProps> = ({
       </TouchableOpacity>
       
       {isOpen && (
-        <View className="px-4 pb-4 w-full flex flex-col gap-2 items-center">
-          <View className="mb-2 items-center">
-            <Text className="text-gray-700">
+        <View style={styles.content}>
+          <View style={styles.addressContainer}>
+            <Text style={styles.addressText}>
               {address.street_number} {address.street_name}
               {address.additional_address && `, ${address.additional_address}`}
             </Text>
-            <Text className="text-gray-700">{address.zip_code} {address.city}</Text>
-            {address.country && <Text className="text-gray-700">{address.country}</Text>}
+            <Text style={styles.addressText}>{address.zip_code} {address.city}</Text>
+            {address.country && <Text style={styles.addressText}>{address.country}</Text>}
           </View>
           
           <TouchableOpacity 
-            className="flex-row items-center mt-2" 
+            style={styles.mapButton} 
             onPress={onLocationPress}
           >
             <FontAwesome5 name="map-marked-alt" size={22} color="#2563eb" />
-            <Text className="ml-3 text-blue-700">Voir sur la carte</Text>
+            <Text style={styles.mapButtonText}>Voir sur la carte</Text>
           </TouchableOpacity>
         </View>
       )}
     </View>
   );
-}; 
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    width: '100%',
+    marginBottom: 16
+  },
+  header: {
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%'
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e40af',
+    marginLeft: 12
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    width: '100%',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8
+  },
+  addressContainer: {
+    marginBottom: 8,
+    alignItems: 'center'
+  },
+  addressText: {
+    color: '#4b5563'
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8
+  },
+  mapButtonText: {
+    marginLeft: 12,
+    color: '#2563eb'
+  }
+}); 
