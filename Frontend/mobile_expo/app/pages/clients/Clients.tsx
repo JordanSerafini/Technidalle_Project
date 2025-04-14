@@ -72,8 +72,11 @@ export function Clients() {
     // Stockage du client dans le store global
     setSelectedClient(client);
     
-    // Utiliser push pour ajouter à la pile de navigation
-    router.push('/pages/clients/ClientDetail');
+    // Utiliser une navigation plus propre avec pathname explicite
+    router.push({
+      pathname: '/pages/clients/ClientDetail',
+      params: { id: client.id }
+    });
   };
 
   return (
