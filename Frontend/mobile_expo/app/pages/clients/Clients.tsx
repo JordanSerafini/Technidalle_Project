@@ -72,12 +72,8 @@ export function Clients() {
     // Stockage du client dans le store global
     setSelectedClient(client);
     
-    try {
-      router.push('/pages/clients/ClientDetailRedirect');
-    } catch (error) {
-      console.error('Erreur de navigation:', error);
-      router.push('/pages/clients/ClientDetail');
-    }
+    // Redirection directe vers la page de détail sans passer par ClientDetailRedirect
+    router.replace('/pages/clients/ClientDetail');
   };
 
   return (

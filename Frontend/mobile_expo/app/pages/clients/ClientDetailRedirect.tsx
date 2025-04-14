@@ -8,19 +8,12 @@ export default function ClientDetailRedirect() {
   const { selectedClient } = useClientsStore();
 
   useEffect(() => {
-    // Si un client est sélectionné, on navigue vers la page de détail
+    // Redirection immédiate sans délai
     if (selectedClient) {
-      // Redirection immédiate vers l'écran de détail
-      try {
-        // On utilise un chemin absolu pour éviter les problèmes de navigation relative
-        router.push('/pages/clients/ClientDetail');
-      } catch (error) {
-        console.error('Erreur de navigation:', error);
-        // Fallback en cas d'erreur - redirection directe vers la liste des clients
-        router.replace('/clients');
-      }
+      // Redirection directe vers l'écran de détail
+      router.replace('/pages/clients/ClientDetail');
     } else {
-      // Si aucun client n'est sélectionné, on retourne directement à la liste des clients
+      // Si aucun client n'est sélectionné, redirection directe vers la liste des clients
       router.replace('/clients');
     }
   }, [selectedClient, router]);
