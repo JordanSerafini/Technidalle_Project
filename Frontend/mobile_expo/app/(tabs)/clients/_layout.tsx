@@ -35,10 +35,6 @@ export default function ClientsLayout() {
       />
       <Stack.Screen 
         name="[id]/index" 
-        options={{
-          headerTitle: 'Détails du client',
-          headerShown: true,
-        }} 
       />
     </Stack>
   );
