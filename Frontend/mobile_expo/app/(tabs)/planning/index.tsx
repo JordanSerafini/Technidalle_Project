@@ -94,22 +94,14 @@ export function PlanningScreen() {
         return null;
       }
       
+      // Traitement spécial pour les événements sur toute la journée
       if (event.metadata?.all_day) {
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(23, 59, 59, 999);
       }
 
-      // S'assurer que les événements sont dans la plage d'heures affichées (7h-19h)
-      // Si un événement commence avant 7h, le déplacer à 7h
-      if (startDate.getHours() < 7 && !event.metadata?.all_day) {
-        startDate.setHours(7, 0, 0, 0);
-      }
+      // Ne pas modifier les heures des événements normaux pour conserver leur plage horaire réelle
       
-      // Si un événement se termine après 19h, le limiter à 19h
-      if (endDate.getHours() >= 19 && !event.metadata?.all_day) {
-        endDate.setHours(19, 0, 0, 0);
-      }
-
       return {
         id: event.id,
         title: event.title,
@@ -336,6 +328,12 @@ export function PlanningScreen() {
   const eventRenderer: EventRenderer<any> = (event) => {
     const color = event.color || '#9E9E9E';
     
+    // Vérifier si l'événement est tronqué (commence avant 7h ou se termine après 19h)
+    const originalStart = new Date(event.start);
+    const originalEnd = new Date(event.end);
+    const isTruncatedStart = originalStart.getHours() < 7 && !event.metadata?.all_day;
+    const isTruncatedEnd = originalEnd.getHours() >= 19 && !event.metadata?.all_day;
+    
     return (
       <TouchableOpacity 
         style={{ 
@@ -344,13 +342,20 @@ export function PlanningScreen() {
           flex: 1, 
           padding: 5,
           paddingHorizontal: 10,
-          justifyContent: 'center'
+          justifyContent: 'center',
+          // Ajouter une bordure en haut si tronqué au début
+          borderTopWidth: isTruncatedStart ? 3 : 0,
+          borderTopColor: 'white',
+          // Ajouter une bordure en bas si tronqué à la fin
+          borderBottomWidth: isTruncatedEnd ? 3 : 0,
+          borderBottomColor: 'white',
         }}
         onPress={() => handleEventPress(event)}
         onLongPress={() => handleMoveEventPress(event)}
       >
         <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
           {event.title}
+          {(isTruncatedStart || isTruncatedEnd) && ' ✂️'}
         </Text>
         
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 2 }}>
