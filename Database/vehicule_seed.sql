@@ -74,16 +74,6 @@ INSERT INTO vehicle_incidents (vehicle_id, staff_id, incident_date, incident_typ
 (1, 2, '2022-10-15 17:30:00', 'Crevaison', 'Autoroute A7', 'Crevaison pneu avant droit', 'mineur', 24000, 120.00, false, 'résolu', '2022-10-16', 'Remplacement du pneu sur place'),
 (9, 6, '2023-01-05 08:20:00', 'Vitre brisée', 'Parking public Lyon', 'Vitre arrière brisée, potentiellement acte de vandalisme', 'modéré', 19800, 350.00, true, 'résolu', '2023-01-08', 'Remplacement vitre, déclaration assurance effectuée');
 
--- Création d'index supplémentaires pour les tables de véhicules
-CREATE INDEX idx_vehicle_status ON vehicles(status);
-CREATE INDEX idx_vehicle_refueling_vehicle ON vehicle_refueling(vehicle_id);
-CREATE INDEX idx_vehicle_refueling_staff ON vehicle_refueling(staff_id);
-CREATE INDEX idx_vehicle_refueling_project ON vehicle_refueling(project_id);
-CREATE INDEX idx_vehicle_reservations_dates ON vehicle_reservations(start_date, end_date);
-CREATE INDEX idx_vehicle_reservations_staff ON vehicle_reservations(staff_id);
-CREATE INDEX idx_vehicle_incidents_vehicle ON vehicle_incidents(vehicle_id);
-CREATE INDEX idx_vehicle_incidents_staff ON vehicle_incidents(staff_id);
-CREATE INDEX idx_vehicle_incidents_date ON vehicle_incidents(incident_date);
-CREATE INDEX idx_vehicle_incidents_status ON vehicle_incidents(resolution_status);
+
 
 COMMIT;

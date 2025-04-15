@@ -141,7 +141,34 @@ CREATE TABLE IF NOT EXISTS projects (
     CONSTRAINT check_project_dates CHECK (end_date IS NULL OR end_date >= start_date)
 );
 
--- Table des documents (devis, factures, etc.)
+-- Table des rôles
+CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table du personnel
+CREATE TABLE IF NOT EXISTS staff (
+    id SERIAL PRIMARY KEY,
+    firstname VARCHAR(100) NOT NULL,
+    lastname VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    role_id INTEGER NOT NULL,
+    phone VARCHAR(20) CHECK (phone ~ '^[0-9+\s]{10,15}$'),
+    mobile VARCHAR(20) CHECK (mobile ~ '^[0-9+\s]{10,15}$'),
+    address_id INTEGER,
+    hire_date DATE NOT NULL,
+    is_available BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_staff_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_staff_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE SET NULL
+);
+
+-- Table des documents (devis, factures, etc.) - Maintenant après staff
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL,
@@ -241,33 +268,6 @@ CREATE TABLE IF NOT EXISTS project_materials (
     CONSTRAINT fk_project_material_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_material_material FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE RESTRICT,
     CONSTRAINT fk_project_material_stage FOREIGN KEY (stage_id) REFERENCES project_stages(id) ON DELETE SET NULL
-);
-
--- Table des rôles
-CREATE TABLE IF NOT EXISTS roles (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Table du personnel
-CREATE TABLE IF NOT EXISTS staff (
-    id SERIAL PRIMARY KEY,
-    firstname VARCHAR(100) NOT NULL,
-    lastname VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
-    role_id INTEGER NOT NULL,
-    phone VARCHAR(20) CHECK (phone ~ '^[0-9+\s]{10,15}$'),
-    mobile VARCHAR(20) CHECK (mobile ~ '^[0-9+\s]{10,15}$'),
-    address_id INTEGER,
-    hire_date DATE NOT NULL,
-    is_available BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_staff_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_staff_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE SET NULL
 );
 
 -- Table de liaison projet-personnel
