@@ -116,17 +116,16 @@ export const getEventTypeColor = (eventType: EventType): string => {
 // Hook pour récupérer tous les événements
 export const useEvents = (startDate?: Date, endDate?: Date, projectId?: number, staffId?: number) => {
   // Construire les paramètres pour la requête
-  const params: Record<string, string> = {};
+  const params = new URLSearchParams();
   
-  if (startDate) params.startDate = startDate.toISOString();
-  if (endDate) params.endDate = endDate.toISOString();
-  if (projectId) params.projectId = projectId.toString();
-  if (staffId) params.staffId = staffId.toString();
+  if (startDate) params.append('start_date', startDate.toISOString());
+  if (endDate) params.append('end_date', endDate.toISOString());
+  if (projectId) params.append('project_id', projectId.toString());
+  if (staffId) params.append('staff_id', staffId.toString());
   
   // Utiliser le hook useFetch pour récupérer les données
-  const { data, loading, error } = useFetch<DBEvent[]>(API_ENDPOINT, {
-    method: 'GET',
-    searchQuery: new URLSearchParams(params).toString()
+  const { data, loading, error } = useFetch<DBEvent[]>(`${API_ENDPOINT}?${params.toString()}`, {
+    method: 'GET'
   });
   
   // Transformer les données pour le format AppEvent
