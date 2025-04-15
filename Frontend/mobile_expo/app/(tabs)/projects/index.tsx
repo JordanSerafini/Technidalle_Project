@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
@@ -11,7 +11,10 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withTiming,
-  runOnJS
+  runOnJS,
+  Easing,
+  FadeIn,
+  SlideInDown
 } from 'react-native-reanimated';
 
 const statusLabels: Record<project_status, string> = {
@@ -41,7 +44,8 @@ export default function ProjetsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   
   // Utiliser Reanimated au lieu de Animated
-  const translateY = useSharedValue(300);
+  const translateY = useSharedValue(1000);
+  const overlayOpacity = useSharedValue(0);
   
   // Utiliser le projectStore
   const { 
@@ -53,31 +57,33 @@ export default function ProjetsScreen() {
     removeApplyListener
   } = useProjectStore();
   
-  // Animation avec Reanimated
-  const openFilterModal = useCallback(() => {
-    setModalVisible(true);
-    translateY.value = withTiming(0, { duration: 200 });
-  }, [translateY]);
+  // Gérer le bouton retour pour fermer le modal
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (modalVisible) {
+        handleCloseFilter();
+        return true;
+      }
+      return false;
+    });
+    
+    return () => backHandler.remove();
+  }, [modalVisible]);
   
-  // Fonction séparée pour fermer le modal
-  const hideModal = useCallback(() => {
+  // Fonction avec animation pour ouvrir le modal
+  const handleOpenFilter = useCallback(() => {
+    setModalVisible(true);
+  }, []);
+  
+  // Fonction simplifiée pour fermer le modal - TRÈS directe
+  const handleCloseFilter = useCallback(() => {
     setModalVisible(false);
   }, []);
   
-  const closeFilterModal = useCallback(() => {
-    translateY.value = withTiming(300, { duration: 120 }, (finished) => {
-      if (finished) {
-        runOnJS(hideModal)();
-      }
-    });
-  }, [translateY, hideModal]);
-  
-  // Style animé pour le modal
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }]
-    };
-  });
+  // Gestionnaires pour le FAB
+  const handleFilterPress = () => {
+    handleOpenFilter();
+  };
   
   // Fetch des projets
   const { data, loading, error } = useFetch<Project[]>('projects', {
@@ -98,7 +104,7 @@ export default function ProjetsScreen() {
   // Écouter l'événement d'application des filtres pour fermer automatiquement le modal
   useEffect(() => {
     const handleApplyFilters = () => {
-      closeFilterModal();
+      handleCloseFilter();
     };
     
     // Ajouter l'écouteur d'événement
@@ -112,7 +118,7 @@ export default function ProjetsScreen() {
         removeApplyListener(handleApplyFilters);
       }
     };
-  }, [closeFilterModal, addApplyListener, removeApplyListener]);
+  }, [handleCloseFilter, addApplyListener, removeApplyListener]);
 
   const navigateToProjectDetail = (projectId: number) => {
     if (projectId) {
@@ -123,11 +129,6 @@ export default function ProjetsScreen() {
     }
   };
 
-  // Gestionnaires pour le FAB
-  const handleFilterPress = () => {
-    openFilterModal();
-  };
-  
   const handleAddProject = () => {
     // Action pour ajouter un projet
     console.log('Ajouter un projet');
@@ -226,7 +227,7 @@ export default function ProjetsScreen() {
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Modal pour les filtres - version simplifiée avec Reanimated */}
+      {/* Modal de filtre - avec animation d'ouverture */}
       {modalVisible && (
         <View 
           style={{
@@ -235,53 +236,58 @@ export default function ProjetsScreen() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'flex-end',
-            zIndex: 999 // Assurer que c'est au-dessus de tout
+            zIndex: 1000,
           }}
         >
-          <TouchableOpacity 
+          <Animated.View
+            entering={FadeIn.duration(200)}
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              zIndex: 1 // Priorité inférieure au contenu
+              backgroundColor: 'rgba(0,0,0,0.5)',
             }}
-            activeOpacity={0.7}
-            onPress={closeFilterModal}
-          />
-          <Animated.View 
-            style={[
-              {
-                backgroundColor: 'white',
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -3 },
-                shadowOpacity: 0.1,
-                shadowRadius: 5,
-                elevation: 10,
-                zIndex: 2 // Priorité supérieure à l'overlay
-              },
-              animatedStyle
-            ]}
           >
-            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-              <Text className="font-bold text-lg">Filtres</Text>
-              <TouchableOpacity 
-                onPress={closeFilterModal}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} // Zone de tap beaucoup plus grande
-                style={{ 
-                  padding: 8, // Ajout de padding pour agrandir la zone touchable
-                  zIndex: 3 // Priorité la plus élevée
-                }}
-              >
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            <ProjectFilter />
+            <Pressable 
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+              onPress={handleCloseFilter}
+            />
+          </Animated.View>
+          
+          <Animated.View 
+            entering={SlideInDown.springify().damping(15).mass(0.9).stiffness(100).duration(300)}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              borderTopLeftRadius: 24, 
+              borderTopRightRadius: 24,
+              paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+              maxHeight: '90%',
+              zIndex: 1001,
+            }}
+          >
+            <Pressable style={{ width: '100%', height: '100%' }} onPress={(e) => e.stopPropagation()}>
+              <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+                <Text className="font-bold text-lg">Filtres</Text>
+                <TouchableOpacity 
+                  onPress={handleCloseFilter}
+                  style={{ 
+                    padding: 12,
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <ProjectFilter />
+            </Pressable>
           </Animated.View>
         </View>
       )}
