@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
+import ProjectsFab from '../../components/FAB/projects/projects.fab';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -32,9 +33,9 @@ const statusColors: Record<project_status, string> = {
 export default function ProjetsScreen() {
   const router = useRouter();
   const [showFilter, setShowFilter] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false); // État pour contrôler la visibilité du modal
+  const [modalVisible, setModalVisible] = useState(false);
   
-  // Animation pour le slide du modal
+  // Simplifier l'animation pour éviter les plantages sur mobile
   const slideAnimation = useRef(new Animated.Value(300)).current;
   
   // Utiliser le projectStore
@@ -47,16 +48,22 @@ export default function ProjetsScreen() {
     removeApplyListener
   } = useProjectStore();
   
-  // Fonction pour ouvrir le modal avec animation (stabilisée avec useCallback)
+  // Simplification de l'ouverture du modal
   const openFilterModal = useCallback(() => {
     setModalVisible(true);
-    setShowFilter(true);
-  }, []);
+    
+    // Animation plus simple
+    Animated.spring(slideAnimation, {
+      toValue: 0,
+      tension: 40,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnimation]);
   
-  // Fonction pour fermer le modal avec animation (stabilisée avec useCallback)
+  // Simplification de la fermeture du modal
   const closeFilterModal = useCallback(() => {
-    setShowFilter(false);
-    // On ferme le modal après l'animation
+    // Animation de fermeture plus simple
     Animated.timing(slideAnimation, {
       toValue: 300,
       duration: 200,
@@ -65,19 +72,6 @@ export default function ProjetsScreen() {
       setModalVisible(false);
     });
   }, [slideAnimation]);
-  
-  // Effet pour animer l'apparition du modal
-  useEffect(() => {
-    if (showFilter) {
-      // Reset position puis slide up
-      slideAnimation.setValue(300);
-      Animated.spring(slideAnimation, {
-        toValue: 0,
-        useNativeDriver: true,
-        friction: 8,
-      }).start();
-    }
-  }, [showFilter, slideAnimation]);
   
   // Fetch des projets
   const { data, loading, error } = useFetch<Project[]>('projects', {
@@ -121,6 +115,25 @@ export default function ProjetsScreen() {
         params: { id: projectId.toString() }
       });
     }
+  };
+
+  // Gestionnaires pour le FAB
+  const handleAddProject = () => {
+    // Action pour ajouter un projet
+    console.log('Ajouter un projet');
+    // Implémentation à venir
+  };
+
+  const handleEditProject = () => {
+    // Action pour éditer un projet
+    console.log('Éditer un projet');
+    // Implémentation à venir
+  };
+
+  const handleOtherOptions = () => {
+    // Autres actions
+    console.log('Autres options');
+    // Implémentation à venir
   };
 
   if (loading) {
@@ -195,15 +208,22 @@ export default function ProjetsScreen() {
         )}
       </ScrollView>
       
-      {/* Bouton de filtre flottant */}
+      {/* Bouton de filtre flottant (déplacé à gauche) */}
       <TouchableOpacity 
         onPress={openFilterModal}
-        className="absolute bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow-lg"
+        className="absolute bottom-6 left-6 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow-lg"
       >
         <Ionicons name="settings" size={24} color="#fff" />
       </TouchableOpacity>
       
-      {/* Modal pour les filtres */}
+      {/* FAB à droite */}
+      <ProjectsFab 
+        onAddPress={handleAddProject}
+        onEditPress={handleEditProject}
+        onOtherPress={handleOtherOptions}
+      />
+      
+      {/* Modal pour les filtres (simplifié) */}
       <Modal
         animationType="fade"  
         transparent={true}
@@ -221,23 +241,24 @@ export default function ProjetsScreen() {
         >
           <Animated.View 
             style={{
-              transform: [{ translateY: slideAnimation }]
+              transform: [{ translateY: slideAnimation }],
+              backgroundColor: 'white',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -3 },
+              shadowOpacity: 0.1,
+              shadowRadius: 5,
+              elevation: 10
             }}
           >
-            <TouchableOpacity 
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-            >
-              <View className="bg-white rounded-t-3xl shadow-lg">
-                <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-                  <Text className="font-bold text-lg">Filtres</Text>
-                  <TouchableOpacity onPress={closeFilterModal}>
-                    <Ionicons name="close" size={24} color="#000" />
-                  </TouchableOpacity>
-                </View>
-                <ProjectFilter />
-              </View>
-            </TouchableOpacity>
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <Text className="font-bold text-lg">Filtres</Text>
+              <TouchableOpacity onPress={closeFilterModal}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            <ProjectFilter />
           </Animated.View>
         </TouchableOpacity>
       </Modal>
