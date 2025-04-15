@@ -19,7 +19,7 @@ interface ProjectsFabProps {
   onOtherPress: () => void;
 }
 
-const OFFSET = 56; // Espacement entre les boutons
+const OFFSET = 65; // Espacement entre les boutons
 // Configuration spring plus réactive
 const SPRING_CONFIG = {
   damping: 10, // Moins d'amortissement
@@ -54,15 +54,15 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
         : withTiming(0, { duration: 150 }); // Fermeture plus rapide
       
       // Délai réduit pour une apparition plus rapide
-      const delayMs = index * 30; // 30ms au lieu de 50ms
+      const delayMs = index * 30;
       
       const scale = isExpanded.value 
         ? withDelay(delayMs, withSpring(1, SPRING_CONFIG)) 
-        : withTiming(0, { duration: 100 }); // Disparition plus rapide
+        : withTiming(0, { duration: 100 });
       
       const opacity = isExpanded.value 
         ? withDelay(delayMs, withTiming(1, { duration: 100 })) 
-        : withTiming(0, { duration: 100 }); // Disparition plus rapide
+        : withTiming(0, { duration: 100 });
 
       return {
         transform: [{ translateY }, { scale }],
