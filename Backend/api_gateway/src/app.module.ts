@@ -4,6 +4,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ResourcesModule } from './resources/resources.module';
 import { GlobalModule } from './global/global.module';
 import { DocumentsModule } from './documents/documents.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { DocumentsModule } from './documents/documents.module';
     ResourcesModule,
     GlobalModule,
     DocumentsModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [],

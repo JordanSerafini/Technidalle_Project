@@ -83,6 +83,21 @@ services:
     networks:
       - app-network
 
+  planning:
+    build:
+      context: ./Backend/planning_service
+      dockerfile: Dockerfile
+    container_name: planning
+    ports:
+      - "3007:3007"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
   api-gateway:
     build:
       context: ./Backend/api_gateway
