@@ -56,7 +56,7 @@ export default function ProjetsScreen() {
   // Animation avec Reanimated
   const openFilterModal = useCallback(() => {
     setModalVisible(true);
-    translateY.value = withTiming(0, { duration: 300 });
+    translateY.value = withTiming(0, { duration: 200 });
   }, [translateY]);
   
   // Fonction séparée pour fermer le modal
@@ -65,8 +65,7 @@ export default function ProjetsScreen() {
   }, []);
   
   const closeFilterModal = useCallback(() => {
-    // Utiliser d'abord l'animation, puis cacher le modal à la fin
-    translateY.value = withTiming(300, { duration: 300 }, (finished) => {
+    translateY.value = withTiming(300, { duration: 120 }, (finished) => {
       if (finished) {
         runOnJS(hideModal)();
       }
@@ -237,7 +236,8 @@ export default function ProjetsScreen() {
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'flex-end'
+            justifyContent: 'flex-end',
+            zIndex: 999 // Assurer que c'est au-dessus de tout
           }}
         >
           <TouchableOpacity 
@@ -247,8 +247,9 @@ export default function ProjetsScreen() {
               left: 0,
               right: 0,
               bottom: 0,
+              zIndex: 1 // Priorité inférieure au contenu
             }}
-            activeOpacity={1}
+            activeOpacity={0.7}
             onPress={closeFilterModal}
           />
           <Animated.View 
@@ -261,14 +262,22 @@ export default function ProjetsScreen() {
                 shadowOffset: { width: 0, height: -3 },
                 shadowOpacity: 0.1,
                 shadowRadius: 5,
-                elevation: 10
+                elevation: 10,
+                zIndex: 2 // Priorité supérieure à l'overlay
               },
               animatedStyle
             ]}
           >
             <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
               <Text className="font-bold text-lg">Filtres</Text>
-              <TouchableOpacity onPress={closeFilterModal}>
+              <TouchableOpacity 
+                onPress={closeFilterModal}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} // Zone de tap beaucoup plus grande
+                style={{ 
+                  padding: 8, // Ajout de padding pour agrandir la zone touchable
+                  zIndex: 3 // Priorité la plus élevée
+                }}
+              >
                 <Ionicons name="close" size={24} color="#000" />
               </TouchableOpacity>
             </View>

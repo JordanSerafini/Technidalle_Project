@@ -20,9 +20,12 @@ interface ProjectsFabProps {
 }
 
 const OFFSET = 56; // Espacement entre les boutons
+// Configuration spring plus réactive
 const SPRING_CONFIG = {
-  damping: 12,
-  stiffness: 100,
+  damping: 10, // Moins d'amortissement
+  stiffness: 150, // Plus de rigidité pour un mouvement plus rapide
+  mass: 0.8, // Masse plus légère pour une réaction plus rapide
+  overshootClamping: false,
 };
 
 export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, onOtherPress }: ProjectsFabProps) {
@@ -32,9 +35,11 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
     isExpanded.value = !isExpanded.value;
   };
 
-  // Animation du bouton principal (+/×)
+  // Animation du bouton principal (+/×) - plus rapide
   const mainButtonStyle = useAnimatedStyle(() => {
-    const rotate = withTiming(isExpanded.value ? '45deg' : '0deg');
+    const rotate = withTiming(isExpanded.value ? '45deg' : '0deg', {
+      duration: 150 // Animation plus rapide
+    });
     return {
       transform: [{ rotate }],
     };
@@ -43,17 +48,21 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
   // Fonction pour créer le style animé de chaque bouton secondaire
   const createButtonStyle = (index: number) => {
     return useAnimatedStyle(() => {
+      // Animation d'ouverture plus rapide
       const translateY = isExpanded.value 
         ? withSpring(-OFFSET * index, SPRING_CONFIG) 
-        : withTiming(0);
+        : withTiming(0, { duration: 150 }); // Fermeture plus rapide
+      
+      // Délai réduit pour une apparition plus rapide
+      const delayMs = index * 30; // 30ms au lieu de 50ms
       
       const scale = isExpanded.value 
-        ? withDelay(index * 50, withSpring(1, SPRING_CONFIG)) 
-        : withTiming(0);
+        ? withDelay(delayMs, withSpring(1, SPRING_CONFIG)) 
+        : withTiming(0, { duration: 100 }); // Disparition plus rapide
       
       const opacity = isExpanded.value 
-        ? withDelay(index * 50, withTiming(1)) 
-        : withTiming(0);
+        ? withDelay(delayMs, withTiming(1, { duration: 100 })) 
+        : withTiming(0, { duration: 100 }); // Disparition plus rapide
 
       return {
         transform: [{ translateY }, { scale }],
@@ -77,6 +86,7 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
           onOtherPress();
           isExpanded.value = false;
         }}
+        activeOpacity={0.8} // Feedback visuel amélioré
       >
         <Ionicons name="ellipsis-horizontal" size={24} color="white" />
       </AnimatedTouchable>
@@ -88,6 +98,7 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
           onEditPress();
           isExpanded.value = false;
         }}
+        activeOpacity={0.8}
       >
         <MaterialIcons name="edit" size={24} color="white" />
       </AnimatedTouchable>
@@ -99,6 +110,7 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
           onAddPress();
           isExpanded.value = false;
         }}
+        activeOpacity={0.8}
       >
         <Ionicons name="add" size={24} color="white" />
       </AnimatedTouchable>
@@ -110,6 +122,7 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
           onFilterPress();
           isExpanded.value = false;
         }}
+        activeOpacity={0.8}
       >
         <Ionicons name="settings" size={24} color="white" />
       </AnimatedTouchable>
@@ -118,6 +131,7 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
       <TouchableOpacity 
         style={[styles.button, styles.mainButton]}
         onPress={handleMainButtonPress}
+        activeOpacity={0.9}
       >
         <Animated.View style={mainButtonStyle}>
           <Ionicons name="add" size={24} color="white" />
@@ -133,6 +147,7 @@ const styles = StyleSheet.create({
     bottom: 16,
     right: 16,
     alignItems: 'center',
+    zIndex: 900,
   },
   button: {
     width: 56,
@@ -141,19 +156,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 5,
-    elevation: 5,
+    elevation: 6,
   },
   mainButton: {
     backgroundColor: '#3F51B5', // Couleur principale (indigo)
-    zIndex: 1,
+    zIndex: 910,
   },
   secondaryButton: {
     position: 'absolute',
     bottom: 0,
     backgroundColor: '#303F9F', // Couleur secondaire (indigo plus foncé)
-    zIndex: 0,
+    zIndex: 905,
   },
 });
