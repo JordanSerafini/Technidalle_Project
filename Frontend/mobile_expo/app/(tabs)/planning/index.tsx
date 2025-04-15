@@ -13,7 +13,11 @@ export function PlanningScreen() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [mode, setMode] = useState<ViewMode>('week');
   const [date, setDate] = useState(() => {
+    // Forcer l'année 2024 pour correspondre aux données de la base
     const now = new Date();
+    now.setFullYear(2024);
+    now.setMonth(3); // Avril (0-indexed, donc 3 = avril)
+    now.setDate(15); // Milieu du mois
     now.setHours(0, 0, 0, 0);
     return now;
   });
