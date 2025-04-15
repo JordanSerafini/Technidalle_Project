@@ -88,9 +88,26 @@ export function PlanningScreen() {
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
       
+      // S'assurer que les dates sont des instances valides de Date
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.error('Date invalide détectée:', { start: event.start, end: event.end });
+        return null;
+      }
+      
       if (event.metadata?.all_day) {
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(23, 59, 59, 999);
+      }
+
+      // S'assurer que les événements sont dans la plage d'heures affichées (7h-19h)
+      // Si un événement commence avant 7h, le déplacer à 7h
+      if (startDate.getHours() < 7 && !event.metadata?.all_day) {
+        startDate.setHours(7, 0, 0, 0);
+      }
+      
+      // Si un événement se termine après 19h, le limiter à 19h
+      if (endDate.getHours() >= 19 && !event.metadata?.all_day) {
+        endDate.setHours(19, 0, 0, 0);
       }
 
       return {
@@ -101,7 +118,7 @@ export function PlanningScreen() {
         color: event.color || getEventTypeColor(event.metadata?.event_type),
         metadata: event.metadata
       };
-    });
+    }).filter(Boolean); // Filtrer les événements null (dates invalides)
   }, [events]);
 
   // Gestionnaire de changement de date sécurisé
@@ -601,6 +618,8 @@ export function PlanningScreen() {
           overlapOffset={70} // Décalage pour les événements qui se chevauchent
           ampm={false} // Utiliser le format 24h
           onChangeDate={handleDateChange}
+          minHour={7} // Afficher à partir de 7h
+          maxHour={19} // Afficher jusqu'à 19h
         />
       </View>
       
