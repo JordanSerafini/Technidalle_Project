@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming,
+  runOnJS
+} from 'react-native-reanimated';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -32,11 +38,10 @@ const statusColors: Record<project_status, string> = {
 
 export default function ProjetsScreen() {
   const router = useRouter();
-  const [showFilter, setShowFilter] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   
-  // Simplifier l'animation pour éviter les plantages sur mobile
-  const slideAnimation = useRef(new Animated.Value(300)).current;
+  // Utiliser Reanimated au lieu de Animated
+  const translateY = useSharedValue(300);
   
   // Utiliser le projectStore
   const { 
@@ -48,30 +53,32 @@ export default function ProjetsScreen() {
     removeApplyListener
   } = useProjectStore();
   
-  // Simplification de l'ouverture du modal
+  // Animation avec Reanimated
   const openFilterModal = useCallback(() => {
     setModalVisible(true);
-    
-    // Animation plus simple
-    Animated.spring(slideAnimation, {
-      toValue: 0,
-      tension: 40,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
-  }, [slideAnimation]);
+    translateY.value = withTiming(0, { duration: 300 });
+  }, [translateY]);
   
-  // Simplification de la fermeture du modal
+  // Fonction séparée pour fermer le modal
+  const hideModal = useCallback(() => {
+    setModalVisible(false);
+  }, []);
+  
   const closeFilterModal = useCallback(() => {
-    // Animation de fermeture plus simple
-    Animated.timing(slideAnimation, {
-      toValue: 300,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setModalVisible(false);
+    // Utiliser d'abord l'animation, puis cacher le modal à la fin
+    translateY.value = withTiming(300, { duration: 300 }, (finished) => {
+      if (finished) {
+        runOnJS(hideModal)();
+      }
     });
-  }, [slideAnimation]);
+  }, [translateY, hideModal]);
+  
+  // Style animé pour le modal
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }]
+    };
+  });
   
   // Fetch des projets
   const { data, loading, error } = useFetch<Project[]>('projects', {
@@ -118,6 +125,10 @@ export default function ProjetsScreen() {
   };
 
   // Gestionnaires pour le FAB
+  const handleFilterPress = () => {
+    openFilterModal();
+  };
+  
   const handleAddProject = () => {
     // Action pour ajouter un projet
     console.log('Ajouter un projet');
@@ -208,49 +219,52 @@ export default function ProjetsScreen() {
         )}
       </ScrollView>
       
-      {/* Bouton de filtre flottant (déplacé à gauche) */}
-      <TouchableOpacity 
-        onPress={openFilterModal}
-        className="absolute bottom-6 left-6 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow-lg"
-      >
-        <Ionicons name="settings" size={24} color="#fff" />
-      </TouchableOpacity>
-      
-      {/* FAB à droite */}
+      {/* FAB avec bouton filtre intégré */}
       <ProjectsFab 
+        onFilterPress={handleFilterPress}
         onAddPress={handleAddProject}
         onEditPress={handleEditProject}
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Modal pour les filtres (simplifié) */}
-      <Modal
-        animationType="fade"  
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={closeFilterModal}
-      >
-        <TouchableOpacity 
+      {/* Modal pour les filtres - version simplifiée avec Reanimated */}
+      {modalVisible && (
+        <View 
           style={{
-            flex: 1,
-            justifyContent: 'flex-end',
-            backgroundColor: 'rgba(0,0,0,0.5)'
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'flex-end'
           }}
-          activeOpacity={1}
-          onPress={closeFilterModal}
         >
-          <Animated.View 
+          <TouchableOpacity 
             style={{
-              transform: [{ translateY: slideAnimation }],
-              backgroundColor: 'white',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -3 },
-              shadowOpacity: 0.1,
-              shadowRadius: 5,
-              elevation: 10
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
             }}
+            activeOpacity={1}
+            onPress={closeFilterModal}
+          />
+          <Animated.View 
+            style={[
+              {
+                backgroundColor: 'white',
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -3 },
+                shadowOpacity: 0.1,
+                shadowRadius: 5,
+                elevation: 10
+              },
+              animatedStyle
+            ]}
           >
             <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
               <Text className="font-bold text-lg">Filtres</Text>
@@ -260,8 +274,8 @@ export default function ProjetsScreen() {
             </View>
             <ProjectFilter />
           </Animated.View>
-        </TouchableOpacity>
-      </Modal>
+        </View>
+      )}
     </View>
   );
 }
