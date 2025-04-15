@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 interface ProjectsFabProps {
@@ -9,75 +9,67 @@ interface ProjectsFabProps {
   onOtherPress: () => void;
 }
 
-export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, onOtherPress }: ProjectsFabProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function ProjectsFab({
+  onFilterPress,
+  onAddPress,
+  onEditPress,
+  onOtherPress
+}: ProjectsFabProps) {
+  const [expanded, setExpanded] = useState(false);
 
-  const handleMainButtonPress = () => {
-    setIsExpanded(!isExpanded);
+  // Basculer l'état d'expansion
+  const toggleExpanded = () => {
+    setExpanded(!expanded);
+  };
+
+  // Exécuter une action et fermer le menu
+  const handleAction = (callback: () => void) => {
+    callback();
+    setExpanded(false);
   };
 
   return (
-    <View style={styles.container}>
-      {isExpanded && (
+    <View style={styles.container} pointerEvents="box-none">
+      {/* Menu secondaire - visible uniquement quand expanded est true */}
+      {expanded && (
         <>
-          {/* Bouton Autres */}
           <TouchableOpacity 
-            style={[styles.button, styles.secondaryButton, { bottom: 280 }]}
-            onPress={() => {
-              onOtherPress();
-              setIsExpanded(false);
-            }}
-            activeOpacity={0.8}
+            style={[styles.button, styles.secondaryButton, styles.position4]}
+            onPress={() => handleAction(onOtherPress)}
           >
             <Ionicons name="ellipsis-horizontal" size={24} color="white" />
           </TouchableOpacity>
-
-          {/* Bouton Éditer */}
+          
           <TouchableOpacity 
-            style={[styles.button, styles.secondaryButton, { bottom: 210 }]}
-            onPress={() => {
-              onEditPress();
-              setIsExpanded(false);
-            }}
-            activeOpacity={0.8}
+            style={[styles.button, styles.secondaryButton, styles.position3]}
+            onPress={() => handleAction(onEditPress)}
           >
             <MaterialIcons name="edit" size={24} color="white" />
           </TouchableOpacity>
-
-          {/* Bouton Ajouter */}
+          
           <TouchableOpacity 
-            style={[styles.button, styles.secondaryButton, { bottom: 140 }]}
-            onPress={() => {
-              onAddPress();
-              setIsExpanded(false);
-            }}
-            activeOpacity={0.8}
+            style={[styles.button, styles.secondaryButton, styles.position2]}
+            onPress={() => handleAction(onAddPress)}
           >
             <Ionicons name="add" size={24} color="white" />
           </TouchableOpacity>
-
-          {/* Bouton Filtre */}
+          
           <TouchableOpacity 
-            style={[styles.button, styles.secondaryButton, { bottom: 70 }]}
-            onPress={() => {
-              onFilterPress();
-              setIsExpanded(false);
-            }}
-            activeOpacity={0.8}
+            style={[styles.button, styles.secondaryButton, styles.position1]}
+            onPress={() => handleAction(onFilterPress)}
           >
             <Ionicons name="settings" size={24} color="white" />
           </TouchableOpacity>
         </>
       )}
-
-      {/* Bouton principal */}
+      
+      {/* Bouton principal - toujours visible */}
       <TouchableOpacity 
         style={[styles.button, styles.mainButton]}
-        onPress={handleMainButtonPress}
-        activeOpacity={0.9}
+        onPress={toggleExpanded}
       >
         <Ionicons 
-          name={isExpanded ? "close" : "add"} 
+          name={expanded ? "close" : "add"} 
           size={24} 
           color="white" 
         />
@@ -92,7 +84,8 @@ const styles = StyleSheet.create({
     bottom: 16,
     right: 16,
     alignItems: 'center',
-    zIndex: 900,
+    justifyContent: 'flex-end',
+    zIndex: 5,
   },
   button: {
     width: 56,
@@ -101,18 +94,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
-    elevation: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
   },
   mainButton: {
-    backgroundColor: '#3F51B5', // Couleur principale (indigo)
-    zIndex: 910,
+    backgroundColor: '#3F51B5',
+    zIndex: 1,
   },
   secondaryButton: {
     position: 'absolute',
-    backgroundColor: '#303F9F', // Couleur secondaire (indigo plus foncé)
-    zIndex: 905,
+    backgroundColor: '#303F9F',
+    zIndex: 0,
+  },
+  position1: {
+    bottom: 70, // 56 (taille du bouton) + 14 (espace)
+    right: 0,
+  },
+  position2: {
+    bottom: 140, // 56*2 + 14*2
+    right: 0,
+  },
+  position3: {
+    bottom: 210, // 56*3 + 14*3
+    right: 0,
+  },
+  position4: {
+    bottom: 280, // 56*4 + 14*4
+    right: 0,
   },
 });
