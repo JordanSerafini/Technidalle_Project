@@ -87,92 +87,6 @@ export class DocumentsController {
     }
   }
 
-  @Get(':id')
-  async getDocumentById(@Param('id') id: number): Promise<Document> {
-    try {
-      const document = await firstValueFrom(
-        this.documentsService.send({ cmd: 'get_document_by_id' }, { id }),
-      );
-      if (!document) {
-        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
-      }
-      return document;
-    } catch (error) {
-      console.error(`Erreur lors de la récupération du document ${id}:`, error);
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        'Erreur lors de la récupération du document',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Post()
-  async createDocument(
-    @Body() createDocumentDto: CreateDocumentDto,
-  ): Promise<Document> {
-    try {
-      return await firstValueFrom(
-        this.documentsService.send(
-          { cmd: 'create_document' },
-          createDocumentDto,
-        ),
-      );
-    } catch (error) {
-      console.error('Erreur lors de la création du document:', error);
-      throw new HttpException(
-        'Erreur lors de la création du document',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Put(':id')
-  async updateDocument(
-    @Param('id') id: number,
-    @Body() updateDocumentDto: UpdateDocumentDto,
-  ): Promise<Document> {
-    try {
-      const document = await firstValueFrom(
-        this.documentsService.send(
-          { cmd: 'update_document' },
-          { id, documentDto: updateDocumentDto },
-        ),
-      );
-      if (!document) {
-        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
-      }
-      return document;
-    } catch (error) {
-      console.error(`Erreur lors de la mise à jour du document ${id}:`, error);
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        'Erreur lors de la mise à jour du document',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Delete(':id')
-  async deleteDocument(@Param('id') id: number): Promise<boolean> {
-    try {
-      const result = await firstValueFrom(
-        this.documentsService.send({ cmd: 'delete_document' }, { id }),
-      );
-      if (!result) {
-        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
-      }
-      return true;
-    } catch (error) {
-      console.error(`Erreur lors de la suppression du document ${id}:`, error);
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        'Erreur lors de la suppression du document',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
   @Get('client/:clientId')
   async getDocumentsByClientId(
     @Param('clientId') clientId: string,
@@ -289,6 +203,46 @@ export class DocumentsController {
     }
   }
 
+  @Get(':id')
+  async getDocumentById(@Param('id') id: number): Promise<Document> {
+    try {
+      const document = await firstValueFrom(
+        this.documentsService.send({ cmd: 'get_document_by_id' }, { id }),
+      );
+      if (!document) {
+        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
+      }
+      return document;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du document ${id}:`, error);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Erreur lors de la récupération du document',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post()
+  async createDocument(
+    @Body() createDocumentDto: CreateDocumentDto,
+  ): Promise<Document> {
+    try {
+      return await firstValueFrom(
+        this.documentsService.send(
+          { cmd: 'create_document' },
+          createDocumentDto,
+        ),
+      );
+    } catch (error) {
+      console.error('Erreur lors de la création du document:', error);
+      throw new HttpException(
+        'Erreur lors de la création du document',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Post('media')
   async createProjectMedia(
     @Body() createProjectMediaDto: CreateProjectMediaDto,
@@ -304,6 +258,32 @@ export class DocumentsController {
       console.error('Erreur lors de la création du média:', error);
       throw new HttpException(
         'Erreur lors de la création du média',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Put(':id')
+  async updateDocument(
+    @Param('id') id: number,
+    @Body() updateDocumentDto: UpdateDocumentDto,
+  ): Promise<Document> {
+    try {
+      const document = await firstValueFrom(
+        this.documentsService.send(
+          { cmd: 'update_document' },
+          { id, documentDto: updateDocumentDto },
+        ),
+      );
+      if (!document) {
+        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
+      }
+      return document;
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour du document ${id}:`, error);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Erreur lors de la mise à jour du document',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -330,6 +310,26 @@ export class DocumentsController {
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Erreur lors de la mise à jour du média',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete(':id')
+  async deleteDocument(@Param('id') id: number): Promise<boolean> {
+    try {
+      const result = await firstValueFrom(
+        this.documentsService.send({ cmd: 'delete_document' }, { id }),
+      );
+      if (!result) {
+        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
+      }
+      return true;
+    } catch (error) {
+      console.error(`Erreur lors de la suppression du document ${id}:`, error);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Erreur lors de la suppression du document',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
