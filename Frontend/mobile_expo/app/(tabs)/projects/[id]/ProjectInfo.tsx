@@ -69,7 +69,7 @@ export const ProjectInfo: React.FC<ProjectInfoProps> = ({
         <View className="mt-4">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-gray-600">Nom du projet:</Text>
-            <Text className="text-xs">{name}</Text>
+            <Text className="">{name}</Text>
             </View>
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-gray-600">Référence:</Text>
@@ -113,3 +113,5 @@ export const ProjectInfo: React.FC<ProjectInfoProps> = ({
     </View>
   );
 }; 
+
+export default ProjectInfo;

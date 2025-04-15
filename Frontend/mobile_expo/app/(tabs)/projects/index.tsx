@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Animated } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
@@ -37,14 +37,24 @@ export default function ProjetsScreen() {
   // Animation pour le slide du modal
   const slideAnimation = useRef(new Animated.Value(300)).current;
   
-  // Fonction pour ouvrir le modal avec animation
-  const openFilterModal = () => {
+  // Utiliser le projectStore
+  const { 
+    setProjects, 
+    projects, 
+    filteredProjects, 
+    applyFilters,
+    addApplyListener,
+    removeApplyListener
+  } = useProjectStore();
+  
+  // Fonction pour ouvrir le modal avec animation (stabilisée avec useCallback)
+  const openFilterModal = useCallback(() => {
     setModalVisible(true);
     setShowFilter(true);
-  };
+  }, []);
   
-  // Fonction pour fermer le modal avec animation
-  const closeFilterModal = () => {
+  // Fonction pour fermer le modal avec animation (stabilisée avec useCallback)
+  const closeFilterModal = useCallback(() => {
     setShowFilter(false);
     // On ferme le modal après l'animation
     Animated.timing(slideAnimation, {
@@ -54,7 +64,7 @@ export default function ProjetsScreen() {
     }).start(() => {
       setModalVisible(false);
     });
-  };
+  }, [slideAnimation]);
   
   // Effet pour animer l'apparition du modal
   useEffect(() => {
@@ -68,16 +78,6 @@ export default function ProjetsScreen() {
       }).start();
     }
   }, [showFilter, slideAnimation]);
-  
-  // Utiliser le projectStore
-  const { 
-    setProjects, 
-    projects, 
-    filteredProjects, 
-    applyFilters,
-    addApplyListener,
-    removeApplyListener
-  } = useProjectStore();
   
   // Fetch des projets
   const { data, loading, error } = useFetch<Project[]>('projects', {
@@ -98,18 +98,21 @@ export default function ProjetsScreen() {
   // Écouter l'événement d'application des filtres pour fermer automatiquement le modal
   useEffect(() => {
     const handleApplyFilters = () => {
-      // Fermer le modal quand les filtres sont appliqués
       closeFilterModal();
     };
     
     // Ajouter l'écouteur d'événement
-    addApplyListener(handleApplyFilters);
+    if (addApplyListener) {
+      addApplyListener(handleApplyFilters);
+    }
     
     // Nettoyer l'écouteur à la destruction du composant
     return () => {
-      removeApplyListener(handleApplyFilters);
+      if (removeApplyListener) {
+        removeApplyListener(handleApplyFilters);
+      }
     };
-  }, [addApplyListener, removeApplyListener]);
+  }, [closeFilterModal, addApplyListener, removeApplyListener]);
 
   const navigateToProjectDetail = (projectId: number) => {
     if (projectId) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Project, project_status } from '@/app/utils/interfaces/project.interface';
+import { router } from 'expo-router';
 
 interface ClientProjectsProps {
   projects?: Project[];
@@ -43,6 +44,14 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
     return 'Autre';
   };
   
+  // Fonction pour naviguer vers la page de détail du projet
+  const handleProjectPress = (projectId: number) => {
+    router.push({
+      pathname: "/(tabs)/projects/[id]",
+      params: { id: projectId }
+    });
+  };
+  
   return (
     <View className="bg-white rounded-lg shadow-sm w-full mb-4">
       <TouchableOpacity 
@@ -79,7 +88,7 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
                   <TouchableOpacity 
                     key={project.id}
                     className="flex-row items-center w-full mb-2.5"
-                    onPress={() => onProjectPress(project.id)}
+                    onPress={() => handleProjectPress(project.id)}
                   >
                     <MaterialCommunityIcons name="home-variant" size={24} color="#2563eb" />
                     <View className="ml-3 flex-1">
@@ -107,3 +116,5 @@ export const ClientProjects: React.FC<ClientProjectsProps> = ({
     </View>
   );
 }; 
+
+export default ClientProjects;

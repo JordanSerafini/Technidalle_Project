@@ -38,3 +38,5 @@ export const ProjectNotes: React.FC<ProjectNotesProps> = ({
     </View>
   );
 }; 
+
+export default ProjectNotes;

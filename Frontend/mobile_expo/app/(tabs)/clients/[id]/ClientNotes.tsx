@@ -45,3 +45,5 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({
     </View>
   );
 }; 
+
+export default ClientNotes;

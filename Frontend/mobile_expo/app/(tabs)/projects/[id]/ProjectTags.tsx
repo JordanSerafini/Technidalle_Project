@@ -63,3 +63,5 @@ export const ProjectTags: React.FC<ProjectTagsProps> = ({
     </View>
   );
 }; 
+
+export default ProjectTags;

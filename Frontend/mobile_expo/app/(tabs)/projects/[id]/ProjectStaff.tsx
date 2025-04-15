@@ -2,24 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
-
-interface StaffMember {
-  id: number;
-  staff_id: number;
-  project_id: number;
-  role?: string;
-  start_date?: string;
-  end_date?: string;
-  hourly_rate?: number;
-  staff?: {
-    id: number;
-    firstname: string;
-    lastname: string;
-    email?: string;
-    phone?: string;
-    title?: string;
-  };
-}
+import { ProjectStaff as ProjectStaffInterface } from '@/app/utils/interfaces/staff.interface';
 
 interface ProjectStaffProps {
   projectId: string | number;
@@ -32,8 +15,8 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
   isOpen,
   onToggle
 }) => {
-  const { data: staff, loading, error } = useFetch<StaffMember[]>(`resources/projects/${projectId}/staff`);
-
+  const { data: staff, loading, error } = useFetch<ProjectStaffInterface[]>(`resources/projects/${projectId}/staff`);
+console.log( staff )
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
       <TouchableOpacity 
@@ -64,16 +47,12 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
                   <>
                     <View className="flex-row justify-between items-center">
                       <Text className="font-semibold">{member.staff.firstname} {member.staff.lastname}</Text>
-                      {member.role && (
+                      {member.role_description && (
                         <View className="bg-blue-100 px-2 py-1 rounded-full">
-                          <Text className="text-blue-800 text-xs">{member.role}</Text>
+                          <Text className="text-blue-800 text-xs">{member.role_description}</Text>
                         </View>
                       )}
                     </View>
-                    
-                    {member.staff.title && (
-                      <Text className="text-gray-600 text-sm">{member.staff.title}</Text>
-                    )}
                     
                     {(member.start_date || member.end_date) && (
                       <Text className="text-gray-500 text-sm mt-1">
@@ -82,9 +61,9 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
                       </Text>
                     )}
                     
-                    {member.hourly_rate && (
+                    {member.hours_planned && (
                       <Text className="text-blue-700 text-sm mt-1">
-                        Taux horaire: {member.hourly_rate}€/h
+                        Heures prévues: {member.hours_planned}h
                       </Text>
                     )}
                   </>
@@ -101,3 +80,5 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
     </View>
   );
 }; 
+
+export default ProjectStaff;

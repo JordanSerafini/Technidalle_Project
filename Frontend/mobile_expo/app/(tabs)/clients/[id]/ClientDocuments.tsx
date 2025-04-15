@@ -84,3 +84,5 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
     </View>
   );
 }; 
+
+export default ClientDocuments;

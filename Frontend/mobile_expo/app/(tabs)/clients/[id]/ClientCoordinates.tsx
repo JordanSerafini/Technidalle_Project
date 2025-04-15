@@ -80,3 +80,5 @@ export const ClientCoordinates: React.FC<ClientCoordinatesProps> = ({
     </View>
   );
 }; 
+
+export default ClientCoordinates;

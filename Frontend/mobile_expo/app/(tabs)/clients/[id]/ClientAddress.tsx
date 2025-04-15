@@ -68,3 +68,5 @@ export const ClientAddress: React.FC<ClientAddressProps> = ({
     </View>
   );
 }; 
+
+export default ClientAddress;

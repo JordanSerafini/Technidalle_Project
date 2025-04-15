@@ -76,3 +76,5 @@ export const ProjectAddress: React.FC<ProjectAddressProps> = ({
     </View>
   );
 }; 
+
+export default ProjectAddress;
