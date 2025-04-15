@@ -1,3 +1,5 @@
+import React from 'react';
+
 export enum DocumentType {
   DEVIS = 'devis',
   FACTURE = 'facture',
@@ -34,4 +36,9 @@ export interface Document {
   file_path: string | null;
   created_at: Date | null;
   updated_at: Date | null;
+}
+
+// Composant React pour résoudre l'erreur de routing Expo
+export default function DocumentInterfaceComponent() {
+  return React.createElement(React.Fragment, null);
 } 

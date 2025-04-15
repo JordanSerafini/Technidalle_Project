@@ -54,7 +54,7 @@ export default function ProjectDetailScreen() {
   useEffect(() => {
     if (project) {
       navigation.setOptions({
-        title: project.name,
+        title: project.reference,
         headerShown: true
       });
     }

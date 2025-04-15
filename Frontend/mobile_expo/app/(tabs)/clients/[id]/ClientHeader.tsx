@@ -38,3 +38,5 @@ export const ClientHeader: React.FC<ClientHeaderProps> = ({
     </View>
   );
 }; 
+
+export default ClientHeader;

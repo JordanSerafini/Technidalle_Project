@@ -141,3 +141,5 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
     </View>
   );
 }; 
+
+export default ProjectMaterials;

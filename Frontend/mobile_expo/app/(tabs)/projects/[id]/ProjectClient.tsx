@@ -81,3 +81,5 @@ export const ProjectClient: React.FC<ProjectClientProps> = ({
     </View>
   );
 }; 
+
+export default ProjectClient;

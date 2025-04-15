@@ -36,6 +36,7 @@ export default function ProjectsLayout() {
         name="[id]/index" 
         options={{
           headerShown: false,
+          
         }}
       />
     </Stack>

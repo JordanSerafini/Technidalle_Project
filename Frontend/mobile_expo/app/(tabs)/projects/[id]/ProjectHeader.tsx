@@ -16,4 +16,6 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ name }) => {
       <Text className="text-xl font-bold flex-1">{name}</Text>
     </View>
   );
-}; 
+};
+
+export default ProjectHeader; 

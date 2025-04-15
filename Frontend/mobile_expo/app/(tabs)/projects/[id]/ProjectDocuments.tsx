@@ -183,3 +183,5 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
     </View>
   );
 }; 
+
+export default ProjectDocuments;

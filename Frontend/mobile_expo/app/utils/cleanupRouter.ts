@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
+import React from 'react';
 
 /**
  * Utilitaire pour nettoyer le paramètre __EXPO_ROUTER_key des URLs
@@ -104,4 +105,9 @@ export const setupUrlCleaner = () => {
       router.back = originalBack;
     },
   };
-}; 
+};
+
+// Composant React pour résoudre l'erreur de routing Expo
+export default function CleanupRouterComponent() {
+  return React.createElement(React.Fragment, null);
+} 

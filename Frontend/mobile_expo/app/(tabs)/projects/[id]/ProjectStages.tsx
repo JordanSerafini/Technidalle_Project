@@ -71,3 +71,5 @@ export const ProjectStages: React.FC<ProjectStagesProps> = ({
     </View>
   );
 }; 
+
+export default ProjectStages;
