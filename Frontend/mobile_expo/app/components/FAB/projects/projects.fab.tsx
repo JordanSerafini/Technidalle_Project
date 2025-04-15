@@ -13,6 +13,7 @@ import Animated, {
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface ProjectsFabProps {
+  onFilterPress: () => void;
   onAddPress: () => void;
   onEditPress: () => void;
   onOtherPress: () => void;
@@ -24,7 +25,7 @@ const SPRING_CONFIG = {
   stiffness: 100,
 };
 
-export default function ProjectsFab({ onAddPress, onEditPress, onOtherPress }: ProjectsFabProps) {
+export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, onOtherPress }: ProjectsFabProps) {
   const isExpanded = useSharedValue(false);
 
   const handleMainButtonPress = () => {
@@ -62,9 +63,10 @@ export default function ProjectsFab({ onAddPress, onEditPress, onOtherPress }: P
   };
 
   // Styles animés pour chaque bouton
-  const addButtonStyle = createButtonStyle(1);
-  const editButtonStyle = createButtonStyle(2);
-  const otherButtonStyle = createButtonStyle(3);
+  const filterButtonStyle = createButtonStyle(1);
+  const addButtonStyle = createButtonStyle(2);
+  const editButtonStyle = createButtonStyle(3);
+  const otherButtonStyle = createButtonStyle(4);
 
   return (
     <View style={styles.container}>
@@ -99,6 +101,17 @@ export default function ProjectsFab({ onAddPress, onEditPress, onOtherPress }: P
         }}
       >
         <Ionicons name="add" size={24} color="white" />
+      </AnimatedTouchable>
+
+      {/* Bouton Filtre */}
+      <AnimatedTouchable 
+        style={[styles.button, styles.secondaryButton, filterButtonStyle]}
+        onPress={() => {
+          onFilterPress();
+          isExpanded.value = false;
+        }}
+      >
+        <Ionicons name="settings" size={24} color="white" />
       </AnimatedTouchable>
 
       {/* Bouton principal */}
