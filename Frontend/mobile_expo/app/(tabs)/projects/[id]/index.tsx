@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, ActivityIndicator, TouchableOpacity, Text, Linking, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity, Text, Linking, Alert, Platform } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { Project, project_status } from '../../../utils/interfaces/project.interface';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
@@ -17,10 +17,10 @@ import { ProjectMaterials } from './ProjectMaterials';
 import { ProjectDocuments } from './ProjectDocuments';
 import { ProjectMedia } from './ProjectMedia';
 
-
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  
   const { data: project, loading, error } = useFetch<Project>(`projects/${id}`, {
     method: 'GET',
     headers: {
@@ -43,6 +43,7 @@ export default function ProjectDetailScreen() {
     medias: false
   });
 
+  // Fonction unique pour gérer l'ouverture/fermeture des sections
   const toggleSection = (section: keyof typeof sections) => {
     setSections(prev => ({
       ...prev,
@@ -94,7 +95,7 @@ export default function ProjectDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex items-center justify-center h-full">
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#0000ff" />
         <Text className="text-gray-600 mt-4">Chargement...</Text>
       </View>
@@ -103,7 +104,7 @@ export default function ProjectDetailScreen() {
 
   if (error) {
     return (
-      <View className="flex items-center justify-center h-full">
+      <View className="flex-1 items-center justify-center">
         <Text className="text-red-500">Erreur: {error}</Text>
         <TouchableOpacity 
           className="mt-4 bg-blue-500 py-2 px-4 rounded-lg"
@@ -117,7 +118,7 @@ export default function ProjectDetailScreen() {
 
   if (!project) {
     return (
-      <View className="flex items-center justify-center h-full">
+      <View className="flex-1 items-center justify-center">
         <Text className="text-gray-600">Projet non trouvé</Text>
         <TouchableOpacity 
           className="mt-4 bg-blue-500 py-2 px-4 rounded-lg"
@@ -130,11 +131,8 @@ export default function ProjectDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <ScrollView>
-        {/* Header avec bouton retour */}
-        {/* <ProjectHeader name={project.name} /> */}
-
+    <ScrollView className="flex-1 bg-gray-100">
+      <View className="p-4">
         {/* Informations principales */}
         <ProjectInfo
           reference={project.reference}
@@ -223,7 +221,7 @@ export default function ProjectDetailScreen() {
             onToggle={() => toggleSection('notes')}
           />
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }

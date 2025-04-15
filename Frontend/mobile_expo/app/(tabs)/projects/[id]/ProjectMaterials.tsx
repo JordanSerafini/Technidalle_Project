@@ -2,25 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
-
-interface Material {
-  id: number;
-  material_id: number;
-  project_id: number;
-  quantity?: number;
-  unit_price?: number;
-  total_price?: number;
-  notes?: string;
-  materials?: {
-    id: number;
-    name: string;
-    description?: string;
-    reference?: string;
-    price?: number;
-    unit?: string;
-    category?: string;
-  };
-}
+import { ProjectMaterial } from '../../../utils/interfaces/material.interface';
 
 interface ProjectMaterialsProps {
   projectId: string | number;
@@ -33,20 +15,16 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
   isOpen,
   onToggle
 }) => {
-  const { data: materials, loading, error } = useFetch<Material[]>(`resources/projects/${projectId}/materials`);
+  const { data: materials, loading, error } = useFetch<ProjectMaterial[]>(`resources/projects/${projectId}/materials`);
 
   // Calculer le prix total de tous les matériaux
   const totalMaterialsCost = React.useMemo(() => {
     if (!materials || materials.length === 0) return 0;
     
     return materials.reduce((total, material) => {
-      // Priorité au total_price s'il existe
-      if (material.total_price) {
-        return total + material.total_price;
-      }
-      // Sinon, calculer le prix basé sur quantity * unit_price
-      else if (material.quantity && material.unit_price) {
-        return total + (material.quantity * material.unit_price);
+      // Utiliser le prix unitaire multiplié par la quantité planifiée
+      if (material.unit_price) {
+        return total + (material.quantity_planned * material.unit_price);
       }
       return total;
     }, 0);
@@ -55,11 +33,13 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
       <TouchableOpacity 
-        className="flex-row justify-between items-center"
+        className="flex-row justify-between items-center p-2"
         onPress={onToggle}
+        activeOpacity={0.7}
+        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
       >
         <View className="flex-row items-center">
-          <MaterialIcons name="category" size={22} color="#1e40af" className="mr-2" />
+          <MaterialIcons name="hardware" size={22} color="#1e40af" className="mr-2" />
           <Text className="text-lg font-bold ml-2">Matériaux</Text>
         </View>
         <Ionicons 
@@ -83,11 +63,6 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
                     <>
                       <View className="flex-row justify-between items-center">
                         <Text className="font-semibold">{material.materials.name}</Text>
-                        {material.materials.category && (
-                          <View className="bg-blue-100 px-2 py-1 rounded-full">
-                            <Text className="text-blue-800 text-xs">{material.materials.category}</Text>
-                          </View>
-                        )}
                       </View>
                       
                       {material.materials.description && (
@@ -96,14 +71,12 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
                       
                       <View className="flex-row justify-between mt-1">
                         <Text className="text-gray-700">
-                          {material.quantity || 0} {material.materials.unit || 'unité(s)'}
+                          {material.quantity_planned} {material.materials.unit || 'unité(s)'}
                         </Text>
                         <Text className="font-medium">
-                          {material.total_price 
-                            ? `${material.total_price.toLocaleString('fr-FR')}€` 
-                            : material.unit_price 
-                              ? `${(material.quantity || 0) * material.unit_price}€`
-                              : ''}
+                          {material.unit_price 
+                            ? `${(material.quantity_planned * material.unit_price).toLocaleString('fr-FR')}€`
+                            : ''}
                         </Text>
                       </View>
                       

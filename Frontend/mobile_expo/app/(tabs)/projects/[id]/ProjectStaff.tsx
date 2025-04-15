@@ -19,8 +19,10 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
       <TouchableOpacity 
-        className="flex-row justify-between items-center"
+        className="flex-row justify-between items-center p-2"
         onPress={onToggle}
+        activeOpacity={0.7}
+        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
       >
         <View className="flex-row items-center">
           <MaterialIcons name="people" size={22} color="#1e40af" className="mr-2" />

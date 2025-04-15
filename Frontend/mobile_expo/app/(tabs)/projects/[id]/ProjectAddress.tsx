@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableHighlight, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 interface AddressData {
@@ -28,20 +28,28 @@ export const ProjectAddress: React.FC<ProjectAddressProps> = ({
 }) => {
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-      <TouchableOpacity 
-        className="flex-row justify-between items-center"
+      <TouchableHighlight
         onPress={onToggle}
+        underlayColor="#f0f0f0"
+        style={{
+          borderRadius: 8,
+          marginHorizontal: -8,
+          marginVertical: -8,
+          padding: 8
+        }}
       >
-        <View className="flex-row items-center">
-          <MaterialIcons name="location-on" size={22} color="#1e40af" className="mr-2" />
-          <Text className="text-lg font-bold ml-2">Adresse du chantier</Text>
+        <View className="flex-row justify-between items-center py-2">
+          <View className="flex-row items-center">
+            <MaterialIcons name="location-on" size={22} color="#1e40af" />
+            <Text className="text-lg font-bold ml-2">Adresse du chantier</Text>
+          </View>
+          <Ionicons 
+            name={isOpen ? "chevron-up" : "chevron-down"} 
+            size={24} 
+            color="#2563eb" 
+          />
         </View>
-        <Ionicons 
-          name={isOpen ? "chevron-up" : "chevron-down"} 
-          size={24} 
-          color="#2563eb" 
-        />
-      </TouchableOpacity>
+      </TouchableHighlight>
       
       {isOpen && (
         <View className="mt-4">
