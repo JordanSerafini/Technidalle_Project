@@ -7,12 +7,16 @@ import { AppEvent, EventType, useEvents, moveEvent, deleteEvent } from '../../se
 import CreateEventModal from './CreateEventModal';
 
 // Type pour les modes de vue du calendrier
-type ViewMode = 'day' | 'threeDays' | 'week' | 'workWeek';
+type ViewMode = 'day' | 'week' | 'month';
 
 export function PlanningScreen() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [mode, setMode] = useState<ViewMode>('week');
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now;
+  });
   const [calendarMode, setCalendarMode] = useState<Mode>('week');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
@@ -23,12 +27,11 @@ export function PlanningScreen() {
       case 'day':
         setCalendarMode('day');
         break;
-      case 'threeDays':
-        setCalendarMode('3days');
-        break;
       case 'week':
-      case 'workWeek':
         setCalendarMode('week');
+        break;
+      case 'month':
+        setCalendarMode('month');
         break;
     }
   }, [mode]);
@@ -39,26 +42,29 @@ export function PlanningScreen() {
     let startDate = new Date(today);
     let endDate = new Date(today);
     
+    // Réinitialiser l'heure à minuit
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
     switch (mode) {
       case 'day':
         // Juste ce jour
         break;
-      case 'threeDays':
-        // Trois jours à partir de la date sélectionnée
-        endDate.setDate(today.getDate() + 2);
-        break;
       case 'week':
-        // Une semaine complète
-        const dayOfWeek = today.getDay(); // 0 = dimanche, 1 = lundi, etc.
-        startDate.setDate(today.getDate() - dayOfWeek); // Début de semaine (dimanche)
-        endDate.setDate(startDate.getDate() + 6); // Fin de semaine (samedi)
-        break;
-      case 'workWeek':
-        // Semaine de travail (lundi à vendredi)
-        const day = today.getDay();
+        // Une semaine complète (Lundi-Dimanche)
+        const day = startDate.getDay();
         const diff = day === 0 ? -6 : 1 - day; // Si dimanche, on va au lundi précédent
-        startDate.setDate(today.getDate() + diff); // Lundi
-        endDate.setDate(startDate.getDate() + 4); // Vendredi
+        startDate.setDate(startDate.getDate() + diff);
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'month':
+        // Début du mois
+        startDate.setDate(1);
+        // Fin du mois
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
     }
     
@@ -238,11 +244,25 @@ export function PlanningScreen() {
     }
   };
 
-  // Changer la semaine (précédente/suivante)
-  const changeWeek = (direction: 'prev' | 'next') => {
+  // Changer la période (précédente/suivante)
+  const changePeriod = (direction: 'prev' | 'next') => {
     const newDate = new Date(date);
-    const daysToAdd = direction === 'next' ? 7 : -7;
-    newDate.setDate(newDate.getDate() + daysToAdd);
+    
+    switch (mode) {
+      case 'day':
+        const daysToAdd = direction === 'next' ? 1 : -1;
+        newDate.setDate(newDate.getDate() + daysToAdd);
+        break;
+      case 'week':
+        const weeksToAdd = direction === 'next' ? 7 : -7;
+        newDate.setDate(newDate.getDate() + weeksToAdd);
+        break;
+      case 'month':
+        const monthsToAdd = direction === 'next' ? 1 : -1;
+        newDate.setMonth(newDate.getMonth() + monthsToAdd);
+        break;
+    }
+    
     setDate(newDate);
   };
 
@@ -446,35 +466,35 @@ export function PlanningScreen() {
               padding: 8, 
               borderRadius: 5, 
               marginHorizontal: 5,
-              backgroundColor: mode === 'threeDays' ? '#4291EF' : 'transparent'
-            }}
-            onPress={() => changeMode('threeDays')}
-          >
-            <Text style={{ color: mode === 'threeDays' ? 'white' : 'black' }}>3 Jours</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={{ 
-              padding: 8, 
-              borderRadius: 5, 
-              marginHorizontal: 5,
               backgroundColor: mode === 'week' ? '#4291EF' : 'transparent'
             }}
             onPress={() => changeMode('week')}
           >
             <Text style={{ color: mode === 'week' ? 'white' : 'black' }}>Semaine</Text>
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ 
+              padding: 8, 
+              borderRadius: 5, 
+              marginHorizontal: 5,
+              backgroundColor: mode === 'month' ? '#4291EF' : 'transparent'
+            }}
+            onPress={() => changeMode('month')}
+          >
+            <Text style={{ color: mode === 'month' ? 'white' : 'black' }}>Mois</Text>
+          </TouchableOpacity>
         </View>
       </View>
       
       {/* Navigation de date */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, backgroundColor: '#f0f0f0' }}>
-        <TouchableOpacity onPress={() => changeWeek('prev')} style={{ padding: 5 }}>
+        <TouchableOpacity onPress={() => changePeriod('prev')} style={{ padding: 5 }}>
           <Ionicons name="chevron-back" size={24} color="#4291EF" />
         </TouchableOpacity>
         
         <Text style={{ fontSize: 16, fontWeight: '500' }}>{getDateRangeText()}</Text>
         
-        <TouchableOpacity onPress={() => changeWeek('next')} style={{ padding: 5 }}>
+        <TouchableOpacity onPress={() => changePeriod('next')} style={{ padding: 5 }}>
           <Ionicons name="chevron-forward" size={24} color="#4291EF" />
         </TouchableOpacity>
       </View>
@@ -497,9 +517,11 @@ export function PlanningScreen() {
           locale="fr"
           hideNowIndicator={false}
           scrollOffsetMinutes={480} // 8h00
-          overlapOffset={70}
-          weekStartsOn={1} // Lundi
-          weekEndsOn={0} // Dimanche
+          onPressEvent={handleEventPress}
+          onPressCell={handleAddEvent}
+          weekStartsOn={1} // La semaine commence le lundi
+          hourRowHeight={60} // Hauteur d'une heure
+          overlapOffset={70} // Décalage pour les événements qui se chevauchent
         />
       </View>
       
