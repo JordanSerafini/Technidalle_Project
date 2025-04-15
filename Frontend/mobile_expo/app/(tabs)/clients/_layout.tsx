@@ -35,6 +35,10 @@ export default function ClientsLayout() {
       />
       <Stack.Screen 
         name="[id]/index" 
+        options={{
+          headerTitle: 'Client',
+          headerBackTitle: 'Clients',
+        }}
       />
     </Stack>
   );
