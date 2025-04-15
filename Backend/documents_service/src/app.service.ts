@@ -44,7 +44,7 @@ export class AppService {
 
   async getDocumentById(id: number): Promise<Document | null> {
     const document = await this.prisma.documents.findUnique({
-      where: { id },
+      where: { id: Number(id) },
     });
     return document as Document | null;
   }
@@ -65,7 +65,7 @@ export class AppService {
   ): Promise<Document | null> {
     try {
       const document = await this.prisma.documents.update({
-        where: { id },
+        where: { id: Number(id) },
         data: {
           ...documentDto,
           created_at: new Date(),
@@ -81,7 +81,7 @@ export class AppService {
   async deleteDocument(id: number): Promise<boolean> {
     try {
       await this.prisma.documents.delete({
-        where: { id },
+        where: { id: Number(id) },
       });
       return true;
     } catch (error) {
@@ -93,7 +93,7 @@ export class AppService {
   async getDocumentsByClientId(clientId: number): Promise<Document[]> {
     const documents = await this.prisma.documents.findMany({
       where: {
-        client_id: clientId,
+        client_id: Number(clientId),
       },
       orderBy: {
         created_at: 'desc',
@@ -139,7 +139,7 @@ export class AppService {
 
   async getProjectMediaById(id: number): Promise<ProjectMedia | null> {
     const media = await this.prisma.project_media.findUnique({
-      where: { id },
+      where: { id: Number(id) },
       include: {
         projects: true,
         staff: true,
@@ -194,7 +194,7 @@ export class AppService {
   ): Promise<ProjectMedia | null> {
     try {
       const media = await this.prisma.project_media.update({
-        where: { id },
+        where: { id: Number(id) },
         data: {
           project_id: mediaDto.project_id,
           stage_id: mediaDto.stage_id,
@@ -220,7 +220,7 @@ export class AppService {
   async deleteProjectMedia(id: number): Promise<boolean> {
     try {
       await this.prisma.project_media.delete({
-        where: { id },
+        where: { id: Number(id) },
       });
       return true;
     } catch (error) {
