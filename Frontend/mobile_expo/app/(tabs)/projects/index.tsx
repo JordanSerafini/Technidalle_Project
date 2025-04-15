@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
@@ -7,14 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming,
-  withSpring,
-  runOnJS,
-  Easing
-} from 'react-native-reanimated';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -42,10 +34,6 @@ export default function ProjetsScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   
-  // Valeurs animées pour le modal
-  const translateY = useSharedValue(1000);
-  const opacity = useSharedValue(0);
-  
   // Utiliser le projectStore
   const { 
     setProjects, 
@@ -69,40 +57,14 @@ export default function ProjetsScreen() {
     return () => backHandler.remove();
   }, [modalVisible]);
   
-  // Animation d'ouverture pour mobile et web (plus rapide)
+  // Gestionnaires simplifiés pour le modal
   const handleOpenFilter = useCallback(() => {
-    // D'abord afficher le modal
     setModalVisible(true);
-    
-    // Puis lancer les animations (plus rapides)
-    setTimeout(() => {
-      opacity.value = withTiming(1, { duration: 120 }); // Réduit de 200ms à 120ms
-      translateY.value = withSpring(0, {
-        damping: 15,
-        mass: 0.6, // Masse réduite pour une animation plus rapide
-        stiffness: 180 // Ressort plus raide pour une montée plus rapide
-      });
-    }, 10);
-  }, [opacity, translateY]);
+  }, []);
   
-  // Fermeture immédiate et définitive
   const handleCloseFilter = useCallback(() => {
-    // Fermeture immédiate
     setModalVisible(false);
-    
-    // Reset les valeurs pour la prochaine ouverture
-    translateY.value = 1000;
-    opacity.value = 0;
-  }, [translateY, opacity]);
-  
-  // Styles animés pour l'overlay et le modal
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value
-  }));
-  
-  const modalStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }]
-  }));
+  }, []);
   
   // Gestionnaires pour le FAB
   const handleFilterPress = () => {
@@ -251,73 +213,53 @@ export default function ProjetsScreen() {
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Modal de filtre avec animation accélérée */}
-      {modalVisible && (
-        <View 
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1000,
-          }}
-        >
-          {/* Overlay avec opacité animée */}
-          <Animated.View
-            style={[{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-            }, overlayStyle]}
-          >
-            <TouchableOpacity 
-              style={{ width: '100%', height: '100%' }}
-              activeOpacity={0.7}
-              onPress={handleCloseFilter}
-            />
-          </Animated.View>
-          
-          {/* Contenu avec translation animée */}
-          <Animated.View 
-            style={[{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              backgroundColor: 'white',
-              borderTopLeftRadius: 24, 
-              borderTopRightRadius: 24,
-              paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-              maxHeight: '90%',
-              zIndex: 1001,
-            }, modalStyle]}
-          >
+      {/* Modal de filtre natif */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={handleCloseFilter}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
             <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
               <Text className="font-bold text-lg">Filtres</Text>
               <TouchableOpacity 
                 onPress={handleCloseFilter}
                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                style={{ 
-                  padding: 10,
-                  backgroundColor: '#f0f0f0',
-                  borderRadius: 20,
-                  width: 40,
-                  height: 40,
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
+                style={styles.closeButton}
               >
                 <Ionicons name="close" size={24} color="#000" />
               </TouchableOpacity>
             </View>
             <ProjectFilter />
-          </Animated.View>
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '90%'
+  },
+  closeButton: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
+});

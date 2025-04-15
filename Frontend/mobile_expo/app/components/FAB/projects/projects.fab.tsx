@@ -1,16 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  withDelay,
-  interpolate,
-} from 'react-native-reanimated';
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface ProjectsFabProps {
   onFilterPress: () => void;
@@ -19,113 +9,66 @@ interface ProjectsFabProps {
   onOtherPress: () => void;
 }
 
-const OFFSET = 65; // Espacement entre les boutons
-// Configuration spring plus réactive
-const SPRING_CONFIG = {
-  damping: 10, // Moins d'amortissement
-  stiffness: 150, // Plus de rigidité pour un mouvement plus rapide
-  mass: 0.8, // Masse plus légère pour une réaction plus rapide
-  overshootClamping: false,
-};
-
 export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, onOtherPress }: ProjectsFabProps) {
-  const isExpanded = useSharedValue(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleMainButtonPress = () => {
-    isExpanded.value = !isExpanded.value;
+    setIsExpanded(!isExpanded);
   };
-
-  // Animation du bouton principal (+/×) - plus rapide
-  const mainButtonStyle = useAnimatedStyle(() => {
-    const rotate = withTiming(isExpanded.value ? '45deg' : '0deg', {
-      duration: 150 // Animation plus rapide
-    });
-    return {
-      transform: [{ rotate }],
-    };
-  });
-
-  // Fonction pour créer le style animé de chaque bouton secondaire
-  const createButtonStyle = (index: number) => {
-    return useAnimatedStyle(() => {
-      // Animation d'ouverture plus rapide
-      const translateY = isExpanded.value 
-        ? withSpring(-OFFSET * index, SPRING_CONFIG) 
-        : withTiming(0, { duration: 150 }); // Fermeture plus rapide
-      
-      // Délai réduit pour une apparition plus rapide
-      const delayMs = index * 30;
-      
-      const scale = isExpanded.value 
-        ? withDelay(delayMs, withSpring(1, SPRING_CONFIG)) 
-        : withTiming(0, { duration: 100 });
-      
-      const opacity = isExpanded.value 
-        ? withDelay(delayMs, withTiming(1, { duration: 100 })) 
-        : withTiming(0, { duration: 100 });
-
-      return {
-        transform: [{ translateY }, { scale }],
-        opacity,
-      };
-    });
-  };
-
-  // Styles animés pour chaque bouton
-  const filterButtonStyle = createButtonStyle(1);
-  const addButtonStyle = createButtonStyle(2);
-  const editButtonStyle = createButtonStyle(3);
-  const otherButtonStyle = createButtonStyle(4);
 
   return (
     <View style={styles.container}>
-      {/* Bouton Autres */}
-      <AnimatedTouchable 
-        style={[styles.button, styles.secondaryButton, otherButtonStyle]}
-        onPress={() => {
-          onOtherPress();
-          isExpanded.value = false;
-        }}
-        activeOpacity={0.8} // Feedback visuel amélioré
-      >
-        <Ionicons name="ellipsis-horizontal" size={24} color="white" />
-      </AnimatedTouchable>
+      {isExpanded && (
+        <>
+          {/* Bouton Autres */}
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton, { bottom: 280 }]}
+            onPress={() => {
+              onOtherPress();
+              setIsExpanded(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+          </TouchableOpacity>
 
-      {/* Bouton Éditer */}
-      <AnimatedTouchable 
-        style={[styles.button, styles.secondaryButton, editButtonStyle]}
-        onPress={() => {
-          onEditPress();
-          isExpanded.value = false;
-        }}
-        activeOpacity={0.8}
-      >
-        <MaterialIcons name="edit" size={24} color="white" />
-      </AnimatedTouchable>
+          {/* Bouton Éditer */}
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton, { bottom: 210 }]}
+            onPress={() => {
+              onEditPress();
+              setIsExpanded(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="edit" size={24} color="white" />
+          </TouchableOpacity>
 
-      {/* Bouton Ajouter */}
-      <AnimatedTouchable 
-        style={[styles.button, styles.secondaryButton, addButtonStyle]}
-        onPress={() => {
-          onAddPress();
-          isExpanded.value = false;
-        }}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={24} color="white" />
-      </AnimatedTouchable>
+          {/* Bouton Ajouter */}
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton, { bottom: 140 }]}
+            onPress={() => {
+              onAddPress();
+              setIsExpanded(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={24} color="white" />
+          </TouchableOpacity>
 
-      {/* Bouton Filtre */}
-      <AnimatedTouchable 
-        style={[styles.button, styles.secondaryButton, filterButtonStyle]}
-        onPress={() => {
-          onFilterPress();
-          isExpanded.value = false;
-        }}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="settings" size={24} color="white" />
-      </AnimatedTouchable>
+          {/* Bouton Filtre */}
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton, { bottom: 70 }]}
+            onPress={() => {
+              onFilterPress();
+              setIsExpanded(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings" size={24} color="white" />
+          </TouchableOpacity>
+        </>
+      )}
 
       {/* Bouton principal */}
       <TouchableOpacity 
@@ -133,9 +76,11 @@ export default function ProjectsFab({ onFilterPress, onAddPress, onEditPress, on
         onPress={handleMainButtonPress}
         activeOpacity={0.9}
       >
-        <Animated.View style={mainButtonStyle}>
-          <Ionicons name="add" size={24} color="white" />
-        </Animated.View>
+        <Ionicons 
+          name={isExpanded ? "close" : "add"} 
+          size={24} 
+          color="white" 
+        />
       </TouchableOpacity>
     </View>
   );
@@ -167,7 +112,6 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     position: 'absolute',
-    bottom: 0,
     backgroundColor: '#303F9F', // Couleur secondaire (indigo plus foncé)
     zIndex: 905,
   },
