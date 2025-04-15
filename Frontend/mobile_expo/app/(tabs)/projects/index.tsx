@@ -11,10 +11,9 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withTiming,
+  withSpring,
   runOnJS,
-  Easing,
-  FadeIn,
-  SlideInDown
+  Easing
 } from 'react-native-reanimated';
 
 const statusLabels: Record<project_status, string> = {
@@ -43,9 +42,9 @@ export default function ProjetsScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   
-  // Utiliser Reanimated au lieu de Animated
+  // Valeurs animées pour le modal
   const translateY = useSharedValue(1000);
-  const overlayOpacity = useSharedValue(0);
+  const opacity = useSharedValue(0);
   
   // Utiliser le projectStore
   const { 
@@ -70,15 +69,40 @@ export default function ProjetsScreen() {
     return () => backHandler.remove();
   }, [modalVisible]);
   
-  // Fonction avec animation pour ouvrir le modal
+  // Animation d'ouverture pour mobile et web (plus rapide)
   const handleOpenFilter = useCallback(() => {
+    // D'abord afficher le modal
     setModalVisible(true);
-  }, []);
+    
+    // Puis lancer les animations (plus rapides)
+    setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 120 }); // Réduit de 200ms à 120ms
+      translateY.value = withSpring(0, {
+        damping: 15,
+        mass: 0.6, // Masse réduite pour une animation plus rapide
+        stiffness: 180 // Ressort plus raide pour une montée plus rapide
+      });
+    }, 10);
+  }, [opacity, translateY]);
   
-  // Fonction simplifiée pour fermer le modal - TRÈS directe
+  // Fermeture immédiate et définitive
   const handleCloseFilter = useCallback(() => {
+    // Fermeture immédiate
     setModalVisible(false);
-  }, []);
+    
+    // Reset les valeurs pour la prochaine ouverture
+    translateY.value = 1000;
+    opacity.value = 0;
+  }, [translateY, opacity]);
+  
+  // Styles animés pour l'overlay et le modal
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value
+  }));
+  
+  const modalStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }]
+  }));
   
   // Gestionnaires pour le FAB
   const handleFilterPress = () => {
@@ -227,7 +251,7 @@ export default function ProjetsScreen() {
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Modal de filtre - avec animation d'ouverture */}
+      {/* Modal de filtre avec animation accélérée */}
       {modalVisible && (
         <View 
           style={{
@@ -239,29 +263,27 @@ export default function ProjetsScreen() {
             zIndex: 1000,
           }}
         >
+          {/* Overlay avec opacité animée */}
           <Animated.View
-            entering={FadeIn.duration(200)}
-            style={{
+            style={[{
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
               backgroundColor: 'rgba(0,0,0,0.5)',
-            }}
+            }, overlayStyle]}
           >
-            <Pressable 
-              style={{
-                width: '100%',
-                height: '100%',
-              }}
+            <TouchableOpacity 
+              style={{ width: '100%', height: '100%' }}
+              activeOpacity={0.7}
               onPress={handleCloseFilter}
             />
           </Animated.View>
           
+          {/* Contenu avec translation animée */}
           <Animated.View 
-            entering={SlideInDown.springify().damping(15).mass(0.9).stiffness(100).duration(300)}
-            style={{
+            style={[{
               position: 'absolute',
               bottom: 0,
               left: 0,
@@ -272,22 +294,27 @@ export default function ProjetsScreen() {
               paddingBottom: Platform.OS === 'ios' ? 40 : 20,
               maxHeight: '90%',
               zIndex: 1001,
-            }}
+            }, modalStyle]}
           >
-            <Pressable style={{ width: '100%', height: '100%' }} onPress={(e) => e.stopPropagation()}>
-              <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-                <Text className="font-bold text-lg">Filtres</Text>
-                <TouchableOpacity 
-                  onPress={handleCloseFilter}
-                  style={{ 
-                    padding: 12,
-                  }}
-                >
-                  <Ionicons name="close" size={24} color="#000" />
-                </TouchableOpacity>
-              </View>
-              <ProjectFilter />
-            </Pressable>
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <Text className="font-bold text-lg">Filtres</Text>
+              <TouchableOpacity 
+                onPress={handleCloseFilter}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                style={{ 
+                  padding: 10,
+                  backgroundColor: '#f0f0f0',
+                  borderRadius: 20,
+                  width: 40,
+                  height: 40,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            <ProjectFilter />
           </Animated.View>
         </View>
       )}
