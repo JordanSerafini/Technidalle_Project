@@ -27,6 +27,9 @@ BEGIN
             'fiche_technique',
             'photo_chantier',
             'plan',
+            'avoir',
+            'acompte',
+            'situation',
             'autre'
         );
     END IF;
@@ -55,6 +58,29 @@ BEGIN
             'intervention_urgente',
             'maintenance',
             'autre'
+        );
+    END IF;
+
+    -- Types de véhicules
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vehicle_type') THEN
+        CREATE TYPE vehicle_type AS ENUM (
+            'voiture',
+            'utilitaire',
+            'camion',
+            'engin_chantier',
+            'remorque',
+            'autre'
+        );
+    END IF;
+
+    -- Statut des véhicules
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vehicle_status') THEN
+        CREATE TYPE vehicle_status AS ENUM (
+            'disponible',
+            'en_mission',
+            'en_entretien',
+            'hors_service',
+            'reserve'
         );
     END IF;
 END $$;
@@ -129,12 +155,37 @@ CREATE TABLE IF NOT EXISTS documents (
     due_date DATE,
     payment_date DATE,
     payment_method VARCHAR(50),
+    -- Nouvelles colonnes pour documents de vente
+    payment_terms VARCHAR(100),
+    discount_rate DECIMAL(5,2) DEFAULT 0,
+    discount_amount DECIMAL(12,2) DEFAULT 0,
+    payment_status VARCHAR(50) DEFAULT 'non_payé',
+    amount_paid DECIMAL(12,2) DEFAULT 0,
+    balance_due DECIMAL(12,2),
+    legal_mentions TEXT,
+    validity_period INTEGER,
+    signed_by_client BOOLEAN DEFAULT false,
+    signed_date DATE,
+    approved_by_staff_id INTEGER,
+    electronic_signature_path VARCHAR(255),
+    version INTEGER DEFAULT 1,
+    parent_document_id INTEGER,
+    revision_reason TEXT,
+    quotation_id INTEGER,
+    purchase_order_reference VARCHAR(100),
+    delivery_address_id INTEGER,
+    delivery_date DATE,
+    shipping_costs DECIMAL(12,2) DEFAULT 0,
     notes TEXT,
     file_path VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_document_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    CONSTRAINT fk_document_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+    CONSTRAINT fk_document_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+    CONSTRAINT fk_document_staff FOREIGN KEY (approved_by_staff_id) REFERENCES staff(id) ON DELETE SET NULL,
+    CONSTRAINT fk_document_quotation FOREIGN KEY (quotation_id) REFERENCES documents(id) ON DELETE SET NULL,
+    CONSTRAINT fk_document_parent FOREIGN KEY (parent_document_id) REFERENCES documents(id) ON DELETE SET NULL,
+    CONSTRAINT fk_document_delivery_address FOREIGN KEY (delivery_address_id) REFERENCES addresses(id) ON DELETE SET NULL
 );
 
 -- Table des étapes du projet
@@ -396,6 +447,116 @@ CREATE TABLE IF NOT EXISTS document_tags (
     CONSTRAINT fk_dt_tag FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
+-- Table des véhicules
+CREATE TABLE IF NOT EXISTS vehicles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type vehicle_type NOT NULL,
+    brand VARCHAR(50) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    registration_number VARCHAR(20) UNIQUE NOT NULL,
+    year_of_manufacture INTEGER CHECK (year_of_manufacture > 1900),
+    purchase_date DATE,
+    purchase_price DECIMAL(12,2),
+    status vehicle_status DEFAULT 'disponible',
+    mileage INTEGER DEFAULT 0 CHECK (mileage >= 0),
+    fuel_type VARCHAR(20),
+    fuel_capacity DECIMAL(6,2), -- en litres
+    average_consumption DECIMAL(4,2), -- en L/100km
+    next_technical_control DATE,
+    insurance_number VARCHAR(100),
+    insurance_expiry_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table des entretiens de véhicules
+CREATE TABLE IF NOT EXISTS vehicle_maintenance (
+    id SERIAL PRIMARY KEY,
+    vehicle_id INTEGER NOT NULL,
+    maintenance_type VARCHAR(50) NOT NULL,
+    maintenance_date DATE NOT NULL,
+    mileage_at_maintenance INTEGER NOT NULL CHECK (mileage_at_maintenance >= 0),
+    description TEXT,
+    cost DECIMAL(10,2) NOT NULL CHECK (cost >= 0),
+    performed_by VARCHAR(100),
+    next_maintenance_date DATE,
+    next_maintenance_mileage INTEGER CHECK (next_maintenance_mileage >= 0),
+    invoice_reference VARCHAR(50),
+    document_path VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_vehicle_maintenance_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+);
+
+-- Table des pleins d'essence/carburant
+CREATE TABLE IF NOT EXISTS vehicle_refueling (
+    id SERIAL PRIMARY KEY,
+    vehicle_id INTEGER NOT NULL,
+    refuel_date DATE NOT NULL,
+    mileage INTEGER NOT NULL CHECK (mileage >= 0),
+    quantity DECIMAL(8,2) NOT NULL CHECK (quantity > 0), -- en litres
+    price_per_liter DECIMAL(6,3) NOT NULL CHECK (price_per_liter > 0),
+    total_cost DECIMAL(10,2) NOT NULL CHECK (total_cost > 0),
+    staff_id INTEGER,
+    fuel_type VARCHAR(20),
+    station VARCHAR(100),
+    full_tank BOOLEAN DEFAULT true,
+    project_id INTEGER,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_vehicle_refueling_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_vehicle_refueling_staff FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL,
+    CONSTRAINT fk_vehicle_refueling_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+);
+
+-- Table des réservations de véhicules
+CREATE TABLE IF NOT EXISTS vehicle_reservations (
+    id SERIAL PRIMARY KEY,
+    vehicle_id INTEGER NOT NULL,
+    staff_id INTEGER NOT NULL,
+    project_id INTEGER,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    starting_mileage INTEGER,
+    ending_mileage INTEGER,
+    purpose TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'planifiée',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_vehicle_reservation_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_vehicle_reservation_staff FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_vehicle_reservation_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+    CONSTRAINT check_vehicle_reservation_dates CHECK (end_date > start_date)
+);
+
+-- Table des incidents véhicules
+CREATE TABLE IF NOT EXISTS vehicle_incidents (
+    id SERIAL PRIMARY KEY,
+    vehicle_id INTEGER NOT NULL,
+    staff_id INTEGER,
+    incident_date TIMESTAMP NOT NULL,
+    incident_type VARCHAR(50) NOT NULL,
+    location VARCHAR(255),
+    description TEXT NOT NULL,
+    severity VARCHAR(20) CHECK (severity IN ('mineur', 'modéré', 'sévère', 'critique')),
+    mileage INTEGER CHECK (mileage >= 0),
+    cost_of_repairs DECIMAL(10,2),
+    reported_to_insurance BOOLEAN DEFAULT false,
+    insurance_claim_number VARCHAR(50),
+    resolution_status VARCHAR(50) DEFAULT 'en_cours',
+    resolution_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_vehicle_incident_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_vehicle_incident_staff FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
+);
+
 -- Fonction de mise à jour du timestamp
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
@@ -457,6 +618,21 @@ CREATE TRIGGER update_tasks_timestamp BEFORE UPDATE ON tasks
 CREATE TRIGGER update_tags_timestamp BEFORE UPDATE ON tags
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
+CREATE TRIGGER update_vehicles_timestamp BEFORE UPDATE ON vehicles
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_vehicle_maintenance_timestamp BEFORE UPDATE ON vehicle_maintenance
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_vehicle_refueling_timestamp BEFORE UPDATE ON vehicle_refueling
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_vehicle_reservations_timestamp BEFORE UPDATE ON vehicle_reservations
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_vehicle_incidents_timestamp BEFORE UPDATE ON vehicle_incidents
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
 -- Création des index
 CREATE INDEX idx_projects_client ON projects(client_id);
 CREATE INDEX idx_projects_status ON projects(status);
@@ -496,6 +672,19 @@ CREATE INDEX idx_stage_tags_synced ON stage_tags(synced_at);
 CREATE INDEX idx_document_tags_document ON document_tags(document_id);
 CREATE INDEX idx_document_tags_tag ON document_tags(tag_id);
 CREATE INDEX idx_document_tags_synced ON document_tags(synced_at);
+CREATE INDEX idx_vehicles_status ON vehicles(status);
+CREATE INDEX idx_vehicle_maintenance_vehicle ON vehicle_maintenance(vehicle_id);
+CREATE INDEX idx_vehicle_maintenance_date ON vehicle_maintenance(maintenance_date);
+CREATE INDEX idx_vehicle_refueling_vehicle ON vehicle_refueling(vehicle_id);
+CREATE INDEX idx_vehicle_refueling_date ON vehicle_refueling(refuel_date);
+CREATE INDEX idx_vehicle_reservations_vehicle ON vehicle_reservations(vehicle_id);
+CREATE INDEX idx_vehicle_reservations_staff ON vehicle_reservations(staff_id);
+CREATE INDEX idx_vehicle_reservations_project ON vehicle_reservations(project_id);
+CREATE INDEX idx_vehicle_reservations_dates ON vehicle_reservations(start_date, end_date);
+CREATE INDEX idx_vehicle_incidents_vehicle ON vehicle_incidents(vehicle_id);
+CREATE INDEX idx_vehicle_incidents_staff ON vehicle_incidents(staff_id);
+CREATE INDEX idx_vehicle_incidents_date ON vehicle_incidents(incident_date);
+CREATE INDEX idx_vehicle_incidents_status ON vehicle_incidents(resolution_status);
 
 -- Insertion des rôles par défaut
 INSERT INTO roles (name, description) VALUES 
@@ -524,5 +713,10 @@ COMMENT ON TABLE tags IS 'Étiquettes pour catégoriser les projets, étapes et 
 COMMENT ON TABLE project_tags IS 'Association entre projets et étiquettes';
 COMMENT ON TABLE stage_tags IS 'Association entre étapes et étiquettes';
 COMMENT ON TABLE document_tags IS 'Association entre documents et étiquettes';
+COMMENT ON TABLE vehicles IS 'Gestion de la flotte de véhicules';
+COMMENT ON TABLE vehicle_maintenance IS 'Suivi des entretiens et réparations des véhicules';
+COMMENT ON TABLE vehicle_refueling IS 'Suivi des pleins de carburant';
+COMMENT ON TABLE vehicle_reservations IS 'Réservations et utilisation des véhicules';
+COMMENT ON TABLE vehicle_incidents IS 'Incidents et accidents impliquant les véhicules';
 
 COMMIT; 
