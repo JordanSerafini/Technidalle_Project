@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { View, Text, Pressable, TouchableWithoutFeedback, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { project_status } from '../../../utils/interfaces/project.interface';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
@@ -62,7 +62,7 @@ export const ProjectInfo = memo(({
   };
   
   return (
-    <TouchableWithoutFeedback onPress={handlePress}>
+    <Pressable onPress={handlePress}>
       <View style={styles.container}>
         {/* Utilisation de Pressable au lieu de TouchableOpacity pour plus de fiabilité */}
         <Pressable
@@ -126,7 +126,7 @@ export const ProjectInfo = memo(({
           </View>
         )}
       </View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 });
 

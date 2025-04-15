@@ -1,6 +1,5 @@
 export const url = {
-    local: 'http://localhost:3000/',
+    local: 'http://192.168.20.200:3000/',
+
 }
 
-
-export default url;
