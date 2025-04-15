@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableHighlight, Platform } from 'react-native';
+import React, { memo, useState } from 'react';
+import { View, Text, Pressable, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 import { project_status } from '../../../utils/interfaces/project.interface';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
@@ -37,7 +37,7 @@ interface ProjectInfoProps {
   onToggle: () => void;
 }
 
-export const ProjectInfo: React.FC<ProjectInfoProps> = ({
+export const ProjectInfo = memo(({
   reference,
   name,
   status,
@@ -47,79 +47,177 @@ export const ProjectInfo: React.FC<ProjectInfoProps> = ({
   description,
   isOpen,
   onToggle
-}) => {
+}: ProjectInfoProps) => {
+  const [lastPress, setLastPress] = useState(0);
+  
+  const handlePress = () => {
+    console.log("ProjectInfo: PRESSABLE DIRECT TOUCHÉ");
+    // Empêcher les doubles clics accidentels
+    const now = Date.now();
+    if (now - lastPress < 300) return;
+    setLastPress(now);
+    
+    // Appel direct sans logique supplémentaire
+    onToggle();
+  };
+  
   return (
-    <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
-      <TouchableHighlight
-        onPress={onToggle}
-        underlayColor="#f0f0f0"
-        style={{
-          borderRadius: 8,
-          marginHorizontal: -8,
-          marginVertical: -8,
-          padding: 8
-        }}
-      >
-        <View className="flex-row justify-between items-center py-2">
-          <View className="flex-row items-center">
+    <TouchableWithoutFeedback onPress={handlePress}>
+      <View style={styles.container}>
+        {/* Utilisation de Pressable au lieu de TouchableOpacity pour plus de fiabilité */}
+        <Pressable
+          onPress={handlePress}
+          style={({ pressed }) => [
+            styles.pressableArea,
+            { backgroundColor: pressed ? '#f0f0f0' : 'transparent' }
+          ]}
+          android_ripple={{ color: '#f0f0f0', borderless: false }}
+        >
+          <View style={styles.header}>
             <MaterialIcons name="info" size={22} color="#1e40af" />
-            <Text className="text-lg font-bold ml-2">Informations générales</Text>
+            <Text style={styles.headerTitle}>Informations générales</Text>
+            <View style={styles.spacer} />
+            <Ionicons 
+              name={isOpen ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#2563eb" 
+            />
           </View>
-          <Ionicons 
-            name={isOpen ? "chevron-up" : "chevron-down"} 
-            size={24} 
-            color="#2563eb" 
-          />
-        </View>
-      </TouchableHighlight>
-      
-      {isOpen && (
-        <View className="mt-4">
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Nom du projet:</Text>
-            <Text className="">{name}</Text>
-            </View>
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Référence:</Text>
-            <Text className="font-medium">{reference}</Text>
-          </View>
-          
-          {status && (
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-600">Statut:</Text>
-              <View style={{backgroundColor: statusColors[status]}} className="py-1 px-3 rounded-full">
-                <Text className="text-white font-medium">{statusLabels[status]}</Text>
+        </Pressable>
+        
+        {isOpen && (
+          <View style={styles.content}>
+            <InfoRow label="Nom du projet:" value={name || ''} />
+            <InfoRow label="Référence:" value={reference} bold />
+            
+            {status && (
+              <View style={styles.row}>
+                <Text style={styles.label}>Statut:</Text>
+                <View style={[styles.statusBadge, { backgroundColor: statusColors[status] }]}>
+                  <Text style={styles.statusText}>{statusLabels[status]}</Text>
+                </View>
               </View>
-            </View>
-          )}
-          
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Date de début:</Text>
-            <Text>{start_date ? new Date(start_date).toLocaleDateString('fr-FR') : 'Non définie'}</Text>
+            )}
+            
+            <InfoRow 
+              label="Date de début:" 
+              value={start_date ? new Date(start_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+            />
+            
+            <InfoRow 
+              label="Date de fin:" 
+              value={end_date ? new Date(end_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+            />
+            
+            {budget && (
+              <InfoRow 
+                label="Budget:" 
+                value={`${budget.toLocaleString('fr-FR')} €`} 
+                bold 
+              />
+            )}
+            
+            {description && (
+              <View style={styles.descriptionContainer}>
+                <Text style={styles.descriptionLabel}>Description:</Text>
+                <Text style={styles.descriptionText}>{description}</Text>
+              </View>
+            )}
           </View>
-          
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-600">Date de fin:</Text>
-            <Text>{end_date ? new Date(end_date).toLocaleDateString('fr-FR') : 'Non définie'}</Text>
-          </View>
-          
-          {budget && (
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-600">Budget:</Text>
-              <Text className="font-medium">{budget.toLocaleString('fr-FR')} €</Text>
-            </View>
-          )}
-          
-          {description && (
-            <View className="mt-2">
-              <Text className="text-gray-600 mb-1">Description:</Text>
-              <Text className="text-gray-800">{description}</Text>
-            </View>
-          )}
-        </View>
-      )}
-    </View>
+        )}
+      </View>
+    </TouchableWithoutFeedback>
   );
-}; 
+});
+
+// Composant réutilisable pour les lignes d'information
+interface InfoRowProps {
+  label: string;
+  value: string;
+  bold?: boolean;
+}
+
+const InfoRow = ({ label, value, bold = false }: InfoRowProps) => (
+  <View style={styles.row}>
+    <Text style={styles.label}>{label}</Text>
+    <Text style={[styles.value, bold && styles.boldValue]}>{value}</Text>
+  </View>
+);
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginVertical: 8,
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    padding: 16,
+  },
+  pressableArea: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    marginVertical: -8,
+    borderRadius: 8,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    color: '#333',
+  },
+  spacer: {
+    flex: 1,
+  },
+  content: {
+    marginTop: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  label: {
+    color: '#666',
+    fontSize: 14,
+  },
+  value: {
+    fontSize: 14,
+    color: '#333',
+  },
+  boldValue: {
+    fontWeight: 'bold',
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  statusText: {
+    color: 'white',
+    fontWeight: '500',
+    fontSize: 12,
+  },
+  descriptionContainer: {
+    marginTop: 8,
+  },
+  descriptionLabel: {
+    color: '#666',
+    marginBottom: 4,
+  },
+  descriptionText: {
+    color: '#333',
+    lineHeight: 20,
+  }
+});
 
 export default ProjectInfo;

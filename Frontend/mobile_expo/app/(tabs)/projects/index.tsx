@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
@@ -32,7 +32,9 @@ const statusColors: Record<project_status, string> = {
 
 export default function ProjetsScreen() {
   const router = useRouter();
-  const [modalVisible, setModalVisible] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const slideAnim = useState(new Animated.Value(Dimensions.get('window').height))[0];
+  const fadeAnim = useState(new Animated.Value(0))[0];
   
   // Utiliser le projectStore
   const { 
@@ -44,10 +46,46 @@ export default function ProjetsScreen() {
     removeApplyListener
   } = useProjectStore();
   
-  // Gérer le bouton retour pour fermer le modal
+  // Gestionnaires simplifiés pour le filtre
+  const handleCloseFilter = useCallback(() => {
+    // Animer d'abord, puis masquer
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: Dimensions.get('window').height,
+        duration: 200,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setShowFilter(false);
+    });
+  }, [fadeAnim, slideAnim]);
+  
+  const handleOpenFilter = useCallback(() => {
+    setShowFilter(true);
+    // Animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+  
+  // Gérer le bouton retour pour fermer le filtre
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (modalVisible) {
+      if (showFilter) {
         handleCloseFilter();
         return true;
       }
@@ -55,16 +93,7 @@ export default function ProjetsScreen() {
     });
     
     return () => backHandler.remove();
-  }, [modalVisible]);
-  
-  // Gestionnaires simplifiés pour le modal
-  const handleOpenFilter = useCallback(() => {
-    setModalVisible(true);
-  }, []);
-  
-  const handleCloseFilter = useCallback(() => {
-    setModalVisible(false);
-  }, []);
+  }, [showFilter, handleCloseFilter]);
   
   // Gestionnaires pour le FAB
   const handleFilterPress = () => {
@@ -87,7 +116,7 @@ export default function ProjetsScreen() {
     }
   }, [data, setProjects]);
   
-  // Écouter l'événement d'application des filtres pour fermer automatiquement le modal
+  // Écouter l'événement d'application des filtres pour fermer automatiquement le filtre
   useEffect(() => {
     const handleApplyFilters = () => {
       handleCloseFilter();
@@ -151,9 +180,10 @@ export default function ProjetsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <ScrollView 
-        className="flex-1 px-4 pt-2"
+        style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
         {filteredProjects && filteredProjects.length > 0 ? (
           filteredProjects.map((projet: Project) => (
@@ -205,7 +235,7 @@ export default function ProjetsScreen() {
         )}
       </ScrollView>
       
-      {/* FAB avec bouton filtre intégré */}
+      {/* FAB avec bouton filtre intégré - placé hors du ScrollView */}
       <ProjectsFab 
         onFilterPress={handleFilterPress}
         onAddPress={handleAddProject}
@@ -213,45 +243,88 @@ export default function ProjetsScreen() {
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Modal de filtre natif */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={handleCloseFilter}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-              <Text className="font-bold text-lg">Filtres</Text>
-              <TouchableOpacity 
-                onPress={handleCloseFilter}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            <ProjectFilter />
-          </View>
+      {/* Panneau de filtre avec animation native */}
+      {showFilter && (
+        <View style={styles.filterContainer}>
+          {/* Overlay pour fermer en touchant en dehors */}
+          <Animated.View 
+            style={[styles.overlay, { opacity: fadeAnim }]}
+          >
+            <TouchableOpacity
+              style={{ width: '100%', height: '100%' }}
+              activeOpacity={1}
+              onPress={handleCloseFilter}
+            />
+          </Animated.View>
+          
+          {/* Panneau de filtre */}
+          <Animated.View 
+            style={[
+              styles.filterPanel,
+              { transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            <SafeAreaView style={{ flex: 1 }}>
+              <View style={styles.header}>
+                <Text style={styles.headerTitle}>Filtres</Text>
+                <TouchableOpacity 
+                  onPress={handleCloseFilter}
+                  style={styles.closeButton}
+                  hitSlop={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                >
+                  <Ionicons name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.filterContent}>
+                <ProjectFilter />
+              </View>
+            </SafeAreaView>
+          </Animated.View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end'
+  filterContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
-  modalContent: {
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  filterPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'white',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    maxHeight: '90%',
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    maxHeight: '90%'
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   closeButton: {
     padding: 10,
@@ -260,6 +333,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+  },
+  filterContent: {
+    flex: 1,
   }
 });

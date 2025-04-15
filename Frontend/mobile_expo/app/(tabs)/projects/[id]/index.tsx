@@ -1,5 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, ActivityIndicator, TouchableOpacity, Text, Linking, Alert, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  ScrollView, 
+  ActivityIndicator, 
+  TouchableOpacity, 
+  Text, 
+  Linking, 
+  Alert, 
+  StyleSheet
+} from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { Project, project_status } from '../../../utils/interfaces/project.interface';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
@@ -29,27 +38,17 @@ export default function ProjectDetailScreen() {
     }
   });
 
-  // États pour gérer l'ouverture/fermeture des sections
-  const [sections, setSections] = useState({
-    infos: true,
-    client: false,
-    adresse: false,
-    etapes: false,
-    tags: false,
-    notes: false,
-    personnel: false,
-    materiaux: false,
-    documents: false,
-    medias: false
-  });
+  // État simple pour les sections
+  const [openSection, setOpenSection] = useState<string>('infos');
 
-  // Fonction unique pour gérer l'ouverture/fermeture des sections
-  const toggleSection = (section: keyof typeof sections) => {
-    setSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
+  // Fonction pour l'ouverture des sections
+  const toggleSection = (sectionName: string) => {
+    
+    // Approche directe sans conditions complexes
+    setOpenSection(openSection === sectionName ? '' : sectionName);
   };
+  
+
 
   // Configuration de l'en-tête
   useEffect(() => {
@@ -64,7 +63,7 @@ export default function ProjectDetailScreen() {
   const handleClientPress = (clientId: number) => {
     router.push({
       pathname: "/(tabs)/clients/[id]",
-      params: { id: clientId }
+      params: { id: clientId.toString() }
     });
   };
 
@@ -95,22 +94,22 @@ export default function ProjectDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
-        <Text className="text-gray-600 mt-4">Chargement...</Text>
+        <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-red-500">Erreur: {error}</Text>
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>Erreur: {error}</Text>
         <TouchableOpacity 
-          className="mt-4 bg-blue-500 py-2 px-4 rounded-lg"
+          style={styles.button}
           onPress={() => router.back()}
         >
-          <Text className="text-white">Retour</Text>
+          <Text style={styles.buttonText}>Retour</Text>
         </TouchableOpacity>
       </View>
     );
@@ -118,110 +117,159 @@ export default function ProjectDetailScreen() {
 
   if (!project) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-600">Projet non trouvé</Text>
+      <View style={styles.centerContainer}>
+        <Text style={styles.loadingText}>Projet non trouvé</Text>
         <TouchableOpacity 
-          className="mt-4 bg-blue-500 py-2 px-4 rounded-lg"
+          style={styles.button}
           onPress={() => router.back()}
         >
-          <Text className="text-white">Retour</Text>
+          <Text style={styles.buttonText}>Retour</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-100">
-      <View className="p-4">
-        {/* Informations principales */}
-        <ProjectInfo
-          reference={project.reference}
-          name={project.name}
-          status={project.status}
-          start_date={project.start_date}
-          end_date={project.end_date}
-          budget={project.budget}
-          description={project.description}
-          isOpen={sections.infos}
-          onToggle={() => toggleSection('infos')}
-        />
-
-        {/* Informations du client */}
-        {project.clients && (
-          <ProjectClient
-            client={project.clients}
-            isOpen={sections.client}
-            onToggle={() => toggleSection('client')}
-            onClientPress={handleClientPress}
+    <View style={styles.pageContainer}>
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.scrollContentContainer}
+      >
+        <View style={styles.content}>
+          {/* Informations principales */}
+          <ProjectInfo
+            reference={project.reference}
+            name={project.name}
+            status={project.status}
+            start_date={project.start_date}
+            end_date={project.end_date}
+            budget={project.budget}
+            description={project.description}
+            isOpen={openSection === 'infos'}
+            onToggle={() => toggleSection('infos')}
           />
-        )}
 
-        {/* Adresse */}
-        {project.addresses && (
-          <ProjectAddress
-            address={project.addresses}
-            isOpen={sections.adresse}
-            onToggle={() => toggleSection('adresse')}
-            onLocationPress={handleLocationPress}
+          {/* Informations du client */}
+          {project.clients && (
+            <ProjectClient
+              client={project.clients}
+              isOpen={openSection === 'client'}
+              onToggle={() => toggleSection('client')}
+              onClientPress={handleClientPress}
+            />
+          )}
+
+          {/* Adresse */}
+          {project.addresses && (
+            <ProjectAddress
+              address={project.addresses}
+              isOpen={openSection === 'adresse'}
+              onToggle={() => toggleSection('adresse')}
+              onLocationPress={handleLocationPress}
+            />
+          )}
+
+          {/* Étapes du projet */}
+          {project.project_stages && (
+            <ProjectStages
+              stages={project.project_stages}
+              isOpen={openSection === 'etapes'}
+              onToggle={() => toggleSection('etapes')}
+            />
+          )}
+
+          {/* Personnel assigné au projet */}
+          <ProjectStaff
+            projectId={id}
+            isOpen={openSection === 'personnel'}
+            onToggle={() => toggleSection('personnel')}
           />
-        )}
 
-        {/* Étapes du projet */}
-        {project.project_stages && (
-          <ProjectStages
-            stages={project.project_stages}
-            isOpen={sections.etapes}
-            onToggle={() => toggleSection('etapes')}
+          {/* Matériaux utilisés dans le projet */}
+          <ProjectMaterials
+            projectId={id}
+            isOpen={openSection === 'materiaux'}
+            onToggle={() => toggleSection('materiaux')}
           />
-        )}
 
-        {/* Personnel assigné au projet */}
-        <ProjectStaff
-          projectId={id}
-          isOpen={sections.personnel}
-          onToggle={() => toggleSection('personnel')}
-        />
-
-        {/* Matériaux utilisés dans le projet */}
-        <ProjectMaterials
-          projectId={id}
-          isOpen={sections.materiaux}
-          onToggle={() => toggleSection('materiaux')}
-        />
-
-        {/* Documents du projet */}
-        <ProjectDocuments
-          projectId={id}
-          isOpen={sections.documents}
-          onToggle={() => toggleSection('documents')}
-          onDocumentPress={handleDocumentPress}
-        />
-
-        {/* Médias du projet */}
-        <ProjectMedia
-          projectId={id}
-          isOpen={sections.medias}
-          onToggle={() => toggleSection('medias')}
-        />
-
-        {/* Tags du projet */}
-        {project.project_tags && project.project_tags.length > 0 && (
-          <ProjectTags
-            tags={project.project_tags}
-            isOpen={sections.tags}
-            onToggle={() => toggleSection('tags')}
+          {/* Documents du projet */}
+          <ProjectDocuments
+            projectId={id}
+            isOpen={openSection === 'documents'}
+            onToggle={() => toggleSection('documents')}
+            onDocumentPress={handleDocumentPress}
           />
-        )}
 
-        {/* Notes */}
-        {project.notes && (
-          <ProjectNotes
-            notes={project.notes}
-            isOpen={sections.notes}
-            onToggle={() => toggleSection('notes')}
+          {/* Médias du projet */}
+          <ProjectMedia
+            projectId={id}
+            isOpen={openSection === 'medias'}
+            onToggle={() => toggleSection('medias')}
           />
-        )}
-      </View>
-    </ScrollView>
+
+          {/* Tags du projet */}
+          {project.project_tags && project.project_tags.length > 0 && (
+            <ProjectTags
+              tags={project.project_tags}
+              isOpen={openSection === 'tags'}
+              onToggle={() => toggleSection('tags')}
+            />
+          )}
+
+          {/* Notes */}
+          {project.notes && (
+            <ProjectNotes
+              notes={project.notes}
+              isOpen={openSection === 'notes'}
+              onToggle={() => toggleSection('notes')}
+            />
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  pageContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollContentContainer: {
+    paddingBottom: 100, // Espace en bas pour éviter que le contenu soit masqué par le FAB
+  },
+  content: {
+    padding: 16,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: 'red',
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: '#3F51B5',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+  }
+});
