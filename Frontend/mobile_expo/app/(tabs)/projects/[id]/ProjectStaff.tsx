@@ -16,7 +16,6 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
   onToggle
 }) => {
   const { data: staff, loading, error } = useFetch<ProjectStaffInterface[]>(`resources/projects/${projectId}/staff`);
-console.log( staff )
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
       <TouchableOpacity 
