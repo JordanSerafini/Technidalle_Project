@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,18 +81,35 @@ export function PlanningScreen() {
   const { events, loading, error } = useEvents(startDate, endDate);
 
   // Convertir les AppEvents en format compatible avec react-native-big-calendar
-  const calendarEvents = React.useMemo(() => {
+  const calendarEvents = useMemo(() => {
     if (!events) return [];
     
-    return events.map(event => ({
-      id: event.id,
-      title: event.title,
-      start: new Date(event.start),
-      end: new Date(event.end),
-      color: event.color || getEventTypeColor(event.metadata?.event_type),
-      metadata: event.metadata
-    }));
+    return events.map(event => {
+      const startDate = new Date(event.start);
+      const endDate = new Date(event.end);
+      
+      if (event.metadata?.all_day) {
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      return {
+        id: event.id,
+        title: event.title,
+        start: startDate,
+        end: endDate,
+        color: event.color || getEventTypeColor(event.metadata?.event_type),
+        metadata: event.metadata
+      };
+    });
   }, [events]);
+
+  // Gestionnaire de changement de date sécurisé
+  const handleDateChange = useCallback((newDate: Date | Date[]) => {
+    console.log('Date changed from Calendar:', newDate);
+    const dateToSet = Array.isArray(newDate) ? newDate[0] : newDate;
+    setDate(new Date(dateToSet));
+  }, []);
 
   // Gestion du déplacement d'un événement
   const handleEventMove = async (eventId: string, newStartDate: Date, newEndDate: Date) => {
@@ -249,42 +266,34 @@ export function PlanningScreen() {
   };
 
   // Changer la période (précédente/suivante)
-  const changePeriod = (direction: 'prev' | 'next') => {
+  const changePeriod = useCallback((direction: 'prev' | 'next') => {
     const newDate = new Date(date);
+    console.log('Changing period:', { direction, currentDate: date, mode });
     
     switch (mode) {
       case 'day':
-        const daysToAdd = direction === 'next' ? 1 : -1;
-        newDate.setDate(newDate.getDate() + daysToAdd);
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
         break;
       case 'week':
-        const weeksToAdd = direction === 'next' ? 7 : -7;
-        newDate.setDate(newDate.getDate() + weeksToAdd);
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
         break;
       case 'month':
-        const monthsToAdd = direction === 'next' ? 1 : -1;
-        newDate.setMonth(newDate.getMonth() + monthsToAdd);
+        // Pour la vue mensuelle, on s'assure d'être au 1er du mois
+        if (direction === 'next') {
+          newDate.setMonth(newDate.getMonth() + 1, 1);
+        } else {
+          newDate.setMonth(newDate.getMonth() - 1, 1);
+        }
         break;
     }
     
+    console.log('New date after change:', newDate);
     setDate(newDate);
-  };
+  }, [date, mode]);
 
   // Gestion des changements de mode de vue
   const changeMode = (newMode: ViewMode) => {
     setMode(newMode);
-  };
-
-  // Obtenir le texte de la période affichée
-  const getDateRangeText = () => {
-    const { startDate, endDate } = getDateRange();
-    const formatDate = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-    
-    if (mode === 'day') {
-      return formatDate(date);
-    }
-    
-    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
   };
 
   // Récupérer la couleur d'un type d'événement
@@ -375,6 +384,41 @@ export function PlanningScreen() {
       </TouchableOpacity>
     );
   };
+
+  // Obtenir le texte de la période affichée
+  const getDateRangeText = useCallback(() => {
+    const formatDate = (d: Date) => {
+      // Utiliser l'API Intl pour un formatage localisé
+      return new Intl.DateTimeFormat('fr-FR', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric'
+      }).format(d);
+    };
+    
+    const currentDate = new Date(date);
+    
+    switch (mode) {
+      case 'day':
+        return formatDate(currentDate);
+      case 'week': {
+        const weekStart = new Date(currentDate);
+        const day = weekStart.getDay();
+        const diff = day === 0 ? -6 : 1 - day; // Si dimanche, on va au lundi précédent
+        weekStart.setDate(weekStart.getDate() + diff);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
+      }
+      case 'month': {
+        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        return `${formatDate(monthStart)} - ${formatDate(monthEnd)}`;
+      }
+      default:
+        return formatDate(currentDate);
+    }
+  }, [date, mode]);
 
   // Affichage d'un message d'erreur si échec de chargement
   if (error) {
@@ -491,20 +535,48 @@ export function PlanningScreen() {
       </View>
       
       {/* Navigation de date */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, backgroundColor: '#f0f0f0' }}>
-        <TouchableOpacity onPress={() => changePeriod('prev')} style={{ padding: 5 }}>
+      <View style={{ 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        padding: 10, 
+        backgroundColor: '#f0f0f0'
+      }}>
+        <TouchableOpacity 
+          onPress={() => changePeriod('prev')} 
+          style={{ 
+            padding: 10,
+            borderRadius: 5,
+            backgroundColor: '#fff'
+          }}
+        >
           <Ionicons name="chevron-back" size={24} color="#4291EF" />
         </TouchableOpacity>
         
-        <Text style={{ fontSize: 16, fontWeight: '500' }}>{getDateRangeText()}</Text>
+        <Text style={{ 
+          fontSize: 16, 
+          fontWeight: '500',
+          flex: 1,
+          textAlign: 'center',
+          marginHorizontal: 10
+        }}>
+          {getDateRangeText()}
+        </Text>
         
-        <TouchableOpacity onPress={() => changePeriod('next')} style={{ padding: 5 }}>
+        <TouchableOpacity 
+          onPress={() => changePeriod('next')} 
+          style={{ 
+            padding: 10,
+            borderRadius: 5,
+            backgroundColor: '#fff'
+          }}
+        >
           <Ionicons name="chevron-forward" size={24} color="#4291EF" />
         </TouchableOpacity>
       </View>
       
       {/* Calendrier */}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
         <Calendar
           events={calendarEvents}
           height={600}
@@ -515,17 +587,20 @@ export function PlanningScreen() {
           eventCellStyle={(event) => ({
             backgroundColor: event.color,
             borderRadius: 5,
-            padding: 0
+            padding: 4,
+            minHeight: event.metadata?.all_day ? 25 : 'auto'
           })}
           renderEvent={eventRenderer}
           locale="fr"
           hideNowIndicator={false}
-          scrollOffsetMinutes={480} // 8h00
+          scrollOffsetMinutes={420} // Commencer à 7h00
           onPressEvent={handleEventPress}
           onPressCell={handleAddEvent}
           weekStartsOn={1} // La semaine commence le lundi
           hourRowHeight={60} // Hauteur d'une heure
           overlapOffset={70} // Décalage pour les événements qui se chevauchent
+          ampm={false} // Utiliser le format 24h
+          onChangeDate={handleDateChange}
         />
       </View>
       

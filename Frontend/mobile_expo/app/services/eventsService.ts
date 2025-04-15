@@ -48,12 +48,16 @@ const API_ENDPOINT = 'events';
 
 // Fonction pour convertir un DBEvent (BDD) en AppEvent (UI)
 export const mapDbEventToAppEvent = (event: DBEvent): AppEvent => {
-  console.log('Mapping event:', event);
+  
+  // Créer des dates à partir des chaînes ISO
+  const startDate = new Date(event.start_date);
+  const endDate = new Date(event.end_date);
+  
   return {
     id: event.id.toString(),
     title: event.title,
-    start: event.start_date, // Format ISO
-    end: event.end_date, // Format ISO
+    start: startDate.toISOString(), // Format ISO
+    end: endDate.toISOString(), // Format ISO
     color: event.color || getEventTypeColor(event.event_type),
     metadata: { 
       project_id: event.project_id,
@@ -70,11 +74,15 @@ export const mapDbEventToAppEvent = (event: DBEvent): AppEvent => {
 
 // Fonction pour convertir un AppEvent (UI) en DBEvent (BDD) pour les créations/mises à jour
 export const mapAppEventToDbEvent = (event: AppEvent): Partial<DBEvent> => {
+  // Créer des dates à partir des chaînes ISO
+  const startDate = new Date(event.start);
+  const endDate = new Date(event.end);
+  
   return {
     id: parseInt(event.id),
     title: event.title,
-    start_date: event.start,
-    end_date: event.end,
+    start_date: startDate.toISOString(),
+    end_date: endDate.toISOString(),
     color: event.color,
     project_id: event.metadata?.project_id,
     staff_id: event.metadata?.staff_id,
@@ -124,24 +132,15 @@ export const useEvents = (startDate?: Date, endDate?: Date, projectId?: number, 
   if (projectId) params.append('project_id', projectId.toString());
   if (staffId) params.append('staff_id', staffId.toString());
   
-  console.log('Fetching events with params:', {
-    start_date: startDate?.toISOString(),
-    end_date: endDate?.toISOString(),
-    project_id: projectId,
-    staff_id: staffId
-  });
-
   // En développement, utiliser les données mockées si pas de réponse de l'API
   const { data, loading, error } = useFetch<DBEvent[]>(`${API_ENDPOINT}?${params.toString()}`, {
     method: 'GET'
   });
 
-  console.log('Raw API response:', data);
   
   // Si pas de données de l'API en développement, utiliser les données mockées
   const events: AppEvent[] = data ? data.map(mapDbEventToAppEvent) : __DEV__ ? getMockEvents() : [];
   
-  console.log('Processed events:', events);
   
   return { events, loading, error };
 };

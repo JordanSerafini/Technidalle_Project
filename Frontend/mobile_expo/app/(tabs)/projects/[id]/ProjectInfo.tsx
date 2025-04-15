@@ -51,7 +51,6 @@ export const ProjectInfo = memo(({
   const [lastPress, setLastPress] = useState(0);
   
   const handlePress = () => {
-    console.log("ProjectInfo: PRESSABLE DIRECT TOUCHÉ");
     // Empêcher les doubles clics accidentels
     const now = Date.now();
     if (now - lastPress < 300) return;
