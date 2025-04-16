@@ -55,7 +55,7 @@ export default function DocumentsScreen() {
   
   // Récupération des documents
   const { data: documents, loading, error } = useFetch<Document[]>('documents', {
-    searchQuery: searchQuery.length > 2 ? searchQuery : undefined
+    searchQuery: searchQuery.length > 0 ? searchQuery : undefined
   });
   
   // Filtrer par type si un type est sélectionné

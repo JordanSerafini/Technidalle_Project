@@ -20,25 +20,112 @@ export class AppService {
     clientId?: number,
     projectId?: number,
   ): Promise<Document[]> {
+    const where = {
+      ...(clientId ? { client_id: clientId } : {}),
+      ...(projectId ? { project_id: projectId } : {}),
+    };
+
+    // Si searchQuery est défini, ajouter les conditions de recherche
+    if (searchQuery && searchQuery.length > 1) {
+      where['OR'] = [
+        { reference: { contains: searchQuery, mode: 'insensitive' } },
+        { notes: { contains: searchQuery, mode: 'insensitive' } },
+        { payment_method: { contains: searchQuery, mode: 'insensitive' } },
+        { status: { contains: searchQuery, mode: 'insensitive' } },
+        { type: { contains: searchQuery, mode: 'insensitive' } },
+      ];
+    }
+
     const documents = await this.prisma.documents.findMany({
-      where: {
-        ...(searchQuery
-          ? {
-              OR: [
-                { reference: { contains: searchQuery, mode: 'insensitive' } },
-                { notes: { contains: searchQuery, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-        ...(clientId ? { client_id: clientId } : {}),
-        ...(projectId ? { project_id: projectId } : {}),
-      },
+      where,
       skip: offset ?? 0,
       take: limit ?? 100,
       orderBy: {
         created_at: 'desc',
       },
+      include: {
+        clients: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            company_name: true,
+          },
+        },
+        projects: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
+
+    // Recherche supplémentaire sur les données liées aux clients
+    if (searchQuery && searchQuery.length > 1) {
+      const filteredDocuments = documents.filter((doc) => {
+        // Vérification par défaut avec les conditions OR déjà appliquées
+        const defaultCheck =
+          (doc.reference &&
+            doc.reference.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (doc.notes &&
+            doc.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (doc.payment_method &&
+            doc.payment_method
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase())) ||
+          (doc.status &&
+            doc.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (doc.type &&
+            doc.type.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        if (defaultCheck) return true;
+
+        // Recherche dans les informations du client
+        if (doc.clients) {
+          const client = doc.clients;
+          const searchInClient =
+            (client.firstname &&
+              client.firstname
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())) ||
+            (client.lastname &&
+              client.lastname
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())) ||
+            (client.company_name &&
+              client.company_name
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()));
+
+          if (searchInClient) return true;
+        }
+
+        // Recherche dans les informations du projet
+        if (doc.projects) {
+          const project = doc.projects;
+          if (
+            project.name &&
+            project.name.toLowerCase().includes(searchQuery.toLowerCase())
+          ) {
+            return true;
+          }
+        }
+
+        // Recherche dans les montants (conversion du montant en chaîne)
+        if (doc.amount !== null) {
+          const amountStr = doc.amount.toString();
+          if (amountStr.includes(searchQuery)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      return filteredDocuments as Document[];
+    }
+
     return documents as Document[];
   }
 
