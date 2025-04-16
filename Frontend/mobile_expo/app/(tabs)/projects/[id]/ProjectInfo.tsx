@@ -51,6 +51,7 @@ export const ProjectInfo = memo(({
 }: ProjectInfoProps) => {
   
   const handlePress = () => {
+    console.log("[ProjectInfo] handlePress appelé. Appel de onToggle.");
     // Appel direct de onToggle sans délai
     onToggle();
   };
