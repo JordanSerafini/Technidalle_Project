@@ -7,7 +7,30 @@ import {
   ProjectMedia,
   CreateProjectMediaDto,
   UpdateProjectMediaDto,
+  DocumentType,
+  DocumentStatus,
 } from './interfaces/document.interface';
+import { Prisma } from '@prisma/client';
+
+// Type pour les résultats de Prisma
+type PrismaDocumentWithRelations = Prisma.documentsGetPayload<{
+  include: {
+    clients: {
+      select: {
+        id: true;
+        firstname: true;
+        lastname: true;
+        company_name: true;
+      };
+    };
+    projects: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
+}>;
 
 @Injectable()
 export class AppService {
@@ -20,24 +43,91 @@ export class AppService {
     clientId?: number,
     projectId?: number,
   ): Promise<Document[]> {
-    const where = {
+    // Construction de la requête where compatible avec Prisma
+    const where: Record<string, unknown> = {
       ...(clientId ? { client_id: clientId } : {}),
       ...(projectId ? { project_id: projectId } : {}),
     };
 
     // Si searchQuery est défini, ajouter les conditions de recherche
     if (searchQuery && searchQuery.length > 1) {
-      where['OR'] = [
+      const searchLower = searchQuery.toLowerCase();
+      console.log(`Recherche avec searchLower: ${searchLower}`);
+
+      const orConditions: Prisma.Enumerable<Prisma.documentsWhereInput> = [
         { reference: { contains: searchQuery, mode: 'insensitive' } },
         { notes: { contains: searchQuery, mode: 'insensitive' } },
         { payment_method: { contains: searchQuery, mode: 'insensitive' } },
-        { status: { contains: searchQuery, mode: 'insensitive' } },
-        { type: { contains: searchQuery, mode: 'insensitive' } },
       ];
+
+      // Recherche spécifique pour les statuts (qui sont des enum)
+      if (searchLower.includes('ann') || searchLower.includes('annu')) {
+        console.log('Ajout du statut ANNULE à la recherche');
+        orConditions.push({ status: DocumentStatus.ANNULE });
+      }
+      if (searchLower.includes('brouillon')) {
+        orConditions.push({ status: DocumentStatus.BROUILLON });
+      }
+      if (
+        searchLower.includes('attente') ||
+        searchLower.includes('en_attente')
+      ) {
+        orConditions.push({ status: DocumentStatus.EN_ATTENTE });
+      }
+      if (searchLower.includes('valid') || searchLower.includes('valide')) {
+        orConditions.push({ status: DocumentStatus.VALIDE });
+      }
+      if (searchLower.includes('refus') || searchLower.includes('refuse')) {
+        orConditions.push({ status: DocumentStatus.REFUSE });
+      }
+
+      // Recherche pour les types de documents (qui sont des enum)
+      if (searchLower.includes('devis')) {
+        orConditions.push({ type: DocumentType.DEVIS });
+      }
+      if (searchLower.includes('facture')) {
+        orConditions.push({ type: DocumentType.FACTURE });
+      }
+      if (
+        searchLower.includes('commande') ||
+        searchLower.includes('bon_de_commande')
+      ) {
+        orConditions.push({ type: DocumentType.BON_DE_COMMANDE });
+      }
+      if (
+        searchLower.includes('livraison') ||
+        searchLower.includes('bon_de_livraison')
+      ) {
+        orConditions.push({ type: DocumentType.BON_DE_LIVRAISON });
+      }
+      if (
+        searchLower.includes('technique') ||
+        searchLower.includes('fiche_technique')
+      ) {
+        orConditions.push({ type: DocumentType.FICHE_TECHNIQUE });
+      }
+      if (
+        searchLower.includes('photo') ||
+        searchLower.includes('chantier') ||
+        searchLower.includes('photo_chantier')
+      ) {
+        orConditions.push({ type: DocumentType.PHOTO_CHANTIER });
+      }
+      if (searchLower.includes('plan')) {
+        orConditions.push({ type: DocumentType.PLAN });
+      }
+      if (searchLower.includes('autre')) {
+        orConditions.push({ type: DocumentType.AUTRE });
+      }
+
+      where.OR = orConditions;
+      console.log('Conditions de recherche:', JSON.stringify(orConditions));
     }
 
+    console.log('Requête finale:', JSON.stringify(where));
+
     const documents = await this.prisma.documents.findMany({
-      where,
+      where: where as Prisma.documentsWhereInput,
       skip: offset ?? 0,
       take: limit ?? 100,
       orderBy: {
@@ -61,68 +151,72 @@ export class AppService {
       },
     });
 
+    console.log(`Nombre de documents trouvés: ${documents.length}`);
+
     // Recherche supplémentaire sur les données liées aux clients
     if (searchQuery && searchQuery.length > 1) {
-      const filteredDocuments = documents.filter((doc) => {
-        // Vérification par défaut avec les conditions OR déjà appliquées
-        const defaultCheck =
-          (doc.reference &&
-            doc.reference.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (doc.notes &&
-            doc.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (doc.payment_method &&
-            doc.payment_method
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase())) ||
-          (doc.status &&
-            doc.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (doc.type &&
-            doc.type.toLowerCase().includes(searchQuery.toLowerCase()));
+      const searchLower = searchQuery.toLowerCase();
 
-        if (defaultCheck) return true;
-
-        // Recherche dans les informations du client
-        if (doc.clients) {
-          const client = doc.clients;
-          const searchInClient =
-            (client.firstname &&
-              client.firstname
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase())) ||
-            (client.lastname &&
-              client.lastname
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase())) ||
-            (client.company_name &&
-              client.company_name
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase()));
-
-          if (searchInClient) return true;
-        }
-
-        // Recherche dans les informations du projet
-        if (doc.projects) {
-          const project = doc.projects;
+      const filteredDocuments = documents.filter(
+        (doc: PrismaDocumentWithRelations) => {
+          // Vérification spécifique pour le statut "annulé"
           if (
-            project.name &&
-            project.name.toLowerCase().includes(searchQuery.toLowerCase())
+            doc.status === DocumentStatus.ANNULE &&
+            (searchLower.includes('ann') || searchLower.includes('annu'))
           ) {
             return true;
           }
-        }
 
-        // Recherche dans les montants (conversion du montant en chaîne)
-        if (doc.amount !== null) {
-          const amountStr = doc.amount.toString();
-          if (amountStr.includes(searchQuery)) {
-            return true;
+          // Vérification de base dans les champs de texte
+          const defaultCheck =
+            (doc.reference &&
+              doc.reference.toLowerCase().includes(searchLower)) ||
+            (doc.notes && doc.notes.toLowerCase().includes(searchLower)) ||
+            (doc.payment_method &&
+              doc.payment_method.toLowerCase().includes(searchLower));
+
+          if (defaultCheck) return true;
+
+          // Recherche dans les informations du client
+          if (doc.clients) {
+            const client = doc.clients;
+            const searchInClient =
+              (client.firstname &&
+                client.firstname.toLowerCase().includes(searchLower)) ||
+              (client.lastname &&
+                client.lastname.toLowerCase().includes(searchLower)) ||
+              (client.company_name &&
+                client.company_name.toLowerCase().includes(searchLower));
+
+            if (searchInClient) return true;
           }
-        }
 
-        return false;
-      });
+          // Recherche dans les informations du projet
+          if (doc.projects) {
+            const project = doc.projects;
+            if (
+              project.name &&
+              project.name.toLowerCase().includes(searchLower)
+            ) {
+              return true;
+            }
+          }
 
+          // Recherche dans les montants (conversion du montant en chaîne)
+          if (doc.amount !== null) {
+            const amountStr = doc.amount.toString();
+            if (amountStr.includes(searchQuery)) {
+              return true;
+            }
+          }
+
+          return false;
+        },
+      );
+
+      console.log(
+        `Nombre de documents après filtrage: ${filteredDocuments.length}`,
+      );
       return filteredDocuments as Document[];
     }
 
