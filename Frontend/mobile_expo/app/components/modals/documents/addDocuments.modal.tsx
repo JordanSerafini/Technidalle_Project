@@ -11,13 +11,16 @@ import {
   StatusBar,
   ScrollView,
   TextInput,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { DocumentType, DocumentStatus } from '@/app/utils/interfaces/document';
 import { url as urlConfig } from '@/app/utils/url';
+import Tableau from '../../tableau';
+import { useDevisStore } from '@/app/store/devisStore';
 
 // Récupérer les dimensions de l'écran
 const { width, height } = Dimensions.get('window');
@@ -41,7 +44,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const [reference, setReference] = useState('');
   const [type, setType] = useState<DocumentType>(DocumentType.DEVIS);
   const [status, setStatus] = useState<DocumentStatus>(DocumentStatus.BROUILLON);
-  const [amount, setAmount] = useState('');
   const [tvaRate, setTvaRate] = useState('20');
   const [issueDate, setIssueDate] = useState(new Date());
   const [dueDate, setDueDate] = useState<Date | null>(null);
@@ -53,6 +55,9 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [issueDatePickerOpen, setIssueDatePickerOpen] = useState(false);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
+
+  // Store pour les lignes du devis
+  const { rows, calculateTotal, clearRows } = useDevisStore();
   
   // Reset form quand la modale s'ouvre
   useEffect(() => {
@@ -84,13 +89,13 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     setReference('');
     setType(DocumentType.DEVIS);
     setStatus(DocumentStatus.BROUILLON);
-    setAmount('');
     setTvaRate('20');
     setIssueDate(new Date());
     setDueDate(null);
     setNotes('');
     setFilePath('');
     setError(null);
+    clearRows(); // Réinitialiser les lignes du devis
   };
 
   // Formater les dates pour l'affichage
@@ -132,97 +137,57 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const handleSubmit = async () => {
     if (!validateForm()) return;
     
-    console.log("Début de soumission du formulaire");
-    
     setLoading(true);
     setError(null);
     
     try {
-      // Formatter les dates au format ISO complet (avec heure)
-      const formattedIssueDate = new Date(issueDate);
-      // S'assurer que l'heure est définie pour éviter des problèmes de timezone
-      formattedIssueDate.setHours(12, 0, 0, 0);
-      
-      let formattedDueDate = null;
-      if (dueDate) {
-        formattedDueDate = new Date(dueDate);
-        formattedDueDate.setHours(12, 0, 0, 0);
-      }
-      
       const documentData = {
-        project_id: projectId || 1,
-        client_id: clientId || null,
+        project_id: projectId,
+        client_id: clientId,
         type,
         reference,
         status,
-        amount: amount ? parseFloat(amount) : null,
-        tva_rate: tvaRate ? parseFloat(tvaRate) : null,
-        // Utiliser le format ISO complet pour les dates
-        issue_date: formattedIssueDate.toISOString(),
-        due_date: formattedDueDate ? formattedDueDate.toISOString() : null,
-        notes: notes || null,
-        file_path: filePath || null
+        amount: calculateTotal(), // Utiliser le total calculé du tableau
+        tva_rate: parseFloat(tvaRate),
+        issue_date: issueDate.toISOString(),
+        due_date: dueDate?.toISOString() || null,
+        notes,
+        file_path: filePath,
+        materials: rows.map(row => ({
+          material_id: row.material?.id,
+          quantity: row.quantity,
+          price: row.price
+        }))
       };
-      
-      console.log("Données à envoyer:", documentData);
       
       const response = await fetch(`${urlConfig.local}documents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
         body: JSON.stringify(documentData)
       });
       
-      console.log("Statut de la réponse:", response.status);
-      
-      const responseText = await response.text();
-      console.log("Réponse brute:", responseText);
-      
       if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${responseText}`);
+        throw new Error('Erreur lors de la création du document');
       }
       
-      let result;
-      try {
-        result = JSON.parse(responseText);
-        console.log("Document créé avec succès:", result);
-      } catch (e) {
-        console.warn("Impossible de parser la réponse JSON:", e);
-      }
-      
-      // Afficher un message de succès
       Alert.alert(
-        "Succès",
-        `Le document "${reference}" a été ajouté avec succès.`,
-        [{ 
-          text: "OK", 
-          onPress: () => {
-            if (onSuccess) onSuccess();
-            onClose();
+        'Succès',
+        'Le document a été créé avec succès',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (onSuccess) onSuccess();
+              onClose();
+            }
           }
-        }],
-        { cancelable: false }
+        ]
       );
       
     } catch (err) {
-      console.error('Erreur lors de l\'ajout du document:', err);
-      
-      // Message d'erreur amélioré
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : "Une erreur inconnue est survenue";
-        
-      setError(errorMessage);
-      
-      // Afficher une alerte d'erreur
-      Alert.alert(
-        "Erreur",
-        `Impossible d'ajouter le document:\n${errorMessage}`,
-        [{ text: "OK" }],
-        { cancelable: false }
-      );
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
@@ -232,182 +197,186 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   if (!visible) return null;
 
   return (
-    <View style={styles.fullScreenOverlay}>
-      <TouchableOpacity 
-        style={styles.backdrop} 
-        activeOpacity={1} 
-        onPress={onClose}
-      />
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Ajouter un document</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.formContainer}>
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.fullScreenOverlay}>
+        <TouchableOpacity 
+          style={styles.backdrop} 
+          activeOpacity={1} 
+          onPress={onClose}
+        />
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nouveau document</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
             </View>
-          )}
-          
-          {/* Référence */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Référence *</Text>
-            <TextInput
-              style={styles.input}
-              value={reference}
-              onChangeText={setReference}
-              placeholder="Ex: DEVIS-2023-001"
-            />
-          </View>
-          
-          {/* Type de document */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Type de document *</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={type}
-                onValueChange={(itemValue) => setType(itemValue as DocumentType)}
-                style={styles.picker}
-              >
-                {Object.values(DocumentType).map((docType) => (
-                  <Picker.Item 
-                    key={docType} 
-                    label={docType.replace(/_/g, ' ')} 
-                    value={docType} 
-                  />
-                ))}
-              </Picker>
-            </View>
-          </View>
-          
-          {/* Statut */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Statut</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={status}
-                onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
-                style={styles.picker}
-              >
-                {Object.values(DocumentStatus).map((docStatus) => (
-                  <Picker.Item 
-                    key={docStatus} 
-                    label={docStatus.replace(/_/g, ' ')} 
-                    value={docStatus} 
-                  />
-                ))}
-              </Picker>
-            </View>
-          </View>
-          
-          {/* Montant */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Montant (€)</Text>
-            <TextInput
-              style={styles.input}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-            />
-          </View>
-          
-          {/* Taux TVA */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Taux TVA (%)</Text>
-            <TextInput
-              style={styles.input}
-              value={tvaRate}
-              onChangeText={setTvaRate}
-              placeholder="20"
-              keyboardType="decimal-pad"
-            />
-          </View>
-          
-          {/* Date d'émission */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date d'émission *</Text>
-            <TouchableOpacity 
-              style={styles.dateButton}
-              onPress={() => setIssueDatePickerOpen(true)}
-            >
-              <Text style={styles.dateButtonText}>{formatDate(issueDate)}</Text>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-            </TouchableOpacity>
             
-            {issueDatePickerOpen && (
-              <DateTimePicker
-                value={issueDate}
-                mode="date"
-                display="default"
-                onChange={handleIssueDateChange}
-              />
-            )}
-          </View>
-          
-          {/* Date d'échéance */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date d'échéance</Text>
-            <TouchableOpacity 
-              style={styles.dateButton}
-              onPress={() => setDueDatePickerOpen(true)}
-            >
-              <Text style={styles.dateButtonText}>{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-            </TouchableOpacity>
-            
-            {dueDatePickerOpen && (
-              <DateTimePicker
-                value={dueDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={handleDueDateChange}
-              />
-            )}
-          </View>
-          
-          {/* Notes */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Notes ou commentaires supplémentaires"
-              multiline
-              numberOfLines={4}
-            />
-          </View>
-          
-          {/* Boutons d'action */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Annuler</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton, loading && styles.disabledButton]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Enregistrer</Text>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.formContainer}>
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
               )}
-            </TouchableOpacity>
+              
+              {/* Référence */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Référence *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={reference}
+                  onChangeText={setReference}
+                  placeholder="Ex: DEVIS-2023-001"
+                />
+              </View>
+              
+              {/* Type de document */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Type de document *</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={type}
+                    onValueChange={(itemValue) => setType(itemValue as DocumentType)}
+                    style={styles.picker}
+                  >
+                    {Object.values(DocumentType).map((docType) => (
+                      <Picker.Item 
+                        key={docType} 
+                        label={docType.replace(/_/g, ' ')} 
+                        value={docType} 
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+              
+              {/* Statut */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Statut</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={status}
+                    onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
+                    style={styles.picker}
+                  >
+                    {Object.values(DocumentStatus).map((docStatus) => (
+                      <Picker.Item 
+                        key={docStatus} 
+                        label={docStatus.replace(/_/g, ' ')} 
+                        value={docStatus} 
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+              
+              {/* Taux TVA */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Taux TVA (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={tvaRate}
+                  onChangeText={setTvaRate}
+                  placeholder="20"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              
+              {/* Date d'émission */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Date d'émission *</Text>
+                <TouchableOpacity 
+                  style={styles.dateButton}
+                  onPress={() => setIssueDatePickerOpen(true)}
+                >
+                  <Text style={styles.dateButtonText}>{formatDate(issueDate)}</Text>
+                  <Ionicons name="calendar-outline" size={20} color="#666" />
+                </TouchableOpacity>
+                
+                {issueDatePickerOpen && (
+                  <DateTimePicker
+                    value={issueDate}
+                    mode="date"
+                    display="default"
+                    onChange={handleIssueDateChange}
+                  />
+                )}
+              </View>
+              
+              {/* Date d'échéance */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Date d'échéance</Text>
+                <TouchableOpacity 
+                  style={styles.dateButton}
+                  onPress={() => setDueDatePickerOpen(true)}
+                >
+                  <Text style={styles.dateButtonText}>{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
+                  <Ionicons name="calendar-outline" size={20} color="#666" />
+                </TouchableOpacity>
+                
+                {dueDatePickerOpen && (
+                  <DateTimePicker
+                    value={dueDate || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={handleDueDateChange}
+                  />
+                )}
+              </View>
+              
+              {/* Notes */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Notes</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Notes ou commentaires supplémentaires"
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+              
+              {/* Tableau des matériaux */}
+              {type === DocumentType.DEVIS && (
+                <View style={styles.tableauContainer}>
+                  <Text style={styles.sectionTitle}>Matériaux</Text>
+                  <Tableau />
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={onClose}
+              >
+                <Text style={styles.buttonText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.submitButton]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={[styles.buttonText, styles.submitButtonText]}>
+                    Enregistrer
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 };
 
@@ -446,6 +415,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
+  },
+  modalContent: {
+    flex: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -544,18 +516,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
   },
-  disabledButton: {
-    backgroundColor: '#90caf9',
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   submitButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '500',
+  tableauContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 });
 
