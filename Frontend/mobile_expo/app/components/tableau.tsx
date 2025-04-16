@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, FlatList } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import useFetch from '../hooks/useFetch';
 import { url } from '../utils/url';
 import { Material } from '../utils/interfaces/material.interface';
@@ -71,6 +72,10 @@ function Tableau() {
         return rows.reduce((total, row) => total + (row.quantity * row.price), 0);
     };
 
+    const deleteRow = (id: number) => {
+        setRows(rows.filter(row => row.id !== id));
+    };
+
     // Filtrer les matériaux en fonction du terme de recherche
     const filteredMaterials = materials?.filter(material => 
         material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,75 +100,90 @@ function Tableau() {
     }
 
     return (
-        <View className="w-full h-full">
+        <View className="w-full h-full pt-20">
+            {/* Table Container */}
             <View className="flex-1 border border-gray-300 rounded overflow-hidden">
-                {/* En-tête du tableau */}
-                <View className="flex-row bg-gray-100 border-b border-gray-300">
-                    <View className="w-[45%]">
-                        <Text className="font-bold p-3 text-center">Article</Text>
-                    </View>
-                    <View className="w-[18%]">
-                        <Text className="font-bold p-3 text-center">Quantité</Text>
-                    </View>
-                    <View className="w-[18%]">
-                        <Text className="font-bold p-3 text-center">Prix (€)</Text>
-                    </View>
-                    <View className="w-[19%]">
-                        <Text className="font-bold p-3 text-center">Total</Text>
+                {/* Table Header (thead) */}
+                <View className="bg-gray-100">
+                    <View className="flex-row h-12 border-b border-gray-300">
+                        <View className="w-[40%] justify-center">
+                            <Text className="text-center font-bold">Article</Text>
+                        </View>
+                        <View className="w-[20%] justify-center">
+                            <Text className="text-center font-bold">Quantité</Text>
+                        </View>
+                        <View className="w-[20%] justify-center">
+                            <Text className="text-center font-bold">Prix (€)</Text>
+                        </View>
+                        <View className="w-[20%] justify-center">
+                            <Text className="text-center font-bold">Total</Text>
+                        </View>
                     </View>
                 </View>
-                
+
+                {/* Table Body (tbody) */}
                 <ScrollView>
-                    {/* Lignes du tableau */}
                     {rows.map((row) => (
-                        <View key={row.id} className="flex-row border-b border-gray-300 h-14">
-                            {/* Colonne Article */}
-                            <View className="w-[45%]  px-2 justify-center">
+                        <Swipeable
+                            key={row.id}
+                            renderRightActions={() => (
                                 <TouchableOpacity 
-                                    className="flex-1  justify-center px-2"
-                                    onPress={() => openMaterialSelector(row.id)}
+                                    onPress={() => deleteRow(row.id)}
+                                    className="w-20 h-14 bg-red-500 justify-center items-center"
                                 >
-                                    <Text 
-                                        numberOfLines={2} 
-                                        ellipsizeMode="tail"
-                                        className="text-center"
-                                    >
-                                        {row.material ? row.material.name : 'Sélectionner un article'}
-                                    </Text>
+                                    <Ionicons name="trash-outline" size={24} color="white" />
                                 </TouchableOpacity>
+                            )}
+                        >
+                            <View className="flex-row h-14 border-b border-gray-300 bg-white">
+                                {/* Article Cell */}
+                                <View className="w-[40%] justify-center items-center">
+                                    <TouchableOpacity 
+                                        className="w-[95%] h-10 justify-center bg-gray-50 rounded"
+                                        onPress={() => openMaterialSelector(row.id)}
+                                    >
+                                        <Text 
+                                            numberOfLines={2} 
+                                            ellipsizeMode="tail"
+                                            className="text-center px-2"
+                                        >
+                                            {row.material ? row.material.name : 'Sélectionner un article'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                                
+                                {/* Quantity Cell */}
+                                <View className="w-[20%] justify-center items-center">
+                                    <TextInput
+                                        className="w-[90%] h-10 bg-gray-50 rounded text-center"
+                                        value={row.quantity.toString()}
+                                        keyboardType="numeric"
+                                        onChangeText={(text) => updateRow(row.id, 'quantity', parseInt(text) || 0)}
+                                    />
+                                </View>
+                                
+                                {/* Price Cell */}
+                                <View className="w-[20%] justify-center items-center">
+                                    <TextInput
+                                        className="w-[90%] h-10 bg-gray-50 rounded text-center"
+                                        value={row.price.toString()}
+                                        keyboardType="numeric"
+                                        onChangeText={(text) => updateRow(row.id, 'price', parseFloat(text) || 0)}
+                                    />
+                                </View>
+                                
+                                {/* Total Cell */}
+                                <View className="w-[20%] justify-center">
+                                    <Text className="text-center">{(row.quantity * row.price).toFixed(2)} €</Text>
+                                </View>
                             </View>
-                            
-                            {/* Colonne Quantité */}
-                            <View className="w-[18%] px-2 justify-center">
-                                <TextInput
-                                    className="h-10 rounded text-center"
-                                    value={row.quantity.toString()}
-                                    keyboardType="numeric"
-                                    onChangeText={(text) => updateRow(row.id, 'quantity', parseInt(text) || 0)}
-                                />
-                            </View>
-                            
-                            {/* Colonne Prix */}
-                            <View className="w-[18%] px-2 justify-center">
-                                <TextInput
-                                    className="h-10  rounded text-center"
-                                    value={row.price.toString()}
-                                    keyboardType="numeric"
-                                    onChangeText={(text) => updateRow(row.id, 'price', parseFloat(text) || 0)}
-                                />
-                            </View>
-                            
-                            {/* Colonne Total */}
-                            <View className="w-[19%] px-2 justify-center">
-                                <Text className="text-center">{(row.quantity * row.price).toFixed(2)} €</Text>
-                            </View>
-                        </View>
+                        </Swipeable>
                     ))}
                 </ScrollView>
             </View>
             
-            {/* Total global */}
-            <View className="flex-row justify-end mt-5 pt-2.5 border-t border-gray-300">
+            {/* Table Footer */}
+            <View className="flex-row justify-end py-4 px-2 border-t border-gray-300">
                 <Text className="font-bold text-base mr-2.5">Total du devis:</Text>
                 <Text className="font-bold text-base text-blue-600">{calculateTotal().toFixed(2)} €</Text>
             </View>
