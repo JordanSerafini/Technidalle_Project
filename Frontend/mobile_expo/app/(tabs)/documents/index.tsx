@@ -377,74 +377,95 @@ export default function DocumentsScreen() {
     switch (currentFilter) {
       case FilterType.TYPE:
         return (
-          <View className="flex-row flex-wrap" style={{ minHeight: 110 }}>
+          <ScrollView 
+            horizontal={true}
+            showsHorizontalScrollIndicator={true}
+            style={{ maxHeight: 75 }}
+            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' }}
+          >
             <TouchableOpacity 
-              className={`m-1 px-3 py-1 rounded-full border ${selectedType === null ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
+              className="mx-1 px-3 py-1 rounded-full border"
+              style={{ backgroundColor: selectedType === null ? '#3b82f6' : '#f3f4f6', borderColor: selectedType === null ? '#2563eb' : '#e5e7eb' }}
               onPress={() => setSelectedType(null)}
             >
-              <Text className={`${selectedType === null ? 'text-white' : 'text-gray-800'}`}>Tous</Text>
+              <Text style={{ color: selectedType === null ? '#ffffff' : '#1f2937' }}>Tous</Text>
             </TouchableOpacity>
             
             {documentTypes.map(type => (
               <TouchableOpacity 
                 key={type}
-                className={`m-1 px-3 py-1 rounded-full border ${selectedType === type ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
+                className="mx-1 px-3 py-1 rounded-full border"
+                style={{ backgroundColor: selectedType === type ? '#3b82f6' : '#f3f4f6', borderColor: selectedType === type ? '#2563eb' : '#e5e7eb' }}
                 onPress={() => setSelectedType(type)}
               >
-                <Text className={`${selectedType === type ? 'text-white' : 'text-gray-800'}`}>
+                <Text style={{ color: selectedType === type ? '#ffffff' : '#1f2937' }}>
                   {formatDocumentType(type)}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         );
       
       case FilterType.STATUS:
         return (
-          <View className="flex-row flex-wrap" style={{ minHeight: 110 }}>
+          <ScrollView 
+            horizontal={true}
+            showsHorizontalScrollIndicator={true}
+            style={{ maxHeight: 75 }}
+            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' }}
+          >
             <TouchableOpacity 
-              className={`m-1 px-3 py-1 rounded-full border ${selectedStatus === null ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
+              className="mx-1 px-3 py-1 rounded-full border"
+              style={{ backgroundColor: selectedStatus === null ? '#3b82f6' : '#f3f4f6', borderColor: selectedStatus === null ? '#2563eb' : '#e5e7eb' }}
               onPress={() => setSelectedStatus(null)}
             >
-              <Text className={`${selectedStatus === null ? 'text-white' : 'text-gray-800'}`}>Tous</Text>
+              <Text style={{ color: selectedStatus === null ? '#ffffff' : '#1f2937' }}>Tous</Text>
             </TouchableOpacity>
             
             {documentStatuses.map(status => (
               <TouchableOpacity 
                 key={status}
-                className={`m-1 px-3 py-1 rounded-full border ${selectedStatus === status ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
+                className="mx-1 px-3 py-1 rounded-full border"
+                style={{ backgroundColor: selectedStatus === status ? '#3b82f6' : '#f3f4f6', borderColor: selectedStatus === status ? '#2563eb' : '#e5e7eb' }}
                 onPress={() => setSelectedStatus(status)}
               >
-                <Text className={`${selectedStatus === status ? 'text-white' : 'text-gray-800'}`}>
+                <Text style={{ color: selectedStatus === status ? '#ffffff' : '#1f2937' }}>
                   {formatDocumentStatus(status)}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         );
       
       case FilterType.DATE:
         return (
-          <View className="flex-row flex-wrap" style={{ minHeight: 110 }}>
+          <ScrollView 
+            horizontal={true}
+            showsHorizontalScrollIndicator={true}
+            style={{ maxHeight: 75 }}
+            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' }}
+          >
             <TouchableOpacity 
-              className={`m-1 px-3 py-1 rounded-full border ${selectedDateFilter === null ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
+              className="mx-1 px-3 py-1 rounded-full border"
+              style={{ backgroundColor: selectedDateFilter === null ? '#3b82f6' : '#f3f4f6', borderColor: selectedDateFilter === null ? '#2563eb' : '#e5e7eb' }}
               onPress={() => setSelectedDateFilter(null)}
             >
-              <Text className={`${selectedDateFilter === null ? 'text-white' : 'text-gray-800'}`}>Tous</Text>
+              <Text style={{ color: selectedDateFilter === null ? '#ffffff' : '#1f2937' }}>Tous</Text>
             </TouchableOpacity>
             
             {dateFilters.map(filter => (
               <TouchableOpacity 
                 key={filter.id}
-                className={`m-1 px-3 py-1 rounded-full border ${selectedDateFilter === filter.id ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
+                className="mx-1 px-3 py-1 rounded-full border"
+                style={{ backgroundColor: selectedDateFilter === filter.id ? '#3b82f6' : '#f3f4f6', borderColor: selectedDateFilter === filter.id ? '#2563eb' : '#e5e7eb' }}
                 onPress={() => setSelectedDateFilter(filter.id)}
               >
-                <Text className={`${selectedDateFilter === filter.id ? 'text-white' : 'text-gray-800'}`}>
+                <Text style={{ color: selectedDateFilter === filter.id ? '#ffffff' : '#1f2937' }}>
                   {filter.label}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         );
     }
   };
