@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
 import { ProjectStaff as ProjectStaffInterface } from '@/app/utils/interfaces/staff.interface';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface ProjectStaffProps {
   projectId: string | number;
@@ -35,7 +36,7 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
         />
       </TouchableOpacity>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           {loading ? (
             <ActivityIndicator size="small" color="#2563eb" />
@@ -77,7 +78,7 @@ export const ProjectStaff: React.FC<ProjectStaffProps> = ({
             <Text className="text-gray-500">Aucun personnel associé à ce projet</Text>
           )}
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 
