@@ -509,7 +509,7 @@ export default function DocumentsScreen() {
       )}
       
       {/* Barre de recherche et filtres en bas de l'écran */}
-      <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 pb-6 shadow-lg">
+      <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
         {/* Barre de recherche */}
         <View className="flex-row items-center mb-4">
           <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
