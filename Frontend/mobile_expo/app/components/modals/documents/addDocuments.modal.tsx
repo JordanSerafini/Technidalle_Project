@@ -431,7 +431,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                    <>
                       <View style={styles.pickerContainer}>
                          <Picker
-                          selectedValue={selectedClient ? (selectedClient as any).id : null}
+                          selectedValue={selectedClient ? (selectedClient as any).id : undefined}
                           onValueChange={(itemValue: any) => {
                               if (itemValue) {
                                   const client = clients.find(c => (c as any).id === itemValue);
