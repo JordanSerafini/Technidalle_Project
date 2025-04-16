@@ -6,6 +6,7 @@ import { useFetch } from '@/app/hooks/useFetch';
 import { Document, DocumentType, DocumentStatus } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
 import DocumentsFAB from '@/app/components/FAB/documents/documents.fab';
+import DocumentsModal from '@/app/components/modals/documents/addDocuments.modal';
 
 // Interface pour les props de AccordionItem
 interface AccordionItemProps {
@@ -60,6 +61,11 @@ export default function DocumentsScreen() {
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
   const [documentsByMonth, setDocumentsByMonth] = useState<{ [key: string]: Document[] }>({});
   const [currentFilter, setCurrentFilter] = useState<FilterType>(FilterType.TYPE);
+  
+  // État de la modale de document
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [modalProjectId, setModalProjectId] = useState<number | undefined>(undefined);
+  const [modalClientId, setModalClientId] = useState<number | undefined>(undefined);
   
   // Animation pour le swipe entre filtres
   const [filterPosition] = useState(new Animated.Value(0));
@@ -471,6 +477,13 @@ export default function DocumentsScreen() {
     }
   };
   
+  // Gérer l'affichage de la modale de document
+  const handleShowDocumentModal = (show: boolean, projectId?: number, clientId?: number) => {
+    setShowDocumentModal(show);
+    setModalProjectId(projectId);
+    setModalClientId(clientId);
+  };
+  
   return (
     <SafeAreaView className="flex-1 bg-gray-50 pt-6">
       <Stack.Screen
@@ -479,6 +492,19 @@ export default function DocumentsScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+        }}
+      />
+      
+      {/* Modale de document */}
+      <DocumentsModal 
+        visible={showDocumentModal}
+        onClose={() => setShowDocumentModal(false)}
+        projectId={modalProjectId}
+        clientId={modalClientId}
+        onSuccess={() => {
+          console.log('Document ajouté avec succès');
+          setShowDocumentModal(false);
+          // Recharger les documents ici si nécessaire
         }}
       />
       
@@ -510,7 +536,12 @@ export default function DocumentsScreen() {
       )}
       
       {/* Floating Action Button */}
-      <DocumentsFAB filtersVisible={filterVisible} />
+      <DocumentsFAB 
+        filtersVisible={filterVisible} 
+        projectId={modalProjectId}
+        clientId={modalClientId}
+        onShowModal={handleShowDocumentModal}
+      />
       
       {/* Barre de recherche et filtres en bas de l'écran */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">

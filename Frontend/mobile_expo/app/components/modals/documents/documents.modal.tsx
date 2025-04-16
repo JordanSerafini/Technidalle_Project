@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -31,12 +31,19 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   clientId,
   onSuccess
 }) => {
+  console.log('DocumentsModal rendu - visible:', visible);
+  
   const [documentName, setDocumentName] = useState('');
   const [documentDescription, setDocumentDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [documentType, setDocumentType] = useState<string>('facture');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Effet pour surveiller les changements de visibilité
+  useEffect(() => {
+    console.log('État de la modale a changé - visible:', visible);
+  }, [visible]);
 
   // Types de documents disponibles
   const documentTypes = [
@@ -49,6 +56,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
 
   // Fonction pour sélectionner un document - Version de simulation pour test
   const pickDocument = async () => {
+    console.log('Sélection de document');
     // Simulation de la sélection d'un fichier
     const mockFile = {
       uri: 'file://mock/document.pdf',
