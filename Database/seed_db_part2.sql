@@ -96,7 +96,7 @@ INSERT INTO project_staff (project_id, staff_id, stage_id, role_description, sta
 -- Insertion des documents pour les autres projets
 INSERT INTO documents (project_id, client_id, type, reference, status, amount, tva_rate, issue_date, due_date, payment_date, payment_method, notes) VALUES
 -- Projet PRJ-2023-002
-(2, 4, 'devis', 'DEV-2023-002', 'valide', 75000.00, 20.00, '2023-10-15', '2023-10-30', '2023-10-25', 'virement', 'Devis accepté rapidement'),
+(2, 4, 'devis', 'DEV-2023-002', 'annule', 75000.00, 20.00, '2023-10-15', '2023-10-30', '2023-10-25', 'virement', 'Devis accepté rapidement'),
 (2, 4, 'facture', 'FAC-2023-003', 'valide', 37500.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-28', 'virement', 'Premier acompte payé'),
 (2, 4, 'facture', 'FAC-2023-004', 'valide', 37500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Solde payé'),
 (2, 4, 'photo_chantier', 'IMG-2023-002-01', 'valide', NULL, NULL, '2023-12-20', NULL, NULL, NULL, 'Photo du chantier terminé'),
