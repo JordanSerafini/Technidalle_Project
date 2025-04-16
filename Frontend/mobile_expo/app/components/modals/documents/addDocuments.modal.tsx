@@ -83,9 +83,9 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const [issueDatePickerOpen, setIssueDatePickerOpen] = useState(false);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
   // États pour les sections pliables
-  const [isInfoOpen, setIsInfoOpen] = useState(true);
-  const [isMaterialsOpen, setIsMaterialsOpen] = useState(true);
-  const [isClientOpen, setIsClientOpen] = useState(true);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
+  const [isClientOpen, setIsClientOpen] = useState(false);
 
   // États pour la section Client
   const [clients, setClients] = useState<Client[]>([]);
@@ -381,109 +381,114 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
             </TouchableOpacity>
           </View>
           
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.formContainer}>
-              {error && !newClientError && (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
+          <ScrollView 
+            style={styles.scrollView} 
+            contentContainerStyle={styles.formContainer}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            {error && !newClientError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-              <TouchableOpacity 
-                style={styles.sectionHeader} 
-                onPress={() => setIsClientOpen(!isClientOpen)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.sectionTitle}>Client *</Text>
-                <Ionicons 
-                  name={isClientOpen ? "chevron-up-outline" : "chevron-down-outline"} 
-                  size={20} 
-                  color="#333" 
-                />
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.sectionHeader} 
+              onPress={() => setIsClientOpen(!isClientOpen)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sectionTitle}>Client *</Text>
+              <Ionicons 
+                name={isClientOpen ? "chevron-up-outline" : "chevron-down-outline"} 
+                size={20} 
+                color="#333" 
+              />
+            </TouchableOpacity>
 
-              {isClientOpen && (
-                <View style={styles.sectionContent}>
-                   {newClientError && (
-                     <View style={styles.errorContainer}>
-                       <Text style={styles.errorText}>{newClientError}</Text>
-                     </View>
-                   )}
-                   {isClientLoading && <ActivityIndicator size="small" color="#0000ff" style={{ marginBottom: 10}} />}
+            {isClientOpen && (
+              <View style={styles.sectionContent}>
+                 {newClientError && (
+                   <View style={styles.errorContainer}>
+                     <Text style={styles.errorText}>{newClientError}</Text>
+                   </View>
+                 )}
+                 {isClientLoading && <ActivityIndicator size="small" color="#0000ff" style={{ marginBottom: 10}} />}
 
-                   {!isAddingClient && !selectedClient && !isClientLoading && (
-                     <>
-                        <View style={styles.pickerContainer}>
-                           <Picker
-                            selectedValue={selectedClient ? (selectedClient as any).id : null}
-                            onValueChange={(itemValue: any) => {
-                                if (itemValue) {
-                                    const client = clients.find(c => (c as any).id === itemValue);
-                                    setSelectedClient(client || null);
-                                } else {
-                                    setSelectedClient(null);
-                                }
-                            }}
-                            style={styles.picker}
-                            prompt="Sélectionnez un client"
-                           >
-                            <Picker.Item label="-- Sélectionner un client existant --" value={null} />
-                            {clients.map((client) => (
-                                <Picker.Item 
-                                key={(client as any).id} 
-                                label={`${client.firstname} ${client.lastname}${client.company_name ? ' (' + client.company_name + ')' : ''}`} 
-                                value={(client as any).id} 
-                                />
-                            ))}
-                           </Picker>
-                        </View>
-                        <TouchableOpacity 
-                          style={[styles.button, styles.addButton, { marginTop: 10 }]} 
-                          onPress={() => { setIsAddingClient(true); setSelectedClient(null); setNewClientError(null); }}>
-                           <Text style={styles.buttonText}>Ajouter un nouveau client</Text>
-                        </TouchableOpacity>
-                     </>
-                   )}
+                 {!isAddingClient && !selectedClient && !isClientLoading && (
+                   <>
+                      <View style={styles.pickerContainer}>
+                         <Picker
+                          selectedValue={selectedClient ? (selectedClient as any).id : null}
+                          onValueChange={(itemValue: any) => {
+                              if (itemValue) {
+                                  const client = clients.find(c => (c as any).id === itemValue);
+                                  setSelectedClient(client || null);
+                              } else {
+                                  setSelectedClient(null);
+                              }
+                          }}
+                          style={styles.picker}
+                          prompt="Sélectionnez un client"
+                         >
+                          <Picker.Item label="-- Sélectionner un client existant --" value={null} />
+                          {clients.map((client) => (
+                              <Picker.Item 
+                              key={(client as any).id} 
+                              label={`${client.firstname} ${client.lastname}${client.company_name ? ' (' + client.company_name + ')' : ''}`} 
+                              value={(client as any).id} 
+                              />
+                          ))}
+                         </Picker>
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.button, styles.addButton, { marginTop: 10 }]} 
+                        onPress={() => { setIsAddingClient(true); setSelectedClient(null); setNewClientError(null); }}>
+                         <Text style={styles.buttonText}>Ajouter un nouveau client</Text>
+                      </TouchableOpacity>
+                   </>
+                 )}
 
-                   {isAddingClient && !isClientLoading && (
-                     <>
-                        <Text style={styles.subHeader}>Nouveau Client</Text>
-                        <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Prénom *</Text>
-                           <TextInput style={styles.input} value={newClientFirstName} onChangeText={setNewClientFirstName} />
-                        </View>
-                        <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Nom *</Text>
-                           <TextInput style={styles.input} value={newClientLastName} onChangeText={setNewClientLastName} />
-                        </View>
-                         <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Email *</Text>
-                           <TextInput style={styles.input} value={newClientEmail} onChangeText={setNewClientEmail} keyboardType="email-address" autoCapitalize="none" />
-                        </View>
-                        <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Société</Text>
-                           <TextInput style={styles.input} value={newClientCompanyName} onChangeText={setNewClientCompanyName} />
-                        </View>
-                        <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Téléphone</Text>
-                           <TextInput style={styles.input} value={newClientPhone} onChangeText={setNewClientPhone} keyboardType="phone-pad" />
-                        </View>
-                         <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Mobile</Text>
-                           <TextInput style={styles.input} value={newClientMobile} onChangeText={setNewClientMobile} keyboardType="phone-pad" />
-                        </View>
-                         <View style={styles.inputGroup}>
-                           <Text style={styles.label}>SIRET</Text>
-                           <TextInput style={styles.input} value={newClientSiret} onChangeText={setNewClientSiret} />
-                        </View>
-                         <View style={styles.inputGroup}>
-                           <Text style={styles.label}>Notes</Text>
-                           <TextInput style={[styles.input, styles.textArea]} value={newClientNotes} onChangeText={setNewClientNotes} multiline />
-                        </View>
+                 {isAddingClient && !isClientLoading && (
+                   <>
+                      <Text style={styles.subHeader}>Nouveau Client</Text>
+                      <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Prénom *</Text>
+                         <TextInput style={styles.input} value={newClientFirstName} onChangeText={setNewClientFirstName} />
+                      </View>
+                      <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Nom *</Text>
+                         <TextInput style={styles.input} value={newClientLastName} onChangeText={setNewClientLastName} />
+                      </View>
+                       <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Email *</Text>
+                         <TextInput style={styles.input} value={newClientEmail} onChangeText={setNewClientEmail} keyboardType="email-address" autoCapitalize="none" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Société</Text>
+                         <TextInput style={styles.input} value={newClientCompanyName} onChangeText={setNewClientCompanyName} />
+                      </View>
+                      <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Téléphone</Text>
+                         <TextInput style={styles.input} value={newClientPhone} onChangeText={setNewClientPhone} keyboardType="phone-pad" />
+                      </View>
+                       <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Mobile</Text>
+                         <TextInput style={styles.input} value={newClientMobile} onChangeText={setNewClientMobile} keyboardType="phone-pad" />
+                      </View>
+                       <View style={styles.inputGroup}>
+                         <Text style={styles.label}>SIRET</Text>
+                         <TextInput style={styles.input} value={newClientSiret} onChangeText={setNewClientSiret} />
+                      </View>
+                       <View style={styles.inputGroup}>
+                         <Text style={styles.label}>Notes</Text>
+                         <TextInput style={[styles.input, styles.textArea]} value={newClientNotes} onChangeText={setNewClientNotes} multiline />
+                      </View>
 
-                        <View style={styles.buttonRow}>
-                           <TouchableOpacity 
-                             style={[styles.button, styles.cancelButton, { flex: 1, marginRight: 5 }]} 
-                             onPress={() => { setIsAddingClient(false); setNewClientError(null); }}>
+                      <View style={styles.buttonRow}>
+                         <TouchableOpacity 
+                           style={[styles.button, styles.cancelButton, { flex: 1, marginRight: 5 }]} 
+                           onPress={() => { setIsAddingClient(false); setNewClientError(null); }}>
                                <Text style={styles.buttonText}>Annuler</Text>
                            </TouchableOpacity>
                             <TouchableOpacity 
@@ -492,33 +497,33 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                               disabled={isClientLoading} >
                                 <Text style={[styles.buttonText, styles.submitButtonText]}>Enregistrer Client</Text>
                             </TouchableOpacity>
-                        </View>
-                     </>
-                   )}
+                      </View>
+                   </>
+                 )}
 
-                   {!isAddingClient && selectedClient && !isClientLoading && (
-                     <View style={styles.clientInfoContainer}>
-                       <Text style={styles.clientInfoTitle}>Informations client</Text>
-                       
-                       <Text style={styles.clientInfoText}>
-                         <Text style={{fontWeight: 'bold'}}>Client : </Text>
-                         {selectedClient.firstname} {selectedClient.lastname} 
-                         {selectedClient.company_name ? ` (${selectedClient.company_name})` : ''}
-                       </Text>
-                       
-                       <Text style={styles.clientInfoText}>
-                          <Text style={{fontWeight: 'bold'}}>Email : </Text>
-                          {selectedClient.email}
-                       </Text>
-                       
-                       {selectedClient.phone && 
-                        <Text style={styles.clientInfoText}>
-                          <Text style={{fontWeight: 'bold'}}>Tél : </Text>
-                          {selectedClient.phone}
-                        </Text>
-                       }
-                       
-                       {selectedClient.mobile && 
+                 {!isAddingClient && selectedClient && !isClientLoading && (
+                   <View style={styles.clientInfoContainer}>
+                     <Text style={styles.clientInfoTitle}>Informations client</Text>
+                     
+                     <Text style={styles.clientInfoText}>
+                       <Text style={{fontWeight: 'bold'}}>Client : </Text>
+                       {selectedClient.firstname} {selectedClient.lastname} 
+                       {selectedClient.company_name ? ` (${selectedClient.company_name})` : ''}
+                     </Text>
+                     
+                     <Text style={styles.clientInfoText}>
+                        <Text style={{fontWeight: 'bold'}}>Email : </Text>
+                        {selectedClient.email}
+                     </Text>
+                     
+                     {selectedClient.phone && 
+                      <Text style={styles.clientInfoText}>
+                        <Text style={{fontWeight: 'bold'}}>Tél : </Text>
+                        {selectedClient.phone}
+                      </Text>
+                     }
+                     
+                     {selectedClient.mobile && 
                         <Text style={styles.clientInfoText}>
                           <Text style={{fontWeight: 'bold'}}>Mobile : </Text>
                           {selectedClient.mobile}
@@ -550,7 +555,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
               )} 
 
               <TouchableOpacity 
-                style={[styles.sectionHeader, { marginTop: isClientOpen ? 15 : 0 }]}
+                style={[styles.sectionHeader, { marginTop: 20 }]}
                 onPress={() => setIsInfoOpen(!isInfoOpen)}
                 activeOpacity={0.7}
               >
@@ -669,7 +674,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
               {type === DocumentType.DEVIS && (
                  <View style={styles.sectionContainer}>
                     <TouchableOpacity 
-                      style={styles.sectionHeader} 
+                      style={[styles.sectionHeader, { marginTop: 20 }]}
                       onPress={() => setIsMaterialsOpen(!isMaterialsOpen)}
                       activeOpacity={0.7}
                     >
@@ -688,29 +693,29 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                     )}
                  </View>
               )}
-            </ScrollView>
+          </ScrollView>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={onClose}
-              >
-                <Text style={styles.buttonText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.submitButton]}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={[styles.buttonText, styles.submitButtonText]}>
-                    Enregistrer
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={onClose}
+            >
+              <Text style={styles.buttonText}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.submitButton]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={[styles.buttonText, styles.submitButtonText]}>
+                  Enregistrer
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>
@@ -768,6 +773,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 16,
+    paddingBottom: 200,
   },
   errorContainer: {
     padding: 10,
@@ -861,8 +867,8 @@ const styles = StyleSheet.create({
     marginBottom: 0, 
   },
   sectionContainer: {
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 30,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -879,6 +885,7 @@ const styles = StyleSheet.create({
   sectionContent: {
     paddingTop: 10,
     paddingHorizontal: 8,
+    overflow: 'visible',
   },
   subHeader: {
     fontSize: 16,
