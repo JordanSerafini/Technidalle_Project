@@ -255,7 +255,7 @@ export default function ProjetsScreen() {
         )}
       </ScrollView>
       
-      {/* FAB sans le bouton filtre */}
+      {/* Un seul FAB pour les projets */}
       <ProjectsFab 
         filtersVisible={showFilter}
         onAddPress={handleAddProject}

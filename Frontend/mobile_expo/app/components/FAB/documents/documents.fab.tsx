@@ -10,6 +10,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import DocumentsModal from '../../modals/documents/documents.modal';
 
 // Configuration pour l'animation
 const SPRING_CONFIG = {
@@ -39,6 +40,8 @@ interface FABButtonProps {
 // Propriétés pour le composant DocumentsFAB
 interface DocumentsFABProps {
   filtersVisible?: boolean;
+  projectId?: number;
+  clientId?: number;
 }
 
 // Composant pour les boutons secondaires
@@ -96,10 +99,15 @@ const FABButton: React.FC<FABButtonProps> = ({
 };
 
 // Composant principal FAB
-export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ filtersVisible = false }) => {
+export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ 
+  filtersVisible = false,
+  projectId,
+  clientId
+}) => {
   const router = useRouter();
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Nous utilisons un état React pour gérer les rendus conditionnels
   useEffect(() => {
@@ -130,8 +138,8 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ filtersVisible = fal
   const handleAddDocument = () => {
     isExpanded.value = false;
     setExpanded(false);
-    // Naviguer vers la page d'ajout de document
-    router.push('/(tabs)/documents/add');
+    // Ouvrir la modal au lieu de naviguer
+    setModalVisible(true);
   };
 
   // Fonction pour les autres actions (à définir selon les besoins)
@@ -149,6 +157,18 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ filtersVisible = fal
 
   return (
     <View style={styles.container}>
+      {/* Modal pour ajouter un document */}
+      <DocumentsModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        projectId={projectId}
+        clientId={clientId}
+        onSuccess={() => {
+          // Rafraîchir les données si nécessaire
+          console.log('Document ajouté avec succès');
+        }}
+      />
+
       {/* Overlay pour fermer le FAB quand ouvert */}
       {expanded && (
         <Pressable 
