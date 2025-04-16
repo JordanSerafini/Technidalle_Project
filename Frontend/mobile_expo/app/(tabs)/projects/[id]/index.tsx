@@ -95,6 +95,11 @@ export default function ProjectDetailScreen() {
     }
   };
 
+  const handleTestButtonPress = () => {
+    console.log("--- BOUTON TEST CLIC --- Le clic DANS le ScrollView fonctionne ! ---");
+    Alert.alert("Test Clic", "Le clic DANS le ScrollView fonctionne !");
+  };
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -137,96 +142,32 @@ export default function ProjectDetailScreen() {
       <ScrollView 
         style={styles.container}
         contentContainerStyle={styles.scrollContentContainer}
+        keyboardShouldPersistTaps='handled'
       >
         <View style={styles.content}>
-          {/* Informations principales */}
-          <ProjectInfo
-            reference={project.reference}
-            name={project.name}
-            status={project.status}
-            start_date={project.start_date}
-            end_date={project.end_date}
-            budget={project.budget}
-            description={project.description}
-            isOpen={openSection === 'infos'}
-            onToggle={() => toggleSection('infos')}
-          />
-
-          {/* Informations du client */}
-          {project.clients && (
-            <ProjectClient
-              client={project.clients}
-              isOpen={openSection === 'client'}
-              onToggle={() => toggleSection('client')}
-              onClientPress={handleClientPress}
-            />
-          )}
-
-          {/* Adresse */}
-          {project.addresses && (
-            <ProjectAddress
-              address={project.addresses}
-              isOpen={openSection === 'adresse'}
-              onToggle={() => toggleSection('adresse')}
-              onLocationPress={handleLocationPress}
-            />
-          )}
-
-          {/* Étapes du projet */}
-          {project.project_stages && (
-            <ProjectStages
-              stages={project.project_stages}
-              isOpen={openSection === 'etapes'}
-              onToggle={() => toggleSection('etapes')}
-            />
-          )}
-
-          {/* Personnel assigné au projet */}
-          <ProjectStaff
-            projectId={id}
-            isOpen={openSection === 'personnel'}
-            onToggle={() => toggleSection('personnel')}
-          />
-
-          {/* Matériaux utilisés dans le projet */}
-          <ProjectMaterials
-            projectId={id}
-            isOpen={openSection === 'materiaux'}
-            onToggle={() => toggleSection('materiaux')}
-          />
-
-          {/* Documents du projet */}
-          <ProjectDocuments
-            projectId={id}
-            isOpen={openSection === 'documents'}
-            onToggle={() => toggleSection('documents')}
-            onDocumentPress={handleDocumentPress}
-          />
-
-          {/* Médias du projet */}
-          <ProjectMedia
-            projectId={id}
-            isOpen={openSection === 'medias'}
-            onToggle={() => toggleSection('medias')}
-          />
-
-          {/* Tags du projet */}
-          {project.project_tags && project.project_tags.length > 0 && (
-            <ProjectTags
-              tags={project.project_tags}
-              isOpen={openSection === 'tags'}
-              onToggle={() => toggleSection('tags')}
-            />
-          )}
-
-          {/* Notes */}
-          {project.notes && (
-            <ProjectNotes
-              notes={project.notes}
-              isOpen={openSection === 'notes'}
-              onToggle={() => toggleSection('notes')}
-            />
-          )}
+          {/* === BOUTON DE TEST SEUL === */}
+          <TouchableOpacity 
+            onPress={handleTestButtonPress} 
+            style={styles.testButton}
+          >
+            <Text style={styles.testButtonText}>BOUTON TEST CLIC</Text>
+          </TouchableOpacity>
+          {/* === FIN BOUTON DE TEST === */}
+          
+          {/* TOUTES LES SECTIONS SONT COMMENTÉES POUR LE TEST */}
+          {/* 
+          <ProjectInfo ... />
+          {project.clients && <ProjectClient ... />} 
+          {project.addresses && <ProjectAddress ... />} 
+          {project.project_stages && <ProjectStages ... />} 
+          <ProjectStaff ... /> 
+          <ProjectMaterials ... /> 
+          <ProjectDocuments ... /> 
+          <ProjectMedia ... /> 
+          {project.project_tags && project.project_tags.length > 0 && <ProjectTags ... />} 
+          {project.notes && <ProjectNotes ... />} 
+          */}
+          
         </View>
       </ScrollView>
     </View>
@@ -263,6 +204,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'red',
     marginBottom: 20,
+  },
+  testButton: {
+    backgroundColor: 'red',
+    padding: 15,
+    marginVertical: 20,
+    alignItems: 'center',
+    borderRadius: 5,
+  },
+  testButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   button: {
     backgroundColor: '#3F51B5',
