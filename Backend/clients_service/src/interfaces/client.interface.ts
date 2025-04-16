@@ -35,7 +35,7 @@ export interface CreateClientDto {
   email?: string | null;
   phone?: string | null;
   mobile?: string | null;
-  address_id?: number | null;
+  address_id?: number | undefined;
   siret?: string | null;
   notes?: string | null;
 }
