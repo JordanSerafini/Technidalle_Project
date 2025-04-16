@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useRouter, useNavigation } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,8 +10,7 @@ import Animated, {
   withDelay,
   runOnJS,
 } from 'react-native-reanimated';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import DocumentsModal from '../../modals/documents/documents.modal';
+import DocumentsModal from '../../modals/documents/addDocuments.modal';
 
 // Configuration pour l'animation
 const SPRING_CONFIG = {
@@ -42,74 +42,22 @@ interface DocumentsFABProps {
   filtersVisible?: boolean;
   projectId?: number;
   clientId?: number;
+  onShowModal?: (show: boolean, projectId?: number, clientId?: number) => void;
 }
-
-// Composant pour les boutons secondaires
-const FABButton: React.FC<FABButtonProps> = ({ 
-  isExpanded, 
-  index, 
-  icon, 
-  label, 
-  onPress,
-  visible
-}) => {
-  const animatedStyles = useAnimatedStyle(() => {
-    const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
-    const translateValue = withSpring(-moveValue, SPRING_CONFIG);
-    const delay = index * 100;
-    const scaleValue = isExpanded.value ? 1 : 0;
-    const opacityValue = isExpanded.value ? 1 : 0;
-
-    return {
-      transform: [
-        { translateY: translateValue },
-        { scale: withDelay(delay, withTiming(scaleValue, { duration: 200 })) },
-      ],
-      opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
-    };
-  });
-
-  const labelAnimatedStyle = useAnimatedStyle(() => {
-    const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
-    const translateValue = withSpring(-moveValue, SPRING_CONFIG);
-    const delay = index * 100;
-    const opacityValue = isExpanded.value ? 1 : 0;
-
-    return {
-      transform: [{ translateY: translateValue }],
-      opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
-    };
-  });
-
-  return (
-    <View style={styles.fabButtonContainer}>
-      <AnimatedPressable 
-        style={[animatedStyles, styles.fabButton]}
-        onPress={onPress}
-      >
-        {icon}
-      </AnimatedPressable>
-      {visible && (
-        <Animated.View style={[labelAnimatedStyle, styles.labelContainer]}>
-          <Text style={styles.labelText}>{label}</Text>
-        </Animated.View>
-      )}
-    </View>
-  );
-};
 
 // Composant principal FAB
 export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ 
   filtersVisible = false,
   projectId,
-  clientId
+  clientId,
+  onShowModal
 }) => {
   const router = useRouter();
+  const navigation = useNavigation();
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
 
-  // Nous utilisons un état React pour gérer les rendus conditionnels
+  // Nettoyage à la destruction du composant
   useEffect(() => {
     const unsubscribe = () => {
       isExpanded.value = false;
@@ -120,6 +68,7 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 
   // Fonction pour basculer l'état du FAB
   const toggleFAB = () => {
+    console.log('Toggle FAB appelé, état actuel: ', expanded);
     isExpanded.value = !isExpanded.value;
     setExpanded(!expanded);
   };
@@ -134,41 +83,93 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
     };
   });
 
-  // Naviguer vers la page d'ajout de document
+  // Ouvrir la modale pour ajouter un document
   const handleAddDocument = () => {
+    console.log('Ouverture modale document');
+    // Fermer le FAB avant de manipuler la modale
     isExpanded.value = false;
     setExpanded(false);
-    // Ouvrir la modal au lieu de naviguer
-    setModalVisible(true);
+    
+    // Appeler la fonction parent pour afficher la modale
+    if (onShowModal) {
+      onShowModal(true, projectId, clientId);
+    }
   };
 
-  // Fonction pour les autres actions (à définir selon les besoins)
+  // Naviguer vers la page d'importation
+  const handleImportDocument = () => {
+    console.log('Import document');
+    isExpanded.value = false;
+    setExpanded(false);
+  };
+
+  // Fonction pour les autres actions
   const handleOtherActions = () => {
+    console.log('Autres actions');
     isExpanded.value = false;
     setExpanded(false);
-    // Autres actions à définir
-    console.log('Autres actions');
   };
-
+  
   // Si les filtres sont visibles, on ne rend pas le FAB du tout
   if (filtersVisible) {
     return null;
   }
+  
+  // Composant pour les boutons secondaires (défini à l'intérieur pour accéder à l'état)
+  const FABButton = ({ 
+    index, 
+    icon, 
+    label, 
+    onPress,
+    visible
+  }: Omit<FABButtonProps, 'isExpanded'>) => {
+    const animatedStyles = useAnimatedStyle(() => {
+      const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
+      const translateValue = withSpring(-moveValue, SPRING_CONFIG);
+      const delay = index * 100;
+      const scaleValue = isExpanded.value ? 1 : 0;
+      const opacityValue = isExpanded.value ? 1 : 0;
 
+      return {
+        transform: [
+          { translateY: translateValue },
+          { scale: withDelay(delay, withTiming(scaleValue, { duration: 200 })) },
+        ],
+        opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
+      };
+    });
+
+    const labelAnimatedStyle = useAnimatedStyle(() => {
+      const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
+      const translateValue = withSpring(-moveValue, SPRING_CONFIG);
+      const delay = index * 100;
+      const opacityValue = isExpanded.value ? 1 : 0;
+
+      return {
+        transform: [{ translateY: translateValue }],
+        opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
+      };
+    });
+
+    if (!visible) return null;
+
+    return (
+      <View style={styles.fabButtonContainer}>
+        <AnimatedPressable 
+          style={[animatedStyles, styles.fabButton]}
+          onPress={onPress}
+        >
+          {icon}
+        </AnimatedPressable>
+        <Animated.View style={[labelAnimatedStyle, styles.labelContainer]}>
+          <Text style={styles.labelText}>{label}</Text>
+        </Animated.View>
+      </View>
+    );
+  };
+  
   return (
     <View style={styles.container}>
-      {/* Modal pour ajouter un document */}
-      <DocumentsModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        projectId={projectId}
-        clientId={clientId}
-        onSuccess={() => {
-          // Rafraîchir les données si nécessaire
-          console.log('Document ajouté avec succès');
-        }}
-      />
-
       {/* Overlay pour fermer le FAB quand ouvert */}
       {expanded && (
         <Pressable 
@@ -179,17 +180,24 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 
       {/* Bouton "Autres" */}
       <FABButton
-        isExpanded={isExpanded}
-        index={2}
+        index={3}
         icon={<MaterialIcons name="more-horiz" size={24} color="#fff" />}
         label="Autres"
         onPress={handleOtherActions}
         visible={expanded}
       />
 
+      {/* Bouton "Importer" */}
+      <FABButton
+        index={2}
+        icon={<MaterialIcons name="file-upload" size={24} color="#fff" />}
+        label="Importer"
+        onPress={handleImportDocument}
+        visible={expanded}
+      />
+
       {/* Bouton "Ajouter Document" */}
       <FABButton
-        isExpanded={isExpanded}
         index={1}
         icon={<MaterialIcons name="add" size={24} color="#fff" />}
         label="Ajouter"
@@ -213,7 +221,7 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: 10,
+    right: 16,
     bottom: 90,
     alignItems: 'center',
     zIndex: 999,

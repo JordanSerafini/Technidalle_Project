@@ -34,3 +34,5 @@ export interface UpdateDocumentDto {
   client_id?: number;
   project_id?: number;
 } 
+
+export default Document;
