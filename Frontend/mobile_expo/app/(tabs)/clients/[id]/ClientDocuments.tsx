@@ -9,7 +9,7 @@ interface ClientDocumentsProps {
   error?: any;
   isOpen: boolean;
   onToggle: () => void;
-  onDocumentPress: (filePath?: string) => void;
+  onDocumentPress: (documentId: number) => void;
 }
 
 export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
@@ -54,7 +54,7 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
                 <TouchableOpacity 
                   key={index}
                   className="flex-row items-center w-full mb-2.5"
-                  onPress={() => onDocumentPress(doc.file_path || undefined)}
+                  onPress={() => onDocumentPress(doc.id)}
                 >
                   <MaterialCommunityIcons 
                     name={
@@ -69,7 +69,7 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({
                   />
                   <Text className="ml-3 text-blue-700 flex-1">{doc.reference}</Text>
                   <Text className="text-gray-500 text-sm mr-2">{doc.type}</Text>
-                  <MaterialIcons name="file-download" size={24} color="#2563eb" />
+                  <MaterialIcons name="chevron-right" size={24} color="#2563eb" />
                 </TouchableOpacity>
               ))}
             </View>

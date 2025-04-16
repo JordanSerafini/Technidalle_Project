@@ -153,12 +153,11 @@ export default function ClientDetailScreen() {
     }
   };
 
-  const handleDocumentPress = (filePath?: string) => {
-    if (filePath) {
-      Linking.openURL(filePath);
-    } else {
-      Alert.alert("Information", "Document non disponible");
-    }
+  const handleDocumentPress = (documentId: number) => {
+    router.push({
+      pathname: "/(tabs)/documents/[id]",
+      params: { id: documentId }
+    });
   };
 
   const handleProjectPress = (projectId: number) => {

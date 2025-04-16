@@ -471,7 +471,7 @@ export default function DocumentsScreen() {
   };
   
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50 pt-6">
       <Stack.Screen
         options={{
           title: 'Documents',
@@ -542,11 +542,11 @@ export default function DocumentsScreen() {
         {/* Filtres */}
         {filterVisible && (
           <Animated.View 
-            className="mb-4 bg-gray-50 p-3 rounded-lg"
+            className="mb-2 bg-gray-50 p-3 rounded-lg"
             style={{ transform: [{ translateX: filterPosition }] }}
             {...panResponder.panHandlers}
           >
-            <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
               <TouchableOpacity onPress={switchToPrevFilter}>
                 <Ionicons name="chevron-back" size={20} color="#6b7280" />
               </TouchableOpacity>
