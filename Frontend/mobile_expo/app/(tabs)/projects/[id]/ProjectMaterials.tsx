@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
 import { ProjectMaterial } from '../../../utils/interfaces/material.interface';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface ProjectMaterialsProps {
   projectId: string | number;
@@ -49,7 +50,7 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
         />
       </TouchableOpacity>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           {loading ? (
             <ActivityIndicator size="small" color="#2563eb" />
@@ -110,7 +111,7 @@ export const ProjectMaterials: React.FC<ProjectMaterialsProps> = ({
             <Text className="text-gray-500">Aucun matériau associé à ce projet</Text>
           )}
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableHighlight, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface StageData {
   id: number;
@@ -47,7 +48,7 @@ export const ProjectStages: React.FC<ProjectStagesProps> = ({
         </View>
       </TouchableHighlight>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           {stages && stages.length > 0 ? (
             stages.map((stage) => (
@@ -75,7 +76,7 @@ export const ProjectStages: React.FC<ProjectStagesProps> = ({
             <Text className="text-gray-500">Aucune étape définie pour ce projet</Text>
           )}
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 

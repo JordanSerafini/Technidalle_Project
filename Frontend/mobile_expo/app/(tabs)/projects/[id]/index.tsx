@@ -7,7 +7,8 @@ import {
   Text, 
   Linking, 
   Alert, 
-  StyleSheet
+  StyleSheet,
+  Animated
 } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
 import { Project, project_status } from '../../../utils/interfaces/project.interface';
@@ -43,12 +44,9 @@ export default function ProjectDetailScreen() {
 
   // Fonction pour l'ouverture des sections
   const toggleSection = (sectionName: string) => {
-    
     // Approche directe sans conditions complexes
     setOpenSection(openSection === sectionName ? '' : sectionName);
   };
-  
-
 
   // Configuration de l'en-tête
   useEffect(() => {

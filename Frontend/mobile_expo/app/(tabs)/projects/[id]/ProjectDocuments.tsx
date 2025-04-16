@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, Modal, Image
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
 import { Document } from '@/app/utils/interfaces/document';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface ProjectDocumentsProps {
   projectId: string | number;
@@ -130,7 +131,8 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
         </View>
       </Modal>
       
-      {isOpen && (
+      {/* Utiliser AccordionItem */}
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           {loading ? (
             <ActivityIndicator size="small" color="#2563eb" />
@@ -179,7 +181,7 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
             <Text className="text-gray-500">Aucun document associé à ce projet</Text>
           )}
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 
