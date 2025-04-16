@@ -164,8 +164,6 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 
   // Ouvrir la modale pour ajouter un document
   const handleAddDocument = () => {
-    console.log('Ouverture modale document');
-    // Appeler la fonction parent pour afficher la modale
     if (onShowModal) {
       onShowModal(true, projectId, clientId);
     }
