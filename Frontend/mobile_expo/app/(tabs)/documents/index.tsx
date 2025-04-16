@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, TextInput, ViewStyle, Animated, ScrollView, PanResponder } from "react-native";
 import { useRouter, Stack, Link } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -100,6 +100,11 @@ export default function DocumentsScreen() {
     searchQuery: searchQuery.length > 0 ? searchQuery : undefined
   });
   
+  // Reset hasGroupedDocuments when filters change to force regrouping
+  useEffect(() => {
+    hasGroupedDocuments.current = false;
+  }, [selectedType, selectedStatus, selectedDateFilter]);
+  
   // Fonction pour passer au filtre suivant
   const switchToNextFilter = () => {
     switch (currentFilter) {
@@ -130,82 +135,94 @@ export default function DocumentsScreen() {
     }
   };
   
-  // Filtrer les documents selon les critères sélectionnés
-  const filteredDocuments = documents?.filter(doc => {
-    // Filtre par type
-    const typeMatch = selectedType ? doc.type === selectedType : true;
+  // Filtrer les documents selon les critères sélectionnés avec useMemo pour éviter les recalculs inutiles
+  const filteredDocuments = useMemo(() => {
+    if (!documents) return [];
     
-    // Filtre par statut
-    const statusMatch = selectedStatus ? doc.status === selectedStatus : true;
-    
-    // Filtre par date
-    let dateMatch = true;
-    if (selectedDateFilter) {
-      const today = new Date();
-      const docDate = new Date(doc.issue_date);
+    return documents.filter(doc => {
+      // Filtre par type
+      const typeMatch = selectedType ? doc.type === selectedType : true;
       
-      switch (selectedDateFilter) {
-        case 'today':
-          dateMatch = docDate.toDateString() === today.toDateString();
-          break;
-        case 'week':
-          const weekAgo = new Date();
-          weekAgo.setDate(today.getDate() - 7);
-          dateMatch = docDate >= weekAgo;
-          break;
-        case 'month':
-          const monthAgo = new Date();
-          monthAgo.setMonth(today.getMonth() - 1);
-          dateMatch = docDate >= monthAgo;
-          break;
-        case 'year':
-          const yearAgo = new Date();
-          yearAgo.setFullYear(today.getFullYear() - 1);
-          dateMatch = docDate >= yearAgo;
-          break;
-      }
-    }
-    
-    return typeMatch && statusMatch && dateMatch;
-  });
-  
-  // Regrouper les documents par mois
-  useEffect(() => {
-    if (filteredDocuments && !hasGroupedDocuments.current) {
-      const grouped = filteredDocuments.reduce((acc, doc) => {
-        const date = new Date(doc.issue_date);
-        const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
-        if (!acc[monthYear]) {
-          acc[monthYear] = [];
+      // Filtre par statut
+      const statusMatch = selectedStatus ? 
+        // Vérifier si le statut existe avant de comparer
+        doc.status && doc.status === selectedStatus : true;
+      
+      // Filtre par date
+      let dateMatch = true;
+      if (selectedDateFilter) {
+        const today = new Date();
+        const docDate = new Date(doc.issue_date);
+        
+        switch (selectedDateFilter) {
+          case 'today':
+            dateMatch = docDate.toDateString() === today.toDateString();
+            break;
+          case 'week':
+            const weekAgo = new Date();
+            weekAgo.setDate(today.getDate() - 7);
+            dateMatch = docDate >= weekAgo;
+            break;
+          case 'month':
+            const monthAgo = new Date();
+            monthAgo.setMonth(today.getMonth() - 1);
+            dateMatch = docDate >= monthAgo;
+            break;
+          case 'year':
+            const yearAgo = new Date();
+            yearAgo.setFullYear(today.getFullYear() - 1);
+            dateMatch = docDate >= yearAgo;
+            break;
         }
-        acc[monthYear].push(doc);
+      }
+      
+      return typeMatch && statusMatch && dateMatch;
+    });
+  }, [documents, selectedType, selectedStatus, selectedDateFilter]);
+  
+  // Regrouper les documents par mois avec useMemo
+  const sortedDocumentsByMonth = useMemo(() => {
+    if (!filteredDocuments.length) return {};
+    
+    const grouped = filteredDocuments.reduce((acc, doc) => {
+      const date = new Date(doc.issue_date);
+      const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      if (!acc[monthYear]) {
+        acc[monthYear] = [];
+      }
+      acc[monthYear].push(doc);
+      return acc;
+    }, {} as { [key: string]: Document[] });
+    
+    // Trier les mois par ordre chronologique inverse (plus récent d'abord)
+    return Object.keys(grouped)
+      .sort((a, b) => {
+        const [monthA, yearA] = a.split('/').map(Number);
+        const [monthB, yearB] = b.split('/').map(Number);
+        return (yearB - yearA) || (monthB - monthA);
+      })
+      .reduce((acc, key) => {
+        acc[key] = grouped[key];
         return acc;
       }, {} as { [key: string]: Document[] });
-      
-      // Trier les mois par ordre chronologique inverse (plus récent d'abord)
-      const sortedGrouped = Object.keys(grouped)
-        .sort((a, b) => {
-          const [monthA, yearA] = a.split('/').map(Number);
-          const [monthB, yearB] = b.split('/').map(Number);
-          return (yearB - yearA) || (monthB - monthA);
-        })
-        .reduce((acc, key) => {
-          acc[key] = grouped[key];
-          return acc;
-        }, {} as { [key: string]: Document[] });
-      
-      setDocumentsByMonth(sortedGrouped);
-      
-      // Initialiser tous les mois comme false
-      const initialExpanded = Object.keys(sortedGrouped).reduce((acc, key) => {
-        acc[key] = false;
-        return acc;
-      }, {} as { [key: string]: boolean });
-      
-      setExpandedSections(initialExpanded);
-      hasGroupedDocuments.current = true;
-    }
   }, [filteredDocuments]);
+  
+  // Mettre à jour documentsByMonth et expandedSections quand sortedDocumentsByMonth change
+  useEffect(() => {
+    setDocumentsByMonth(sortedDocumentsByMonth);
+    
+    // Mettre à jour expandedSections pour conserver l'état d'expansion ou initialiser à false
+    setExpandedSections(prevExpandedSections => {
+      const newExpandedSections = {} as { [key: string]: boolean };
+      
+      // Conserver uniquement les clés qui existent dans sortedDocumentsByMonth
+      Object.keys(sortedDocumentsByMonth).forEach(key => {
+        newExpandedSections[key] = prevExpandedSections[key] || false;
+      });
+      
+      return newExpandedSections;
+    });
+  }, [sortedDocumentsByMonth]);
   
   // Obtenir le nom de l'icône selon le type
   const getIconForType = (type: DocumentType) => {
@@ -360,7 +377,7 @@ export default function DocumentsScreen() {
     switch (currentFilter) {
       case FilterType.TYPE:
         return (
-          <View className="flex-row flex-wrap">
+          <View className="flex-row flex-wrap" style={{ minHeight: 110 }}>
             <TouchableOpacity 
               className={`m-1 px-3 py-1 rounded-full border ${selectedType === null ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
               onPress={() => setSelectedType(null)}
@@ -384,7 +401,7 @@ export default function DocumentsScreen() {
       
       case FilterType.STATUS:
         return (
-          <View className="flex-row flex-wrap">
+          <View className="flex-row flex-wrap" style={{ minHeight: 110 }}>
             <TouchableOpacity 
               className={`m-1 px-3 py-1 rounded-full border ${selectedStatus === null ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
               onPress={() => setSelectedStatus(null)}
@@ -408,7 +425,7 @@ export default function DocumentsScreen() {
       
       case FilterType.DATE:
         return (
-          <View className="flex-row flex-wrap">
+          <View className="flex-row flex-wrap" style={{ minHeight: 110 }}>
             <TouchableOpacity 
               className={`m-1 px-3 py-1 rounded-full border ${selectedDateFilter === null ? 'bg-blue-500 border-blue-600' : 'bg-gray-100 border-gray-200'}`}
               onPress={() => setSelectedDateFilter(null)}
