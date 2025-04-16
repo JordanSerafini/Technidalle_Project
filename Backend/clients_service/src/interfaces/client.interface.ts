@@ -30,9 +30,9 @@ export interface Client {
 
 export interface CreateClientDto {
   company_name?: string | null;
-  firstname: string;
-  lastname: string;
-  email: string;
+  firstname?: string | null;
+  lastname?: string | null;
+  email?: string | null;
   phone?: string | null;
   mobile?: string | null;
   address_id?: number | null;

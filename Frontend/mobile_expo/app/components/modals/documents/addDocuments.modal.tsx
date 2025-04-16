@@ -211,8 +211,8 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       return false;
     }
     if (isAddingClient) {
-       if (!newClientFirstName.trim() || !newClientLastName.trim() || !newClientEmail.trim()) {
-         setNewClientError("Prénom, Nom et Email sont obligatoires pour ajouter un client.");
+       if (!newClientFirstName.trim() && !newClientLastName.trim()) {
+         setNewClientError("Le prénom ou le nom est obligatoire pour ajouter un client.");
          return false;
        }
     }
@@ -222,23 +222,28 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
 
   // Gérer l'ajout d'un nouveau client
   const handleAddClient = async () => {
-    if (!newClientFirstName.trim() || !newClientLastName.trim() || !newClientEmail.trim()) {
-       setNewClientError("Prénom, Nom et Email sont obligatoires.");
+    if (!newClientFirstName.trim() && !newClientLastName.trim()) {
+       setNewClientError("Le prénom ou le nom est obligatoire.");
        return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newClientEmail)) {
-        setNewClientError("Veuillez entrer une adresse email valide.");
-        return;
+    
+    // Vérifier l'email seulement s'il est fourni
+    if (newClientEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newClientEmail)) {
+          setNewClientError("Veuillez entrer une adresse email valide ou laisser le champ vide.");
+          return;
+      }
     }
 
     setIsClientLoading(true);
     setNewClientError(null);
 
-    const newClientData: CreateClientDto = {
-      firstname: newClientFirstName,
-      lastname: newClientLastName,
-      email: newClientEmail,
+    // S'assurer qu'aucun ID n'est inclus dans la requête
+    const newClientData = {
+      firstname: newClientFirstName || undefined,
+      lastname: newClientLastName || undefined,
+      email: newClientEmail || undefined,
       company_name: newClientCompanyName || undefined,
       phone: newClientPhone || undefined,
       mobile: newClientMobile || undefined,
@@ -258,12 +263,11 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         throw new Error(errorData.message || 'Erreur lors de la création du client');
       }
 
-      const createdClient: Client = await response.json();
+      // Actualiser la liste des clients après l'ajout
+      await fetchClients();
       
-      setClients(prevClients => [...prevClients, createdClient]);
-      setSelectedClient(createdClient);
+      // Réinitialiser le formulaire mais rester en mode sélection pour choisir le client
       setIsAddingClient(false);
-
       setNewClientFirstName('');
       setNewClientLastName('');
       setNewClientEmail('');
@@ -272,6 +276,13 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       setNewClientMobile('');
       setNewClientSiret('');
       setNewClientNotes('');
+      
+      // Afficher un message de succès avec indication de sélectionner le client
+      Alert.alert(
+        "Client ajouté",
+        "Le client a été ajouté avec succès. Veuillez maintenant le sélectionner dans la liste.",
+        [{ text: "OK" }]
+      );
 
     } catch (err) {
       setNewClientError(err instanceof Error ? err.message : 'Une erreur est survenue lors de l\'ajout du client');
@@ -293,21 +304,17 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         return; 
     }
 
+    // Si nous sommes en mode ajout client, il faut d'abord créer le client
     if (isAddingClient) {
         await handleAddClient();
-        if (newClientError) {
-             Alert.alert("Erreur", `Impossible d'ajouter le client: ${newClientError}. Corrigez et réessayez.`);
-             return;
-        }
-        if (!selectedClient || !selectedClient.id) {
-            Alert.alert("Erreur", "Le client vient d'être ajouté, mais son ID n'est pas disponible. Veuillez réessayer d'enregistrer le document.");
-            return;
-        }
+        // Ne pas continuer après l'ajout du client, car l'utilisateur doit le sélectionner manuellement
+        return;
     }
 
+    // Vérification finale que selectedClient existe et a un id
     if (!selectedClient || !selectedClient.id) {
       setError("Client non sélectionné ou invalide.");
-      Alert.alert("Erreur", "Client non sélectionné ou invalide.");
+      Alert.alert("Erreur", "Veuillez sélectionner un client valide.");
       return;
     }
 
@@ -366,6 +373,11 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       setLoading(false);
     }
   };
+
+  // Ajouter un useEffect pour mettre à jour les totaux si le taux de TVA change
+  useEffect(() => {
+    // Les calculs se feront dans le composant Tableau grâce à la prop tvaRate
+  }, [tvaRate]);
 
   // Si la modale n'est pas visible, ne pas la rendre du tout
   if (!visible) return null;
@@ -461,7 +473,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                          <TextInput style={styles.input} value={newClientLastName} onChangeText={setNewClientLastName} />
                       </View>
                        <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Email *</Text>
+                         <Text style={styles.label}>Email</Text>
                          <TextInput style={styles.input} value={newClientEmail} onChangeText={setNewClientEmail} keyboardType="email-address" autoCapitalize="none" />
                       </View>
                       <View style={styles.inputGroup}>
@@ -688,7 +700,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                     
                     {isMaterialsOpen && (
                        <View style={styles.sectionContent}>
-                          <Tableau />
+                          <Tableau tvaRate={parseFloat(tvaRate) || 20} />
                        </View>
                     )}
                  </View>
@@ -773,7 +785,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 16,
-    paddingBottom: 200,
+    paddingBottom: 30,
   },
   errorContainer: {
     padding: 10,
@@ -868,7 +880,7 @@ const styles = StyleSheet.create({
   },
   sectionContainer: {
     marginTop: 0,
-    marginBottom: 30,
+    marginBottom: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
