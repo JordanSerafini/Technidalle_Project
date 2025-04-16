@@ -1,26 +1,105 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, TextInput } from "react-native";
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, TextInput, ViewStyle, Animated, ScrollView } from "react-native";
 import { useRouter, Stack, Link } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '@/app/hooks/useFetch';
 import { Document, DocumentType } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
 
+// Interface pour les props de AccordionItem
+interface AccordionItemProps {
+  isExpanded: boolean;
+  children: React.ReactNode;
+  maxHeight?: number;
+}
+
+// Composant AccordionItem pour l'animation
+function AccordionItem({ isExpanded, children, maxHeight = 1000 }: AccordionItemProps) {
+  const [height] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(height, {
+      toValue: isExpanded ? maxHeight : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isExpanded, maxHeight]);
+
+  // Si l'accordéon est déplié, on n'applique pas de hauteur fixe
+  if (isExpanded) {
+    return (
+      <View style={{ height: 'auto' }}>
+        {children}
+      </View>
+    );
+  }
+
+  // Si l'accordéon est fermé, on utilise l'animation
+  return (
+    <Animated.View style={{ height, overflow: 'hidden' }}>
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function DocumentsScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [selectedType, setSelectedType] = useState<DocumentType | null>(null);
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
+  const [documentsByMonth, setDocumentsByMonth] = useState<{ [key: string]: Document[] }>({});
+  
+  // Référence pour éviter les re-rendus en boucle
+  const hasGroupedDocuments = useRef(false);
   
   // Récupération des documents
   const { data: documents, loading, error } = useFetch<Document[]>('documents', {
     searchQuery: searchQuery.length > 2 ? searchQuery : undefined
   });
-
+  
   // Filtrer par type si un type est sélectionné
   const filteredDocuments = documents?.filter(doc => 
     selectedType ? doc.type === selectedType : true
   );
+  
+  // Regrouper les documents par mois
+  useEffect(() => {
+    if (filteredDocuments && !hasGroupedDocuments.current) {
+      const grouped = filteredDocuments.reduce((acc, doc) => {
+        const date = new Date(doc.issue_date);
+        const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+        if (!acc[monthYear]) {
+          acc[monthYear] = [];
+        }
+        acc[monthYear].push(doc);
+        return acc;
+      }, {} as { [key: string]: Document[] });
+      
+      // Trier les mois par ordre chronologique inverse (plus récent d'abord)
+      const sortedGrouped = Object.keys(grouped)
+        .sort((a, b) => {
+          const [monthA, yearA] = a.split('/').map(Number);
+          const [monthB, yearB] = b.split('/').map(Number);
+          return (yearB - yearA) || (monthB - monthA);
+        })
+        .reduce((acc, key) => {
+          acc[key] = grouped[key];
+          return acc;
+        }, {} as { [key: string]: Document[] });
+      
+      setDocumentsByMonth(sortedGrouped);
+      
+      // Initialiser tous les mois comme false
+      const initialExpanded = Object.keys(sortedGrouped).reduce((acc, key) => {
+        acc[key] = false;
+        return acc;
+      }, {} as { [key: string]: boolean });
+      
+      setExpandedSections(initialExpanded);
+      hasGroupedDocuments.current = true;
+    }
+  }, [filteredDocuments]);
   
   // Obtenir le nom de l'icône selon le type
   const getIconForType = (type: DocumentType) => {
@@ -59,9 +138,28 @@ export default function DocumentsScreen() {
     return type.replace(/_/g, ' ');
   };
   
+  // Formater l'affichage du mois en français
+  const formatMonthYear = (monthYear: string) => {
+    const [month, year] = monthYear.split('/');
+    const monthNames = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
+  };
+  
+  // Toggle l'expansion d'une section
+  const toggleSection = (monthYear: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [monthYear]: !prev[monthYear]
+    }));
+  };
+  
   // Rendu d'un élément de la liste
   const renderItem = ({ item }: { item: Document }) => (
     <TouchableOpacity
+      key={item.id}
       className="bg-white shadow-sm rounded-lg mb-3 flex-row p-3"
       onPress={() => navigateToDocument(item.id)}
     >
@@ -88,6 +186,34 @@ export default function DocumentsScreen() {
     </TouchableOpacity>
   );
   
+  // Rendu des sections mensuelles
+  const renderMonthSections = () => {
+    return Object.entries(documentsByMonth).map(([monthYear, docs]) => (
+      <View key={monthYear} className="mb-4">
+        <TouchableOpacity 
+          className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
+          onPress={() => toggleSection(monthYear)}
+        >
+          <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
+            <Text className="font-bold text-blue-800">{docs.length}</Text>
+          </View>
+          <Text className="flex-1 text-lg font-medium text-gray-800">{formatMonthYear(monthYear)}</Text>
+          <Ionicons 
+            name={expandedSections[monthYear] ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color="#6b7280" 
+          />
+        </TouchableOpacity>
+        
+        <AccordionItem isExpanded={expandedSections[monthYear]}>
+          <View className="mt-2">
+            {docs.map(doc => renderItem({ item: doc }))}
+          </View>
+        </AccordionItem>
+      </View>
+    ));
+  };
+  
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <Stack.Screen
@@ -112,12 +238,9 @@ export default function DocumentsScreen() {
           <Text className="mt-2 text-gray-600 text-center">{error}</Text>
         </View>
       ) : filteredDocuments && filteredDocuments.length > 0 ? (
-        <FlatList
-          data={filteredDocuments}
-          renderItem={renderItem}
-          keyExtractor={(item: Document) => item.id.toString()}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: filterVisible ? 240 : 100 }}
-        />
+        <ScrollView className="flex-1 px-4 pt-4 pb-32">
+          {renderMonthSections()}
+        </ScrollView>
       ) : (
         <View className="flex-1 justify-center items-center p-4">
           <MaterialIcons name="folder-open" size={64} color="#d1d5db" />
