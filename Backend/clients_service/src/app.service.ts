@@ -66,9 +66,25 @@ export class AppService {
   }
 
   async createClient(clientDto: CreateClientDto): Promise<Client> {
+    // Validation des champs requis
+    if (!clientDto.firstname || !clientDto.lastname || !clientDto.email) {
+      throw new Error('Les champs firstname, lastname et email sont requis');
+    }
+
     const dbClient = await this.prisma.clients.create({
       data: {
-        ...clientDto,
+        firstname: clientDto.firstname,
+        lastname: clientDto.lastname,
+        email: clientDto.email,
+        company_name: clientDto.company_name,
+        phone: clientDto.phone,
+        mobile: clientDto.mobile,
+        address_id: clientDto.address_id,
+        siret: clientDto.siret,
+        notes: clientDto.notes,
+      },
+      include: {
+        addresses: true,
       },
     });
     return dbClient as unknown as Client;

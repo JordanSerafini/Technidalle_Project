@@ -30,9 +30,9 @@ model addresses {
 model clients {
   id           Int         @id @default(autoincrement())
   company_name String?     @db.VarChar(255)
-  firstname    String      @db.VarChar(100)
-  lastname     String      @db.VarChar(100)
-  email        String      @unique @db.VarChar(255)
+  firstname    String?      @db.VarChar(100)
+  lastname     String?      @db.VarChar(100)
+  email        String?      @unique @db.VarChar(255)
   phone        String?     @db.VarChar(20)
   mobile       String?     @db.VarChar(20)
   address_id   Int?
