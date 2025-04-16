@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, Text, View } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,6 +10,7 @@ import Animated, {
   withDelay,
   runOnJS,
 } from 'react-native-reanimated';
+import DocumentsModal from '../../modals/documents/addDocuments.modal';
 
 // Configuration pour l'animation
 const SPRING_CONFIG = {
@@ -36,78 +37,25 @@ interface FABButtonProps {
   visible: boolean;
 }
 
-// Propriétés pour le composant ProjectsFAB
-interface ProjectsFABProps {
+// Propriétés pour le composant DocumentsFAB
+interface DocumentsFABProps {
   filtersVisible?: boolean;
-  onAddPress: () => void;
-  onEditPress: () => void;
-  onOtherPress: () => void;
+  projectId?: number;
+  clientId?: number;
+  onShowModal?: (show: boolean, projectId?: number, clientId?: number) => void;
 }
 
-// Composant pour les boutons secondaires
-const FABButton: React.FC<FABButtonProps> = ({ 
-  isExpanded, 
-  index, 
-  icon, 
-  label, 
-  onPress,
-  visible
-}) => {
-  const animatedStyles = useAnimatedStyle(() => {
-    const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
-    const translateValue = withSpring(-moveValue, SPRING_CONFIG);
-    const delay = index * 100;
-    const scaleValue = isExpanded.value ? 1 : 0;
-    const opacityValue = isExpanded.value ? 1 : 0;
-
-    return {
-      transform: [
-        { translateY: translateValue },
-        { scale: withDelay(delay, withTiming(scaleValue, { duration: 200 })) },
-      ],
-      opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
-    };
-  });
-
-  const labelAnimatedStyle = useAnimatedStyle(() => {
-    const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
-    const translateValue = withSpring(-moveValue, SPRING_CONFIG);
-    const delay = index * 100;
-    const opacityValue = isExpanded.value ? 1 : 0;
-
-    return {
-      transform: [{ translateY: translateValue }],
-      opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
-    };
-  });
-
-  return (
-    <View style={styles.fabButtonContainer}>
-      <AnimatedPressable 
-        style={[animatedStyles, styles.fabButton]}
-        onPress={onPress}
-      >
-        {icon}
-      </AnimatedPressable>
-      {visible && (
-        <Animated.View style={[labelAnimatedStyle, styles.labelContainer]}>
-          <Text style={styles.labelText}>{label}</Text>
-        </Animated.View>
-      )}
-    </View>
-  );
-};
-
 // Composant principal FAB
-const ProjectsFab: React.FC<ProjectsFABProps> = ({ 
+export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ 
   filtersVisible = false,
-  onAddPress,
-  onEditPress,
-  onOtherPress
+  projectId,
+  clientId,
+  onShowModal
 }) => {
+  const router = useRouter();
+  const navigation = useNavigation();
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
-  const navigation = useNavigation();
 
   // Nettoyage à la destruction du composant
   useEffect(() => {
@@ -118,27 +66,9 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
     return unsubscribe;
   }, []);
 
-  // Fermer le FAB lors d'un changement de route/page
-  useEffect(() => {
-    const closeFab = () => {
-      if (isExpanded.value || expanded) {
-        isExpanded.value = false;
-        setExpanded(false);
-      }
-    };
-
-    // S'abonner aux événements de navigation
-    const unsubscribe = navigation.addListener('beforeRemove', closeFab);
-    const stateListener = navigation.addListener('state', closeFab);
-
-    return () => {
-      unsubscribe();
-      stateListener();
-    };
-  }, [navigation, isExpanded, expanded]);
-
   // Fonction pour basculer l'état du FAB
   const toggleFAB = () => {
+    console.log('Toggle FAB appelé, état actuel: ', expanded);
     isExpanded.value = !isExpanded.value;
     setExpanded(!expanded);
   };
@@ -153,17 +83,90 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
     };
   });
 
-  // Exécuter une action et fermer le FAB
-  const handleAction = (callback: () => void) => {
+  // Ouvrir la modale pour ajouter un document
+  const handleAddDocument = () => {
+    console.log('Ouverture modale document');
+    // Fermer le FAB avant de manipuler la modale
     isExpanded.value = false;
     setExpanded(false);
-    callback();
+    
+    // Appeler la fonction parent pour afficher la modale
+    if (onShowModal) {
+      onShowModal(true, projectId, clientId);
+    }
+  };
+
+  // Naviguer vers la page d'importation
+  const handleImportDocument = () => {
+    console.log('Import document');
+    isExpanded.value = false;
+    setExpanded(false);
+  };
+
+  // Fonction pour les autres actions
+  const handleOtherActions = () => {
+    console.log('Autres actions');
+    isExpanded.value = false;
+    setExpanded(false);
   };
   
   // Si les filtres sont visibles, on ne rend pas le FAB du tout
   if (filtersVisible) {
     return null;
   }
+  
+  // Composant pour les boutons secondaires (défini à l'intérieur pour accéder à l'état)
+  const FABButton = ({ 
+    index, 
+    icon, 
+    label, 
+    onPress,
+    visible
+  }: Omit<FABButtonProps, 'isExpanded'>) => {
+    const animatedStyles = useAnimatedStyle(() => {
+      const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
+      const translateValue = withSpring(-moveValue, SPRING_CONFIG);
+      const delay = index * 100;
+      const scaleValue = isExpanded.value ? 1 : 0;
+      const opacityValue = isExpanded.value ? 1 : 0;
+
+      return {
+        transform: [
+          { translateY: translateValue },
+          { scale: withDelay(delay, withTiming(scaleValue, { duration: 200 })) },
+        ],
+        opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
+      };
+    });
+
+    const labelAnimatedStyle = useAnimatedStyle(() => {
+      const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
+      const translateValue = withSpring(-moveValue, SPRING_CONFIG);
+      const delay = index * 100;
+      const opacityValue = isExpanded.value ? 1 : 0;
+
+      return {
+        transform: [{ translateY: translateValue }],
+        opacity: withDelay(delay, withTiming(opacityValue, { duration: 200 })),
+      };
+    });
+
+    if (!visible) return null;
+
+    return (
+      <View style={styles.fabButtonContainer}>
+        <AnimatedPressable 
+          style={[animatedStyles, styles.fabButton]}
+          onPress={onPress}
+        >
+          {icon}
+        </AnimatedPressable>
+        <Animated.View style={[labelAnimatedStyle, styles.labelContainer]}>
+          <Text style={styles.labelText}>{label}</Text>
+        </Animated.View>
+      </View>
+    );
+  };
   
   return (
     <View style={styles.container}>
@@ -177,31 +180,28 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
 
       {/* Bouton "Autres" */}
       <FABButton
-        isExpanded={isExpanded}
         index={3}
         icon={<MaterialIcons name="more-horiz" size={24} color="#fff" />}
         label="Autres"
-        onPress={() => handleAction(onOtherPress)}
+        onPress={handleOtherActions}
         visible={expanded}
       />
 
-      {/* Bouton "Éditer" */}
+      {/* Bouton "Importer" */}
       <FABButton
-        isExpanded={isExpanded}
         index={2}
-        icon={<MaterialIcons name="edit" size={24} color="#fff" />}
-        label="Éditer"
-        onPress={() => handleAction(onEditPress)}
+        icon={<MaterialIcons name="file-upload" size={24} color="#fff" />}
+        label="Importer"
+        onPress={handleImportDocument}
         visible={expanded}
       />
 
-      {/* Bouton "Ajouter" */}
+      {/* Bouton "Ajouter Document" */}
       <FABButton
-        isExpanded={isExpanded}
         index={1}
         icon={<MaterialIcons name="add" size={24} color="#fff" />}
         label="Ajouter"
-        onPress={() => handleAction(onAddPress)}
+        onPress={handleAddDocument}
         visible={expanded}
       />
 
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#3F51B5',
+    backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#303F9F',
+    backgroundColor: '#1e40af',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   labelContainer: {
     position: 'absolute',
     right: 60,
-    backgroundColor: '#1A237E',
+    backgroundColor: '#1e3a8a',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -272,4 +272,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProjectsFab;
+export default DocumentsFAB;

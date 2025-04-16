@@ -62,7 +62,6 @@ export class AppService {
 
       // Recherche spécifique pour les statuts (qui sont des enum)
       if (searchLower.includes('ann') || searchLower.includes('annu')) {
-        console.log('Ajout du statut ANNULE à la recherche');
         orConditions.push({ status: DocumentStatus.ANNULE });
       }
       if (searchLower.includes('brouillon')) {
@@ -121,10 +120,7 @@ export class AppService {
       }
 
       where.OR = orConditions;
-      console.log('Conditions de recherche:', JSON.stringify(orConditions));
     }
-
-    console.log('Requête finale:', JSON.stringify(where));
 
     const documents = await this.prisma.documents.findMany({
       where: where as Prisma.documentsWhereInput,
@@ -150,8 +146,6 @@ export class AppService {
         },
       },
     });
-
-    console.log(`Nombre de documents trouvés: ${documents.length}`);
 
     // Recherche supplémentaire sur les données liées aux clients
     if (searchQuery && searchQuery.length > 1) {
@@ -214,9 +208,6 @@ export class AppService {
         },
       );
 
-      console.log(
-        `Nombre de documents après filtrage: ${filteredDocuments.length}`,
-      );
       return filteredDocuments as Document[];
     }
 

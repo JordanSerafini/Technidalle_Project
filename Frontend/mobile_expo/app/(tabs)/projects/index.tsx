@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useRouter, Stack } from 'expo-router';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
@@ -35,6 +35,7 @@ export default function ProjetsScreen() {
   const [showFilter, setShowFilter] = useState(false);
   const slideAnim = useState(new Animated.Value(Dimensions.get('window').height))[0];
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Utiliser le projectStore
   const { 
@@ -97,7 +98,7 @@ export default function ProjetsScreen() {
   
   // Gestionnaires pour le FAB
   const handleFilterPress = () => {
-    handleOpenFilter();
+    setShowFilter(!showFilter);
   };
   
   // Fetch des projets
@@ -162,6 +163,11 @@ export default function ProjetsScreen() {
     // Implémentation à venir
   };
 
+  // Fonction pour effacer la recherche
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
   if (loading) {
     return (
       <View className="flex items-center justify-center h-full">
@@ -181,8 +187,22 @@ export default function ProjetsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      <Stack.Screen
+        options={{
+          title: 'Projets',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+
       <ScrollView 
-        style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}
+        style={{ 
+          flex: 1, 
+          paddingHorizontal: 16, 
+          paddingTop: 8,
+          opacity: showFilter ? 0.1 : 1 
+        }}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {filteredProjects && filteredProjects.length > 0 ? (
@@ -235,107 +255,58 @@ export default function ProjetsScreen() {
         )}
       </ScrollView>
       
-      {/* FAB avec bouton filtre intégré - placé hors du ScrollView */}
+      {/* Un seul FAB pour les projets */}
       <ProjectsFab 
-        onFilterPress={handleFilterPress}
+        filtersVisible={showFilter}
         onAddPress={handleAddProject}
         onEditPress={handleEditProject}
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Panneau de filtre avec animation native */}
-      {showFilter && (
-        <View style={styles.filterContainer}>
-          {/* Overlay pour fermer en touchant en dehors */}
-          <Animated.View 
-            style={[styles.overlay, { opacity: fadeAnim }]}
-          >
-            <TouchableOpacity
-              style={{ width: '100%', height: '100%' }}
-              activeOpacity={1}
-              onPress={handleCloseFilter}
+      {/* Barre de recherche et filtres en bas de l'écran */}
+      <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
+        {/* Barre de recherche */}
+        <View className="flex-row items-center mb-4">
+          <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
+            <Ionicons name="search" size={20} color="#6b7280" />
+            <TextInput
+              className="flex-1 ml-2 text-gray-800"
+              placeholder="Rechercher un projet..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
-          </Animated.View>
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={clearSearch}>
+                <Ionicons name="close-circle" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            )}
+          </View>
           
-          {/* Panneau de filtre */}
-          <Animated.View 
-            style={[
-              styles.filterPanel,
-              { transform: [{ translateY: slideAnim }] }
-            ]}
+          <TouchableOpacity 
+            className="ml-2 bg-indigo-50 p-2 rounded-lg border border-indigo-200"
+            onPress={handleFilterPress}
           >
-            <SafeAreaView style={{ flex: 1 }}>
-              <View style={styles.header}>
-                <Text style={styles.headerTitle}>Filtres</Text>
-                <TouchableOpacity 
-                  onPress={handleCloseFilter}
-                  style={styles.closeButton}
-                  hitSlop={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                >
-                  <Ionicons name="close" size={24} color="#000" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.filterContent}>
-                <ProjectFilter />
-              </View>
-            </SafeAreaView>
-          </Animated.View>
+            <MaterialIcons 
+              name="filter-list" 
+              size={24} 
+              color={showFilter ? "#3F51B5" : "#6b7280"} 
+            />
+          </TouchableOpacity>
         </View>
-      )}
+        
+        {/* Filtres */}
+        {showFilter && (
+          <View className="mb-2 bg-gray-50 p-3 rounded-lg">
+            <ProjectFilter />
+          </View>
+        )}
+      </View>
+      
+      {/* Nous n'avons plus besoin du panneau de filtre avec animation native */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  filterContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  filterPanel: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterContent: {
-    flex: 1,
-  }
+  // Nous n'avons plus besoin des styles pour le bouton de filtre et le panneau de filtre avec animation
 });
