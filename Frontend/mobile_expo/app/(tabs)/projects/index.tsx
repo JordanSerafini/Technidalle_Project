@@ -197,7 +197,12 @@ export default function ProjetsScreen() {
       />
 
       <ScrollView 
-        style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}
+        style={{ 
+          flex: 1, 
+          paddingHorizontal: 16, 
+          paddingTop: 8,
+          opacity: showFilter ? 0.1 : 1 
+        }}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {filteredProjects && filteredProjects.length > 0 ? (
