@@ -495,19 +495,6 @@ export default function DocumentsScreen() {
         }}
       />
       
-      {/* Modale de document */}
-      <DocumentsModal 
-        visible={showDocumentModal}
-        onClose={() => setShowDocumentModal(false)}
-        projectId={modalProjectId}
-        clientId={modalClientId}
-        onSuccess={() => {
-          console.log('Document ajouté avec succès');
-          setShowDocumentModal(false);
-          // Recharger les documents ici si nécessaire
-        }}
-      />
-      
       {/* Liste des documents */}
       {loading ? (
         <View className="flex-1 justify-center items-center">
@@ -597,6 +584,21 @@ export default function DocumentsScreen() {
           </Animated.View>
         )}
       </View>
+
+      {/* MODALE SIMULÉE : Rendue ici conditionnellement par-dessus tout */}
+      {showDocumentModal && (
+        <DocumentsModal 
+          visible={showDocumentModal} // Peut-être plus nécessaire, mais gardons pour cohérence interne
+          onClose={() => setShowDocumentModal(false)}
+          projectId={modalProjectId}
+          clientId={modalClientId}
+          onSuccess={() => {
+            console.log('Document ajouté avec succès');
+            setShowDocumentModal(false);
+            // Recharger les documents ici si nécessaire
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
