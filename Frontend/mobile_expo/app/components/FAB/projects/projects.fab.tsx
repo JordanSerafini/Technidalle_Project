@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, Text, View } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -106,6 +107,7 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
 }) => {
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
+  const navigation = useNavigation();
 
   // Nettoyage à la destruction du composant
   useEffect(() => {
@@ -115,6 +117,25 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
     };
     return unsubscribe;
   }, []);
+
+  // Fermer le FAB lors d'un changement de route/page
+  useEffect(() => {
+    const closeFab = () => {
+      if (isExpanded.value || expanded) {
+        isExpanded.value = false;
+        setExpanded(false);
+      }
+    };
+
+    // S'abonner aux événements de navigation
+    const unsubscribe = navigation.addListener('beforeRemove', closeFab);
+    const stateListener = navigation.addListener('state', closeFab);
+
+    return () => {
+      unsubscribe();
+      stateListener();
+    };
+  }, [navigation, isExpanded, expanded]);
 
   // Fonction pour basculer l'état du FAB
   const toggleFAB = () => {
@@ -139,11 +160,13 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
     callback();
   };
   
-  // Position calculée en fonction de la visibilité des filtres
-  const bottomPosition = filtersVisible ? 195 : 16;
-
+  // Si les filtres sont visibles, on ne rend pas le FAB du tout
+  if (filtersVisible) {
+    return null;
+  }
+  
   return (
-    <View style={[styles.container, { bottom: bottomPosition }]}>
+    <View style={styles.container}>
       {/* Overlay pour fermer le FAB quand ouvert */}
       {expanded && (
         <Pressable 
@@ -199,6 +222,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     right: 16,
+    bottom: 90,
     alignItems: 'center',
     zIndex: 999,
   },

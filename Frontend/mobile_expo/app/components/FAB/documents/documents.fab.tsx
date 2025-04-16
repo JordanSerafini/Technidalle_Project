@@ -142,11 +142,13 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ filtersVisible = fal
     console.log('Autres actions');
   };
 
-  // Calculer la position du bas en fonction de l'état des filtres
-  const bottomPosition = filtersVisible ? 195 : 90; // 85px par défaut, 200px si filtres visibles
+  // Si les filtres sont visibles, on ne rend pas le FAB du tout
+  if (filtersVisible) {
+    return null;
+  }
 
   return (
-    <View style={[styles.container, { bottom: bottomPosition }]}>
+    <View style={styles.container}>
       {/* Overlay pour fermer le FAB quand ouvert */}
       {expanded && (
         <Pressable 
@@ -192,6 +194,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     right: 10,
+    bottom: 90,
     alignItems: 'center',
     zIndex: 999,
   },
