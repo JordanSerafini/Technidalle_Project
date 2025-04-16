@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
@@ -235,13 +235,21 @@ export default function ProjetsScreen() {
         )}
       </ScrollView>
       
-      {/* FAB avec bouton filtre intégré - placé hors du ScrollView */}
+      {/* FAB sans le bouton filtre */}
       <ProjectsFab 
-        onFilterPress={handleFilterPress}
+        filtersVisible={showFilter}
         onAddPress={handleAddProject}
         onEditPress={handleEditProject}
         onOtherPress={handleOtherOptions}
       />
+      
+      {/* Bouton Filtre séparé en bas de l'écran */}
+      <TouchableOpacity 
+        style={styles.filterButton}
+        onPress={handleFilterPress}
+      >
+        <Ionicons name="options" size={24} color="#fff" />
+      </TouchableOpacity>
       
       {/* Panneau de filtre avec animation native */}
       {showFilter && (
@@ -287,6 +295,24 @@ export default function ProjetsScreen() {
 }
 
 const styles = StyleSheet.create({
+  filterButton: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FF9800',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 999,
+  },
+  
   filterContainer: {
     position: 'absolute',
     top: 0,
