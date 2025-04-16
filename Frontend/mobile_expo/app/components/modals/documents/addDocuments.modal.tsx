@@ -12,7 +12,7 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Modal
+  // Modal
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -197,27 +197,16 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.fullScreenOverlay}>
-        <TouchableOpacity 
-          style={styles.backdrop} 
-          activeOpacity={1} 
-          onPress={onClose}
-        />
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouveau document</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            
+    <View style={styles.modalOuterContainer}>
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Nouveau document</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
+          
             <ScrollView style={styles.scrollView} contentContainerStyle={styles.formContainer}>
               {error && (
                 <View style={styles.errorContainer}>
@@ -225,7 +214,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 </View>
               )}
               
-              {/* Référence */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Référence *</Text>
                 <TextInput
@@ -236,7 +224,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 />
               </View>
               
-              {/* Type de document */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Type de document *</Text>
                 <View style={styles.pickerContainer}>
@@ -256,7 +243,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 </View>
               </View>
               
-              {/* Statut */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Statut</Text>
                 <View style={styles.pickerContainer}>
@@ -276,7 +262,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 </View>
               </View>
               
-              {/* Taux TVA */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Taux TVA (%)</Text>
                 <TextInput
@@ -288,7 +273,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 />
               </View>
               
-              {/* Date d'émission */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Date d'émission *</Text>
                 <TouchableOpacity 
@@ -309,7 +293,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 )}
               </View>
               
-              {/* Date d'échéance */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Date d'échéance</Text>
                 <TouchableOpacity 
@@ -330,7 +313,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 )}
               </View>
               
-              {/* Notes */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Notes</Text>
                 <TextInput
@@ -343,7 +325,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 />
               </View>
               
-              {/* Tableau des matériaux */}
               {type === DocumentType.DEVIS && (
                 <View style={styles.tableauContainer}>
                   <Text style={styles.sectionTitle}>Matériaux</Text>
@@ -373,34 +354,24 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 )}
               </TouchableOpacity>
             </View>
-          </View>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 };
 
-const statusBarHeight = StatusBar.currentHeight || 0;
-
 const styles = StyleSheet.create({
-  fullScreenOverlay: {
+  modalOuterContainer: {
     position: 'absolute',
-    width: '100%',
-    height: '100%',
     top: 0,
     left: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 5000,
-    elevation: 20,
-  },
-  backdrop: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    top: 0,
-    left: 0,
+    right: 0,
+    bottom: 0,
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
     backgroundColor: 'rgba(0,0,0,0.7)',
+    zIndex: 1000,
   },
   modalContainer: {
     width: '90%',
