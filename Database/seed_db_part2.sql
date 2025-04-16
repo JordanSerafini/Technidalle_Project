@@ -99,25 +99,12 @@ INSERT INTO documents (project_id, client_id, type, reference, status, amount, t
                       legal_mentions, validity_period, signed_by_client, signed_date, approved_by_staff_id, 
                       version, purchase_order_reference, delivery_address_id, delivery_date, shipping_costs, notes) VALUES
 -- Projet PRJ-2023-002
-(2, 4, 'devis', 'DEV-2023-002', 'valide', 75000.00, 20.00, '2023-10-15', '2023-10-30', '2023-10-25', 'virement', 
- '50% à la commande, solde en fin de travaux', 0.00, 0.00, 'payé', 75000.00, 0.00, 
- 'Technidalle SAS - SIRET 12345678900001 - APE 4333Z - TVA FR12345678900', 30, true, '2023-10-20', 6, 
- 1, 'BC-CLIENT-2023-002', NULL, '2023-12-15', 0.00, 'Devis accepté rapidement'),
- 
-(2, 4, 'facture', 'FAC-2023-003', 'valide', 37500.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-28', 'virement', 
- 'Paiement à 15 jours', 0.00, 0.00, 'payé', 37500.00, 0.00, 
- 'Technidalle SAS - SIRET 12345678900001 - APE 4333Z - TVA FR12345678900', NULL, true, '2023-11-20', 7, 
- 1, 'BC-CLIENT-2023-002', NULL, NULL, 0.00, 'Premier acompte payé'),
- 
-(2, 4, 'facture', 'FAC-2023-004', 'valide', 37500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 
- 'Paiement à 15 jours', 0.00, 0.00, 'payé', 37500.00, 0.00, 
- 'Technidalle SAS - SIRET 12345678900001 - APE 4333Z - TVA FR12345678900', NULL, true, '2023-12-20', 7, 
- 1, 'BC-CLIENT-2023-002', NULL, NULL, 0.00, 'Solde payé'),
- 
-(2, 4, 'photo_chantier', 'IMG-2023-002-01', 'valide', NULL, NULL, '2023-12-20', NULL, NULL, NULL, 
- NULL, NULL, NULL, NULL, NULL, NULL, 
- NULL, NULL, NULL, NULL, 2, 
- 1, NULL, NULL, NULL, NULL, 'Photo du chantier terminé'),
+
+(2, 4, 'devis', 'DEV-2023-002', 'annule', 75000.00, 20.00, '2023-10-15', '2023-10-30', '2023-10-25', 'virement', 'Devis accepté rapidement'),
+(2, 4, 'facture', 'FAC-2023-003', 'valide', 37500.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-28', 'virement', 'Premier acompte payé'),
+(2, 4, 'facture', 'FAC-2023-004', 'valide', 37500.00, 20.00, '2023-12-15', '2023-12-30', '2023-12-25', 'virement', 'Solde payé'),
+(2, 4, 'photo_chantier', 'IMG-2023-002-01', 'valide', NULL, NULL, '2023-12-20', NULL, NULL, NULL, 'Photo du chantier terminé'),
+
 
 -- Projet PRJ-2023-003
 (3, 4, 'devis', 'DEV-2023-003', 'valide', 85000.00, 20.00, '2023-11-15', '2023-11-30', '2023-11-25', 'virement', 
