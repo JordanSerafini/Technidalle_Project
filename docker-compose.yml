@@ -38,6 +38,9 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./Backend/resources_service:/app
+      - /app/generated/prisma
 
   projects:
     build:
@@ -53,6 +56,9 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./Backend/projects_service:/app
+      - /app/generated/prisma
 
   client:
     build:
@@ -68,6 +74,9 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./Backend/clients_service:/app
+      - /app/generated/prisma
 
   documents:
     build:
@@ -83,6 +92,9 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./Backend/documents_service:/app
+      - /app/generated/prisma
 
   planning:
     build:
@@ -98,6 +110,9 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./Backend/planning_service:/app
+      - /app/generated/prisma       
 
   api-gateway:
     build:

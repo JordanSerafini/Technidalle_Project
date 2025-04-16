@@ -67,7 +67,7 @@ export class DocumentsController {
   async getAllDocuments(
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
-    @Query('search') searchQuery?: string,
+    @Query('searchQuery') searchQuery?: string,
     @Query('clientId') clientId?: number,
     @Query('projectId') projectId?: number,
   ): Promise<Document[]> {
