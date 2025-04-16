@@ -44,8 +44,13 @@ export default function ProjectDetailScreen() {
 
   // Fonction pour l'ouverture des sections
   const toggleSection = (sectionName: string) => {
+    console.log(`[ProjectDetailScreen] toggleSection appelé pour: ${sectionName}`);
     // Approche directe sans conditions complexes
-    setOpenSection(openSection === sectionName ? '' : sectionName);
+    setOpenSection(prevOpenSection => {
+      const newOpenSection = prevOpenSection === sectionName ? '' : sectionName;
+      console.log(`[ProjectDetailScreen] Nouvel état openSection: ${newOpenSection}`);
+      return newOpenSection;
+    });
   };
 
   // Configuration de l'en-tête
