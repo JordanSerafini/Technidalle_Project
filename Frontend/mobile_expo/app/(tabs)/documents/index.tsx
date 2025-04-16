@@ -480,7 +480,7 @@ export default function DocumentsScreen() {
   // Gérer l'affichage de la modale de document
   const handleShowDocumentModal = (show: boolean, projectId?: number, clientId?: number) => {
     setShowDocumentModal(show);
-    setModalProjectId(projectId);
+    setModalProjectId(projectId || 1);
     setModalClientId(clientId);
   };
   
