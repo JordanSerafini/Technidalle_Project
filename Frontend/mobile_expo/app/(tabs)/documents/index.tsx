@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '@/app/hooks/useFetch';
 import { Document, DocumentType, DocumentStatus } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
+import DocumentsFAB from '@/app/components/FAB/documents/documents.fab';
 
 // Interface pour les props de AccordionItem
 interface AccordionItemProps {
@@ -507,6 +508,9 @@ export default function DocumentsScreen() {
           </Text>
         </View>
       )}
+      
+      {/* Floating Action Button */}
+      <DocumentsFAB filtersVisible={filterVisible} />
       
       {/* Barre de recherche et filtres en bas de l'écran */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
