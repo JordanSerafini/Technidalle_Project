@@ -54,6 +54,8 @@ const FABButton: React.FC<FABButtonProps> = ({
   onPress,
   visible
 }) => {
+  const buttonRef = React.useRef(null);
+  
   const animatedStyles = useAnimatedStyle(() => {
     const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
     const translateValue = withSpring(-moveValue, SPRING_CONFIG);
@@ -85,6 +87,7 @@ const FABButton: React.FC<FABButtonProps> = ({
   return (
     <View style={styles.fabButtonContainer}>
       <AnimatedPressable 
+        ref={buttonRef}
         style={[animatedStyles, styles.fabButton]}
         onPress={onPress}
       >
@@ -110,6 +113,7 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
   const navigation = useNavigation();
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
+  const mainButtonRef = React.useRef(null);
 
   // Nettoyage à la destruction du composant
   useEffect(() => {
@@ -226,6 +230,7 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 
       {/* Bouton principal */}
       <Pressable 
+        ref={mainButtonRef}
         style={styles.mainButton}
         onPress={toggleFAB}
       >
