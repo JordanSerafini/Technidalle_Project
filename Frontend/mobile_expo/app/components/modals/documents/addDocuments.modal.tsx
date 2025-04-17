@@ -47,6 +47,7 @@ interface DocumentsModalProps {
   projectId?: number;
   clientId?: number;
   onSuccess?: () => void;
+  onDocumentAdded?: () => void;
   documentType?: DocumentType; // Type de document spécifique (optionnel)
 }
 
@@ -212,6 +213,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   projectId,
   clientId,
   onSuccess,
+  onDocumentAdded,
   documentType
 }) => {
   // États pour les champs du formulaire
@@ -314,11 +316,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       return false;
     }
     
-    if (type === DocumentType.DEVIS && !reference) {
-      setError("Veuillez saisir une référence pour le devis");
-      return false;
-    }
-
     // Validation supplémentaire pour le taux de TVA
     if (isNaN(parseFloat(tvaRate)) || parseFloat(tvaRate) < 0) {
       setError("Le taux de TVA doit être un nombre positif valide");
@@ -370,7 +367,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         const devisData: CreateDevisDto = {
           project_id: projectId,
           client_id: selectedClient.id || 0, 
-          reference: reference,
+          reference: reference || '',
           status: status,
           amount: calculateTotal(),
           tva_rate: parseFloat(tvaRate),
@@ -424,6 +421,11 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         if (!response.ok) {
           throw new Error('Erreur lors de la création du document');
         }
+      }
+      
+      // Appeler la fonction de rafraîchissement de la liste des documents
+      if (onDocumentAdded) {
+        onDocumentAdded();
       }
       
       Alert.alert(
@@ -526,18 +528,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                       ))}
                     </Picker>
                   </View>
-                </View>
-              )}
-              
-              {type === DocumentType.DEVIS && (
-                <View className="mb-4">
-                  <Text className="text-sm font-medium mb-1.5 text-gray-600">Référence du devis *</Text>
-                  <TextInput
-                    className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                    value={reference}
-                    onChangeText={setReference}
-                    placeholder="Référence du devis"
-                  />
                 </View>
               )}
               
