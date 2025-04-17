@@ -308,7 +308,7 @@ export default function DocumentsScreen() {
     }));
   };
   
-  // Rendu d'un élément de la liste
+  //? -------------------------------------------------------------------------------------  Rendu d'un élément de la liste
   const renderItem = ({ item }: { item: Document }) => (
     <TouchableOpacity
       key={item.id}
@@ -339,7 +339,7 @@ export default function DocumentsScreen() {
     </TouchableOpacity>
   );
   
-  // Rendu des sections mensuelles
+  //? -------------------------------------------------------------------------------------  Rendu des sections mensuelles
   const renderMonthSections = () => {
     return Object.entries(documentsByMonth).map(([monthYear, docs]) => (
       <View key={monthYear} className="mb-4">
