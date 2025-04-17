@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   Client,
   CreateClientDto,
+  CreateClientWithAddressDto,
   UpdateClientDto,
 } from './interfaces/client.interface';
 import {
@@ -456,6 +457,56 @@ export class AppService {
     } catch (error: unknown) {
       this.logger.error(
         'Erreur lors de la mise à jour de toutes les adresses',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async createClientWithAddress(
+    clientWithAddressDto: CreateClientWithAddressDto,
+  ): Promise<Client> {
+    const { address, ...clientData } = clientWithAddressDto;
+
+    try {
+      this.logger.log(
+        `Tentative de création d'un client avec adresse: ${JSON.stringify(clientWithAddressDto)}`,
+      );
+
+      return await this.prisma.$transaction(async (tx) => {
+        // Créer l'adresse
+        this.logger.log(`Création de l'adresse: ${JSON.stringify(address)}`);
+        const newAddress = await tx.addresses.create({
+          data: address,
+        });
+        this.logger.log(`Adresse créée avec l'ID: ${newAddress.id}`);
+
+        // Créer le client avec l'ID de l'adresse
+        const clientDataWithAddress = {
+          ...clientData,
+          firstname: clientData.firstname || '',
+          lastname: clientData.lastname || '',
+          address_id: newAddress.id,
+        };
+        this.logger.log(
+          `Création du client avec les données: ${JSON.stringify(clientDataWithAddress)}`,
+        );
+
+        const newClient = await tx.clients.create({
+          data: clientDataWithAddress,
+          include: {
+            addresses: true,
+          },
+        });
+        this.logger.log(
+          `Client créé avec succès: ${JSON.stringify(newClient)}`,
+        );
+
+        return newClient as unknown as Client;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la création du client avec adresse:`,
         error,
       );
       throw error;

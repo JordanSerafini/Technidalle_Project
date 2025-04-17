@@ -35,4 +35,23 @@ export interface UpdateClientDto {
   address_id?: number;
   siret?: string;
   notes?: string;
-} 
+}
+
+export interface CreateClientWithAddressDto {
+  company_name?: string;
+  firstname?: string;
+  lastname?: string;
+  email: string;
+  phone?: string;
+  mobile?: string;
+  siret?: string;
+  notes?: string;
+  address: {
+    street_number: string;
+    street_name: string;
+    additional_address?: string;
+    zip_code: string;
+    city: string;
+    country: string;
+  };
+}
