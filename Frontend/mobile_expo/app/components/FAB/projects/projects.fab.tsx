@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, Text, View } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
+import { useNavigation, usePathname } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -23,8 +23,8 @@ const SPRING_CONFIG = {
 // Décalage vertical entre les boutons
 const BUTTON_OFFSET = 60;
 
-// Créer un Pressable animé
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+// Utiliser Animated.View au lieu de AnimatedPressable
+const AnimatedView = Animated.View;
 
 // Propriétés pour les boutons FAB secondaires
 interface FABButtonProps {
@@ -81,14 +81,18 @@ const FABButton: React.FC<FABButtonProps> = ({
     };
   });
 
+  const handlePress = () => {
+    console.log(`Bouton ${label} pressé`);
+    onPress();
+  };
+
   return (
     <View style={styles.fabButtonContainer}>
-      <AnimatedPressable 
-        style={[animatedStyles, styles.fabButton]}
-        onPress={onPress}
-      >
-        {icon}
-      </AnimatedPressable>
+      <AnimatedView style={[animatedStyles, styles.fabButton]}>
+        <Pressable onPress={handlePress} style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          {icon}
+        </Pressable>
+      </AnimatedView>
       {visible && (
         <Animated.View style={[labelAnimatedStyle, styles.labelContainer]}>
           <Text style={styles.labelText}>{label}</Text>
@@ -108,7 +112,8 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
   const navigation = useNavigation();
-
+  const pathname = usePathname();
+  
   // Nettoyage à la destruction du composant
   useEffect(() => {
     const unsubscribe = () => {
@@ -155,15 +160,38 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
 
   // Exécuter une action et fermer le FAB
   const handleAction = (callback: () => void) => {
+    console.log('Action FAB déclenchée');
     isExpanded.value = false;
     setExpanded(false);
     callback();
   };
   
-  // Si les filtres sont visibles, on ne rend pas le FAB du tout
+  // Ne pas rendre le FAB si:
+  // 1. Les filtres sont visibles
   if (filtersVisible) {
+    console.log('FAB non affiché: filtres visibles');
     return null;
   }
+  
+  // Vérifier si nous sommes sur la page index des projets
+  const isProjectsIndexPage = pathname === '/(tabs)/projects' || 
+                             pathname === '/(tabs)/projects/index' || 
+                             pathname.endsWith('/projects') || 
+                             pathname.endsWith('/projects/index');
+  
+  // Vérifier si nous sommes sur une page de détails de projet
+  const isProjectDetailPage = pathname.includes('/projects/') && 
+                             pathname !== '/(tabs)/projects' && 
+                             pathname !== '/(tabs)/projects/index' &&
+                             !pathname.endsWith('/projects') && 
+                             !pathname.endsWith('/projects/index');
+  
+  if (!isProjectsIndexPage || isProjectDetailPage) {
+    console.log('FAB non affiché:', { isProjectsIndexPage, isProjectDetailPage, pathname });
+    return null;
+  }
+  
+  console.log('FAB affiché sur:', pathname);
   
   return (
     <View style={styles.container}>

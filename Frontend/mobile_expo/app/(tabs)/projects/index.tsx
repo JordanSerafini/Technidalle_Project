@@ -147,19 +147,22 @@ export default function ProjetsScreen() {
 
   const handleAddProject = () => {
     // Action pour ajouter un projet
-    console.log('Ajouter un projet');
+    console.log('Fonction handleAddProject appelée');
+    alert('Ajouter un projet');
     // Implémentation à venir
   };
 
   const handleEditProject = () => {
     // Action pour éditer un projet
-    console.log('Éditer un projet');
+    console.log('Fonction handleEditProject appelée');
+    alert('Éditer un projet');
     // Implémentation à venir
   };
 
   const handleOtherOptions = () => {
     // Autres actions
-    console.log('Autres options');
+    console.log('Fonction handleOtherOptions appelée');
+    alert('Autres options');
     // Implémentation à venir
   };
 
