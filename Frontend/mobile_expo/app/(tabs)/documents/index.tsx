@@ -543,6 +543,28 @@ export default function DocumentsScreen() {
       
       {/* Barre de recherche et filtres en bas de l'écran */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
+        {/* Filtres */}
+        {filterVisible && (
+          <Animated.View 
+            className="mb-2 bg-gray-50 p-3 rounded-lg"
+            style={{ transform: [{ translateX: filterPosition }] }}
+            {...panResponder.panHandlers}
+          >
+            <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
+              <TouchableOpacity onPress={switchToPrevFilter}>
+                <Ionicons name="chevron-back" size={20} color="#6b7280" />
+              </TouchableOpacity>
+              
+              <Text className="font-medium text-gray-800">{getFilterTitle()}</Text>
+              
+              <TouchableOpacity onPress={switchToNextFilter}>
+                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {renderFilterContent()}
+          </Animated.View>
+        )}
         {/* Barre de recherche */}
         <View className="flex-row items-center mb-4">
           <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
@@ -572,28 +594,7 @@ export default function DocumentsScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* Filtres */}
-        {filterVisible && (
-          <Animated.View 
-            className="mb-2 bg-gray-50 p-3 rounded-lg"
-            style={{ transform: [{ translateX: filterPosition }] }}
-            {...panResponder.panHandlers}
-          >
-            <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
-              <TouchableOpacity onPress={switchToPrevFilter}>
-                <Ionicons name="chevron-back" size={20} color="#6b7280" />
-              </TouchableOpacity>
-              
-              <Text className="font-medium text-gray-800">{getFilterTitle()}</Text>
-              
-              <TouchableOpacity onPress={switchToNextFilter}>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-            
-            {renderFilterContent()}
-          </Animated.View>
-        )}
+        
       </View>
 
       {/* MODALE SIMULÉE : Rendue ici conditionnellement par-dessus tout */}

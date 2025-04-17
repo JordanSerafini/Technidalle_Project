@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  Res,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
@@ -18,6 +19,7 @@ import {
   CreateDevisDto,
 } from '../../interfaces/devis.interface';
 import { CreateProjectDto } from '../../interfaces/project.interface';
+import { Response } from 'express';
 
 @Controller('devis')
 export class DevisController {
@@ -208,6 +210,46 @@ export class DevisController {
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Erreur lors de la conversion du devis en facture',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id/pdf')
+  async generateDevisPdf(
+    @Param('id') id: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      // Appeler le service de documents pour générer le PDF
+      const pdfResult = await firstValueFrom(
+        this.documentsService.send({ cmd: 'generate_devis_pdf' }, { id }),
+      );
+
+      if (!pdfResult || !pdfResult.pdfPath) {
+        throw new HttpException(
+          'Erreur lors de la génération du PDF',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      // Envoyer le fichier au client
+      res.sendFile(pdfResult.pdfPath, (err) => {
+        if (err) {
+          throw new HttpException(
+            "Erreur lors de l'envoi du fichier PDF",
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      });
+    } catch (error) {
+      console.error(
+        `Erreur lors de la génération du PDF pour le devis ${id}:`,
+        error,
+      );
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        "Erreur lors de la génération ou de l'envoi du PDF",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

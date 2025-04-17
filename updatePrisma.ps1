@@ -1,6 +1,3 @@
-# Script PowerShell pour mettre à jour Prisma dans tous les sous-dossiers
-# Pour l'exécuter: .\updatePrisma.ps1
-
 # Dossier principal
 $BACKEND_DIR = ".\Backend"
 
