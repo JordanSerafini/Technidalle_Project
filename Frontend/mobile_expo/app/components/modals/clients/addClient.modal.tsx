@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   View, 
   Text, 
-  StyleSheet, 
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { url as urlConfig } from '@/app/utils/url';
 import { useClientsStore } from '@/app/store/clientsStore';
+import { useFetch } from '@/app/hooks/useFetch';
 
 interface AddClientModalProps {
   visible: boolean;
@@ -32,26 +32,72 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     phone: '',
     company_name: ''
   });
+
+  const [address, setAddress] = useState({
+    street_number: '',
+    street_name: '',
+    additional_address: '',
+    zip_code: '',
+    city: '',
+    country: 'France'
+  });
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   
   // Récupération des clients du store
   const { clients, setClients } = useClientsStore();
   
+  // Hook useFetch pour la création du client
+  const { data: createdClient, error: fetchError, loading: fetchLoading } = useFetch<Client>(
+    null,
+    {
+      method: 'POST',
+      body: {
+        ...newClient,
+        address
+      }
+    }
+  );
+
   // Valider le formulaire client
   const validateClientForm = () => {
-    if (!newClient.firstname?.trim()) {
-      setError("Le prénom est obligatoire");
+    // Vérifier qu'au moins un nom est fourni (company_name ou firstname/lastname)
+    if (!newClient.company_name?.trim() && (!newClient.firstname?.trim() || !newClient.lastname?.trim())) {
+      setError("Veuillez renseigner soit le nom de la société, soit le prénom et le nom du client");
       return false;
     }
-    if (!newClient.lastname?.trim()) {
-      setError("Le nom est obligatoire");
-      return false;
+
+    // Validation du format de l'email si fourni
+    if (newClient.email?.trim()) {
+      const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(newClient.email)) {
+        setError("Le format de l'email n'est pas valide");
+        return false;
+      }
     }
-    if (!newClient.email?.trim()) {
-      setError("L'email est obligatoire");
-      return false;
+
+    // Validation de l'adresse si tous les champs sont remplis
+    if (address.street_number?.trim() || address.street_name?.trim() || 
+        address.zip_code?.trim() || address.city?.trim()) {
+      if (!address.street_number?.trim()) {
+        setError("Le numéro de rue est obligatoire si vous renseignez une adresse");
+        return false;
+      }
+      if (!address.street_name?.trim()) {
+        setError("Le nom de la rue est obligatoire si vous renseignez une adresse");
+        return false;
+      }
+      if (!address.zip_code?.trim()) {
+        setError("Le code postal est obligatoire si vous renseignez une adresse");
+        return false;
+      }
+      if (!address.city?.trim()) {
+        setError("La ville est obligatoire si vous renseignez une adresse");
+        return false;
+      }
     }
+
     return true;
   };
   
@@ -59,16 +105,18 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   const handleCreateClient = async () => {
     if (!validateClientForm()) return;
     
-    setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`${urlConfig.local}clients`, {
+      const response = await fetch(`${urlConfig.local}clients/with-address`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newClient)
+        body: JSON.stringify({
+          ...newClient,
+          address
+        })
       });
       
       if (!response.ok) {
@@ -90,8 +138,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -103,6 +149,14 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       email: '',
       phone: '',
       company_name: ''
+    });
+    setAddress({
+      street_number: '',
+      street_name: '',
+      additional_address: '',
+      zip_code: '',
+      city: '',
+      country: 'France'
     });
     setError(null);
   };
@@ -120,95 +174,135 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <View style={styles.modalOuterContainer}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouveau client</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+      <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
+        <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
+          <View className="flex-1">
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <Text className="text-xl font-bold text-gray-800">Nouveau client</Text>
+              <TouchableOpacity onPress={handleClose} className="p-1">
                 <Ionicons name="close" size={24} color="#000" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.formContainer}>
-              <View style={styles.clientFormContainer}>
-                {error && (
-                  <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                )}
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Société (optionnel)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newClient.company_name}
-                    onChangeText={(text) => setNewClient({...newClient, company_name: text})}
-                    placeholder="Nom de la société"
-                  />
+
+            <ScrollView className="flex-1" contentContainerClassName="p-4">
+              {error && (
+                <View className="p-2.5 bg-red-50 rounded mb-4">
+                  <Text className="text-red-600 text-sm">{error}</Text>
                 </View>
+              )}
+
+              {/* Formulaire client */}
+              <View className="mb-4">
+                <Text className="text-lg font-semibold mb-2">Informations client</Text>
                 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Prénom *</Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-2 mb-2"
+                  placeholder="Nom de la société"
+                  value={newClient.company_name}
+                  onChangeText={(text) => setNewClient({...newClient, company_name: text})}
+                />
+                
+                <View className="flex-row space-x-2">
                   <TextInput
-                    style={styles.input}
+                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
+                    placeholder="Prénom"
                     value={newClient.firstname}
                     onChangeText={(text) => setNewClient({...newClient, firstname: text})}
-                    placeholder="Prénom"
                   />
-                </View>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Nom *</Text>
                   <TextInput
-                    style={styles.input}
+                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
+                    placeholder="Nom"
                     value={newClient.lastname}
                     onChangeText={(text) => setNewClient({...newClient, lastname: text})}
-                    placeholder="Nom"
                   />
                 </View>
                 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email *</Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-2 mb-2"
+                  placeholder="Email"
+                  value={newClient.email}
+                  onChangeText={(text) => setNewClient({...newClient, email: text})}
+                  keyboardType="email-address"
+                />
+                
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-2 mb-2"
+                  placeholder="Téléphone"
+                  value={newClient.phone}
+                  onChangeText={(text) => setNewClient({...newClient, phone: text})}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {/* Formulaire adresse */}
+              <View className="mb-4">
+                <Text className="text-lg font-semibold mb-2">Adresse</Text>
+                
+                <View className="flex-row space-x-2">
                   <TextInput
-                    style={styles.input}
-                    value={newClient.email}
-                    onChangeText={(text) => setNewClient({...newClient, email: text})}
-                    placeholder="Email"
-                    keyboardType="email-address"
+                    className="w-1/4 border border-gray-300 rounded-lg p-2 mb-2"
+                    placeholder="N°"
+                    value={address.street_number}
+                    onChangeText={(text) => setAddress({...address, street_number: text})}
                   />
-                </View>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Téléphone</Text>
                   <TextInput
-                    style={styles.input}
-                    value={newClient.phone}
-                    onChangeText={(text) => setNewClient({...newClient, phone: text})}
-                    placeholder="Téléphone"
-                    keyboardType="phone-pad"
+                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
+                    placeholder="Rue"
+                    value={address.street_name}
+                    onChangeText={(text) => setAddress({...address, street_name: text})}
                   />
                 </View>
                 
-                <View style={styles.clientFormButtons}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={handleClose}
-                  >
-                    <Text style={styles.cancelButtonText}>Annuler</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.submitButton]}
-                    onPress={handleCreateClient}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.buttonText}>Créer</Text>
-                    )}
-                  </TouchableOpacity>
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-2 mb-2"
+                  placeholder="Complément d'adresse"
+                  value={address.additional_address}
+                  onChangeText={(text) => setAddress({...address, additional_address: text})}
+                />
+                
+                <View className="flex-row space-x-2">
+                  <TextInput
+                    className="w-1/3 border border-gray-300 rounded-lg p-2 mb-2"
+                    placeholder="Code postal"
+                    value={address.zip_code}
+                    onChangeText={(text) => setAddress({...address, zip_code: text})}
+                    keyboardType="number-pad"
+                  />
+                  <TextInput
+                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
+                    placeholder="Ville"
+                    value={address.city}
+                    onChangeText={(text) => setAddress({...address, city: text})}
+                  />
                 </View>
+                
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-2 mb-2"
+                  placeholder="Pays"
+                  value={address.country}
+                  onChangeText={(text) => setAddress({...address, country: text})}
+                />
+              </View>
+
+              <View className="flex-row justify-end space-x-2">
+                <TouchableOpacity 
+                  className="bg-gray-200 px-4 py-2 rounded-lg"
+                  onPress={handleClose}
+                >
+                  <Text>Annuler</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  className="bg-blue-500 px-4 py-2 rounded-lg"
+                  onPress={handleCreateClient}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white">Créer</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -217,124 +311,5 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  modalOuterContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  modalContainer: {
-    width: '90%',
-    height: '90%',
-    maxWidth: 500,
-    maxHeight: 700,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    elevation: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  modalContent: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  formContainer: {
-    padding: 16,
-  },
-  errorContainer: {
-    padding: 10,
-    backgroundColor: '#ffebee',
-    borderRadius: 4,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 14,
-  },
-  clientFormContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 6,
-    color: '#555',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  clientFormButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  button: {
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: '48%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButton: {
-    backgroundColor: '#2196F3',
-  },
-  cancelButton: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  cancelButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
 
 export default AddClientModal;
