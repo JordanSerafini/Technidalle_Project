@@ -391,6 +391,23 @@ exports.Prisma.Time_logsScalarFieldEnum = {
   synced_by_device_id: 'synced_by_device_id'
 };
 
+exports.Prisma.Document_linesScalarFieldEnum = {
+  id: 'id',
+  document_id: 'document_id',
+  material_id: 'material_id',
+  description: 'description',
+  quantity: 'quantity',
+  unit: 'unit',
+  unit_price: 'unit_price',
+  discount_percent: 'discount_percent',
+  discount_amount: 'discount_amount',
+  tax_rate: 'tax_rate',
+  total_ht: 'total_ht',
+  sort_order: 'sort_order',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -468,7 +485,8 @@ exports.Prisma.ModelName = {
   stage_tags: 'stage_tags',
   tags: 'tags',
   tasks: 'tasks',
-  time_logs: 'time_logs'
+  time_logs: 'time_logs',
+  document_lines: 'document_lines'
 };
 
 /**

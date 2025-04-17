@@ -137,6 +137,22 @@ CREATE TABLE IF NOT EXISTS documents (
     CONSTRAINT fk_document_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 );
 
+-- Table des matériaux
+CREATE TABLE IF NOT EXISTS materials (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    reference VARCHAR(50) UNIQUE,
+    unit VARCHAR(50) NOT NULL,
+    price DECIMAL(10,2) CHECK (price >= 0),
+    stock_quantity INT DEFAULT 0 CHECK (stock_quantity >= 0),
+    minimum_stock INT DEFAULT 0 CHECK (minimum_stock >= 0),
+    supplier VARCHAR(255),
+    supplier_reference VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Table des lignes de documents (devis, factures, etc.)
 CREATE TABLE IF NOT EXISTS document_lines (
     id SERIAL PRIMARY KEY,
@@ -181,21 +197,7 @@ CREATE TABLE IF NOT EXISTS project_stages (
     synced_by_device_id VARCHAR(100)
 );
 
--- Table des matériaux
-CREATE TABLE IF NOT EXISTS materials (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    reference VARCHAR(50) UNIQUE,
-    unit VARCHAR(50) NOT NULL,
-    price DECIMAL(10,2) CHECK (price >= 0),
-    stock_quantity INT DEFAULT 0 CHECK (stock_quantity >= 0),
-    minimum_stock INT DEFAULT 0 CHECK (minimum_stock >= 0),
-    supplier VARCHAR(255),
-    supplier_reference VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+
 
 -- Table de liaison projet-matériaux
 CREATE TABLE IF NOT EXISTS project_materials (

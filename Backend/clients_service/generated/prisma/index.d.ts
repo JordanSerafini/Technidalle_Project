@@ -124,6 +124,12 @@ export type tasks = $Result.DefaultSelection<Prisma.$tasksPayload>
  * This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
  */
 export type time_logs = $Result.DefaultSelection<Prisma.$time_logsPayload>
+/**
+ * Model document_lines
+ * This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+ * This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+ */
+export type document_lines = $Result.DefaultSelection<Prisma.$document_linesPayload>
 
 /**
  * Enums
@@ -525,6 +531,16 @@ export class PrismaClient<
     * ```
     */
   get time_logs(): Prisma.time_logsDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.document_lines`: Exposes CRUD operations for the **document_lines** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Document_lines
+    * const document_lines = await prisma.document_lines.findMany()
+    * ```
+    */
+  get document_lines(): Prisma.document_linesDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -984,7 +1000,8 @@ export namespace Prisma {
     stage_tags: 'stage_tags',
     tags: 'tags',
     tasks: 'tasks',
-    time_logs: 'time_logs'
+    time_logs: 'time_logs',
+    document_lines: 'document_lines'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1003,7 +1020,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "addresses" | "clients" | "document_tags" | "documents" | "events" | "materials" | "project_materials" | "project_media" | "project_staff" | "project_stages" | "project_tags" | "projects" | "roles" | "site_reports" | "staff" | "stage_checklists" | "stage_tags" | "tags" | "tasks" | "time_logs"
+      modelProps: "addresses" | "clients" | "document_tags" | "documents" | "events" | "materials" | "project_materials" | "project_media" | "project_staff" | "project_stages" | "project_tags" | "projects" | "roles" | "site_reports" | "staff" | "stage_checklists" | "stage_tags" | "tags" | "tasks" | "time_logs" | "document_lines"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2487,6 +2504,80 @@ export namespace Prisma {
           }
         }
       }
+      document_lines: {
+        payload: Prisma.$document_linesPayload<ExtArgs>
+        fields: Prisma.document_linesFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.document_linesFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.document_linesFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>
+          }
+          findFirst: {
+            args: Prisma.document_linesFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.document_linesFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>
+          }
+          findMany: {
+            args: Prisma.document_linesFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>[]
+          }
+          create: {
+            args: Prisma.document_linesCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>
+          }
+          createMany: {
+            args: Prisma.document_linesCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.document_linesCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>[]
+          }
+          delete: {
+            args: Prisma.document_linesDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>
+          }
+          update: {
+            args: Prisma.document_linesUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>
+          }
+          deleteMany: {
+            args: Prisma.document_linesDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.document_linesUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.document_linesUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>[]
+          }
+          upsert: {
+            args: Prisma.document_linesUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$document_linesPayload>
+          }
+          aggregate: {
+            args: Prisma.Document_linesAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateDocument_lines>
+          }
+          groupBy: {
+            args: Prisma.document_linesGroupByArgs<ExtArgs>
+            result: $Utils.Optional<Document_linesGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.document_linesCountArgs<ExtArgs>
+            result: $Utils.Optional<Document_linesCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2591,6 +2682,7 @@ export namespace Prisma {
     tags?: tagsOmit
     tasks?: tasksOmit
     time_logs?: time_logsOmit
+    document_lines?: document_linesOmit
   }
 
   /* Types for Logging */
@@ -2783,10 +2875,12 @@ export namespace Prisma {
    */
 
   export type DocumentsCountOutputType = {
+    document_lines: number
     document_tags: number
   }
 
   export type DocumentsCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    document_lines?: boolean | DocumentsCountOutputTypeCountDocument_linesArgs
     document_tags?: boolean | DocumentsCountOutputTypeCountDocument_tagsArgs
   }
 
@@ -2804,6 +2898,13 @@ export namespace Prisma {
   /**
    * DocumentsCountOutputType without action
    */
+  export type DocumentsCountOutputTypeCountDocument_linesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: document_linesWhereInput
+  }
+
+  /**
+   * DocumentsCountOutputType without action
+   */
   export type DocumentsCountOutputTypeCountDocument_tagsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: document_tagsWhereInput
   }
@@ -2814,10 +2915,12 @@ export namespace Prisma {
    */
 
   export type MaterialsCountOutputType = {
+    document_lines: number
     project_materials: number
   }
 
   export type MaterialsCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    document_lines?: boolean | MaterialsCountOutputTypeCountDocument_linesArgs
     project_materials?: boolean | MaterialsCountOutputTypeCountProject_materialsArgs
   }
 
@@ -2830,6 +2933,13 @@ export namespace Prisma {
      * Select specific fields to fetch from the MaterialsCountOutputType
      */
     select?: MaterialsCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * MaterialsCountOutputType without action
+   */
+  export type MaterialsCountOutputTypeCountDocument_linesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: document_linesWhereInput
   }
 
   /**
@@ -7150,6 +7260,7 @@ export namespace Prisma {
     file_path?: boolean
     created_at?: boolean
     updated_at?: boolean
+    document_lines?: boolean | documents$document_linesArgs<ExtArgs>
     document_tags?: boolean | documents$document_tagsArgs<ExtArgs>
     clients?: boolean | documents$clientsArgs<ExtArgs>
     projects?: boolean | projectsDefaultArgs<ExtArgs>
@@ -7219,6 +7330,7 @@ export namespace Prisma {
 
   export type documentsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "project_id" | "client_id" | "type" | "reference" | "status" | "amount" | "tva_rate" | "issue_date" | "due_date" | "payment_date" | "payment_method" | "notes" | "file_path" | "created_at" | "updated_at", ExtArgs["result"]["documents"]>
   export type documentsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    document_lines?: boolean | documents$document_linesArgs<ExtArgs>
     document_tags?: boolean | documents$document_tagsArgs<ExtArgs>
     clients?: boolean | documents$clientsArgs<ExtArgs>
     projects?: boolean | projectsDefaultArgs<ExtArgs>
@@ -7236,6 +7348,7 @@ export namespace Prisma {
   export type $documentsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "documents"
     objects: {
+      document_lines: Prisma.$document_linesPayload<ExtArgs>[]
       document_tags: Prisma.$document_tagsPayload<ExtArgs>[]
       clients: Prisma.$clientsPayload<ExtArgs> | null
       projects: Prisma.$projectsPayload<ExtArgs>
@@ -7651,6 +7764,7 @@ export namespace Prisma {
    */
   export interface Prisma__documentsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    document_lines<T extends documents$document_linesArgs<ExtArgs> = {}>(args?: Subset<T, documents$document_linesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     document_tags<T extends documents$document_tagsArgs<ExtArgs> = {}>(args?: Subset<T, documents$document_tagsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$document_tagsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     clients<T extends documents$clientsArgs<ExtArgs> = {}>(args?: Subset<T, documents$clientsArgs<ExtArgs>>): Prisma__clientsClient<$Result.GetResult<Prisma.$clientsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     projects<T extends projectsDefaultArgs<ExtArgs> = {}>(args?: Subset<T, projectsDefaultArgs<ExtArgs>>): Prisma__projectsClient<$Result.GetResult<Prisma.$projectsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
@@ -8092,6 +8206,30 @@ export namespace Prisma {
      * Limit how many documents to delete.
      */
     limit?: number
+  }
+
+  /**
+   * documents.document_lines
+   */
+  export type documents$document_linesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    where?: document_linesWhereInput
+    orderBy?: document_linesOrderByWithRelationInput | document_linesOrderByWithRelationInput[]
+    cursor?: document_linesWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: Document_linesScalarFieldEnum | Document_linesScalarFieldEnum[]
   }
 
   /**
@@ -9729,6 +9867,7 @@ export namespace Prisma {
     supplier_reference?: boolean
     created_at?: boolean
     updated_at?: boolean
+    document_lines?: boolean | materials$document_linesArgs<ExtArgs>
     project_materials?: boolean | materials$project_materialsArgs<ExtArgs>
     _count?: boolean | MaterialsCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["materials"]>
@@ -9780,6 +9919,7 @@ export namespace Prisma {
 
   export type materialsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "reference" | "unit" | "price" | "stock_quantity" | "minimum_stock" | "supplier" | "supplier_reference" | "created_at" | "updated_at", ExtArgs["result"]["materials"]>
   export type materialsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    document_lines?: boolean | materials$document_linesArgs<ExtArgs>
     project_materials?: boolean | materials$project_materialsArgs<ExtArgs>
     _count?: boolean | MaterialsCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -9789,6 +9929,7 @@ export namespace Prisma {
   export type $materialsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "materials"
     objects: {
+      document_lines: Prisma.$document_linesPayload<ExtArgs>[]
       project_materials: Prisma.$project_materialsPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -10198,6 +10339,7 @@ export namespace Prisma {
    */
   export interface Prisma__materialsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    document_lines<T extends materials$document_linesArgs<ExtArgs> = {}>(args?: Subset<T, materials$document_linesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     project_materials<T extends materials$project_materialsArgs<ExtArgs> = {}>(args?: Subset<T, materials$project_materialsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$project_materialsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -10625,6 +10767,30 @@ export namespace Prisma {
      * Limit how many materials to delete.
      */
     limit?: number
+  }
+
+  /**
+   * materials.document_lines
+   */
+  export type materials$document_linesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    where?: document_linesWhereInput
+    orderBy?: document_linesOrderByWithRelationInput | document_linesOrderByWithRelationInput[]
+    cursor?: document_linesWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: Document_linesScalarFieldEnum | Document_linesScalarFieldEnum[]
   }
 
   /**
@@ -28194,6 +28360,1278 @@ export namespace Prisma {
 
 
   /**
+   * Model document_lines
+   */
+
+  export type AggregateDocument_lines = {
+    _count: Document_linesCountAggregateOutputType | null
+    _avg: Document_linesAvgAggregateOutputType | null
+    _sum: Document_linesSumAggregateOutputType | null
+    _min: Document_linesMinAggregateOutputType | null
+    _max: Document_linesMaxAggregateOutputType | null
+  }
+
+  export type Document_linesAvgAggregateOutputType = {
+    id: number | null
+    document_id: number | null
+    material_id: number | null
+    quantity: Decimal | null
+    unit_price: Decimal | null
+    discount_percent: Decimal | null
+    discount_amount: Decimal | null
+    tax_rate: Decimal | null
+    total_ht: Decimal | null
+    sort_order: number | null
+  }
+
+  export type Document_linesSumAggregateOutputType = {
+    id: number | null
+    document_id: number | null
+    material_id: number | null
+    quantity: Decimal | null
+    unit_price: Decimal | null
+    discount_percent: Decimal | null
+    discount_amount: Decimal | null
+    tax_rate: Decimal | null
+    total_ht: Decimal | null
+    sort_order: number | null
+  }
+
+  export type Document_linesMinAggregateOutputType = {
+    id: number | null
+    document_id: number | null
+    material_id: number | null
+    description: string | null
+    quantity: Decimal | null
+    unit: string | null
+    unit_price: Decimal | null
+    discount_percent: Decimal | null
+    discount_amount: Decimal | null
+    tax_rate: Decimal | null
+    total_ht: Decimal | null
+    sort_order: number | null
+    created_at: Date | null
+    updated_at: Date | null
+  }
+
+  export type Document_linesMaxAggregateOutputType = {
+    id: number | null
+    document_id: number | null
+    material_id: number | null
+    description: string | null
+    quantity: Decimal | null
+    unit: string | null
+    unit_price: Decimal | null
+    discount_percent: Decimal | null
+    discount_amount: Decimal | null
+    tax_rate: Decimal | null
+    total_ht: Decimal | null
+    sort_order: number | null
+    created_at: Date | null
+    updated_at: Date | null
+  }
+
+  export type Document_linesCountAggregateOutputType = {
+    id: number
+    document_id: number
+    material_id: number
+    description: number
+    quantity: number
+    unit: number
+    unit_price: number
+    discount_percent: number
+    discount_amount: number
+    tax_rate: number
+    total_ht: number
+    sort_order: number
+    created_at: number
+    updated_at: number
+    _all: number
+  }
+
+
+  export type Document_linesAvgAggregateInputType = {
+    id?: true
+    document_id?: true
+    material_id?: true
+    quantity?: true
+    unit_price?: true
+    discount_percent?: true
+    discount_amount?: true
+    tax_rate?: true
+    total_ht?: true
+    sort_order?: true
+  }
+
+  export type Document_linesSumAggregateInputType = {
+    id?: true
+    document_id?: true
+    material_id?: true
+    quantity?: true
+    unit_price?: true
+    discount_percent?: true
+    discount_amount?: true
+    tax_rate?: true
+    total_ht?: true
+    sort_order?: true
+  }
+
+  export type Document_linesMinAggregateInputType = {
+    id?: true
+    document_id?: true
+    material_id?: true
+    description?: true
+    quantity?: true
+    unit?: true
+    unit_price?: true
+    discount_percent?: true
+    discount_amount?: true
+    tax_rate?: true
+    total_ht?: true
+    sort_order?: true
+    created_at?: true
+    updated_at?: true
+  }
+
+  export type Document_linesMaxAggregateInputType = {
+    id?: true
+    document_id?: true
+    material_id?: true
+    description?: true
+    quantity?: true
+    unit?: true
+    unit_price?: true
+    discount_percent?: true
+    discount_amount?: true
+    tax_rate?: true
+    total_ht?: true
+    sort_order?: true
+    created_at?: true
+    updated_at?: true
+  }
+
+  export type Document_linesCountAggregateInputType = {
+    id?: true
+    document_id?: true
+    material_id?: true
+    description?: true
+    quantity?: true
+    unit?: true
+    unit_price?: true
+    discount_percent?: true
+    discount_amount?: true
+    tax_rate?: true
+    total_ht?: true
+    sort_order?: true
+    created_at?: true
+    updated_at?: true
+    _all?: true
+  }
+
+  export type Document_linesAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which document_lines to aggregate.
+     */
+    where?: document_linesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of document_lines to fetch.
+     */
+    orderBy?: document_linesOrderByWithRelationInput | document_linesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: document_linesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` document_lines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` document_lines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned document_lines
+    **/
+    _count?: true | Document_linesCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: Document_linesAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: Document_linesSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: Document_linesMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: Document_linesMaxAggregateInputType
+  }
+
+  export type GetDocument_linesAggregateType<T extends Document_linesAggregateArgs> = {
+        [P in keyof T & keyof AggregateDocument_lines]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateDocument_lines[P]>
+      : GetScalarType<T[P], AggregateDocument_lines[P]>
+  }
+
+
+
+
+  export type document_linesGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: document_linesWhereInput
+    orderBy?: document_linesOrderByWithAggregationInput | document_linesOrderByWithAggregationInput[]
+    by: Document_linesScalarFieldEnum[] | Document_linesScalarFieldEnum
+    having?: document_linesScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: Document_linesCountAggregateInputType | true
+    _avg?: Document_linesAvgAggregateInputType
+    _sum?: Document_linesSumAggregateInputType
+    _min?: Document_linesMinAggregateInputType
+    _max?: Document_linesMaxAggregateInputType
+  }
+
+  export type Document_linesGroupByOutputType = {
+    id: number
+    document_id: number
+    material_id: number | null
+    description: string
+    quantity: Decimal
+    unit: string
+    unit_price: Decimal
+    discount_percent: Decimal | null
+    discount_amount: Decimal | null
+    tax_rate: Decimal | null
+    total_ht: Decimal | null
+    sort_order: number | null
+    created_at: Date | null
+    updated_at: Date | null
+    _count: Document_linesCountAggregateOutputType | null
+    _avg: Document_linesAvgAggregateOutputType | null
+    _sum: Document_linesSumAggregateOutputType | null
+    _min: Document_linesMinAggregateOutputType | null
+    _max: Document_linesMaxAggregateOutputType | null
+  }
+
+  type GetDocument_linesGroupByPayload<T extends document_linesGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<Document_linesGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof Document_linesGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], Document_linesGroupByOutputType[P]>
+            : GetScalarType<T[P], Document_linesGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type document_linesSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    document_id?: boolean
+    material_id?: boolean
+    description?: boolean
+    quantity?: boolean
+    unit?: boolean
+    unit_price?: boolean
+    discount_percent?: boolean
+    discount_amount?: boolean
+    tax_rate?: boolean
+    total_ht?: boolean
+    sort_order?: boolean
+    created_at?: boolean
+    updated_at?: boolean
+    documents?: boolean | documentsDefaultArgs<ExtArgs>
+    materials?: boolean | document_lines$materialsArgs<ExtArgs>
+  }, ExtArgs["result"]["document_lines"]>
+
+  export type document_linesSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    document_id?: boolean
+    material_id?: boolean
+    description?: boolean
+    quantity?: boolean
+    unit?: boolean
+    unit_price?: boolean
+    discount_percent?: boolean
+    discount_amount?: boolean
+    tax_rate?: boolean
+    total_ht?: boolean
+    sort_order?: boolean
+    created_at?: boolean
+    updated_at?: boolean
+    documents?: boolean | documentsDefaultArgs<ExtArgs>
+    materials?: boolean | document_lines$materialsArgs<ExtArgs>
+  }, ExtArgs["result"]["document_lines"]>
+
+  export type document_linesSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    document_id?: boolean
+    material_id?: boolean
+    description?: boolean
+    quantity?: boolean
+    unit?: boolean
+    unit_price?: boolean
+    discount_percent?: boolean
+    discount_amount?: boolean
+    tax_rate?: boolean
+    total_ht?: boolean
+    sort_order?: boolean
+    created_at?: boolean
+    updated_at?: boolean
+    documents?: boolean | documentsDefaultArgs<ExtArgs>
+    materials?: boolean | document_lines$materialsArgs<ExtArgs>
+  }, ExtArgs["result"]["document_lines"]>
+
+  export type document_linesSelectScalar = {
+    id?: boolean
+    document_id?: boolean
+    material_id?: boolean
+    description?: boolean
+    quantity?: boolean
+    unit?: boolean
+    unit_price?: boolean
+    discount_percent?: boolean
+    discount_amount?: boolean
+    tax_rate?: boolean
+    total_ht?: boolean
+    sort_order?: boolean
+    created_at?: boolean
+    updated_at?: boolean
+  }
+
+  export type document_linesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "document_id" | "material_id" | "description" | "quantity" | "unit" | "unit_price" | "discount_percent" | "discount_amount" | "tax_rate" | "total_ht" | "sort_order" | "created_at" | "updated_at", ExtArgs["result"]["document_lines"]>
+  export type document_linesInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    documents?: boolean | documentsDefaultArgs<ExtArgs>
+    materials?: boolean | document_lines$materialsArgs<ExtArgs>
+  }
+  export type document_linesIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    documents?: boolean | documentsDefaultArgs<ExtArgs>
+    materials?: boolean | document_lines$materialsArgs<ExtArgs>
+  }
+  export type document_linesIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    documents?: boolean | documentsDefaultArgs<ExtArgs>
+    materials?: boolean | document_lines$materialsArgs<ExtArgs>
+  }
+
+  export type $document_linesPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "document_lines"
+    objects: {
+      documents: Prisma.$documentsPayload<ExtArgs>
+      materials: Prisma.$materialsPayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      document_id: number
+      material_id: number | null
+      description: string
+      quantity: Prisma.Decimal
+      unit: string
+      unit_price: Prisma.Decimal
+      discount_percent: Prisma.Decimal | null
+      discount_amount: Prisma.Decimal | null
+      tax_rate: Prisma.Decimal | null
+      total_ht: Prisma.Decimal | null
+      sort_order: number | null
+      created_at: Date | null
+      updated_at: Date | null
+    }, ExtArgs["result"]["document_lines"]>
+    composites: {}
+  }
+
+  type document_linesGetPayload<S extends boolean | null | undefined | document_linesDefaultArgs> = $Result.GetResult<Prisma.$document_linesPayload, S>
+
+  type document_linesCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<document_linesFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: Document_linesCountAggregateInputType | true
+    }
+
+  export interface document_linesDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['document_lines'], meta: { name: 'document_lines' } }
+    /**
+     * Find zero or one Document_lines that matches the filter.
+     * @param {document_linesFindUniqueArgs} args - Arguments to find a Document_lines
+     * @example
+     * // Get one Document_lines
+     * const document_lines = await prisma.document_lines.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends document_linesFindUniqueArgs>(args: SelectSubset<T, document_linesFindUniqueArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Document_lines that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {document_linesFindUniqueOrThrowArgs} args - Arguments to find a Document_lines
+     * @example
+     * // Get one Document_lines
+     * const document_lines = await prisma.document_lines.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends document_linesFindUniqueOrThrowArgs>(args: SelectSubset<T, document_linesFindUniqueOrThrowArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Document_lines that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {document_linesFindFirstArgs} args - Arguments to find a Document_lines
+     * @example
+     * // Get one Document_lines
+     * const document_lines = await prisma.document_lines.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends document_linesFindFirstArgs>(args?: SelectSubset<T, document_linesFindFirstArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Document_lines that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {document_linesFindFirstOrThrowArgs} args - Arguments to find a Document_lines
+     * @example
+     * // Get one Document_lines
+     * const document_lines = await prisma.document_lines.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends document_linesFindFirstOrThrowArgs>(args?: SelectSubset<T, document_linesFindFirstOrThrowArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Document_lines that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {document_linesFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Document_lines
+     * const document_lines = await prisma.document_lines.findMany()
+     * 
+     * // Get first 10 Document_lines
+     * const document_lines = await prisma.document_lines.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const document_linesWithIdOnly = await prisma.document_lines.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends document_linesFindManyArgs>(args?: SelectSubset<T, document_linesFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Document_lines.
+     * @param {document_linesCreateArgs} args - Arguments to create a Document_lines.
+     * @example
+     * // Create one Document_lines
+     * const Document_lines = await prisma.document_lines.create({
+     *   data: {
+     *     // ... data to create a Document_lines
+     *   }
+     * })
+     * 
+     */
+    create<T extends document_linesCreateArgs>(args: SelectSubset<T, document_linesCreateArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Document_lines.
+     * @param {document_linesCreateManyArgs} args - Arguments to create many Document_lines.
+     * @example
+     * // Create many Document_lines
+     * const document_lines = await prisma.document_lines.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends document_linesCreateManyArgs>(args?: SelectSubset<T, document_linesCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Document_lines and returns the data saved in the database.
+     * @param {document_linesCreateManyAndReturnArgs} args - Arguments to create many Document_lines.
+     * @example
+     * // Create many Document_lines
+     * const document_lines = await prisma.document_lines.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Document_lines and only return the `id`
+     * const document_linesWithIdOnly = await prisma.document_lines.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends document_linesCreateManyAndReturnArgs>(args?: SelectSubset<T, document_linesCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Document_lines.
+     * @param {document_linesDeleteArgs} args - Arguments to delete one Document_lines.
+     * @example
+     * // Delete one Document_lines
+     * const Document_lines = await prisma.document_lines.delete({
+     *   where: {
+     *     // ... filter to delete one Document_lines
+     *   }
+     * })
+     * 
+     */
+    delete<T extends document_linesDeleteArgs>(args: SelectSubset<T, document_linesDeleteArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Document_lines.
+     * @param {document_linesUpdateArgs} args - Arguments to update one Document_lines.
+     * @example
+     * // Update one Document_lines
+     * const document_lines = await prisma.document_lines.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends document_linesUpdateArgs>(args: SelectSubset<T, document_linesUpdateArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Document_lines.
+     * @param {document_linesDeleteManyArgs} args - Arguments to filter Document_lines to delete.
+     * @example
+     * // Delete a few Document_lines
+     * const { count } = await prisma.document_lines.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends document_linesDeleteManyArgs>(args?: SelectSubset<T, document_linesDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Document_lines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {document_linesUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Document_lines
+     * const document_lines = await prisma.document_lines.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends document_linesUpdateManyArgs>(args: SelectSubset<T, document_linesUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Document_lines and returns the data updated in the database.
+     * @param {document_linesUpdateManyAndReturnArgs} args - Arguments to update many Document_lines.
+     * @example
+     * // Update many Document_lines
+     * const document_lines = await prisma.document_lines.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Document_lines and only return the `id`
+     * const document_linesWithIdOnly = await prisma.document_lines.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends document_linesUpdateManyAndReturnArgs>(args: SelectSubset<T, document_linesUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Document_lines.
+     * @param {document_linesUpsertArgs} args - Arguments to update or create a Document_lines.
+     * @example
+     * // Update or create a Document_lines
+     * const document_lines = await prisma.document_lines.upsert({
+     *   create: {
+     *     // ... data to create a Document_lines
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Document_lines we want to update
+     *   }
+     * })
+     */
+    upsert<T extends document_linesUpsertArgs>(args: SelectSubset<T, document_linesUpsertArgs<ExtArgs>>): Prisma__document_linesClient<$Result.GetResult<Prisma.$document_linesPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Document_lines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {document_linesCountArgs} args - Arguments to filter Document_lines to count.
+     * @example
+     * // Count the number of Document_lines
+     * const count = await prisma.document_lines.count({
+     *   where: {
+     *     // ... the filter for the Document_lines we want to count
+     *   }
+     * })
+    **/
+    count<T extends document_linesCountArgs>(
+      args?: Subset<T, document_linesCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], Document_linesCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Document_lines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {Document_linesAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends Document_linesAggregateArgs>(args: Subset<T, Document_linesAggregateArgs>): Prisma.PrismaPromise<GetDocument_linesAggregateType<T>>
+
+    /**
+     * Group by Document_lines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {document_linesGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends document_linesGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: document_linesGroupByArgs['orderBy'] }
+        : { orderBy?: document_linesGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, document_linesGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetDocument_linesGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the document_lines model
+   */
+  readonly fields: document_linesFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for document_lines.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__document_linesClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    documents<T extends documentsDefaultArgs<ExtArgs> = {}>(args?: Subset<T, documentsDefaultArgs<ExtArgs>>): Prisma__documentsClient<$Result.GetResult<Prisma.$documentsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    materials<T extends document_lines$materialsArgs<ExtArgs> = {}>(args?: Subset<T, document_lines$materialsArgs<ExtArgs>>): Prisma__materialsClient<$Result.GetResult<Prisma.$materialsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the document_lines model
+   */
+  interface document_linesFieldRefs {
+    readonly id: FieldRef<"document_lines", 'Int'>
+    readonly document_id: FieldRef<"document_lines", 'Int'>
+    readonly material_id: FieldRef<"document_lines", 'Int'>
+    readonly description: FieldRef<"document_lines", 'String'>
+    readonly quantity: FieldRef<"document_lines", 'Decimal'>
+    readonly unit: FieldRef<"document_lines", 'String'>
+    readonly unit_price: FieldRef<"document_lines", 'Decimal'>
+    readonly discount_percent: FieldRef<"document_lines", 'Decimal'>
+    readonly discount_amount: FieldRef<"document_lines", 'Decimal'>
+    readonly tax_rate: FieldRef<"document_lines", 'Decimal'>
+    readonly total_ht: FieldRef<"document_lines", 'Decimal'>
+    readonly sort_order: FieldRef<"document_lines", 'Int'>
+    readonly created_at: FieldRef<"document_lines", 'DateTime'>
+    readonly updated_at: FieldRef<"document_lines", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * document_lines findUnique
+   */
+  export type document_linesFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * Filter, which document_lines to fetch.
+     */
+    where: document_linesWhereUniqueInput
+  }
+
+  /**
+   * document_lines findUniqueOrThrow
+   */
+  export type document_linesFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * Filter, which document_lines to fetch.
+     */
+    where: document_linesWhereUniqueInput
+  }
+
+  /**
+   * document_lines findFirst
+   */
+  export type document_linesFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * Filter, which document_lines to fetch.
+     */
+    where?: document_linesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of document_lines to fetch.
+     */
+    orderBy?: document_linesOrderByWithRelationInput | document_linesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for document_lines.
+     */
+    cursor?: document_linesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` document_lines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` document_lines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of document_lines.
+     */
+    distinct?: Document_linesScalarFieldEnum | Document_linesScalarFieldEnum[]
+  }
+
+  /**
+   * document_lines findFirstOrThrow
+   */
+  export type document_linesFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * Filter, which document_lines to fetch.
+     */
+    where?: document_linesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of document_lines to fetch.
+     */
+    orderBy?: document_linesOrderByWithRelationInput | document_linesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for document_lines.
+     */
+    cursor?: document_linesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` document_lines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` document_lines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of document_lines.
+     */
+    distinct?: Document_linesScalarFieldEnum | Document_linesScalarFieldEnum[]
+  }
+
+  /**
+   * document_lines findMany
+   */
+  export type document_linesFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * Filter, which document_lines to fetch.
+     */
+    where?: document_linesWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of document_lines to fetch.
+     */
+    orderBy?: document_linesOrderByWithRelationInput | document_linesOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing document_lines.
+     */
+    cursor?: document_linesWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` document_lines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` document_lines.
+     */
+    skip?: number
+    distinct?: Document_linesScalarFieldEnum | Document_linesScalarFieldEnum[]
+  }
+
+  /**
+   * document_lines create
+   */
+  export type document_linesCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * The data needed to create a document_lines.
+     */
+    data: XOR<document_linesCreateInput, document_linesUncheckedCreateInput>
+  }
+
+  /**
+   * document_lines createMany
+   */
+  export type document_linesCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many document_lines.
+     */
+    data: document_linesCreateManyInput | document_linesCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * document_lines createManyAndReturn
+   */
+  export type document_linesCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * The data used to create many document_lines.
+     */
+    data: document_linesCreateManyInput | document_linesCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * document_lines update
+   */
+  export type document_linesUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * The data needed to update a document_lines.
+     */
+    data: XOR<document_linesUpdateInput, document_linesUncheckedUpdateInput>
+    /**
+     * Choose, which document_lines to update.
+     */
+    where: document_linesWhereUniqueInput
+  }
+
+  /**
+   * document_lines updateMany
+   */
+  export type document_linesUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update document_lines.
+     */
+    data: XOR<document_linesUpdateManyMutationInput, document_linesUncheckedUpdateManyInput>
+    /**
+     * Filter which document_lines to update
+     */
+    where?: document_linesWhereInput
+    /**
+     * Limit how many document_lines to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * document_lines updateManyAndReturn
+   */
+  export type document_linesUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * The data used to update document_lines.
+     */
+    data: XOR<document_linesUpdateManyMutationInput, document_linesUncheckedUpdateManyInput>
+    /**
+     * Filter which document_lines to update
+     */
+    where?: document_linesWhereInput
+    /**
+     * Limit how many document_lines to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * document_lines upsert
+   */
+  export type document_linesUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * The filter to search for the document_lines to update in case it exists.
+     */
+    where: document_linesWhereUniqueInput
+    /**
+     * In case the document_lines found by the `where` argument doesn't exist, create a new document_lines with this data.
+     */
+    create: XOR<document_linesCreateInput, document_linesUncheckedCreateInput>
+    /**
+     * In case the document_lines was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<document_linesUpdateInput, document_linesUncheckedUpdateInput>
+  }
+
+  /**
+   * document_lines delete
+   */
+  export type document_linesDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+    /**
+     * Filter which document_lines to delete.
+     */
+    where: document_linesWhereUniqueInput
+  }
+
+  /**
+   * document_lines deleteMany
+   */
+  export type document_linesDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which document_lines to delete
+     */
+    where?: document_linesWhereInput
+    /**
+     * Limit how many document_lines to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * document_lines.materials
+   */
+  export type document_lines$materialsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the materials
+     */
+    select?: materialsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the materials
+     */
+    omit?: materialsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: materialsInclude<ExtArgs> | null
+    where?: materialsWhereInput
+  }
+
+  /**
+   * document_lines without action
+   */
+  export type document_linesDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the document_lines
+     */
+    select?: document_linesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the document_lines
+     */
+    omit?: document_linesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: document_linesInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -28539,6 +29977,26 @@ export namespace Prisma {
   };
 
   export type Time_logsScalarFieldEnum = (typeof Time_logsScalarFieldEnum)[keyof typeof Time_logsScalarFieldEnum]
+
+
+  export const Document_linesScalarFieldEnum: {
+    id: 'id',
+    document_id: 'document_id',
+    material_id: 'material_id',
+    description: 'description',
+    quantity: 'quantity',
+    unit: 'unit',
+    unit_price: 'unit_price',
+    discount_percent: 'discount_percent',
+    discount_amount: 'discount_amount',
+    tax_rate: 'tax_rate',
+    total_ht: 'total_ht',
+    sort_order: 'sort_order',
+    created_at: 'created_at',
+    updated_at: 'updated_at'
+  };
+
+  export type Document_linesScalarFieldEnum = (typeof Document_linesScalarFieldEnum)[keyof typeof Document_linesScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -28981,6 +30439,7 @@ export namespace Prisma {
     file_path?: StringNullableFilter<"documents"> | string | null
     created_at?: DateTimeNullableFilter<"documents"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"documents"> | Date | string | null
+    document_lines?: Document_linesListRelationFilter
     document_tags?: Document_tagsListRelationFilter
     clients?: XOR<ClientsNullableScalarRelationFilter, clientsWhereInput> | null
     projects?: XOR<ProjectsScalarRelationFilter, projectsWhereInput>
@@ -29003,6 +30462,7 @@ export namespace Prisma {
     file_path?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
+    document_lines?: document_linesOrderByRelationAggregateInput
     document_tags?: document_tagsOrderByRelationAggregateInput
     clients?: clientsOrderByWithRelationInput
     projects?: projectsOrderByWithRelationInput
@@ -29028,6 +30488,7 @@ export namespace Prisma {
     file_path?: StringNullableFilter<"documents"> | string | null
     created_at?: DateTimeNullableFilter<"documents"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"documents"> | Date | string | null
+    document_lines?: Document_linesListRelationFilter
     document_tags?: Document_tagsListRelationFilter
     clients?: XOR<ClientsNullableScalarRelationFilter, clientsWhereInput> | null
     projects?: XOR<ProjectsScalarRelationFilter, projectsWhereInput>
@@ -29208,6 +30669,7 @@ export namespace Prisma {
     supplier_reference?: StringNullableFilter<"materials"> | string | null
     created_at?: DateTimeNullableFilter<"materials"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"materials"> | Date | string | null
+    document_lines?: Document_linesListRelationFilter
     project_materials?: Project_materialsListRelationFilter
   }
 
@@ -29224,6 +30686,7 @@ export namespace Prisma {
     supplier_reference?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
+    document_lines?: document_linesOrderByRelationAggregateInput
     project_materials?: project_materialsOrderByRelationAggregateInput
   }
 
@@ -29243,6 +30706,7 @@ export namespace Prisma {
     supplier_reference?: StringNullableFilter<"materials"> | string | null
     created_at?: DateTimeNullableFilter<"materials"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"materials"> | Date | string | null
+    document_lines?: Document_linesListRelationFilter
     project_materials?: Project_materialsListRelationFilter
   }, "id" | "reference">
 
@@ -30575,6 +32039,111 @@ export namespace Prisma {
     synced_by_device_id?: StringNullableWithAggregatesFilter<"time_logs"> | string | null
   }
 
+  export type document_linesWhereInput = {
+    AND?: document_linesWhereInput | document_linesWhereInput[]
+    OR?: document_linesWhereInput[]
+    NOT?: document_linesWhereInput | document_linesWhereInput[]
+    id?: IntFilter<"document_lines"> | number
+    document_id?: IntFilter<"document_lines"> | number
+    material_id?: IntNullableFilter<"document_lines"> | number | null
+    description?: StringFilter<"document_lines"> | string
+    quantity?: DecimalFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    unit?: StringFilter<"document_lines"> | string
+    unit_price?: DecimalFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    discount_percent?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    total_ht?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    sort_order?: IntNullableFilter<"document_lines"> | number | null
+    created_at?: DateTimeNullableFilter<"document_lines"> | Date | string | null
+    updated_at?: DateTimeNullableFilter<"document_lines"> | Date | string | null
+    documents?: XOR<DocumentsScalarRelationFilter, documentsWhereInput>
+    materials?: XOR<MaterialsNullableScalarRelationFilter, materialsWhereInput> | null
+  }
+
+  export type document_linesOrderByWithRelationInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrderInput | SortOrder
+    description?: SortOrder
+    quantity?: SortOrder
+    unit?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrderInput | SortOrder
+    discount_amount?: SortOrderInput | SortOrder
+    tax_rate?: SortOrderInput | SortOrder
+    total_ht?: SortOrderInput | SortOrder
+    sort_order?: SortOrderInput | SortOrder
+    created_at?: SortOrderInput | SortOrder
+    updated_at?: SortOrderInput | SortOrder
+    documents?: documentsOrderByWithRelationInput
+    materials?: materialsOrderByWithRelationInput
+  }
+
+  export type document_linesWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: document_linesWhereInput | document_linesWhereInput[]
+    OR?: document_linesWhereInput[]
+    NOT?: document_linesWhereInput | document_linesWhereInput[]
+    document_id?: IntFilter<"document_lines"> | number
+    material_id?: IntNullableFilter<"document_lines"> | number | null
+    description?: StringFilter<"document_lines"> | string
+    quantity?: DecimalFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    unit?: StringFilter<"document_lines"> | string
+    unit_price?: DecimalFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    discount_percent?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    total_ht?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    sort_order?: IntNullableFilter<"document_lines"> | number | null
+    created_at?: DateTimeNullableFilter<"document_lines"> | Date | string | null
+    updated_at?: DateTimeNullableFilter<"document_lines"> | Date | string | null
+    documents?: XOR<DocumentsScalarRelationFilter, documentsWhereInput>
+    materials?: XOR<MaterialsNullableScalarRelationFilter, materialsWhereInput> | null
+  }, "id">
+
+  export type document_linesOrderByWithAggregationInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrderInput | SortOrder
+    description?: SortOrder
+    quantity?: SortOrder
+    unit?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrderInput | SortOrder
+    discount_amount?: SortOrderInput | SortOrder
+    tax_rate?: SortOrderInput | SortOrder
+    total_ht?: SortOrderInput | SortOrder
+    sort_order?: SortOrderInput | SortOrder
+    created_at?: SortOrderInput | SortOrder
+    updated_at?: SortOrderInput | SortOrder
+    _count?: document_linesCountOrderByAggregateInput
+    _avg?: document_linesAvgOrderByAggregateInput
+    _max?: document_linesMaxOrderByAggregateInput
+    _min?: document_linesMinOrderByAggregateInput
+    _sum?: document_linesSumOrderByAggregateInput
+  }
+
+  export type document_linesScalarWhereWithAggregatesInput = {
+    AND?: document_linesScalarWhereWithAggregatesInput | document_linesScalarWhereWithAggregatesInput[]
+    OR?: document_linesScalarWhereWithAggregatesInput[]
+    NOT?: document_linesScalarWhereWithAggregatesInput | document_linesScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"document_lines"> | number
+    document_id?: IntWithAggregatesFilter<"document_lines"> | number
+    material_id?: IntNullableWithAggregatesFilter<"document_lines"> | number | null
+    description?: StringWithAggregatesFilter<"document_lines"> | string
+    quantity?: DecimalWithAggregatesFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    unit?: StringWithAggregatesFilter<"document_lines"> | string
+    unit_price?: DecimalWithAggregatesFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    discount_percent?: DecimalNullableWithAggregatesFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: DecimalNullableWithAggregatesFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: DecimalNullableWithAggregatesFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    total_ht?: DecimalNullableWithAggregatesFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    sort_order?: IntNullableWithAggregatesFilter<"document_lines"> | number | null
+    created_at?: DateTimeNullableWithAggregatesFilter<"document_lines"> | Date | string | null
+    updated_at?: DateTimeNullableWithAggregatesFilter<"document_lines"> | Date | string | null
+  }
+
   export type addressesCreateInput = {
     street_number?: string | null
     street_name: string
@@ -30863,6 +32432,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesCreateNestedManyWithoutDocumentsInput
     document_tags?: document_tagsCreateNestedManyWithoutDocumentsInput
     clients?: clientsCreateNestedOneWithoutDocumentsInput
     projects: projectsCreateNestedOneWithoutDocumentsInput
@@ -30885,6 +32455,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesUncheckedCreateNestedManyWithoutDocumentsInput
     document_tags?: document_tagsUncheckedCreateNestedManyWithoutDocumentsInput
   }
 
@@ -30902,6 +32473,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUpdateManyWithoutDocumentsNestedInput
     document_tags?: document_tagsUpdateManyWithoutDocumentsNestedInput
     clients?: clientsUpdateOneWithoutDocumentsNestedInput
     projects?: projectsUpdateOneRequiredWithoutDocumentsNestedInput
@@ -30924,6 +32496,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUncheckedUpdateManyWithoutDocumentsNestedInput
     document_tags?: document_tagsUncheckedUpdateManyWithoutDocumentsNestedInput
   }
 
@@ -31113,6 +32686,7 @@ export namespace Prisma {
     supplier_reference?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesCreateNestedManyWithoutMaterialsInput
     project_materials?: project_materialsCreateNestedManyWithoutMaterialsInput
   }
 
@@ -31129,6 +32703,7 @@ export namespace Prisma {
     supplier_reference?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesUncheckedCreateNestedManyWithoutMaterialsInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutMaterialsInput
   }
 
@@ -31144,6 +32719,7 @@ export namespace Prisma {
     supplier_reference?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUpdateManyWithoutMaterialsNestedInput
     project_materials?: project_materialsUpdateManyWithoutMaterialsNestedInput
   }
 
@@ -31160,6 +32736,7 @@ export namespace Prisma {
     supplier_reference?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUncheckedUpdateManyWithoutMaterialsNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutMaterialsNestedInput
   }
 
@@ -32550,6 +34127,120 @@ export namespace Prisma {
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
+  export type document_linesCreateInput = {
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    documents: documentsCreateNestedOneWithoutDocument_linesInput
+    materials?: materialsCreateNestedOneWithoutDocument_linesInput
+  }
+
+  export type document_linesUncheckedCreateInput = {
+    id?: number
+    document_id: number
+    material_id?: number | null
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type document_linesUpdateInput = {
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    documents?: documentsUpdateOneRequiredWithoutDocument_linesNestedInput
+    materials?: materialsUpdateOneWithoutDocument_linesNestedInput
+  }
+
+  export type document_linesUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    document_id?: IntFieldUpdateOperationsInput | number
+    material_id?: NullableIntFieldUpdateOperationsInput | number | null
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type document_linesCreateManyInput = {
+    id?: number
+    document_id: number
+    material_id?: number | null
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type document_linesUpdateManyMutationInput = {
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type document_linesUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    document_id?: IntFieldUpdateOperationsInput | number
+    material_id?: NullableIntFieldUpdateOperationsInput | number | null
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
   export type IntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -32965,6 +34656,12 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type Document_linesListRelationFilter = {
+    every?: document_linesWhereInput
+    some?: document_linesWhereInput
+    none?: document_linesWhereInput
+  }
+
   export type Document_tagsListRelationFilter = {
     every?: document_tagsWhereInput
     some?: document_tagsWhereInput
@@ -32979,6 +34676,10 @@ export namespace Prisma {
   export type ProjectsScalarRelationFilter = {
     is?: projectsWhereInput
     isNot?: projectsWhereInput
+  }
+
+  export type document_linesOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
   export type document_tagsOrderByRelationAggregateInput = {
@@ -34196,6 +35897,88 @@ export namespace Prisma {
     gps_long?: SortOrder
   }
 
+  export type MaterialsNullableScalarRelationFilter = {
+    is?: materialsWhereInput | null
+    isNot?: materialsWhereInput | null
+  }
+
+  export type document_linesCountOrderByAggregateInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrder
+    description?: SortOrder
+    quantity?: SortOrder
+    unit?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrder
+    discount_amount?: SortOrder
+    tax_rate?: SortOrder
+    total_ht?: SortOrder
+    sort_order?: SortOrder
+    created_at?: SortOrder
+    updated_at?: SortOrder
+  }
+
+  export type document_linesAvgOrderByAggregateInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrder
+    quantity?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrder
+    discount_amount?: SortOrder
+    tax_rate?: SortOrder
+    total_ht?: SortOrder
+    sort_order?: SortOrder
+  }
+
+  export type document_linesMaxOrderByAggregateInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrder
+    description?: SortOrder
+    quantity?: SortOrder
+    unit?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrder
+    discount_amount?: SortOrder
+    tax_rate?: SortOrder
+    total_ht?: SortOrder
+    sort_order?: SortOrder
+    created_at?: SortOrder
+    updated_at?: SortOrder
+  }
+
+  export type document_linesMinOrderByAggregateInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrder
+    description?: SortOrder
+    quantity?: SortOrder
+    unit?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrder
+    discount_amount?: SortOrder
+    tax_rate?: SortOrder
+    total_ht?: SortOrder
+    sort_order?: SortOrder
+    created_at?: SortOrder
+    updated_at?: SortOrder
+  }
+
+  export type document_linesSumOrderByAggregateInput = {
+    id?: SortOrder
+    document_id?: SortOrder
+    material_id?: SortOrder
+    quantity?: SortOrder
+    unit_price?: SortOrder
+    discount_percent?: SortOrder
+    discount_amount?: SortOrder
+    tax_rate?: SortOrder
+    total_ht?: SortOrder
+    sort_order?: SortOrder
+  }
+
   export type clientsCreateNestedManyWithoutAddressesInput = {
     create?: XOR<clientsCreateWithoutAddressesInput, clientsUncheckedCreateWithoutAddressesInput> | clientsCreateWithoutAddressesInput[] | clientsUncheckedCreateWithoutAddressesInput[]
     connectOrCreate?: clientsCreateOrConnectWithoutAddressesInput | clientsCreateOrConnectWithoutAddressesInput[]
@@ -34528,6 +36311,13 @@ export namespace Prisma {
     update?: XOR<XOR<tagsUpdateToOneWithWhereWithoutDocument_tagsInput, tagsUpdateWithoutDocument_tagsInput>, tagsUncheckedUpdateWithoutDocument_tagsInput>
   }
 
+  export type document_linesCreateNestedManyWithoutDocumentsInput = {
+    create?: XOR<document_linesCreateWithoutDocumentsInput, document_linesUncheckedCreateWithoutDocumentsInput> | document_linesCreateWithoutDocumentsInput[] | document_linesUncheckedCreateWithoutDocumentsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutDocumentsInput | document_linesCreateOrConnectWithoutDocumentsInput[]
+    createMany?: document_linesCreateManyDocumentsInputEnvelope
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+  }
+
   export type document_tagsCreateNestedManyWithoutDocumentsInput = {
     create?: XOR<document_tagsCreateWithoutDocumentsInput, document_tagsUncheckedCreateWithoutDocumentsInput> | document_tagsCreateWithoutDocumentsInput[] | document_tagsUncheckedCreateWithoutDocumentsInput[]
     connectOrCreate?: document_tagsCreateOrConnectWithoutDocumentsInput | document_tagsCreateOrConnectWithoutDocumentsInput[]
@@ -34547,6 +36337,13 @@ export namespace Prisma {
     connect?: projectsWhereUniqueInput
   }
 
+  export type document_linesUncheckedCreateNestedManyWithoutDocumentsInput = {
+    create?: XOR<document_linesCreateWithoutDocumentsInput, document_linesUncheckedCreateWithoutDocumentsInput> | document_linesCreateWithoutDocumentsInput[] | document_linesUncheckedCreateWithoutDocumentsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutDocumentsInput | document_linesCreateOrConnectWithoutDocumentsInput[]
+    createMany?: document_linesCreateManyDocumentsInputEnvelope
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+  }
+
   export type document_tagsUncheckedCreateNestedManyWithoutDocumentsInput = {
     create?: XOR<document_tagsCreateWithoutDocumentsInput, document_tagsUncheckedCreateWithoutDocumentsInput> | document_tagsCreateWithoutDocumentsInput[] | document_tagsUncheckedCreateWithoutDocumentsInput[]
     connectOrCreate?: document_tagsCreateOrConnectWithoutDocumentsInput | document_tagsCreateOrConnectWithoutDocumentsInput[]
@@ -34564,6 +36361,20 @@ export namespace Prisma {
 
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
+  }
+
+  export type document_linesUpdateManyWithoutDocumentsNestedInput = {
+    create?: XOR<document_linesCreateWithoutDocumentsInput, document_linesUncheckedCreateWithoutDocumentsInput> | document_linesCreateWithoutDocumentsInput[] | document_linesUncheckedCreateWithoutDocumentsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutDocumentsInput | document_linesCreateOrConnectWithoutDocumentsInput[]
+    upsert?: document_linesUpsertWithWhereUniqueWithoutDocumentsInput | document_linesUpsertWithWhereUniqueWithoutDocumentsInput[]
+    createMany?: document_linesCreateManyDocumentsInputEnvelope
+    set?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    disconnect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    delete?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    update?: document_linesUpdateWithWhereUniqueWithoutDocumentsInput | document_linesUpdateWithWhereUniqueWithoutDocumentsInput[]
+    updateMany?: document_linesUpdateManyWithWhereWithoutDocumentsInput | document_linesUpdateManyWithWhereWithoutDocumentsInput[]
+    deleteMany?: document_linesScalarWhereInput | document_linesScalarWhereInput[]
   }
 
   export type document_tagsUpdateManyWithoutDocumentsNestedInput = {
@@ -34596,6 +36407,20 @@ export namespace Prisma {
     upsert?: projectsUpsertWithoutDocumentsInput
     connect?: projectsWhereUniqueInput
     update?: XOR<XOR<projectsUpdateToOneWithWhereWithoutDocumentsInput, projectsUpdateWithoutDocumentsInput>, projectsUncheckedUpdateWithoutDocumentsInput>
+  }
+
+  export type document_linesUncheckedUpdateManyWithoutDocumentsNestedInput = {
+    create?: XOR<document_linesCreateWithoutDocumentsInput, document_linesUncheckedCreateWithoutDocumentsInput> | document_linesCreateWithoutDocumentsInput[] | document_linesUncheckedCreateWithoutDocumentsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutDocumentsInput | document_linesCreateOrConnectWithoutDocumentsInput[]
+    upsert?: document_linesUpsertWithWhereUniqueWithoutDocumentsInput | document_linesUpsertWithWhereUniqueWithoutDocumentsInput[]
+    createMany?: document_linesCreateManyDocumentsInputEnvelope
+    set?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    disconnect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    delete?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    update?: document_linesUpdateWithWhereUniqueWithoutDocumentsInput | document_linesUpdateWithWhereUniqueWithoutDocumentsInput[]
+    updateMany?: document_linesUpdateManyWithWhereWithoutDocumentsInput | document_linesUpdateManyWithWhereWithoutDocumentsInput[]
+    deleteMany?: document_linesScalarWhereInput | document_linesScalarWhereInput[]
   }
 
   export type document_tagsUncheckedUpdateManyWithoutDocumentsNestedInput = {
@@ -34668,6 +36493,13 @@ export namespace Prisma {
     update?: XOR<XOR<staffUpdateToOneWithWhereWithoutEventsInput, staffUpdateWithoutEventsInput>, staffUncheckedUpdateWithoutEventsInput>
   }
 
+  export type document_linesCreateNestedManyWithoutMaterialsInput = {
+    create?: XOR<document_linesCreateWithoutMaterialsInput, document_linesUncheckedCreateWithoutMaterialsInput> | document_linesCreateWithoutMaterialsInput[] | document_linesUncheckedCreateWithoutMaterialsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutMaterialsInput | document_linesCreateOrConnectWithoutMaterialsInput[]
+    createMany?: document_linesCreateManyMaterialsInputEnvelope
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+  }
+
   export type project_materialsCreateNestedManyWithoutMaterialsInput = {
     create?: XOR<project_materialsCreateWithoutMaterialsInput, project_materialsUncheckedCreateWithoutMaterialsInput> | project_materialsCreateWithoutMaterialsInput[] | project_materialsUncheckedCreateWithoutMaterialsInput[]
     connectOrCreate?: project_materialsCreateOrConnectWithoutMaterialsInput | project_materialsCreateOrConnectWithoutMaterialsInput[]
@@ -34675,11 +36507,32 @@ export namespace Prisma {
     connect?: project_materialsWhereUniqueInput | project_materialsWhereUniqueInput[]
   }
 
+  export type document_linesUncheckedCreateNestedManyWithoutMaterialsInput = {
+    create?: XOR<document_linesCreateWithoutMaterialsInput, document_linesUncheckedCreateWithoutMaterialsInput> | document_linesCreateWithoutMaterialsInput[] | document_linesUncheckedCreateWithoutMaterialsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutMaterialsInput | document_linesCreateOrConnectWithoutMaterialsInput[]
+    createMany?: document_linesCreateManyMaterialsInputEnvelope
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+  }
+
   export type project_materialsUncheckedCreateNestedManyWithoutMaterialsInput = {
     create?: XOR<project_materialsCreateWithoutMaterialsInput, project_materialsUncheckedCreateWithoutMaterialsInput> | project_materialsCreateWithoutMaterialsInput[] | project_materialsUncheckedCreateWithoutMaterialsInput[]
     connectOrCreate?: project_materialsCreateOrConnectWithoutMaterialsInput | project_materialsCreateOrConnectWithoutMaterialsInput[]
     createMany?: project_materialsCreateManyMaterialsInputEnvelope
     connect?: project_materialsWhereUniqueInput | project_materialsWhereUniqueInput[]
+  }
+
+  export type document_linesUpdateManyWithoutMaterialsNestedInput = {
+    create?: XOR<document_linesCreateWithoutMaterialsInput, document_linesUncheckedCreateWithoutMaterialsInput> | document_linesCreateWithoutMaterialsInput[] | document_linesUncheckedCreateWithoutMaterialsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutMaterialsInput | document_linesCreateOrConnectWithoutMaterialsInput[]
+    upsert?: document_linesUpsertWithWhereUniqueWithoutMaterialsInput | document_linesUpsertWithWhereUniqueWithoutMaterialsInput[]
+    createMany?: document_linesCreateManyMaterialsInputEnvelope
+    set?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    disconnect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    delete?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    update?: document_linesUpdateWithWhereUniqueWithoutMaterialsInput | document_linesUpdateWithWhereUniqueWithoutMaterialsInput[]
+    updateMany?: document_linesUpdateManyWithWhereWithoutMaterialsInput | document_linesUpdateManyWithWhereWithoutMaterialsInput[]
+    deleteMany?: document_linesScalarWhereInput | document_linesScalarWhereInput[]
   }
 
   export type project_materialsUpdateManyWithoutMaterialsNestedInput = {
@@ -34694,6 +36547,20 @@ export namespace Prisma {
     update?: project_materialsUpdateWithWhereUniqueWithoutMaterialsInput | project_materialsUpdateWithWhereUniqueWithoutMaterialsInput[]
     updateMany?: project_materialsUpdateManyWithWhereWithoutMaterialsInput | project_materialsUpdateManyWithWhereWithoutMaterialsInput[]
     deleteMany?: project_materialsScalarWhereInput | project_materialsScalarWhereInput[]
+  }
+
+  export type document_linesUncheckedUpdateManyWithoutMaterialsNestedInput = {
+    create?: XOR<document_linesCreateWithoutMaterialsInput, document_linesUncheckedCreateWithoutMaterialsInput> | document_linesCreateWithoutMaterialsInput[] | document_linesUncheckedCreateWithoutMaterialsInput[]
+    connectOrCreate?: document_linesCreateOrConnectWithoutMaterialsInput | document_linesCreateOrConnectWithoutMaterialsInput[]
+    upsert?: document_linesUpsertWithWhereUniqueWithoutMaterialsInput | document_linesUpsertWithWhereUniqueWithoutMaterialsInput[]
+    createMany?: document_linesCreateManyMaterialsInputEnvelope
+    set?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    disconnect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    delete?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    connect?: document_linesWhereUniqueInput | document_linesWhereUniqueInput[]
+    update?: document_linesUpdateWithWhereUniqueWithoutMaterialsInput | document_linesUpdateWithWhereUniqueWithoutMaterialsInput[]
+    updateMany?: document_linesUpdateManyWithWhereWithoutMaterialsInput | document_linesUpdateManyWithWhereWithoutMaterialsInput[]
+    deleteMany?: document_linesScalarWhereInput | document_linesScalarWhereInput[]
   }
 
   export type project_materialsUncheckedUpdateManyWithoutMaterialsNestedInput = {
@@ -36314,6 +38181,36 @@ export namespace Prisma {
     update?: XOR<XOR<project_stagesUpdateToOneWithWhereWithoutTime_logsInput, project_stagesUpdateWithoutTime_logsInput>, project_stagesUncheckedUpdateWithoutTime_logsInput>
   }
 
+  export type documentsCreateNestedOneWithoutDocument_linesInput = {
+    create?: XOR<documentsCreateWithoutDocument_linesInput, documentsUncheckedCreateWithoutDocument_linesInput>
+    connectOrCreate?: documentsCreateOrConnectWithoutDocument_linesInput
+    connect?: documentsWhereUniqueInput
+  }
+
+  export type materialsCreateNestedOneWithoutDocument_linesInput = {
+    create?: XOR<materialsCreateWithoutDocument_linesInput, materialsUncheckedCreateWithoutDocument_linesInput>
+    connectOrCreate?: materialsCreateOrConnectWithoutDocument_linesInput
+    connect?: materialsWhereUniqueInput
+  }
+
+  export type documentsUpdateOneRequiredWithoutDocument_linesNestedInput = {
+    create?: XOR<documentsCreateWithoutDocument_linesInput, documentsUncheckedCreateWithoutDocument_linesInput>
+    connectOrCreate?: documentsCreateOrConnectWithoutDocument_linesInput
+    upsert?: documentsUpsertWithoutDocument_linesInput
+    connect?: documentsWhereUniqueInput
+    update?: XOR<XOR<documentsUpdateToOneWithWhereWithoutDocument_linesInput, documentsUpdateWithoutDocument_linesInput>, documentsUncheckedUpdateWithoutDocument_linesInput>
+  }
+
+  export type materialsUpdateOneWithoutDocument_linesNestedInput = {
+    create?: XOR<materialsCreateWithoutDocument_linesInput, materialsUncheckedCreateWithoutDocument_linesInput>
+    connectOrCreate?: materialsCreateOrConnectWithoutDocument_linesInput
+    upsert?: materialsUpsertWithoutDocument_linesInput
+    disconnect?: materialsWhereInput | boolean
+    delete?: materialsWhereInput | boolean
+    connect?: materialsWhereUniqueInput
+    update?: XOR<XOR<materialsUpdateToOneWithWhereWithoutDocument_linesInput, materialsUpdateWithoutDocument_linesInput>, materialsUncheckedUpdateWithoutDocument_linesInput>
+  }
+
   export type NestedIntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -36953,6 +38850,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesCreateNestedManyWithoutDocumentsInput
     document_tags?: document_tagsCreateNestedManyWithoutDocumentsInput
     projects: projectsCreateNestedOneWithoutDocumentsInput
   }
@@ -36973,6 +38871,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesUncheckedCreateNestedManyWithoutDocumentsInput
     document_tags?: document_tagsUncheckedCreateNestedManyWithoutDocumentsInput
   }
 
@@ -37241,6 +39140,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesCreateNestedManyWithoutDocumentsInput
     clients?: clientsCreateNestedOneWithoutDocumentsInput
     projects: projectsCreateNestedOneWithoutDocumentsInput
   }
@@ -37262,6 +39162,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesUncheckedCreateNestedManyWithoutDocumentsInput
   }
 
   export type documentsCreateOrConnectWithoutDocument_tagsInput = {
@@ -37318,6 +39219,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUpdateManyWithoutDocumentsNestedInput
     clients?: clientsUpdateOneWithoutDocumentsNestedInput
     projects?: projectsUpdateOneRequiredWithoutDocumentsNestedInput
   }
@@ -37339,6 +39241,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUncheckedUpdateManyWithoutDocumentsNestedInput
   }
 
   export type tagsUpsertWithoutDocument_tagsInput = {
@@ -37369,6 +39272,47 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     project_tags?: project_tagsUncheckedUpdateManyWithoutTagsNestedInput
     stage_tags?: stage_tagsUncheckedUpdateManyWithoutTagsNestedInput
+  }
+
+  export type document_linesCreateWithoutDocumentsInput = {
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    materials?: materialsCreateNestedOneWithoutDocument_linesInput
+  }
+
+  export type document_linesUncheckedCreateWithoutDocumentsInput = {
+    id?: number
+    material_id?: number | null
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type document_linesCreateOrConnectWithoutDocumentsInput = {
+    where: document_linesWhereUniqueInput
+    create: XOR<document_linesCreateWithoutDocumentsInput, document_linesUncheckedCreateWithoutDocumentsInput>
+  }
+
+  export type document_linesCreateManyDocumentsInputEnvelope = {
+    data: document_linesCreateManyDocumentsInput | document_linesCreateManyDocumentsInput[]
+    skipDuplicates?: boolean
   }
 
   export type document_tagsCreateWithoutDocumentsInput = {
@@ -37491,6 +39435,42 @@ export namespace Prisma {
   export type projectsCreateOrConnectWithoutDocumentsInput = {
     where: projectsWhereUniqueInput
     create: XOR<projectsCreateWithoutDocumentsInput, projectsUncheckedCreateWithoutDocumentsInput>
+  }
+
+  export type document_linesUpsertWithWhereUniqueWithoutDocumentsInput = {
+    where: document_linesWhereUniqueInput
+    update: XOR<document_linesUpdateWithoutDocumentsInput, document_linesUncheckedUpdateWithoutDocumentsInput>
+    create: XOR<document_linesCreateWithoutDocumentsInput, document_linesUncheckedCreateWithoutDocumentsInput>
+  }
+
+  export type document_linesUpdateWithWhereUniqueWithoutDocumentsInput = {
+    where: document_linesWhereUniqueInput
+    data: XOR<document_linesUpdateWithoutDocumentsInput, document_linesUncheckedUpdateWithoutDocumentsInput>
+  }
+
+  export type document_linesUpdateManyWithWhereWithoutDocumentsInput = {
+    where: document_linesScalarWhereInput
+    data: XOR<document_linesUpdateManyMutationInput, document_linesUncheckedUpdateManyWithoutDocumentsInput>
+  }
+
+  export type document_linesScalarWhereInput = {
+    AND?: document_linesScalarWhereInput | document_linesScalarWhereInput[]
+    OR?: document_linesScalarWhereInput[]
+    NOT?: document_linesScalarWhereInput | document_linesScalarWhereInput[]
+    id?: IntFilter<"document_lines"> | number
+    document_id?: IntFilter<"document_lines"> | number
+    material_id?: IntNullableFilter<"document_lines"> | number | null
+    description?: StringFilter<"document_lines"> | string
+    quantity?: DecimalFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    unit?: StringFilter<"document_lines"> | string
+    unit_price?: DecimalFilter<"document_lines"> | Decimal | DecimalJsLike | number | string
+    discount_percent?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    total_ht?: DecimalNullableFilter<"document_lines"> | Decimal | DecimalJsLike | number | string | null
+    sort_order?: IntNullableFilter<"document_lines"> | number | null
+    created_at?: DateTimeNullableFilter<"document_lines"> | Date | string | null
+    updated_at?: DateTimeNullableFilter<"document_lines"> | Date | string | null
   }
 
   export type document_tagsUpsertWithWhereUniqueWithoutDocumentsInput = {
@@ -37936,6 +39916,47 @@ export namespace Prisma {
     time_logs?: time_logsUncheckedUpdateManyWithoutStaffNestedInput
   }
 
+  export type document_linesCreateWithoutMaterialsInput = {
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    documents: documentsCreateNestedOneWithoutDocument_linesInput
+  }
+
+  export type document_linesUncheckedCreateWithoutMaterialsInput = {
+    id?: number
+    document_id: number
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type document_linesCreateOrConnectWithoutMaterialsInput = {
+    where: document_linesWhereUniqueInput
+    create: XOR<document_linesCreateWithoutMaterialsInput, document_linesUncheckedCreateWithoutMaterialsInput>
+  }
+
+  export type document_linesCreateManyMaterialsInputEnvelope = {
+    data: document_linesCreateManyMaterialsInput | document_linesCreateManyMaterialsInput[]
+    skipDuplicates?: boolean
+  }
+
   export type project_materialsCreateWithoutMaterialsInput = {
     quantity_planned: number
     quantity_used?: number | null
@@ -37967,6 +39988,22 @@ export namespace Prisma {
   export type project_materialsCreateManyMaterialsInputEnvelope = {
     data: project_materialsCreateManyMaterialsInput | project_materialsCreateManyMaterialsInput[]
     skipDuplicates?: boolean
+  }
+
+  export type document_linesUpsertWithWhereUniqueWithoutMaterialsInput = {
+    where: document_linesWhereUniqueInput
+    update: XOR<document_linesUpdateWithoutMaterialsInput, document_linesUncheckedUpdateWithoutMaterialsInput>
+    create: XOR<document_linesCreateWithoutMaterialsInput, document_linesUncheckedCreateWithoutMaterialsInput>
+  }
+
+  export type document_linesUpdateWithWhereUniqueWithoutMaterialsInput = {
+    where: document_linesWhereUniqueInput
+    data: XOR<document_linesUpdateWithoutMaterialsInput, document_linesUncheckedUpdateWithoutMaterialsInput>
+  }
+
+  export type document_linesUpdateManyWithWhereWithoutMaterialsInput = {
+    where: document_linesScalarWhereInput
+    data: XOR<document_linesUpdateManyMutationInput, document_linesUncheckedUpdateManyWithoutMaterialsInput>
   }
 
   export type project_materialsUpsertWithWhereUniqueWithoutMaterialsInput = {
@@ -38013,6 +40050,7 @@ export namespace Prisma {
     supplier_reference?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesCreateNestedManyWithoutMaterialsInput
   }
 
   export type materialsUncheckedCreateWithoutProject_materialsInput = {
@@ -38028,6 +40066,7 @@ export namespace Prisma {
     supplier_reference?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesUncheckedCreateNestedManyWithoutMaterialsInput
   }
 
   export type materialsCreateOrConnectWithoutProject_materialsInput = {
@@ -38174,6 +40213,7 @@ export namespace Prisma {
     supplier_reference?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUpdateManyWithoutMaterialsNestedInput
   }
 
   export type materialsUncheckedUpdateWithoutProject_materialsInput = {
@@ -38189,6 +40229,7 @@ export namespace Prisma {
     supplier_reference?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUncheckedUpdateManyWithoutMaterialsNestedInput
   }
 
   export type projectsUpsertWithoutProject_materialsInput = {
@@ -39837,6 +41878,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesCreateNestedManyWithoutDocumentsInput
     document_tags?: document_tagsCreateNestedManyWithoutDocumentsInput
     clients?: clientsCreateNestedOneWithoutDocumentsInput
   }
@@ -39857,6 +41899,7 @@ export namespace Prisma {
     file_path?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    document_lines?: document_linesUncheckedCreateNestedManyWithoutDocumentsInput
     document_tags?: document_tagsUncheckedCreateNestedManyWithoutDocumentsInput
   }
 
@@ -42480,6 +44523,178 @@ export namespace Prisma {
     tasks?: tasksUncheckedUpdateManyWithoutProject_stagesNestedInput
   }
 
+  export type documentsCreateWithoutDocument_linesInput = {
+    type: $Enums.document_type
+    reference: string
+    status?: $Enums.document_status | null
+    amount?: Decimal | DecimalJsLike | number | string | null
+    tva_rate?: Decimal | DecimalJsLike | number | string | null
+    issue_date: Date | string
+    due_date?: Date | string | null
+    payment_date?: Date | string | null
+    payment_method?: string | null
+    notes?: string | null
+    file_path?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    document_tags?: document_tagsCreateNestedManyWithoutDocumentsInput
+    clients?: clientsCreateNestedOneWithoutDocumentsInput
+    projects: projectsCreateNestedOneWithoutDocumentsInput
+  }
+
+  export type documentsUncheckedCreateWithoutDocument_linesInput = {
+    id?: number
+    project_id: number
+    client_id?: number | null
+    type: $Enums.document_type
+    reference: string
+    status?: $Enums.document_status | null
+    amount?: Decimal | DecimalJsLike | number | string | null
+    tva_rate?: Decimal | DecimalJsLike | number | string | null
+    issue_date: Date | string
+    due_date?: Date | string | null
+    payment_date?: Date | string | null
+    payment_method?: string | null
+    notes?: string | null
+    file_path?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    document_tags?: document_tagsUncheckedCreateNestedManyWithoutDocumentsInput
+  }
+
+  export type documentsCreateOrConnectWithoutDocument_linesInput = {
+    where: documentsWhereUniqueInput
+    create: XOR<documentsCreateWithoutDocument_linesInput, documentsUncheckedCreateWithoutDocument_linesInput>
+  }
+
+  export type materialsCreateWithoutDocument_linesInput = {
+    name: string
+    description?: string | null
+    reference?: string | null
+    unit: string
+    price?: Decimal | DecimalJsLike | number | string | null
+    stock_quantity?: number | null
+    minimum_stock?: number | null
+    supplier?: string | null
+    supplier_reference?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    project_materials?: project_materialsCreateNestedManyWithoutMaterialsInput
+  }
+
+  export type materialsUncheckedCreateWithoutDocument_linesInput = {
+    id?: number
+    name: string
+    description?: string | null
+    reference?: string | null
+    unit: string
+    price?: Decimal | DecimalJsLike | number | string | null
+    stock_quantity?: number | null
+    minimum_stock?: number | null
+    supplier?: string | null
+    supplier_reference?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    project_materials?: project_materialsUncheckedCreateNestedManyWithoutMaterialsInput
+  }
+
+  export type materialsCreateOrConnectWithoutDocument_linesInput = {
+    where: materialsWhereUniqueInput
+    create: XOR<materialsCreateWithoutDocument_linesInput, materialsUncheckedCreateWithoutDocument_linesInput>
+  }
+
+  export type documentsUpsertWithoutDocument_linesInput = {
+    update: XOR<documentsUpdateWithoutDocument_linesInput, documentsUncheckedUpdateWithoutDocument_linesInput>
+    create: XOR<documentsCreateWithoutDocument_linesInput, documentsUncheckedCreateWithoutDocument_linesInput>
+    where?: documentsWhereInput
+  }
+
+  export type documentsUpdateToOneWithWhereWithoutDocument_linesInput = {
+    where?: documentsWhereInput
+    data: XOR<documentsUpdateWithoutDocument_linesInput, documentsUncheckedUpdateWithoutDocument_linesInput>
+  }
+
+  export type documentsUpdateWithoutDocument_linesInput = {
+    type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
+    reference?: StringFieldUpdateOperationsInput | string
+    status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
+    amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tva_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    issue_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    due_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    payment_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    payment_method?: NullableStringFieldUpdateOperationsInput | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    file_path?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_tags?: document_tagsUpdateManyWithoutDocumentsNestedInput
+    clients?: clientsUpdateOneWithoutDocumentsNestedInput
+    projects?: projectsUpdateOneRequiredWithoutDocumentsNestedInput
+  }
+
+  export type documentsUncheckedUpdateWithoutDocument_linesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    project_id?: IntFieldUpdateOperationsInput | number
+    client_id?: NullableIntFieldUpdateOperationsInput | number | null
+    type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
+    reference?: StringFieldUpdateOperationsInput | string
+    status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
+    amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tva_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    issue_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    due_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    payment_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    payment_method?: NullableStringFieldUpdateOperationsInput | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    file_path?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_tags?: document_tagsUncheckedUpdateManyWithoutDocumentsNestedInput
+  }
+
+  export type materialsUpsertWithoutDocument_linesInput = {
+    update: XOR<materialsUpdateWithoutDocument_linesInput, materialsUncheckedUpdateWithoutDocument_linesInput>
+    create: XOR<materialsCreateWithoutDocument_linesInput, materialsUncheckedCreateWithoutDocument_linesInput>
+    where?: materialsWhereInput
+  }
+
+  export type materialsUpdateToOneWithWhereWithoutDocument_linesInput = {
+    where?: materialsWhereInput
+    data: XOR<materialsUpdateWithoutDocument_linesInput, materialsUncheckedUpdateWithoutDocument_linesInput>
+  }
+
+  export type materialsUpdateWithoutDocument_linesInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    reference?: NullableStringFieldUpdateOperationsInput | string | null
+    unit?: StringFieldUpdateOperationsInput | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    stock_quantity?: NullableIntFieldUpdateOperationsInput | number | null
+    minimum_stock?: NullableIntFieldUpdateOperationsInput | number | null
+    supplier?: NullableStringFieldUpdateOperationsInput | string | null
+    supplier_reference?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    project_materials?: project_materialsUpdateManyWithoutMaterialsNestedInput
+  }
+
+  export type materialsUncheckedUpdateWithoutDocument_linesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    reference?: NullableStringFieldUpdateOperationsInput | string | null
+    unit?: StringFieldUpdateOperationsInput | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    stock_quantity?: NullableIntFieldUpdateOperationsInput | number | null
+    minimum_stock?: NullableIntFieldUpdateOperationsInput | number | null
+    supplier?: NullableStringFieldUpdateOperationsInput | string | null
+    supplier_reference?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    project_materials?: project_materialsUncheckedUpdateManyWithoutMaterialsNestedInput
+  }
+
   export type clientsCreateManyAddressesInput = {
     id?: number
     company_name?: string | null
@@ -42771,6 +44986,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUpdateManyWithoutDocumentsNestedInput
     document_tags?: document_tagsUpdateManyWithoutDocumentsNestedInput
     projects?: projectsUpdateOneRequiredWithoutDocumentsNestedInput
   }
@@ -42791,6 +45007,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUncheckedUpdateManyWithoutDocumentsNestedInput
     document_tags?: document_tagsUncheckedUpdateManyWithoutDocumentsNestedInput
   }
 
@@ -42936,11 +45153,74 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
+  export type document_linesCreateManyDocumentsInput = {
+    id?: number
+    material_id?: number | null
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
   export type document_tagsCreateManyDocumentsInput = {
     tag_id: number
     created_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+  }
+
+  export type document_linesUpdateWithoutDocumentsInput = {
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    materials?: materialsUpdateOneWithoutDocument_linesNestedInput
+  }
+
+  export type document_linesUncheckedUpdateWithoutDocumentsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    material_id?: NullableIntFieldUpdateOperationsInput | number | null
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type document_linesUncheckedUpdateManyWithoutDocumentsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    material_id?: NullableIntFieldUpdateOperationsInput | number | null
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type document_tagsUpdateWithoutDocumentsInput = {
@@ -42964,6 +45244,22 @@ export namespace Prisma {
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
+  export type document_linesCreateManyMaterialsInput = {
+    id?: number
+    document_id: number
+    description: string
+    quantity: Decimal | DecimalJsLike | number | string
+    unit: string
+    unit_price: Decimal | DecimalJsLike | number | string
+    discount_percent?: Decimal | DecimalJsLike | number | string | null
+    discount_amount?: Decimal | DecimalJsLike | number | string | null
+    tax_rate?: Decimal | DecimalJsLike | number | string | null
+    total_ht?: Decimal | DecimalJsLike | number | string | null
+    sort_order?: number | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
   export type project_materialsCreateManyMaterialsInput = {
     id?: number
     project_id: number
@@ -42974,6 +45270,53 @@ export namespace Prisma {
     notes?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+  }
+
+  export type document_linesUpdateWithoutMaterialsInput = {
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    documents?: documentsUpdateOneRequiredWithoutDocument_linesNestedInput
+  }
+
+  export type document_linesUncheckedUpdateWithoutMaterialsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    document_id?: IntFieldUpdateOperationsInput | number
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type document_linesUncheckedUpdateManyWithoutMaterialsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    document_id?: IntFieldUpdateOperationsInput | number
+    description?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unit?: StringFieldUpdateOperationsInput | string
+    unit_price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    discount_percent?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    discount_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    tax_rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    total_ht?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    sort_order?: NullableIntFieldUpdateOperationsInput | number | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type project_materialsUpdateWithoutMaterialsInput = {
@@ -43540,6 +45883,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUpdateManyWithoutDocumentsNestedInput
     document_tags?: document_tagsUpdateManyWithoutDocumentsNestedInput
     clients?: clientsUpdateOneWithoutDocumentsNestedInput
   }
@@ -43560,6 +45904,7 @@ export namespace Prisma {
     file_path?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    document_lines?: document_linesUncheckedUpdateManyWithoutDocumentsNestedInput
     document_tags?: document_tagsUncheckedUpdateManyWithoutDocumentsNestedInput
   }
 
