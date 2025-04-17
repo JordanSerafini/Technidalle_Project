@@ -106,6 +106,24 @@ export class DevisController {
     }
   }
 
+  @MessagePattern({ cmd: 'generate_devis_pdf' })
+  async generateDevisPdfForMicroservice(data: {
+    id: number;
+  }): Promise<{ pdfPath: string }> {
+    try {
+      const pdfPath = await this.devisService.generateDevisPdf(data.id);
+      return { pdfPath };
+    } catch (error) {
+      console.error(
+        `Erreur lors de la génération du PDF pour le devis ${data.id}:`,
+        error,
+      );
+      throw new Error(
+        `Erreur lors de la génération du PDF: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+      );
+    }
+  }
+
   @Get(':id/pdf')
   async generatePdf(
     @Param('id') id: number,

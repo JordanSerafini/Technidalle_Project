@@ -217,14 +217,14 @@ export class PdfGeneratorService {
     doc.fontSize(14).text('Détail des prestations', 50, 240);
     doc.moveDown(0.5);
 
-    // En-têtes du tableau
+    // En-têtes du tableau - Ajuster les positions pour donner plus d'espace aux colonnes
     const tableTop = 260;
     const itemCodeX = 50;
-    const descriptionX = 100;
-    const quantityX = 330;
-    const unitX = 380;
-    const priceX = 430;
-    const amountX = 490;
+    const descriptionX = 90; // Un peu réduit
+    const quantityX = 300; // Déplacé à gauche
+    const unitX = 350; // Déplacé à gauche
+    const priceX = 420; // Déplacé à gauche
+    const amountX = 490; // Conservé pour le montant
 
     // Style de l'en-tête
     doc.fontSize(10).font('Helvetica-Bold');
@@ -232,10 +232,10 @@ export class PdfGeneratorService {
     // En-têtes
     doc.text('Réf.', itemCodeX, tableTop);
     doc.text('Description', descriptionX, tableTop);
-    doc.text('Qté', quantityX, tableTop);
+    doc.text('Qté', quantityX, tableTop, { align: 'right' });
     doc.text('Unité', unitX, tableTop);
-    doc.text('Prix Unit.', priceX, tableTop);
-    doc.text('Montant HT', amountX, tableTop);
+    doc.text('Prix Unit.', priceX, tableTop, { align: 'right' });
+    doc.text('Montant HT', amountX, tableTop, { align: 'right' });
 
     // Ligne de séparation sous l'en-tête
     doc
@@ -261,10 +261,10 @@ export class PdfGeneratorService {
           doc.font('Helvetica-Bold');
           doc.text('Réf.', itemCodeX, y);
           doc.text('Description', descriptionX, y);
-          doc.text('Qté', quantityX, y);
+          doc.text('Qté', quantityX, y, { align: 'right' });
           doc.text('Unité', unitX, y);
-          doc.text('Prix Unit.', priceX, y);
-          doc.text('Montant HT', amountX, y);
+          doc.text('Prix Unit.', priceX, y, { align: 'right' });
+          doc.text('Montant HT', amountX, y, { align: 'right' });
 
           // Ligne de séparation sous l'en-tête
           doc
@@ -304,15 +304,11 @@ export class PdfGeneratorService {
         );
         doc.text(line.description, descriptionX, y, textOptions);
 
-        // Quantité, unité, prix unitaire, montant
+        // Quantité, unité, prix unitaire, montant - Ajuster l'alignement
         doc.text(line.quantity.toString(), quantityX, y, { align: 'right' });
         doc.text(line.unit, unitX, y);
-        doc.text(this.formatCurrency(unitPrice), priceX, y, {
-          align: 'right',
-        });
-        doc.text(this.formatCurrency(totalHt), amountX, y, {
-          align: 'right',
-        });
+        doc.text(this.formatCurrency(unitPrice), priceX, y, { align: 'right' });
+        doc.text(this.formatCurrency(totalHt), amountX, y, { align: 'right' });
 
         // Ajuster la position y pour la prochaine ligne
         y += Math.max(20, descriptionHeight + 5);
@@ -333,8 +329,9 @@ export class PdfGeneratorService {
    * Ajoute le total du devis
    */
   private addDevisTotal(doc: PDFKit.PDFDocument, devis: DevisWithLines): void {
-    const labelX = 400;
-    const valueX = 500;
+    // Positions pour la section des totaux - ajustées pour éviter les chevauchements
+    const labelX = 380; // Déplacé à gauche
+    const valueX = 530; // Déplacé à droite pour donner plus d'espace
     let y = doc.y;
 
     // Calculer le total HT (convertir Decimal en number si nécessaire)
@@ -350,34 +347,40 @@ export class PdfGeneratorService {
     // Style
     doc.font('Helvetica');
 
+    // Dessiner un fond pour la section des totaux
+    doc
+      .rect(350, y, 200, 80)
+      .fillOpacity(0.1)
+      .fillAndStroke('#F0F0F0', '#CCCCCC')
+      .fillOpacity(1);
+
     // Total HT
-    doc.text('Total HT:', labelX, y, { align: 'right' });
-    doc.text(this.formatCurrency(totalHT), valueX, y, { align: 'right' });
-    y += 20;
+    doc.text('Total HT:', labelX, y + 10, { align: 'right' });
+    doc.text(this.formatCurrency(totalHT), valueX, y + 10, { align: 'right' });
 
     // TVA
-    doc.text(`TVA (${tvaRate}%):`, labelX, y, { align: 'right' });
-    doc.text(this.formatCurrency(totalTVA), valueX, y, { align: 'right' });
-    y += 20;
+    doc.text(`TVA (${tvaRate}%):`, labelX, y + 30, { align: 'right' });
+    doc.text(this.formatCurrency(totalTVA), valueX, y + 30, { align: 'right' });
 
     // Total TTC en gras
     doc.font('Helvetica-Bold');
-    doc.text('Total TTC:', labelX, y, { align: 'right' });
-    doc.text(this.formatCurrency(totalTTC), valueX, y, { align: 'right' });
+    doc.text('Total TTC:', labelX, y + 50, { align: 'right' });
+    doc.text(this.formatCurrency(totalTTC), valueX, y + 50, { align: 'right' });
 
-    doc.moveDown(2);
+    // Ajuster la position verticale pour la suite
+    y += 90;
 
     // Conditions de paiement
     doc.font('Helvetica');
-    doc.fontSize(10).text('Conditions de paiement:', 50, y + 50);
+    doc.fontSize(10).text('Conditions de paiement:', 50, y);
     doc.text(
       `Devis valable 30 jours à compter de sa date d'émission.`,
       50,
-      y + 70,
+      y + 20,
     );
 
     if (devis.notes) {
-      doc.moveDown(1);
+      doc.moveDown(2);
       doc.text('Notes:', 50);
       doc.text(devis.notes, 50);
     }
