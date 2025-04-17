@@ -92,6 +92,10 @@ export class DevisController {
           name: `projet_${formattedDate}_client${createDevisDto.client_id}`,
           clientId: createDevisDto.client_id,
           startDate: today.toISOString(),
+          // Ajouter la relation clients pour connecter le client existant au projet
+          clients: {
+            connect: { id: createDevisDto.client_id },
+          },
         };
 
         // Appeler le service de projets pour créer le projet
@@ -132,6 +136,10 @@ export class DevisController {
           name: `projet_${formattedDate}_client${devisDto.client_id}`,
           clientId: devisDto.client_id,
           startDate: today.toISOString(),
+          // Ajouter la relation clients pour connecter le client existant au projet
+          clients: {
+            connect: { id: devisDto.client_id },
+          },
         };
 
         // Appeler le service de projets pour créer le projet
