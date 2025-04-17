@@ -18,10 +18,10 @@ interface AddressFormProps {
 
 export const AddressForm: React.FC<AddressFormProps> = ({ address, setAddress }) => {
   return (
-    <View className="mb-4">
-      <View className="flex-row items-center justify-center mb-2">
+    <View className="flex-1">
+      <View className="flex-row items-center mb-2">
         <Ionicons name="location-outline" size={20} color="#3b82f6" />
-        <Text className="text-lg font-semibold ml-2 text-center">Adresse</Text>
+        <Text className="text-lg font-semibold ml-2 text-center italic">Adresse</Text>
       </View>
       
       <View className="flex-row space-x-2">
