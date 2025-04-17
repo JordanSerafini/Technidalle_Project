@@ -14,6 +14,7 @@ import { url as urlConfig } from "@/app/utils/url";
 import { useClientsStore } from "@/app/store/clientsStore";
 import { useFetch } from "@/app/hooks/useFetch";
 import AddressForm from "./adresse.addClientModal";
+import ClientForm from "./formulaireClient";
 
 interface AddClientModalProps {
   visible: boolean;
@@ -190,13 +191,13 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
-        <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
+      <View className="absolute inset-0 flex-1 justify-center items-center z-50">
+        <View className="w-[90%] h-[95%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
           <View className="flex-1">
             {/* ----------------------------------------------------------------------------------------------------------------- Header */}
             <View className="flex-row items-center p-4 border-b border-gray-200 bg-blue-800">
               <View className="w-12" />
-              <Text className="text-lg font-bold text-white flex-1 text-center whitespace-nowrap mx-2">Nouveau client</Text>
+              <Text className="text-lg font-bold text-white flex-1 text-center whitespace-nowrap mx-2 tracking-wide">Nouveau client</Text>
               <TouchableOpacity
                 onPress={handleClose}
                 className="w-12 items-end"
@@ -205,93 +206,42 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1" contentContainerClassName="p-4">
+            <ScrollView className="flex-1" contentContainerClassName="p-4 flex-grow">
               {error && (
                 <View className="p-2.5 bg-red-50 rounded mb-4">
                   <Text className="text-red-600 text-sm">{error}</Text>
                 </View>
               )}
 
-              {/* ----------------------------------------------------------------------------------------------------------------- Formulaire client */}
-              <View className="mb-4">
-              <View className="flex flex-row gap-2 justify-center">
-                <Ionicons name="person" size={24} color="#3b82f6" />
-                <Text className="text-lg font-semibold mb-2">
-                  Informations client
-                </Text>
-              </View>
+              <View className="flex-1 justify-between">
+                {/* ----------------------------------------------------------------------------------------------------------------- Formulaire client */}
+                <ClientForm client={newClient} setClient={setNewClient} />
 
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-2 mb-2"
-                  placeholder="Nom de la société"
-                  value={newClient.company_name} //? company_name
-                  onChangeText={(text) =>
-                    setNewClient({ ...newClient, company_name: text })
-                  }
-                />
-
-                <View className="flex-row space-x-2">
-                  <TextInput
-                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
-                    placeholder="Prénom"
-                    value={newClient.firstname} //? firstname
-                    onChangeText={(text) =>
-                      setNewClient({ ...newClient, firstname: text })
-                    }
-                  />
-                  <TextInput
-                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
-                    placeholder="Nom"
-                    value={newClient.lastname} //? lastname
-                    onChangeText={(text) =>
-                      setNewClient({ ...newClient, lastname: text })
-                    }
-                  />
+                {/* -------------------------------------------------------------------------- Formulaire adresse */}
+                <View className="flex-1">
+                  <AddressForm address={address} setAddress={setAddress} />
                 </View>
 
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-2 mb-2"
-                  placeholder="Email"
-                  value={newClient.email} //? email
-                  onChangeText={(text) =>
-                    setNewClient({ ...newClient, email: text })
-                  }
-                  keyboardType="email-address"
-                />
+                <View className="flex-row justify-end space-x-2 mt-4">
+                  <TouchableOpacity
+                    className="bg-gray-200 px-4 py-2 rounded-lg"
+                    onPress={handleClose}
+                  >
+                    <Text>Annuler</Text>
+                  </TouchableOpacity>
 
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-2 mb-2"
-                  placeholder="Téléphone"
-                  value={newClient.phone} //? phone
-                  onChangeText={(text) =>
-                    setNewClient({ ...newClient, phone: text })
-                  }
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              {/* Formulaire adresse */}
-              <AddressForm address={address} setAddress={setAddress} />
-
-              <View className="flex-row justify-end space-x-2">
-                <TouchableOpacity
-                  className="bg-gray-200 px-4 py-2 rounded-lg"
-                  onPress={handleClose}
-                >
-                  <Text>Annuler</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="bg-blue-500 px-4 py-2 rounded-lg"
-                  onPress={handleCreateClient}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text className="text-white">Créer</Text>
-                  )}
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    className="bg-blue-500 px-4 py-2 rounded-lg"
+                    onPress={handleCreateClient}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Text className="text-white">Créer</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </ScrollView>
           </View>
