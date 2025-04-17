@@ -64,13 +64,25 @@ export class DevisService {
       // Traiter tx comme un ExtendedPrismaClient
       const txExtended = tx as unknown as ExtendedPrismaClient;
 
+      // Générer une référence automatique si non fournie ou vide
+      let reference = devisDto.reference;
+      if (!reference || reference.trim() === '') {
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+        const randomStr = Math.random()
+          .toString(36)
+          .substring(2, 7)
+          .toUpperCase();
+        reference = `DEV-${dateStr}-${randomStr}`;
+      }
+
       // Créer d'abord le document de devis
       const devis = await txExtended.documents.create({
         data: {
           project_id: devisDto.project_id,
           client_id: devisDto.client_id,
           type: 'devis',
-          reference: devisDto.reference,
+          reference: reference,
           status: devisDto.status || 'brouillon',
           amount: devisDto.amount || 0,
           tva_rate: devisDto.tva_rate || 20.0,
@@ -317,12 +329,19 @@ export class DevisService {
           return null;
         }
 
+        // Utiliser la référence existante si non fournie
+        const reference =
+          !devisDto.reference || devisDto.reference.trim() === ''
+            ? existingDevis.reference
+            : devisDto.reference;
+
         // Mettre à jour le document de devis
         const devis = await txExtended.documents.update({
           where: { id: Number(id) },
           data: {
             project_id: devisDto.project_id,
             client_id: devisDto.client_id,
+            reference: reference,
             status: devisDto.status,
             amount: devisDto.amount,
             tva_rate: devisDto.tva_rate,
