@@ -13,6 +13,8 @@ import { Client } from '@/app/utils/interfaces/client.interface';
 import { url as urlConfig } from '@/app/utils/url';
 import { useClientsStore } from '@/app/store/clientsStore';
 import { useFetch } from '@/app/hooks/useFetch';
+import AddressForm from './adresse.addClientModal';
+
 
 interface AddClientModalProps {
   visible: boolean;
@@ -26,29 +28,29 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   onSuccess
 }) => {
   const [newClient, setNewClient] = useState<Partial<Client>>({
-    firstname: '',
-    lastname: '',
-    email: '',
-    phone: '',
-    company_name: ''
+    firstname: 'test',
+    lastname: 'test',
+    email: 'test@test.com',
+    phone: '06 06 06 06 06',
+    company_name: 'test'
   });
 
   const [address, setAddress] = useState({
-    street_number: '',
-    street_name: '',
+    street_number: '1',
+    street_name: 'rue de la paix',
     additional_address: '',
-    zip_code: '',
-    city: '',
+    zip_code: '75000',
+    city: 'Paris',
     country: 'France'
   });
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // Récupération des clients du store
+  //* ----------------------------------------------------------------------------------------------------------------- Récupération des clients du store
   const { clients, setClients } = useClientsStore();
   
-  // Hook useFetch pour la création du client
+  //* ----------------------------------------------------------------------------------------------------------------- Hook useFetch pour la création du client
   const { data: createdClient, error: fetchError, loading: fetchLoading } = useFetch<Client>(
     null,
     {
@@ -60,15 +62,15 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     }
   );
 
-  // Valider le formulaire client
+  //* ----------------------------------------------------------------------------------------------------------------- Valider le formulaire client
   const validateClientForm = () => {
-    // Vérifier qu'au moins un nom est fourni (company_name ou firstname/lastname)
+    //* --------------------------------------------------------------------------------------------------------------- Vérifier qu'au moins un nom est fourni (company_name ou firstname/lastname)
     if (!newClient.company_name?.trim() && (!newClient.firstname?.trim() || !newClient.lastname?.trim())) {
       setError("Veuillez renseigner soit le nom de la société, soit le prénom et le nom du client");
       return false;
     }
 
-    // Validation du format de l'email si fourni
+    //* --------------------------------------------------------------------------------------------------------------- Validation du format de l'email si fourni
     if (newClient.email?.trim()) {
       const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(newClient.email)) {
@@ -77,7 +79,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       }
     }
 
-    // Validation de l'adresse si tous les champs sont remplis
+    //* ----------------------------------------------------------------------------------------------------------------- Validation de l'adresse si tous les champs sont remplis
     if (address.street_number?.trim() || address.street_name?.trim() || 
         address.zip_code?.trim() || address.city?.trim()) {
       if (!address.street_number?.trim()) {
@@ -101,7 +103,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     return true;
   };
   
-  // Créer un nouveau client
+  //* ----------------------------------------------------------------------------------------------------------------- Créer un nouveau client
   const handleCreateClient = async () => {
     if (!validateClientForm()) return;
     
@@ -141,7 +143,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     }
   };
   
-  // Réinitialiser le formulaire
+  //* ----------------------------------------------------------------------------------------------------------------- Réinitialiser le formulaire
   const resetForm = () => {
     setNewClient({
       firstname: '',
@@ -161,7 +163,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     setError(null);
   };
   
-  // Fermer la modale et réinitialiser le formulaire
+  //* ----------------------------------------------------------------------------------------------------------------- Fermer la modale et réinitialiser le formulaire
   const handleClose = () => {
     resetForm();
     onClose();
@@ -177,8 +179,9 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
         <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
           <View className="flex-1">
-            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-              <Text className="text-xl font-bold text-gray-800">Nouveau client</Text>
+            {/* ----------------------------------------------------------------------------------------------------------------- Header */}
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200 bg-blue-800">
+              <Text className="text-xl font-bold text-white">Nouveau client</Text>
               <TouchableOpacity onPress={handleClose} className="p-1">
                 <Ionicons name="close" size={24} color="#000" />
               </TouchableOpacity>
@@ -191,7 +194,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                 </View>
               )}
 
-              {/* Formulaire client */}
+              {/* ----------------------------------------------------------------------------------------------------------------- Formulaire client */}
               <View className="mb-4">
                 <Text className="text-lg font-semibold mb-2">Informations client</Text>
                 
@@ -235,54 +238,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
               </View>
 
               {/* Formulaire adresse */}
-              <View className="mb-4">
-                <Text className="text-lg font-semibold mb-2">Adresse</Text>
-                
-                <View className="flex-row space-x-2">
-                  <TextInput
-                    className="w-1/4 border border-gray-300 rounded-lg p-2 mb-2"
-                    placeholder="N°"
-                    value={address.street_number}
-                    onChangeText={(text) => setAddress({...address, street_number: text})}
-                  />
-                  <TextInput
-                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
-                    placeholder="Rue"
-                    value={address.street_name}
-                    onChangeText={(text) => setAddress({...address, street_name: text})}
-                  />
-                </View>
-                
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-2 mb-2"
-                  placeholder="Complément d'adresse"
-                  value={address.additional_address}
-                  onChangeText={(text) => setAddress({...address, additional_address: text})}
-                />
-                
-                <View className="flex-row space-x-2">
-                  <TextInput
-                    className="w-1/3 border border-gray-300 rounded-lg p-2 mb-2"
-                    placeholder="Code postal"
-                    value={address.zip_code}
-                    onChangeText={(text) => setAddress({...address, zip_code: text})}
-                    keyboardType="number-pad"
-                  />
-                  <TextInput
-                    className="flex-1 border border-gray-300 rounded-lg p-2 mb-2"
-                    placeholder="Ville"
-                    value={address.city}
-                    onChangeText={(text) => setAddress({...address, city: text})}
-                  />
-                </View>
-                
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-2 mb-2"
-                  placeholder="Pays"
-                  value={address.country}
-                  onChangeText={(text) => setAddress({...address, country: text})}
-                />
-              </View>
+              <AddressForm address={address} setAddress={setAddress} />
 
               <View className="flex-row justify-end space-x-2">
                 <TouchableOpacity 
