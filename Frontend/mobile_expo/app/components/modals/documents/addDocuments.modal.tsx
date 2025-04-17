@@ -318,6 +318,24 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       setError("Veuillez saisir une référence pour le devis");
       return false;
     }
+
+    // Validation supplémentaire pour le taux de TVA
+    if (isNaN(parseFloat(tvaRate)) || parseFloat(tvaRate) < 0) {
+      setError("Le taux de TVA doit être un nombre positif valide");
+      return false;
+    }
+
+    // Validation des lignes du devis
+    for (const row of extendedRows) {
+      if (row.quantity <= 0) {
+        setError("Les quantités doivent être positives");
+        return false;
+      }
+      if (row.price < 0) {
+        setError("Les prix ne peuvent pas être négatifs");
+        return false;
+      }
+    }
     
     return true;
   };
@@ -351,13 +369,13 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         // Créer le DTO pour le devis
         const devisData: CreateDevisDto = {
           project_id: projectId,
-          client_id: selectedClient.id || 0, // Assurer que client_id est un nombre
+          client_id: selectedClient.id || 0, 
           reference: reference,
           status: status,
           amount: calculateTotal(),
           tva_rate: parseFloat(tvaRate),
-          issue_date: new Date(issueDate),
-          due_date: dueDate ? new Date(dueDate) : undefined,
+          issue_date: issueDate,
+          due_date: dueDate || undefined,
           notes: notes,
           file_path: filePath,
           lines: devisLines
@@ -384,12 +402,12 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
           status,
           amount: calculateTotal(),
           tva_rate: parseFloat(tvaRate),
-          issue_date: issueDate.toISOString(),
-          due_date: dueDate?.toISOString() || null,
+          issue_date: issueDate,
+          due_date: dueDate || null,
           notes,
           file_path: filePath,
           materials: extendedRows.map(row => ({
-            material_id: row.material?.id,
+            material_id: row.material?.id || null,
             quantity: row.quantity,
             price: row.price
           }))
