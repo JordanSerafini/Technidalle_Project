@@ -6,6 +6,9 @@ export enum DocumentType {
   FICHE_TECHNIQUE = 'fiche_technique',
   PHOTO_CHANTIER = 'photo_chantier',
   PLAN = 'plan',
+  AVOIR = 'avoir',
+  ACOMPTE = 'acompte',
+  SITUATION = 'situation',
   AUTRE = 'autre',
 }
 

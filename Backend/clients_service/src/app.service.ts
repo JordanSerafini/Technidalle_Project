@@ -473,36 +473,74 @@ export class AppService {
         `Tentative de création d'un client avec adresse: ${JSON.stringify(clientWithAddressDto)}`,
       );
 
+      // Log détaillé pour débogage
+      this.logger.log(`Données d'adresse reçues: ${JSON.stringify(address)}`);
+
+      // Vérifier si l'adresse contient un ID explicite
+      if ('id' in address) {
+        this.logger.warn(
+          `L'adresse contient un ID explicite: ${(address as any).id}`,
+        );
+      }
+
       return await this.prisma.$transaction(async (tx) => {
-        // Créer l'adresse
-        this.logger.log(`Création de l'adresse: ${JSON.stringify(address)}`);
-        const newAddress = await tx.addresses.create({
-          data: address,
-        });
-        this.logger.log(`Adresse créée avec l'ID: ${newAddress.id}`);
+        try {
+          // Créer l'adresse en spécifiant uniquement les champs autorisés
+          const addressData = {
+            street_number: address.street_number,
+            street_name: address.street_name,
+            additional_address: address.additional_address,
+            zip_code: address.zip_code,
+            city: address.city,
+            country: address.country || 'France',
+          };
 
-        // Créer le client avec l'ID de l'adresse
-        const clientDataWithAddress = {
-          ...clientData,
-          firstname: clientData.firstname || '',
-          lastname: clientData.lastname || '',
-          address_id: newAddress.id,
-        };
-        this.logger.log(
-          `Création du client avec les données: ${JSON.stringify(clientDataWithAddress)}`,
-        );
+          this.logger.log(
+            `Création de l'adresse: ${JSON.stringify(addressData)}`,
+          );
 
-        const newClient = await tx.clients.create({
-          data: clientDataWithAddress,
-          include: {
-            addresses: true,
-          },
-        });
-        this.logger.log(
-          `Client créé avec succès: ${JSON.stringify(newClient)}`,
-        );
+          // Tentative de création de l'adresse
+          let newAddress;
+          try {
+            newAddress = await tx.addresses.create({
+              data: addressData,
+            });
+            this.logger.log(`Adresse créée avec l'ID: ${newAddress.id}`);
+          } catch (addressError) {
+            this.logger.error(
+              `Erreur lors de la création de l'adresse: ${JSON.stringify(addressError)}`,
+            );
+            throw addressError;
+          }
 
-        return newClient as unknown as Client;
+          // Créer le client avec l'ID de l'adresse
+          const clientDataWithAddress = {
+            ...clientData,
+            firstname: clientData.firstname || '',
+            lastname: clientData.lastname || '',
+            address_id: newAddress.id,
+          };
+          this.logger.log(
+            `Création du client avec les données: ${JSON.stringify(clientDataWithAddress)}`,
+          );
+
+          const newClient = await tx.clients.create({
+            data: clientDataWithAddress,
+            include: {
+              addresses: true,
+            },
+          });
+          this.logger.log(
+            `Client créé avec succès: ${JSON.stringify(newClient)}`,
+          );
+
+          return newClient as unknown as Client;
+        } catch (txError) {
+          this.logger.error(
+            `Erreur de transaction: ${JSON.stringify(txError)}`,
+          );
+          throw txError;
+        }
       });
     } catch (error) {
       this.logger.error(

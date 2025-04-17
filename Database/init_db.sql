@@ -215,6 +215,44 @@ CREATE TABLE IF NOT EXISTS documents (
     CONSTRAINT fk_document_delivery_address FOREIGN KEY (delivery_address_id) REFERENCES addresses(id) ON DELETE SET NULL
 );
 
+-- Table des matériaux
+CREATE TABLE IF NOT EXISTS materials (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    reference VARCHAR(50) UNIQUE,
+    unit VARCHAR(50) NOT NULL,
+    price DECIMAL(10,2) CHECK (price >= 0),
+    stock_quantity INT DEFAULT 0 CHECK (stock_quantity >= 0),
+    minimum_stock INT DEFAULT 0 CHECK (minimum_stock >= 0),
+    supplier VARCHAR(255),
+    supplier_reference VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table des lignes de documents (devis, factures, etc.)
+CREATE TABLE IF NOT EXISTS document_lines (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER NOT NULL,
+    material_id INTEGER,
+    description TEXT NOT NULL,
+    quantity DECIMAL(10,3) NOT NULL CHECK (quantity > 0),
+    unit VARCHAR(50) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
+    discount_percent DECIMAL(5,2) DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100),
+    discount_amount DECIMAL(10,2) DEFAULT 0 CHECK (discount_amount >= 0),
+    tax_rate DECIMAL(5,2) DEFAULT 20.00 CHECK (tax_rate >= 0),
+    total_ht DECIMAL(12,2) GENERATED ALWAYS AS (
+        quantity * unit_price * (1 - discount_percent/100) - discount_amount
+    ) STORED,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_document_line_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+    CONSTRAINT fk_document_line_material FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE RESTRICT
+);
+
 -- Table des étapes du projet
 CREATE TABLE IF NOT EXISTS project_stages (
     id SERIAL PRIMARY KEY,
@@ -237,21 +275,7 @@ CREATE TABLE IF NOT EXISTS project_stages (
     synced_by_device_id VARCHAR(100)
 );
 
--- Table des matériaux
-CREATE TABLE IF NOT EXISTS materials (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    reference VARCHAR(50) UNIQUE,
-    unit VARCHAR(50) NOT NULL,
-    price DECIMAL(10,2) CHECK (price >= 0),
-    stock_quantity INT DEFAULT 0 CHECK (stock_quantity >= 0),
-    minimum_stock INT DEFAULT 0 CHECK (minimum_stock >= 0),
-    supplier VARCHAR(255),
-    supplier_reference VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+
 
 -- Table de liaison projet-matériaux
 CREATE TABLE IF NOT EXISTS project_materials (
@@ -579,6 +603,9 @@ CREATE TRIGGER update_projects_timestamp BEFORE UPDATE ON projects
 CREATE TRIGGER update_documents_timestamp BEFORE UPDATE ON documents
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
+CREATE TRIGGER update_document_lines_timestamp BEFORE UPDATE ON document_lines
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
 CREATE TRIGGER update_project_stages_timestamp BEFORE UPDATE ON project_stages
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
@@ -640,6 +667,8 @@ CREATE INDEX idx_projects_dates ON projects(start_date, end_date);
 CREATE INDEX idx_documents_project ON documents(project_id);
 CREATE INDEX idx_documents_type ON documents(type);
 CREATE INDEX idx_documents_status ON documents(status);
+CREATE INDEX idx_document_lines_document ON document_lines(document_id);
+CREATE INDEX idx_document_lines_material ON document_lines(material_id);
 CREATE INDEX idx_project_stages_project ON project_stages(project_id);
 CREATE INDEX idx_project_materials_project ON project_materials(project_id);
 CREATE INDEX idx_project_materials_material ON project_materials(material_id);
@@ -698,6 +727,7 @@ ON CONFLICT (name) DO NOTHING;
 -- Commentaires sur les tables
 COMMENT ON TABLE projects IS 'Table principale des projets/chantiers';
 COMMENT ON TABLE documents IS 'Documents associés aux projets (devis, factures, etc.)';
+COMMENT ON TABLE document_lines IS 'Lignes détaillées des documents (devis, factures, etc.)';
 COMMENT ON TABLE project_stages IS 'Étapes de réalisation des projets';
 COMMENT ON TABLE materials IS 'Catalogue des matériaux';
 COMMENT ON TABLE project_materials IS 'Utilisation des matériaux dans les projets';

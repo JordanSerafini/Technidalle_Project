@@ -134,21 +134,26 @@ const DocumentsFAB: React.FC<DocumentsFABProps> = ({
     return unsubscribe;
   }, []);
 
+  // Fonction pour fermer le FAB
+  const closeFab = () => {
+    if (isExpanded.value || expanded) {
+      isExpanded.value = false;
+      setExpanded(false);
+    }
+  };
+
   // Fermer le FAB lors d'un changement de route/page
   useEffect(() => {
-    const closeFab = () => {
-      if (isExpanded.value || expanded) {
-        isExpanded.value = false;
-        setExpanded(false);
-      }
-    };
-
     // S'abonner aux événements de navigation
     const unsubscribe = navigation.addListener('beforeRemove', closeFab);
+    const focusListener = navigation.addListener('focus', closeFab);
+    const blurListener = navigation.addListener('blur', closeFab);
     const stateListener = navigation.addListener('state', closeFab);
 
     return () => {
       unsubscribe();
+      focusListener();
+      blurListener();
       stateListener();
     };
   }, [navigation, isExpanded, expanded]);
@@ -171,9 +176,11 @@ const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 
   // Exécuter une action et fermer le FAB
   const handleAction = (callback: () => void) => {
+    // Fermer immédiatement le FAB
     isExpanded.value = false;
     setExpanded(false);
     
+    // Attendre que l'animation se termine avant d'exécuter l'action
     setTimeout(() => {
       callback();
     }, 100);
