@@ -35,4 +35,4 @@ export interface UpdateClientDto {
   address_id?: number;
   siret?: string;
   notes?: string;
-} 
+}

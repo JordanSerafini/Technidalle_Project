@@ -72,7 +72,7 @@ function Tableau() {
     }
 
     return (
-        <View className="w-full h-full">
+        <View className="w-full h-fit">
             {/* Table Container */}
             <View className="flex-1 border border-gray-300 rounded overflow-hidden">
                 {/* Table Header (thead) */}
