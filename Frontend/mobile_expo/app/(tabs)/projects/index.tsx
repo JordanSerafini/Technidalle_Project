@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput, Alert } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter, Stack } from 'expo-router';
@@ -148,21 +148,44 @@ export default function ProjetsScreen() {
   const handleAddProject = () => {
     // Action pour ajouter un projet
     console.log('Fonction handleAddProject appelée');
-    alert('Ajouter un projet');
+    // Utiliser Alert.alert au lieu de alert
+    Alert.alert(
+      'Ajouter un projet',
+      'Voulez-vous ajouter un nouveau projet?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'OK', onPress: () => console.log('OK Pressed') }
+      ]
+    );
     // Implémentation à venir
   };
 
   const handleEditProject = () => {
     // Action pour éditer un projet
     console.log('Fonction handleEditProject appelée');
-    alert('Éditer un projet');
+    // Utiliser Alert.alert au lieu de alert
+    Alert.alert(
+      'Éditer un projet',
+      'Voulez-vous éditer un projet?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'OK', onPress: () => console.log('OK Pressed') }
+      ]
+    );
     // Implémentation à venir
   };
 
   const handleOtherOptions = () => {
     // Autres actions
     console.log('Fonction handleOtherOptions appelée');
-    alert('Autres options');
+    // Utiliser Alert.alert au lieu de alert
+    Alert.alert(
+      'Autres options',
+      'Voici les autres options disponibles',
+      [
+        { text: 'OK', onPress: () => console.log('OK Pressed') }
+      ]
+    );
     // Implémentation à venir
   };
 
