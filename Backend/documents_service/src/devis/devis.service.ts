@@ -98,8 +98,16 @@ export class DevisService {
       // Ensuite créer les lignes du devis si elles existent
       let devisLines: DevisLine[] = [];
       if (devisDto.lines && devisDto.lines.length > 0) {
+        // Filtrer les lignes vides ou incomplètes (lignes avec description vide ou quantité nulle)
+        const validLines = devisDto.lines.filter(
+          (line: CreateDevisLineDto) =>
+            line.description &&
+            line.description.trim() !== '' &&
+            line.quantity > 0,
+        );
+
         // Préparation des données pour l'insertion batch
-        const devisLinesData = devisDto.lines.map(
+        const devisLinesData = validLines.map(
           (line: CreateDevisLineDto, index: number) => ({
             document_id: devis.id,
             material_id: line.material_id,
@@ -117,28 +125,30 @@ export class DevisService {
         );
 
         // Insertion de toutes les lignes en une seule opération
-        await txExtended.document_lines.createMany({
-          data: devisLinesData,
-          skipDuplicates: false,
-        });
+        if (devisLinesData.length > 0) {
+          await txExtended.document_lines.createMany({
+            data: devisLinesData,
+            skipDuplicates: false,
+          });
 
-        // Récupérer les lignes créées pour les renvoyer avec l'objet complet
-        const createdLines = await txExtended.document_lines.findMany({
-          where: { document_id: devis.id },
-          orderBy: { sort_order: 'asc' },
-        });
+          // Récupérer les lignes créées pour les renvoyer avec l'objet complet
+          const createdLines = await txExtended.document_lines.findMany({
+            where: { document_id: devis.id },
+            orderBy: { sort_order: 'asc' },
+          });
 
-        devisLines = createdLines as unknown as DevisLine[];
+          devisLines = createdLines as unknown as DevisLine[];
 
-        // Calculer le montant total et mettre à jour le document
-        const totalAmount = devisLines.reduce((sum, line) => {
-          return sum + Number(line.total_ht || 0);
-        }, 0);
+          // Calculer le montant total et mettre à jour le document
+          const totalAmount = devisLines.reduce((sum, line) => {
+            return sum + Number(line.total_ht || 0);
+          }, 0);
 
-        await txExtended.documents.update({
-          where: { id: devis.id },
-          data: { amount: totalAmount },
-        });
+          await txExtended.documents.update({
+            where: { id: devis.id },
+            data: { amount: totalAmount },
+          });
+        }
 
         // Récupérer le document mis à jour
         const updatedDevis = await txExtended.documents.findUnique({
@@ -151,6 +161,7 @@ export class DevisService {
         } as unknown as DevisWithLines;
       }
 
+      // Si aucune ligne n'est fournie, retourner juste le document
       return {
         ...devis,
         lines: [],
