@@ -6,6 +6,50 @@ import {
   DevisWithLines,
   DevisLine,
 } from '../interfaces/devis.interface';
+import { Prisma, PrismaClient } from '@prisma/client';
+
+// Type pour les lignes récupérées par SQL brut
+interface RawDevisLine {
+  id: number;
+  document_id: number;
+  material_id?: number;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  discount_percent: number;
+  discount_amount: number;
+  tax_rate: number;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Type pour la clause where de la recherche
+interface DevisWhereInput extends Prisma.documentsWhereInput {
+  client_id?: number;
+  project_id?: number;
+  OR?: Prisma.documentsWhereInput[];
+}
+
+// Étendre le type de document_lines pour inclure les méthodes manquantes
+interface ExtendedDocumentLines {
+  createMany: (params: {
+    data: any[];
+    skipDuplicates?: boolean;
+  }) => Promise<Prisma.BatchPayload>;
+
+  findMany: (params: {
+    where?: any;
+    orderBy?: any;
+    include?: any;
+  }) => Promise<any[]>;
+}
+
+// Étendre le type de transaction Prisma
+interface ExtendedPrismaClient extends Omit<PrismaClient, 'document_lines'> {
+  document_lines: ExtendedDocumentLines;
+}
 
 @Injectable()
 export class DevisService {
@@ -17,8 +61,11 @@ export class DevisService {
   async createDevis(devisDto: CreateDevisDto): Promise<DevisWithLines> {
     // Commencer une transaction pour s'assurer que tout se passe bien
     const result = await this.prisma.$transaction(async (tx) => {
+      // Traiter tx comme un ExtendedPrismaClient
+      const txExtended = tx as unknown as ExtendedPrismaClient;
+
       // Créer d'abord le document de devis
-      const devis = await tx.documents.create({
+      const devis = await txExtended.documents.create({
         data: {
           project_id: devisDto.project_id,
           client_id: devisDto.client_id,
@@ -58,13 +105,13 @@ export class DevisService {
         );
 
         // Insertion de toutes les lignes en une seule opération
-        await tx.document_lines.createMany({
+        await txExtended.document_lines.createMany({
           data: devisLinesData,
           skipDuplicates: false,
         });
 
         // Récupérer les lignes créées pour les renvoyer avec l'objet complet
-        const createdLines = await tx.document_lines.findMany({
+        const createdLines = await txExtended.document_lines.findMany({
           where: { document_id: devis.id },
           orderBy: { sort_order: 'asc' },
         });
@@ -76,13 +123,13 @@ export class DevisService {
           return sum + Number(line.total_ht || 0);
         }, 0);
 
-        await tx.documents.update({
+        await txExtended.documents.update({
           where: { id: devis.id },
           data: { amount: totalAmount },
         });
 
         // Récupérer le document mis à jour
-        const updatedDevis = await tx.documents.findUnique({
+        const updatedDevis = await txExtended.documents.findUnique({
           where: { id: devis.id },
         });
 
@@ -137,7 +184,7 @@ export class DevisService {
     }
 
     // Récupérer les lignes du devis
-    const lines = await this.prisma.$queryRaw`
+    const lines = await this.prisma.$queryRaw<RawDevisLine[]>`
       SELECT * FROM document_lines 
       WHERE document_id = ${devis.id} 
       ORDER BY sort_order ASC
@@ -160,7 +207,7 @@ export class DevisService {
     projectId?: number,
   ): Promise<DevisWithLines[]> {
     // Construction de la requête where compatible avec Prisma
-    const where: any = {
+    const where: DevisWhereInput = {
       type: 'devis',
     };
 
@@ -229,7 +276,7 @@ export class DevisService {
     // Pour chaque devis, récupérer ses lignes
     const devisWithLines = await Promise.all(
       devis.map(async (d) => {
-        const lines = await this.prisma.$queryRaw`
+        const lines = await this.prisma.$queryRaw<RawDevisLine[]>`
           SELECT * FROM document_lines 
           WHERE document_id = ${d.id} 
           ORDER BY sort_order ASC
@@ -255,8 +302,11 @@ export class DevisService {
     try {
       // Commencer une transaction pour s'assurer que tout se passe bien
       const result = await this.prisma.$transaction(async (tx) => {
+        // Traiter tx comme un ExtendedPrismaClient
+        const txExtended = tx as unknown as ExtendedPrismaClient;
+
         // Vérifier si le devis existe et est bien un devis
-        const existingDevis = await tx.documents.findFirst({
+        const existingDevis = await txExtended.documents.findFirst({
           where: {
             id: Number(id),
             type: 'devis',
@@ -268,7 +318,7 @@ export class DevisService {
         }
 
         // Mettre à jour le document de devis
-        const devis = await tx.documents.update({
+        const devis = await txExtended.documents.update({
           where: { id: Number(id) },
           data: {
             project_id: devisDto.project_id,
@@ -285,7 +335,7 @@ export class DevisService {
         });
 
         // Supprimer toutes les lignes existantes
-        await tx.$executeRaw`DELETE FROM document_lines WHERE document_id = ${devis.id}`;
+        await txExtended.$executeRaw`DELETE FROM document_lines WHERE document_id = ${devis.id}`;
 
         // Créer les nouvelles lignes
         let devisLines: DevisLine[] = [];
@@ -309,13 +359,13 @@ export class DevisService {
           );
 
           // Insertion de toutes les lignes en une seule opération
-          await tx.document_lines.createMany({
+          await txExtended.document_lines.createMany({
             data: devisLinesData,
             skipDuplicates: false,
           });
 
           // Récupérer les lignes créées pour les renvoyer avec l'objet complet
-          const createdLines = await tx.document_lines.findMany({
+          const createdLines = await txExtended.document_lines.findMany({
             where: { document_id: devis.id },
             orderBy: { sort_order: 'asc' },
             include: {
@@ -330,13 +380,13 @@ export class DevisService {
             return sum + Number(line.total_ht || 0);
           }, 0);
 
-          await tx.documents.update({
+          await txExtended.documents.update({
             where: { id: devis.id },
             data: { amount: totalAmount },
           });
 
           // Récupérer le document mis à jour
-          const updatedDevis = await tx.documents.findUnique({
+          const updatedDevis = await txExtended.documents.findUnique({
             where: { id: devis.id },
             include: {
               clients: {
@@ -419,8 +469,11 @@ export class DevisService {
     try {
       // Commencer une transaction pour s'assurer que tout se passe bien
       const result = await this.prisma.$transaction(async (tx) => {
+        // Traiter tx comme un ExtendedPrismaClient
+        const txExtended = tx as unknown as ExtendedPrismaClient;
+
         // Récupérer le devis avec ses lignes
-        const devis = await tx.documents.findFirst({
+        const devis = await txExtended.documents.findFirst({
           where: {
             id: Number(id),
             type: 'devis',
@@ -436,7 +489,7 @@ export class DevisService {
         const factureRef = devisRef.replace('DEV-', 'FAC-');
 
         // Créer la facture à partir du devis
-        const facture = await tx.documents.create({
+        const facture = await txExtended.documents.create({
           data: {
             project_id: devis.project_id,
             client_id: devis.client_id,
@@ -454,7 +507,7 @@ export class DevisService {
         });
 
         // Récupérer les lignes du devis
-        const devisLines = await tx.$queryRaw`
+        const devisLines = await txExtended.$queryRaw<RawDevisLine[]>`
           SELECT * FROM document_lines 
           WHERE document_id = ${devis.id} 
           ORDER BY sort_order ASC
@@ -477,20 +530,20 @@ export class DevisService {
             updated_at: new Date(),
           }));
 
-          await tx.document_lines.createMany({
+          await txExtended.document_lines.createMany({
             data: factureLinesData,
             skipDuplicates: false,
           });
         }
 
         // Mettre à jour le statut du devis
-        await tx.documents.update({
+        await txExtended.documents.update({
           where: { id: devis.id },
           data: { status: 'valide' },
         });
 
         // Récupérer la facture créée avec ses lignes
-        const createdFacture = await tx.documents.findUnique({
+        const createdFacture = await txExtended.documents.findUnique({
           where: { id: facture.id },
           include: {
             clients: {
@@ -514,7 +567,7 @@ export class DevisService {
           },
         });
 
-        const factureLines = await tx.$queryRaw`
+        const factureLines = await txExtended.$queryRaw<RawDevisLine[]>`
           SELECT * FROM document_lines 
           WHERE document_id = ${facture.id} 
           ORDER BY sort_order ASC
