@@ -24,9 +24,22 @@ import { useFetch } from '@/app/hooks/useFetch';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { useClientsStore } from '@/app/store/clientsStore';
 import { AddClientModal } from '../clients/addClient.modal';
+import { CreateDevisDto, CreateDevisLineDto } from '@/app/utils/interfaces/devis.interface';
+import { Material } from '@/app/utils/interfaces/material.interface';
 
 // Récupérer les dimensions de l'écran
 const { width, height } = Dimensions.get('window');
+
+// Étendre l'interface DevisRow pour inclure les propriétés manquantes
+interface ExtendedDevisRow {
+  id: string;
+  material: Material | null;
+  quantity: number;
+  price: number;
+  description?: string;
+  unit?: string;
+  discount?: number;
+}
 
 interface DocumentsModalProps {
   visible: boolean;
@@ -34,6 +47,8 @@ interface DocumentsModalProps {
   projectId?: number;
   clientId?: number;
   onSuccess?: () => void;
+  onDocumentAdded?: () => void;
+  documentType?: DocumentType; // Type de document spécifique (optionnel)
 }
 
 // Composant pour les sections dépliables
@@ -197,16 +212,19 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   onClose,
   projectId,
   clientId,
-  onSuccess
+  onSuccess,
+  onDocumentAdded,
+  documentType
 }) => {
   // États pour les champs du formulaire
-  const [type, setType] = useState<DocumentType>(DocumentType.DEVIS);
+  const [type, setType] = useState<DocumentType>(documentType || DocumentType.DEVIS);
   const [status, setStatus] = useState<DocumentStatus>(DocumentStatus.BROUILLON);
   const [tvaRate, setTvaRate] = useState('20');
   const [issueDate, setIssueDate] = useState(new Date());
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
   const [filePath, setFilePath] = useState('');
+  const [reference, setReference] = useState('');
   
   // États pour l'UI
   const [loading, setLoading] = useState(false);
@@ -220,6 +238,9 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   
   // Store pour les lignes du devis
   const { rows, calculateTotal, clearRows } = useDevisStore();
+  
+  // Convertir les rows en ExtendedDevisRow pour accéder aux propriétés étendues
+  const extendedRows = rows as unknown as ExtendedDevisRow[];
   
   // Reset form quand la modale s'ouvre
   useEffect(() => {
@@ -248,7 +269,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
 
   // Réinitialiser le formulaire
   const resetForm = () => {
-    setType(DocumentType.DEVIS);
+    setType(documentType || DocumentType.DEVIS);
     setStatus(DocumentStatus.BROUILLON);
     setTvaRate('20');
     setIssueDate(new Date());
@@ -257,6 +278,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     setFilePath('');
     setError(null);
     setSelectedClient(null);
+    setReference('');
     clearRows(); // Réinitialiser les lignes du devis
   };
 
@@ -288,10 +310,30 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       setError("Veuillez sélectionner ou créer un client");
       return false;
     }
-    if (!projectId) {
-      setError("L'ID du projet est obligatoire");
+    
+    if (type === DocumentType.DEVIS && extendedRows.length === 0) {
+      setError("Veuillez ajouter au moins une ligne au devis");
       return false;
     }
+    
+    // Validation supplémentaire pour le taux de TVA
+    if (isNaN(parseFloat(tvaRate)) || parseFloat(tvaRate) < 0) {
+      setError("Le taux de TVA doit être un nombre positif valide");
+      return false;
+    }
+
+    // Validation des lignes du devis
+    for (const row of extendedRows) {
+      if (row.quantity <= 0) {
+        setError("Les quantités doivent être positives");
+        return false;
+      }
+      if (row.price < 0) {
+        setError("Les prix ne peuvent pas être négatifs");
+        return false;
+      }
+    }
+    
     return true;
   };
 
@@ -308,39 +350,87 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         return;
       }
       
-      const documentData = {
-        project_id: projectId,
-        client_id: selectedClient.id,
-        type,
-        status,
-        amount: calculateTotal(), // Utiliser le total calculé du tableau
-        tva_rate: parseFloat(tvaRate),
-        issue_date: issueDate.toISOString(),
-        due_date: dueDate?.toISOString() || null,
-        notes,
-        file_path: filePath,
-        materials: rows.map(row => ({
+      // Préparer les données en fonction du type de document
+      if (type === DocumentType.DEVIS) {
+        // Préparer les lignes du devis
+        const devisLines: CreateDevisLineDto[] = extendedRows.map(row => ({
           material_id: row.material?.id,
+          description: row.description || '',
           quantity: row.quantity,
-          price: row.price
-        }))
-      };
+          unit: row.unit || 'unité',
+          unit_price: row.price,
+          discount_percent: row.discount || 0,
+          tax_rate: parseFloat(tvaRate)
+        }));
+        
+        // Créer le DTO pour le devis
+        const devisData: CreateDevisDto = {
+          project_id: projectId,
+          client_id: selectedClient.id || 0, 
+          reference: reference || '',
+          status: status,
+          amount: calculateTotal(),
+          tva_rate: parseFloat(tvaRate),
+          issue_date: issueDate,
+          due_date: dueDate || undefined,
+          notes: notes,
+          file_path: filePath,
+          lines: devisLines
+        };
+        
+        // Envoyer la requête pour créer le devis
+        const response = await fetch(`${urlConfig.local}devis`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(devisData)
+        });
+        
+        if (!response.ok) {
+          throw new Error('Erreur lors de la création du devis');
+        }
+      } else {
+        // Pour les autres types de documents
+        const documentData = {
+          project_id: projectId,
+          client_id: selectedClient.id,
+          type,
+          status,
+          amount: calculateTotal(),
+          tva_rate: parseFloat(tvaRate),
+          issue_date: issueDate,
+          due_date: dueDate || null,
+          notes,
+          file_path: filePath,
+          materials: extendedRows.map(row => ({
+            material_id: row.material?.id || null,
+            quantity: row.quantity,
+            price: row.price
+          }))
+        };
+        
+        const response = await fetch(`${urlConfig.local}documents`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(documentData)
+        });
+        
+        if (!response.ok) {
+          throw new Error('Erreur lors de la création du document');
+        }
+      }
       
-      const response = await fetch(`${urlConfig.local}documents`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(documentData)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Erreur lors de la création du document');
+      // Appeler la fonction de rafraîchissement de la liste des documents
+      if (onDocumentAdded) {
+        onDocumentAdded();
       }
       
       Alert.alert(
         'Succès',
-        'Le document a été créé avec succès',
+        `Le ${type === DocumentType.DEVIS ? 'devis' : 'document'} a été créé avec succès`,
         [
           {
             text: 'OK',
@@ -367,7 +457,9 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
         <View className="flex-1">
           <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-            <Text className="text-xl font-bold text-gray-800">Nouveau document</Text>
+            <Text className="text-xl font-bold text-gray-800">
+              {type === DocumentType.DEVIS ? 'Nouveau devis' : 'Nouveau document'}
+            </Text>
             <TouchableOpacity onPress={onClose} className="p-1">
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
@@ -418,24 +510,26 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
             
             {/* Section Informations */}
             <CollapsibleSection title="Informations" initiallyExpanded={true}>
-              <View className="mb-4">
-                <Text className="text-sm font-medium mb-1.5 text-gray-600">Type de document *</Text>
-                <View className="border border-gray-300 rounded bg-white">
-                  <Picker
-                    selectedValue={type}
-                    onValueChange={(itemValue) => setType(itemValue as DocumentType)}
-                    className="h-[50px]"
-                  >
-                    {Object.values(DocumentType).map((docType) => (
-                      <Picker.Item 
-                        key={docType} 
-                        label={docType.replace(/_/g, ' ')} 
-                        value={docType} 
-                      />
-                    ))}
-                  </Picker>
+              {!documentType && (
+                <View className="mb-4">
+                  <Text className="text-sm font-medium mb-1.5 text-gray-600">Type de document *</Text>
+                  <View className="border border-gray-300 rounded bg-white">
+                    <Picker
+                      selectedValue={type}
+                      onValueChange={(itemValue) => setType(itemValue as DocumentType)}
+                      className="h-[50px]"
+                    >
+                      {Object.values(DocumentType).map((docType) => (
+                        <Picker.Item 
+                          key={docType} 
+                          label={docType.replace(/_/g, ' ')} 
+                          value={docType} 
+                        />
+                      ))}
+                    </Picker>
+                  </View>
                 </View>
-              </View>
+              )}
               
               <View className="mb-4">
                 <Text className="text-sm font-medium mb-1.5 text-gray-600">Statut</Text>
@@ -522,7 +616,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
             
             {/* Section Matériaux */}
             {type === DocumentType.DEVIS && (
-              <CollapsibleSection title="Matériaux" initiallyExpanded={true}>
+              <CollapsibleSection title="Lignes du devis" initiallyExpanded={true}>
                 <Tableau />
               </CollapsibleSection>
             )}

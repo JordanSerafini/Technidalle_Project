@@ -65,8 +65,32 @@ export class ProjectsService {
     });
   }
 
-  async createProject(data: Prisma.projectsCreateInput) {
-    return await this.prisma.projects.create({ data });
+  async createProject(data: any) {
+    const prismaData: Prisma.projectsCreateInput = {
+      reference: data.reference,
+      name: data.name,
+      description: data.description,
+      clients: {
+        connect: { id: data.clientId },
+      },
+      // Champs optionnels
+      ...(data.addressId && {
+        addresses: {
+          connect: { id: data.addressId },
+        },
+      }),
+      status: data.status,
+      start_date: data.startDate ? new Date(data.startDate) : undefined,
+      end_date: data.endDate ? new Date(data.endDate) : undefined,
+      estimated_duration: data.estimatedDuration,
+      budget: data.budget,
+      actual_cost: data.actualCost,
+      margin: data.margin,
+      priority: data.priority,
+      notes: data.notes,
+    };
+
+    return await this.prisma.projects.create({ data: prismaData });
   }
 
   async updateProject(id: number, data: Prisma.projectsUpdateInput) {
