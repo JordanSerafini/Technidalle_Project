@@ -81,6 +81,7 @@ model documents {
   file_path      String?          @db.VarChar(255)
   created_at     DateTime?        @default(now()) @db.Timestamp(6)
   updated_at     DateTime?        @default(now()) @db.Timestamp(6)
+  document_lines document_lines[]
   document_tags  document_tags[]
   clients        clients?         @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "fk_document_client")
   projects       projects         @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_document_project")
@@ -131,6 +132,7 @@ model materials {
   supplier_reference String?             @db.VarChar(50)
   created_at         DateTime?           @default(now()) @db.Timestamp(6)
   updated_at         DateTime?           @default(now()) @db.Timestamp(6)
+  document_lines     document_lines[]
   project_materials  project_materials[]
 }
 
@@ -437,6 +439,30 @@ model time_logs {
   @@index([check_in, check_out], map: "idx_time_logs_dates")
   @@index([project_id], map: "idx_time_logs_project")
   @@index([staff_id], map: "idx_time_logs_staff")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model document_lines {
+  id               Int        @id @default(autoincrement())
+  document_id      Int
+  material_id      Int?
+  description      String
+  quantity         Decimal    @db.Decimal(10, 3)
+  unit             String     @db.VarChar(50)
+  unit_price       Decimal    @db.Decimal(10, 2)
+  discount_percent Decimal?   @default(0) @db.Decimal(5, 2)
+  discount_amount  Decimal?   @default(0) @db.Decimal(10, 2)
+  tax_rate         Decimal?   @default(20.00) @db.Decimal(5, 2)
+  total_ht         Decimal?   @default(dbgenerated("(((quantity * unit_price) * ((1)::numeric - (discount_percent / (100)::numeric))) - discount_amount)")) @db.Decimal(12, 2)
+  sort_order       Int?       @default(0)
+  created_at       DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?  @default(now()) @db.Timestamp(6)
+  documents        documents  @relation(fields: [document_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_document_line_document")
+  materials        materials? @relation(fields: [material_id], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_document_line_material")
+
+  @@index([document_id], map: "idx_document_lines_document")
+  @@index([material_id], map: "idx_document_lines_material")
 }
 
 enum document_status {
