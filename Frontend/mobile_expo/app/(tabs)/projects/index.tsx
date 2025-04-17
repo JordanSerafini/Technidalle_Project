@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput, Alert } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
@@ -30,12 +30,50 @@ const statusColors: Record<project_status, string> = {
   annule: '#F44336'
 };
 
+// Interface pour les props de AccordionItem
+interface AccordionItemProps {
+  isExpanded: boolean;
+  children: React.ReactNode;
+  maxHeight?: number;
+}
+
+// Composant AccordionItem pour l'animation
+function AccordionItem({ isExpanded, children, maxHeight = 1000 }: AccordionItemProps) {
+  const [height] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(height, {
+      toValue: isExpanded ? maxHeight : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isExpanded, maxHeight]);
+
+  // Si l'accordéon est déplié, on n'applique pas de hauteur fixe
+  if (isExpanded) {
+    return (
+      <View style={{ height: 'auto' }}>
+        {children}
+      </View>
+    );
+  }
+
+  // Si l'accordéon est fermé, on utilise l'animation
+  return (
+    <Animated.View style={{ height, overflow: 'hidden' }}>
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function ProjetsScreen() {
   const router = useRouter();
   const [showFilter, setShowFilter] = useState(false);
   const slideAnim = useState(new Animated.Value(Dimensions.get('window').height))[0];
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
+  const [projectsByMonth, setProjectsByMonth] = useState<{ [key: string]: Project[] }>({});
   
   // Utiliser le projectStore
   const { 
@@ -136,6 +174,71 @@ export default function ProjetsScreen() {
     };
   }, [handleCloseFilter, addApplyListener, removeApplyListener]);
 
+  // Regrouper les projets par mois avec useMemo
+  const sortedProjectsByMonth = useMemo(() => {
+    if (!filteredProjects || filteredProjects.length === 0) return {};
+    
+    const grouped = filteredProjects.reduce((acc, project) => {
+      // Utiliser la date de début comme référence pour le regroupement
+      const dateReference = project.start_date ? new Date(project.start_date) : new Date();
+      const monthYear = `${dateReference.getMonth() + 1}/${dateReference.getFullYear()}`;
+      
+      if (!acc[monthYear]) {
+        acc[monthYear] = [];
+      }
+      
+      acc[monthYear].push(project);
+      return acc;
+    }, {} as { [key: string]: Project[] });
+    
+    // Trier les mois par ordre chronologique inverse (plus récent d'abord)
+    return Object.keys(grouped)
+      .sort((a, b) => {
+        const [monthA, yearA] = a.split('/').map(Number);
+        const [monthB, yearB] = b.split('/').map(Number);
+        return (yearB - yearA) || (monthB - monthA);
+      })
+      .reduce((acc, key) => {
+        acc[key] = grouped[key];
+        return acc;
+      }, {} as { [key: string]: Project[] });
+  }, [filteredProjects]);
+  
+  // Mettre à jour projectsByMonth et expandedSections quand sortedProjectsByMonth change
+  useEffect(() => {
+    setProjectsByMonth(sortedProjectsByMonth);
+    
+    // Mettre à jour expandedSections pour conserver l'état d'expansion ou initialiser à false
+    setExpandedSections(prevExpandedSections => {
+      const newExpandedSections = {} as { [key: string]: boolean };
+      
+      // Conserver uniquement les clés qui existent dans sortedProjectsByMonth
+      Object.keys(sortedProjectsByMonth).forEach(key => {
+        newExpandedSections[key] = prevExpandedSections[key] || false;
+      });
+      
+      return newExpandedSections;
+    });
+  }, [sortedProjectsByMonth]);
+
+  // Formater l'affichage du mois en français
+  const formatMonthYear = (monthYear: string) => {
+    const [month, year] = monthYear.split('/');
+    const monthNames = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
+  };
+  
+  // Toggle l'expansion d'une section
+  const toggleSection = (monthYear: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [monthYear]: !prev[monthYear]
+    }));
+  };
+
   const navigateToProjectDetail = (projectId: number) => {
     if (projectId) {
       router.navigate({
@@ -187,6 +290,77 @@ export default function ProjetsScreen() {
   const clearSearch = () => {
     setSearchQuery('');
   };
+  
+  // Rendu d'un élément projet individuel
+  const renderProjectItem = (projet: Project) => (
+    <TouchableOpacity 
+      key={projet.id} 
+      className="bg-white p-4 rounded-lg shadow-sm mb-4"
+      onPress={() => navigateToProjectDetail(projet.id)}
+    >
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1">
+          <Text className="font-bold text-lg">{projet.name}</Text>
+          
+          {projet.reference && (
+            <Text className="text-gray-500 text-sm">Ref: {projet.reference}</Text>
+          )}
+        </View>
+        
+        {projet.status && (
+          <View style={{backgroundColor: statusColors[projet.status]}} className="py-1 px-3 rounded-full">
+            <Text className="text-white text-xs font-medium">{statusLabels[projet.status]}</Text>
+          </View>
+        )}
+      </View>
+      
+      {projet.description && (
+        <Text className="text-gray-600 mt-2" numberOfLines={2}>{projet.description}</Text>
+      )}
+      
+      <View className="flex-row justify-between mt-3 border-t border-gray-100 pt-2">
+        <View className="flex-row items-center">
+          <Ionicons name="calendar-outline" size={16} color="#666" />
+          <Text className="text-gray-600 ml-1 text-xs">
+            {projet.start_date ? new Date(projet.start_date).toLocaleDateString('fr-FR') : 'Non défini'}
+            {projet.end_date ? ` → ${new Date(projet.end_date).toLocaleDateString('fr-FR')}` : ''}
+          </Text>
+        </View>
+        
+        <View className="flex-row items-center">
+          <Ionicons name="chevron-forward" size={16} color="#666" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+  
+  // Rendu des sections mensuelles
+  const renderMonthSections = () => {
+    return Object.entries(projectsByMonth).map(([monthYear, projets]) => (
+      <View key={monthYear} className="mb-4">
+        <TouchableOpacity 
+          className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
+          onPress={() => toggleSection(monthYear)}
+        >
+          <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
+            <Text className="font-bold text-blue-800">{projets.length}</Text>
+          </View>
+          <Text className="flex-1 text-lg font-medium text-gray-800">{formatMonthYear(monthYear)}</Text>
+          <Ionicons 
+            name={expandedSections[monthYear] ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color="#6b7280" 
+          />
+        </TouchableOpacity>
+        
+        <AccordionItem isExpanded={expandedSections[monthYear]}>
+          <View className="mt-2">
+            {projets.map(projet => renderProjectItem(projet))}
+          </View>
+        </AccordionItem>
+      </View>
+    ));
+  };
 
   if (loading) {
     return (
@@ -226,47 +400,7 @@ export default function ProjetsScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {filteredProjects && filteredProjects.length > 0 ? (
-          filteredProjects.map((projet: Project) => (
-            <TouchableOpacity 
-              key={projet.id} 
-              className="bg-white p-4 rounded-lg shadow-sm mb-4"
-              onPress={() => navigateToProjectDetail(projet.id)}
-            >
-              <View className="flex-row justify-between items-start">
-                <View className="flex-1">
-                  <Text className="font-bold text-lg">{projet.name}</Text>
-                  
-                  {projet.reference && (
-                    <Text className="text-gray-500 text-sm">Ref: {projet.reference}</Text>
-                  )}
-                </View>
-                
-                {projet.status && (
-                  <View style={{backgroundColor: statusColors[projet.status]}} className="py-1 px-3 rounded-full">
-                    <Text className="text-white text-xs font-medium">{statusLabels[projet.status]}</Text>
-                  </View>
-                )}
-              </View>
-              
-              {projet.description && (
-                <Text className="text-gray-600 mt-2" numberOfLines={2}>{projet.description}</Text>
-              )}
-              
-              <View className="flex-row justify-between mt-3 border-t border-gray-100 pt-2">
-                <View className="flex-row items-center">
-                  <Ionicons name="calendar-outline" size={16} color="#666" />
-                  <Text className="text-gray-600 ml-1 text-xs">
-                    {projet.start_date ? new Date(projet.start_date).toLocaleDateString('fr-FR') : 'Non défini'}
-                    {projet.end_date ? ` → ${new Date(projet.end_date).toLocaleDateString('fr-FR')}` : ''}
-                  </Text>
-                </View>
-                
-                <View className="flex-row items-center">
-                  <Ionicons name="chevron-forward" size={16} color="#666" />
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
+          renderMonthSections()
         ) : (
           <View className="flex items-center justify-center p-8">
             <Ionicons name="construct-outline" size={48} color="#ccc" />
@@ -321,8 +455,6 @@ export default function ProjetsScreen() {
           </View>
         )}
       </View>
-      
-      {/* Nous n'avons plus besoin du panneau de filtre avec animation native */}
     </View>
   );
 }
