@@ -4,6 +4,32 @@ import { DevisWithLines } from '../interfaces/devis.interface';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Interface pour les champs clients pour éviter les erreurs d'unsafe member access
+interface ClientInfo {
+  company_name?: string;
+  firstname?: string;
+  lastname?: string;
+  email?: string;
+  phone?: string;
+  addresses?: AddressInfo;
+}
+
+// Interface pour les adresses
+interface AddressInfo {
+  street_number?: string;
+  street_name: string;
+  additional_address?: string;
+  zip_code: string;
+  city: string;
+  country: string;
+}
+
+// Interface pour les projets
+interface ProjectInfo {
+  name: string;
+  reference: string;
+}
+
 @Injectable()
 export class PdfGeneratorService {
   /**
@@ -34,7 +60,7 @@ export class PdfGeneratorService {
     doc.pipe(stream);
 
     // En-tête du document
-    this.addHeader(doc, devis);
+    this.addHeader(doc);
 
     // Informations client et projet
     this.addClientInfo(doc, devis);
@@ -68,7 +94,7 @@ export class PdfGeneratorService {
   /**
    * Ajoute l'en-tête du document
    */
-  private addHeader(doc: PDFKit.PDFDocument, devis: DevisWithLines): void {
+  private addHeader(doc: PDFKit.PDFDocument): void {
     // Logo de l'entreprise (si disponible)
     // doc.image('path/to/logo.png', 50, 45, { width: 150 });
 
@@ -93,26 +119,60 @@ export class PdfGeneratorService {
 
     if (devis.clients) {
       doc.fontSize(10);
+      const client = devis.clients as ClientInfo;
 
-      if (devis.clients.company_name) {
-        doc.text(devis.clients.company_name);
+      // Nom du client ou entreprise
+      if (client.company_name) {
+        doc.text(client.company_name);
       }
 
-      if (devis.clients.firstname && devis.clients.lastname) {
-        doc.text(`${devis.clients.firstname} ${devis.clients.lastname}`);
+      if (client.firstname && client.lastname) {
+        doc.text(`${client.firstname} ${client.lastname}`);
       }
 
-      // Adresse du client (si disponible dans l'interface)
-      if (devis.clients.address) {
-        doc.text(devis.clients.address);
+      // Adresse du client (depuis la relation addresses)
+      if (client.addresses) {
+        const address = client.addresses;
+        let addressText = '';
+
+        // Numéro et nom de rue
+        if (address.street_number && address.street_name) {
+          addressText += `${address.street_number} ${address.street_name}`;
+        } else if (address.street_name) {
+          addressText += address.street_name;
+        }
+
+        // Complément d'adresse si existant
+        if (address.additional_address) {
+          doc.text(addressText);
+          addressText = address.additional_address;
+        }
+
+        // Code postal et ville
+        if (address.zip_code && address.city) {
+          doc.text(addressText);
+          addressText = `${address.zip_code} ${address.city}`;
+        }
+
+        // Pays (si différent de France)
+        if (address.country && address.country !== 'France') {
+          doc.text(addressText);
+          addressText = address.country;
+        }
+
+        // Afficher la dernière ligne d'adresse
+        if (addressText) {
+          doc.text(addressText);
+        }
       }
 
-      if (devis.clients.email) {
-        doc.text(`Email: ${devis.clients.email}`);
+      // Coordonnées du client
+      if (client.email) {
+        doc.text(`Email: ${client.email}`);
       }
 
-      if (devis.clients.phone) {
-        doc.text(`Tél: ${devis.clients.phone}`);
+      if (client.phone) {
+        doc.text(`Tél: ${client.phone}`);
       }
     } else {
       doc.text('Informations client non disponibles');
@@ -140,7 +200,8 @@ export class PdfGeneratorService {
     }
 
     if (devis.projects) {
-      doc.text(`Projet: ${devis.projects.name} (${devis.projects.reference})`, {
+      const project = devis.projects as ProjectInfo;
+      doc.text(`Projet: ${project.name} (${project.reference})`, {
         align: 'right',
       });
     }
@@ -190,7 +251,7 @@ export class PdfGeneratorService {
 
     // Afficher chaque ligne du devis
     if (devis.lines && devis.lines.length > 0) {
-      devis.lines.forEach((line, i) => {
+      devis.lines.forEach((line) => {
         // Vérifier s'il faut une nouvelle page
         if (y > 700) {
           doc.addPage();
@@ -215,21 +276,28 @@ export class PdfGeneratorService {
           doc.font('Helvetica');
         }
 
-        // Calculer le montant HT de la ligne si non défini
-        const lineTotal =
-          line.total_ht !== undefined
-            ? line.total_ht
-            : line.quantity *
-                line.unit_price *
-                (1 - (line.discount_percent || 0) / 100) -
-              (line.discount_amount || 0);
+        // Convertir les valeurs Decimal en number
+        const unitPrice = Number(line.unit_price);
+        const discountPercent = line.discount_percent
+          ? Number(line.discount_percent)
+          : 0;
+        const discountAmount = line.discount_amount
+          ? Number(line.discount_amount)
+          : 0;
+        const totalHt = line.total_ht
+          ? Number(line.total_ht)
+          : Number(line.quantity) * unitPrice * (1 - discountPercent / 100) -
+            discountAmount;
 
         // Référence du matériel (si disponible)
         doc.text(line.material_id?.toString() || '', itemCodeX, y);
 
         // Description (avec gestion de texte long)
         const descriptionWidth = quantityX - descriptionX - 10;
-        const textOptions = { width: descriptionWidth, align: 'left' };
+        const textOptions = {
+          width: descriptionWidth,
+          align: 'left' as const,
+        };
         const descriptionHeight = doc.heightOfString(
           line.description,
           textOptions,
@@ -239,10 +307,10 @@ export class PdfGeneratorService {
         // Quantité, unité, prix unitaire, montant
         doc.text(line.quantity.toString(), quantityX, y, { align: 'right' });
         doc.text(line.unit, unitX, y);
-        doc.text(this.formatCurrency(line.unit_price), priceX, y, {
+        doc.text(this.formatCurrency(unitPrice), priceX, y, {
           align: 'right',
         });
-        doc.text(this.formatCurrency(lineTotal), amountX, y, {
+        doc.text(this.formatCurrency(totalHt), amountX, y, {
           align: 'right',
         });
 
@@ -265,16 +333,15 @@ export class PdfGeneratorService {
    * Ajoute le total du devis
    */
   private addDevisTotal(doc: PDFKit.PDFDocument, devis: DevisWithLines): void {
-    const tableX = 350;
     const labelX = 400;
     const valueX = 500;
     let y = doc.y;
 
-    // Calculer le total HT
-    const totalHT = devis.amount || 0;
+    // Calculer le total HT (convertir Decimal en number si nécessaire)
+    const totalHT = devis.amount ? Number(devis.amount) : 0;
 
     // Calculer la TVA
-    const tvaRate = devis.tva_rate || 20;
+    const tvaRate = devis.tva_rate ? Number(devis.tva_rate) : 20;
     const totalTVA = totalHT * (tvaRate / 100);
 
     // Calculer le total TTC
