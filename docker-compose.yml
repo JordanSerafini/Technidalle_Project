@@ -14,7 +14,6 @@ services:
       - ./Database/seed_db_part1.sql:/docker-entrypoint-initdb.d/seed_db_part1.sql
       - ./Database/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
       - ./Database/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
-
       - ./Database/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
 
     networks:
@@ -96,6 +95,7 @@ services:
       - app-network
     volumes:
       - ./Backend/documents_service:/app
+      - ./Backend/documents_service/uploads:/app/uploads
       - /app/generated/prisma
 
   planning:
