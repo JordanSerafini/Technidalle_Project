@@ -147,14 +147,12 @@ export default function ProjetsScreen() {
 
   const handleAddProject = () => {
     // Action pour ajouter un projet
-    console.log('Fonction handleAddProject appelée');
-    // Utiliser Alert.alert au lieu de alert
     Alert.alert(
       'Ajouter un projet',
       'Voulez-vous ajouter un nouveau projet?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'OK', onPress: () => console.log('OK Pressed') }
+        { text: 'OK', onPress: () => {} }
       ]
     );
     // Implémentation à venir
@@ -162,14 +160,12 @@ export default function ProjetsScreen() {
 
   const handleEditProject = () => {
     // Action pour éditer un projet
-    console.log('Fonction handleEditProject appelée');
-    // Utiliser Alert.alert au lieu de alert
     Alert.alert(
       'Éditer un projet',
       'Voulez-vous éditer un projet?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'OK', onPress: () => console.log('OK Pressed') }
+        { text: 'OK', onPress: () => {} }
       ]
     );
     // Implémentation à venir
@@ -177,13 +173,11 @@ export default function ProjetsScreen() {
 
   const handleOtherOptions = () => {
     // Autres actions
-    console.log('Fonction handleOtherOptions appelée');
-    // Utiliser Alert.alert au lieu de alert
     Alert.alert(
       'Autres options',
       'Voici les autres options disponibles',
       [
-        { text: 'OK', onPress: () => console.log('OK Pressed') }
+        { text: 'OK', onPress: () => {} }
       ]
     );
     // Implémentation à venir
