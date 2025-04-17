@@ -88,6 +88,7 @@ export class DevisController {
 
         // Créer un nouveau projet
         const projectDto: CreateProjectDto = {
+          reference: `PRJ-${formattedDate}-C${createDevisDto.client_id}`,
           name: `projet_${formattedDate}_client${createDevisDto.client_id}`,
           clientId: createDevisDto.client_id,
           startDate: today.toISOString(),
@@ -127,6 +128,7 @@ export class DevisController {
 
         // Créer un nouveau projet
         const projectDto: CreateProjectDto = {
+          reference: `PRJ-${formattedDate}-C${devisDto.client_id}`,
           name: `projet_${formattedDate}_client${devisDto.client_id}`,
           clientId: devisDto.client_id,
           startDate: today.toISOString(),
