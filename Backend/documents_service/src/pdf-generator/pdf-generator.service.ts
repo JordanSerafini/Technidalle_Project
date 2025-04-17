@@ -379,56 +379,62 @@ export class PdfGeneratorService {
     doc.y = y + 10;
   }
 
-  /**
-   * Ajoute le total du devis avec un rendu propre et lisible
-   */
+  // Ajout du total du devis
   private addDevisTotal(doc: PDFKit.PDFDocument, devis: DevisWithLines): void {
     let y = doc.y + 20;
 
-    // Convertir les valeurs en nombre
+    // Calculs
     const totalHT = devis.amount ? Number(devis.amount) : 0;
     const tvaRate = devis.tva_rate ? Number(devis.tva_rate) : 20;
     const totalTVA = totalHT * (tvaRate / 100);
     const totalTTC = totalHT + totalTVA;
 
-    // Position des labels et montants
-    const labelX = 350;
-    const valueX = 500;
-    const rowHeight = 20;
+    // Dimensions fixes
+    const tableLeft = 320;
+    const labelWidth = 100;
+    const valueWidth = 100;
+    const lineHeight = 18;
 
-    // Style du texte
+    // Police standard
     doc.fontSize(10).font('Helvetica');
 
-    // Ligne Total HT
-    doc.text('Total HT :', labelX, y, { align: 'right' });
-    doc.text(this.formatCurrency(totalHT), valueX, y, { align: 'right' });
-    y += rowHeight;
+    // Lignes du tableau
+    const drawLine = (label: string, value: string, isBold = false) => {
+      if (isBold) doc.font('Helvetica-Bold');
+      else doc.font('Helvetica');
 
-    // Ligne TVA
-    doc.text(`TVA (${tvaRate}%) :`, labelX, y, { align: 'right' });
-    doc.text(this.formatCurrency(totalTVA), valueX, y, { align: 'right' });
-    y += rowHeight;
+      doc.text(label, tableLeft, y, {
+        width: labelWidth,
+        align: 'right',
+      });
 
-    // Ligne Total TTC (en gras)
-    doc.font('Helvetica-Bold');
-    doc.text('Total TTC :', labelX, y, { align: 'right' });
-    doc.text(this.formatCurrency(totalTTC), valueX, y, { align: 'right' });
-    y += rowHeight + 10;
+      doc.text(value, tableLeft + labelWidth + 10, y, {
+        width: valueWidth,
+        align: 'right',
+      });
+
+      y += lineHeight;
+    };
+
+    // Affichage des totaux
+    drawLine('Total HT :', this.formatCurrency(totalHT));
+    drawLine(`TVA (${tvaRate}%) :`, this.formatCurrency(totalTVA));
+    drawLine('Total TTC :', this.formatCurrency(totalTTC), true);
+
+    y += 20;
 
     // Conditions de paiement
     doc.font('Helvetica').fontSize(10);
-    doc.text('Conditions de paiement:', 50, y);
+    doc.text('Conditions de paiement :', 50, y);
     y += 15;
-    doc.text(`Devis valable 30 jours à compter de sa date d'émission.`, 50, y);
+    doc.text("Devis valable 30 jours à compter de sa date d'émission.", 50, y);
     y += 20;
 
     // Notes si présentes
     if (devis.notes) {
-      doc.text('Notes:', 50, y);
+      doc.text('Notes :', 50, y);
       y += 15;
-      doc.text(devis.notes, 50, y, {
-        width: 500,
-      });
+      doc.text(devis.notes, 50, y, { width: 500 });
     }
   }
 
