@@ -217,25 +217,42 @@ export class PdfGeneratorService {
     doc.fontSize(14).text('Détail des prestations', 50, 240);
     doc.moveDown(0.5);
 
-    // En-têtes du tableau - Ajuster les positions pour donner plus d'espace aux colonnes
+    // En-têtes du tableau - Espacement correct selon les recommandations
     const tableTop = 260;
     const itemCodeX = 50;
-    const descriptionX = 90; // Un peu réduit
-    const quantityX = 300; // Déplacé à gauche
-    const unitX = 350; // Déplacé à gauche
-    const priceX = 420; // Déplacé à gauche
-    const amountX = 490; // Conservé pour le montant
+    const descriptionX = 100;
+    const quantityX = 300;
+    const unitX = 350;
+    const priceX = 420;
+    const amountX = 500;
+
+    // Fond gris clair pour les entêtes
+    doc
+      .rect(50, tableTop - 2, 500, 18)
+      .fillColor('#F0F0F0')
+      .fill()
+      .fillColor('black');
 
     // Style de l'en-tête
     doc.fontSize(10).font('Helvetica-Bold');
 
-    // En-têtes
-    doc.text('Réf.', itemCodeX, tableTop);
-    doc.text('Description', descriptionX, tableTop);
-    doc.text('Qté', quantityX, tableTop, { align: 'right' });
-    doc.text('Unité', unitX, tableTop);
-    doc.text('Prix Unit.', priceX, tableTop, { align: 'right' });
-    doc.text('Montant HT', amountX, tableTop, { align: 'right' });
+    // En-têtes avec alignement correct
+    doc.text('Réf.', itemCodeX, tableTop, {
+      width: descriptionX - itemCodeX - 5,
+    });
+    doc.text('Description', descriptionX, tableTop, {
+      width: quantityX - descriptionX - 5,
+    });
+    doc.text('Qté', quantityX, tableTop, {
+      width: unitX - quantityX - 5,
+      align: 'right',
+    });
+    doc.text('Unité', unitX, tableTop, { width: priceX - unitX - 5 });
+    doc.text('Prix Unit.', priceX, tableTop, {
+      width: amountX - priceX - 5,
+      align: 'right',
+    });
+    doc.text('Montant HT', amountX, tableTop, { width: 60, align: 'right' });
 
     // Ligne de séparation sous l'en-tête
     doc
@@ -257,14 +274,31 @@ export class PdfGeneratorService {
           doc.addPage();
           y = 50;
 
+          // Fond gris clair pour les entêtes de la nouvelle page
+          doc
+            .rect(50, y - 2, 500, 18)
+            .fillColor('#F0F0F0')
+            .fill()
+            .fillColor('black');
+
           // Ajouter les en-têtes sur la nouvelle page
           doc.font('Helvetica-Bold');
-          doc.text('Réf.', itemCodeX, y);
-          doc.text('Description', descriptionX, y);
-          doc.text('Qté', quantityX, y, { align: 'right' });
-          doc.text('Unité', unitX, y);
-          doc.text('Prix Unit.', priceX, y, { align: 'right' });
-          doc.text('Montant HT', amountX, y, { align: 'right' });
+          doc.text('Réf.', itemCodeX, y, {
+            width: descriptionX - itemCodeX - 5,
+          });
+          doc.text('Description', descriptionX, y, {
+            width: quantityX - descriptionX - 5,
+          });
+          doc.text('Qté', quantityX, y, {
+            width: unitX - quantityX - 5,
+            align: 'right',
+          });
+          doc.text('Unité', unitX, y, { width: priceX - unitX - 5 });
+          doc.text('Prix Unit.', priceX, y, {
+            width: amountX - priceX - 5,
+            align: 'right',
+          });
+          doc.text('Montant HT', amountX, y, { width: 60, align: 'right' });
 
           // Ligne de séparation sous l'en-tête
           doc
@@ -276,7 +310,7 @@ export class PdfGeneratorService {
           doc.font('Helvetica');
         }
 
-        // Convertir les valeurs Decimal en number
+        // Convertir les valeurs Decimal en number de façon fiable
         const unitPrice = Number(line.unit_price);
         const discountPercent = line.discount_percent
           ? Number(line.discount_percent)
@@ -290,7 +324,9 @@ export class PdfGeneratorService {
             discountAmount;
 
         // Référence du matériel (si disponible)
-        doc.text(line.material_id?.toString() || '', itemCodeX, y);
+        doc.text(line.material_id?.toString() || '', itemCodeX, y, {
+          width: descriptionX - itemCodeX - 5,
+        });
 
         // Description (avec gestion de texte long)
         const descriptionWidth = quantityX - descriptionX - 10;
@@ -304,11 +340,29 @@ export class PdfGeneratorService {
         );
         doc.text(line.description, descriptionX, y, textOptions);
 
-        // Quantité, unité, prix unitaire, montant - Ajuster l'alignement
-        doc.text(line.quantity.toString(), quantityX, y, { align: 'right' });
-        doc.text(line.unit, unitX, y);
-        doc.text(this.formatCurrency(unitPrice), priceX, y, { align: 'right' });
-        doc.text(this.formatCurrency(totalHt), amountX, y, { align: 'right' });
+        // Colonne Qté
+        doc.text(line.quantity.toString(), quantityX, y, {
+          width: unitX - quantityX - 5,
+          align: 'right',
+        });
+
+        // Colonne Unité
+        doc.text(line.unit, unitX, y, {
+          width: priceX - unitX - 5,
+          align: 'left',
+        });
+
+        // Colonne Prix Unit.
+        doc.text(this.formatCurrency(unitPrice), priceX, y, {
+          width: amountX - priceX - 5,
+          align: 'right',
+        });
+
+        // Colonne Montant HT
+        doc.text(this.formatCurrency(totalHt), amountX, y, {
+          width: 60, // ou 550 - amountX - 10
+          align: 'right',
+        });
 
         // Ajuster la position y pour la prochaine ligne
         y += Math.max(20, descriptionHeight + 5);
@@ -326,79 +380,71 @@ export class PdfGeneratorService {
   }
 
   /**
-   * Ajoute le total du devis
+   * Ajoute le total du devis avec un rendu propre et lisible
    */
   private addDevisTotal(doc: PDFKit.PDFDocument, devis: DevisWithLines): void {
-    // Positions pour la section des totaux - ajustées pour éviter les chevauchements
-    const labelX = 380; // Déplacé à gauche
-    const valueX = 530; // Déplacé à droite pour donner plus d'espace
-    let y = doc.y;
+    let y = doc.y + 20;
 
-    // Calculer le total HT (convertir Decimal en number si nécessaire)
+    // Convertir les valeurs en nombre
     const totalHT = devis.amount ? Number(devis.amount) : 0;
-
-    // Calculer la TVA
     const tvaRate = devis.tva_rate ? Number(devis.tva_rate) : 20;
     const totalTVA = totalHT * (tvaRate / 100);
-
-    // Calculer le total TTC
     const totalTTC = totalHT + totalTVA;
 
-    // Style
-    doc.font('Helvetica');
+    // Position des labels et montants
+    const labelX = 350;
+    const valueX = 500;
+    const rowHeight = 20;
 
-    // Dessiner un fond pour la section des totaux
-    doc
-      .rect(350, y, 200, 80)
-      .fillOpacity(0.1)
-      .fillAndStroke('#F0F0F0', '#CCCCCC')
-      .fillOpacity(1);
+    // Style du texte
+    doc.fontSize(10).font('Helvetica');
 
-    // Total HT
-    doc.text('Total HT:', labelX, y + 10, { align: 'right' });
-    doc.text(this.formatCurrency(totalHT), valueX, y + 10, { align: 'right' });
+    // Ligne Total HT
+    doc.text('Total HT :', labelX, y, { align: 'right' });
+    doc.text(this.formatCurrency(totalHT), valueX, y, { align: 'right' });
+    y += rowHeight;
 
-    // TVA
-    doc.text(`TVA (${tvaRate}%):`, labelX, y + 30, { align: 'right' });
-    doc.text(this.formatCurrency(totalTVA), valueX, y + 30, { align: 'right' });
+    // Ligne TVA
+    doc.text(`TVA (${tvaRate}%) :`, labelX, y, { align: 'right' });
+    doc.text(this.formatCurrency(totalTVA), valueX, y, { align: 'right' });
+    y += rowHeight;
 
-    // Total TTC en gras
+    // Ligne Total TTC (en gras)
     doc.font('Helvetica-Bold');
-    doc.text('Total TTC:', labelX, y + 50, { align: 'right' });
-    doc.text(this.formatCurrency(totalTTC), valueX, y + 50, { align: 'right' });
-
-    // Ajuster la position verticale pour la suite
-    y += 90;
+    doc.text('Total TTC :', labelX, y, { align: 'right' });
+    doc.text(this.formatCurrency(totalTTC), valueX, y, { align: 'right' });
+    y += rowHeight + 10;
 
     // Conditions de paiement
-    doc.font('Helvetica');
-    doc.fontSize(10).text('Conditions de paiement:', 50, y);
-    doc.text(
-      `Devis valable 30 jours à compter de sa date d'émission.`,
-      50,
-      y + 20,
-    );
+    doc.font('Helvetica').fontSize(10);
+    doc.text('Conditions de paiement:', 50, y);
+    y += 15;
+    doc.text(`Devis valable 30 jours à compter de sa date d'émission.`, 50, y);
+    y += 20;
 
+    // Notes si présentes
     if (devis.notes) {
-      doc.moveDown(2);
-      doc.text('Notes:', 50);
-      doc.text(devis.notes, 50);
+      doc.text('Notes:', 50, y);
+      y += 15;
+      doc.text(devis.notes, 50, y, {
+        width: 500,
+      });
     }
   }
 
   /**
-   * Ajoute le pied de page
+   * Ajoute le pied de page sur chaque page
    */
   private addFooter(doc: PDFKit.PDFDocument): void {
-    const pageCount = doc.bufferedPageRange().count;
-    for (let i = 0; i < pageCount; i++) {
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
 
       // Positionnement en bas de page
       doc
         .fontSize(8)
         .text(
-          `TECHNIDALLE - SIRET: 123 456 789 00010 - TVA: FR12 123 456 789 - Page ${i + 1}/${pageCount}`,
+          `TECHNIDALLE - SIRET: 123 456 789 00010 - TVA: FR12 123 456 789 - Page ${i + 1}/${pages.count}`,
           50,
           800,
           { align: 'center' },
@@ -422,6 +468,8 @@ export class PdfGeneratorService {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   }
 }
