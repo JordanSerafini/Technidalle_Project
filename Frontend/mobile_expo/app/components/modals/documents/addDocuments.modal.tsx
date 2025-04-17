@@ -23,6 +23,7 @@ import { useDevisStore } from '@/app/store/devisStore';
 import { useFetch } from '@/app/hooks/useFetch';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { useClientsStore } from '@/app/store/clientsStore';
+import { AddClientModal } from '../clients/addClient.modal';
 
 // Récupérer les dimensions de l'écran
 const { width, height } = Dimensions.get('window');
@@ -85,13 +86,6 @@ const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({
   onSelectClient 
 }) => {
   const [showClientForm, setShowClientForm] = useState(false);
-  const [newClient, setNewClient] = useState<Partial<Client>>({
-    firstname: '',
-    lastname: '',
-    email: '',
-    phone: '',
-    company_name: ''
-  });
   const [clientFormError, setClientFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   
@@ -105,60 +99,6 @@ const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({
       setClients(clients);
     }
   }, [clients, clientsLoading, setClients]);
-  
-  // Valider le formulaire client
-  const validateClientForm = () => {
-    if (!newClient.firstname?.trim()) {
-      setClientFormError("Le prénom est obligatoire");
-      return false;
-    }
-    if (!newClient.lastname?.trim()) {
-      setClientFormError("Le nom est obligatoire");
-      return false;
-    }
-    if (!newClient.email?.trim()) {
-      setClientFormError("L'email est obligatoire");
-      return false;
-    }
-    return true;
-  };
-  
-  // Créer un nouveau client
-  const handleCreateClient = async () => {
-    if (!validateClientForm()) return;
-    
-    setLoading(true);
-    setClientFormError(null);
-    
-    try {
-      const response = await fetch(`${urlConfig.local}clients`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newClient)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Erreur lors de la création du client');
-      }
-      
-      const createdClient = await response.json();
-      
-      // Mettre à jour la liste des clients
-      if (clients) {
-        setClients([...clients, createdClient]);
-      }
-      
-      onSelectClient(createdClient);
-      onClose();
-      
-    } catch (err) {
-      setClientFormError(err instanceof Error ? err.message : 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
-    }
-  };
   
   return (
     <Modal
@@ -180,87 +120,14 @@ const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({
             </View>
             
             {showClientForm ? (
-              <ScrollView className="flex-1" contentContainerClassName="p-4">
-                <View className="bg-white p-4 rounded-lg border border-gray-200">
-                  {clientFormError && (
-                    <View className="p-2.5 bg-red-50 rounded mb-4">
-                      <Text className="text-red-600 text-sm">{clientFormError}</Text>
-                    </View>
-                  )}
-                  
-                  <View className="mb-4">
-                    <Text className="text-sm font-medium mb-1.5 text-gray-600">Société (optionnel)</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                      value={newClient.company_name}
-                      onChangeText={(text) => setNewClient({...newClient, company_name: text})}
-                      placeholder="Nom de la société"
-                    />
-                  </View>
-                  
-                  <View className="mb-4">
-                    <Text className="text-sm font-medium mb-1.5 text-gray-600">Prénom *</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                      value={newClient.firstname}
-                      onChangeText={(text) => setNewClient({...newClient, firstname: text})}
-                      placeholder="Prénom"
-                    />
-                  </View>
-                  
-                  <View className="mb-4">
-                    <Text className="text-sm font-medium mb-1.5 text-gray-600">Nom *</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                      value={newClient.lastname}
-                      onChangeText={(text) => setNewClient({...newClient, lastname: text})}
-                      placeholder="Nom"
-                    />
-                  </View>
-                  
-                  <View className="mb-4">
-                    <Text className="text-sm font-medium mb-1.5 text-gray-600">Email *</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                      value={newClient.email}
-                      onChangeText={(text) => setNewClient({...newClient, email: text})}
-                      placeholder="Email"
-                      keyboardType="email-address"
-                    />
-                  </View>
-                  
-                  <View className="mb-4">
-                    <Text className="text-sm font-medium mb-1.5 text-gray-600">Téléphone</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                      value={newClient.phone}
-                      onChangeText={(text) => setNewClient({...newClient, phone: text})}
-                      placeholder="Téléphone"
-                      keyboardType="phone-pad"
-                    />
-                  </View>
-                  
-                  <View className="flex-row justify-between mt-4">
-                    <TouchableOpacity
-                      className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
-                      onPress={() => setShowClientForm(false)}
-                    >
-                      <Text className="text-gray-800 font-bold">Retour</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
-                      onPress={handleCreateClient}
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text className="text-white font-bold">Créer</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </ScrollView>
+              <AddClientModal
+                visible={true}
+                onClose={() => setShowClientForm(false)}
+                onSuccess={(client: Client) => {
+                  onSelectClient(client);
+                  onClose();
+                }}
+              />
             ) : (
               <View className="flex-1">
                 {clientFormError && (
