@@ -206,21 +206,19 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1" contentContainerClassName="p-4 flex-grow">
+            <ScrollView className="flex-1" contentContainerClassName="p-4">
               {error && (
                 <View className="p-2.5 bg-red-50 rounded mb-4">
                   <Text className="text-red-600 text-sm">{error}</Text>
                 </View>
               )}
 
-              <View className="flex-1 justify-between">
+              <View className="flex flex-col justify-between gap-6">
                 {/* ----------------------------------------------------------------------------------------------------------------- Formulaire client */}
                 <ClientForm client={newClient} setClient={setNewClient} />
 
                 {/* -------------------------------------------------------------------------- Formulaire adresse */}
-                <View className="flex-1">
-                  <AddressForm address={address} setAddress={setAddress} />
-                </View>
+                <AddressForm address={address} setAddress={setAddress} />
 
                 <View className="flex-row justify-end space-x-2 mt-4">
                   <TouchableOpacity
