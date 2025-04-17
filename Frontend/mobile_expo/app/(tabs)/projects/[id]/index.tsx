@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   scrollContentContainer: {
-    paddingBottom: 100, // Espace en bas pour éviter que le contenu soit masqué par le FAB
+    paddingBottom: 20, // Espacement minimal en bas
   },
   content: {
     padding: 16,
