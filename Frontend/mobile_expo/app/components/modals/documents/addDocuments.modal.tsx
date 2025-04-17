@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
-  StyleSheet, 
   TouchableOpacity,
   Alert,
   Platform,
@@ -12,7 +11,7 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  // Modal
+  Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -21,6 +20,10 @@ import { DocumentType, DocumentStatus } from '@/app/utils/interfaces/document';
 import { url as urlConfig } from '@/app/utils/url';
 import Tableau from '../../tableau';
 import { useDevisStore } from '@/app/store/devisStore';
+import { useFetch } from '@/app/hooks/useFetch';
+import { Client } from '@/app/utils/interfaces/client.interface';
+import { useClientsStore } from '@/app/store/clientsStore';
+import { AddClientModal } from '../clients/addClient.modal';
 
 // Récupérer les dimensions de l'écran
 const { width, height } = Dimensions.get('window');
@@ -33,6 +36,162 @@ interface DocumentsModalProps {
   onSuccess?: () => void;
 }
 
+// Composant pour les sections dépliables
+interface CollapsibleSectionProps {
+  title: string;
+  children: React.ReactNode;
+  initiallyExpanded?: boolean;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ 
+  title, 
+  children, 
+  initiallyExpanded = true 
+}) => {
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  
+  return (
+    <View className="mb-6 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+      <TouchableOpacity 
+        className="flex-row justify-between items-center p-4 bg-gray-100"
+        onPress={() => setExpanded(!expanded)}
+      >
+        <Text className="text-lg font-bold text-gray-800">{title}</Text>
+        <Ionicons 
+          name={expanded ? "chevron-up" : "chevron-down"} 
+          size={24} 
+          color="#333" 
+        />
+      </TouchableOpacity>
+      
+      {expanded && (
+        <View className="p-4">
+          {children}
+        </View>
+      )}
+    </View>
+  );
+};
+
+// Composant pour la modale de sélection/création de client
+interface ClientSelectionModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onSelectClient: (client: Client) => void;
+}
+
+const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({ 
+  visible, 
+  onClose, 
+  onSelectClient 
+}) => {
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [clientFormError, setClientFormError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Récupération des clients
+  const { data: clients, loading: clientsLoading } = useFetch<Client[]>('clients');
+  const { setClients } = useClientsStore();
+  
+  // Mettre à jour les clients dans le store
+  useEffect(() => {
+    if (clients && !clientsLoading) {
+      setClients(clients);
+    }
+  }, [clients, clientsLoading, setClients]);
+  
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
+        <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
+          <View className="flex-1">
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <Text className="text-xl font-bold text-gray-800">
+                {showClientForm ? 'Nouveau client' : 'Sélectionner un client'}
+              </Text>
+              <TouchableOpacity onPress={onClose} className="p-1">
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            
+            {showClientForm ? (
+              <AddClientModal
+                visible={true}
+                onClose={() => setShowClientForm(false)}
+                onSuccess={(client: Client) => {
+                  onSelectClient(client);
+                  onClose();
+                }}
+              />
+            ) : (
+              <View className="flex-1">
+                {clientFormError && (
+                  <View className="p-2.5 bg-red-50 rounded m-4">
+                    <Text className="text-red-600 text-sm">{clientFormError}</Text>
+                  </View>
+                )}
+                
+                <View className="p-4 flex-1">
+                  <TouchableOpacity
+                    className="flex-row items-center justify-center bg-gray-50 p-4 rounded-lg border border-gray-200 border-dashed mb-4"
+                    onPress={() => setShowClientForm(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={24} color="#2196F3" />
+                    <Text className="text-blue-500 text-base font-medium ml-2">Créer un nouveau client</Text>
+                  </TouchableOpacity>
+                  
+                  <View className="flex-row items-center my-4">
+                    <View className="flex-1 h-[1px] bg-gray-200" />
+                    <Text className="mx-2.5 text-gray-600 text-sm">ou</Text>
+                    <View className="flex-1 h-[1px] bg-gray-200" />
+                  </View>
+                  
+                  <Text className="text-base font-medium text-gray-800 mb-3">Sélectionner un client existant</Text>
+                  
+                  {clientsLoading ? (
+                    <ActivityIndicator size="small" color="#2196F3" className="my-5" />
+                  ) : (
+                    <View className="flex-1 max-h-[300px]">
+                      <ScrollView className="flex-1">
+                        <View className="pb-4">
+                          {clients && clients.length > 0 ? (
+                            clients.map(client => (
+                              <TouchableOpacity
+                                key={client.id}
+                                className="p-3 border-b border-gray-200 bg-white"
+                                onPress={() => {
+                                  onSelectClient(client);
+                                  onClose();
+                                }}
+                              >
+                                <Text className="text-base font-medium text-gray-800">
+                                  {client.company_name || `${client.firstname} ${client.lastname}`}
+                                </Text>
+                                <Text className="text-sm text-gray-600 mt-1">{client.email}</Text>
+                              </TouchableOpacity>
+                            ))
+                          ) : (
+                            <Text className="text-base text-gray-600 text-center my-4">Aucun client disponible</Text>
+                          )}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   visible,
   onClose,
@@ -41,7 +200,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   onSuccess
 }) => {
   // États pour les champs du formulaire
-  const [reference, setReference] = useState('');
   const [type, setType] = useState<DocumentType>(DocumentType.DEVIS);
   const [status, setStatus] = useState<DocumentStatus>(DocumentStatus.BROUILLON);
   const [tvaRate, setTvaRate] = useState('20');
@@ -55,7 +213,11 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [issueDatePickerOpen, setIssueDatePickerOpen] = useState(false);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
-
+  
+  // États pour la section client
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showClientModal, setShowClientModal] = useState(false);
+  
   // Store pour les lignes du devis
   const { rows, calculateTotal, clearRows } = useDevisStore();
   
@@ -86,7 +248,6 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
 
   // Réinitialiser le formulaire
   const resetForm = () => {
-    setReference('');
     setType(DocumentType.DEVIS);
     setStatus(DocumentStatus.BROUILLON);
     setTvaRate('20');
@@ -95,6 +256,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     setNotes('');
     setFilePath('');
     setError(null);
+    setSelectedClient(null);
     clearRows(); // Réinitialiser les lignes du devis
   };
 
@@ -120,10 +282,10 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     }
   };
 
-  // Valider le formulaire
+  // Valider le formulaire principal
   const validateForm = () => {
-    if (!reference.trim()) {
-      setError("La référence est obligatoire");
+    if (!selectedClient) {
+      setError("Veuillez sélectionner ou créer un client");
       return false;
     }
     if (!projectId) {
@@ -141,11 +303,15 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     setError(null);
     
     try {
+      if (!selectedClient) {
+        setError("Veuillez sélectionner ou créer un client");
+        return;
+      }
+      
       const documentData = {
         project_id: projectId,
-        client_id: clientId,
+        client_id: selectedClient.id,
         type,
-        reference,
         status,
         amount: calculateTotal(), // Utiliser le total calculé du tableau
         tva_rate: parseFloat(tvaRate),
@@ -197,40 +363,68 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   if (!visible) return null;
 
   return (
-    <View style={styles.modalOuterContainer}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nouveau document</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+    <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
+      <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
+        <View className="flex-1">
+          <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+            <Text className="text-xl font-bold text-gray-800">Nouveau document</Text>
+            <TouchableOpacity onPress={onClose} className="p-1">
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
           </View>
           
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.formContainer}>
-              {error && (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Référence *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={reference}
-                  onChangeText={setReference}
-                  placeholder="Ex: DEVIS-2023-001"
-                />
+          <ScrollView className="flex-1" contentContainerClassName="p-4">
+            {error && (
+              <View className="p-2.5 bg-red-50 rounded mb-4">
+                <Text className="text-red-600 text-sm">{error}</Text>
               </View>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Type de document *</Text>
-                <View style={styles.pickerContainer}>
+            )}
+            
+            {/* Section Client */}
+            <CollapsibleSection title="Client" initiallyExpanded={true}>
+              {selectedClient ? (
+                <View className="flex-row justify-between items-center p-4 bg-white rounded-lg border border-gray-200">
+                  <View className="flex-1">
+                    <Text className="text-lg font-bold text-gray-800">
+                      {selectedClient.company_name || `${selectedClient.firstname} ${selectedClient.lastname}`}
+                    </Text>
+                    <Text className="text-sm text-gray-600 mt-1">{selectedClient.email}</Text>
+                    {selectedClient.phone && (
+                      <Text className="text-sm text-gray-600 mt-1">{selectedClient.phone}</Text>
+                    )}
+                    {selectedClient.addresses && (
+                      <Text className="text-sm text-gray-600 mt-1">
+                        {selectedClient.addresses.street_name}, {selectedClient.addresses.zip_code} {selectedClient.addresses.city}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity 
+                    className="p-2"
+                    onPress={() => setShowClientModal(true)}
+                  >
+                    <Text className="text-blue-500 text-sm font-medium">Changer</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  className="flex-row items-center justify-center bg-gray-50 p-4 rounded-lg border border-gray-200 border-dashed"
+                  onPress={() => setShowClientModal(true)}
+                >
+                  <Ionicons name="person-outline" size={20} color="#2196F3" />
+                  <Text className="text-blue-500 text-base font-medium ml-2">Sélectionner un client</Text>
+                </TouchableOpacity>
+              )}
+            </CollapsibleSection>
+            
+            {/* Section Informations */}
+            <CollapsibleSection title="Informations" initiallyExpanded={true}>
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Type de document *</Text>
+                <View className="border border-gray-300 rounded bg-white">
                   <Picker
                     selectedValue={type}
                     onValueChange={(itemValue) => setType(itemValue as DocumentType)}
-                    style={styles.picker}
+                    className="h-[50px]"
                   >
                     {Object.values(DocumentType).map((docType) => (
                       <Picker.Item 
@@ -243,13 +437,13 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 </View>
               </View>
               
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Statut</Text>
-                <View style={styles.pickerContainer}>
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Statut</Text>
+                <View className="border border-gray-300 rounded bg-white">
                   <Picker
                     selectedValue={status}
                     onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
-                    style={styles.picker}
+                    className="h-[50px]"
                   >
                     {Object.values(DocumentStatus).map((docStatus) => (
                       <Picker.Item 
@@ -262,10 +456,10 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 </View>
               </View>
               
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Taux TVA (%)</Text>
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Taux TVA (%)</Text>
                 <TextInput
-                  style={styles.input}
+                  className="border border-gray-300 rounded p-2.5 text-base bg-white"
                   value={tvaRate}
                   onChangeText={setTvaRate}
                   placeholder="20"
@@ -273,13 +467,13 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 />
               </View>
               
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Date d'émission *</Text>
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'émission *</Text>
                 <TouchableOpacity 
-                  style={styles.dateButton}
+                  className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
                   onPress={() => setIssueDatePickerOpen(true)}
                 >
-                  <Text style={styles.dateButtonText}>{formatDate(issueDate)}</Text>
+                  <Text className="text-base text-gray-800">{formatDate(issueDate)}</Text>
                   <Ionicons name="calendar-outline" size={20} color="#666" />
                 </TouchableOpacity>
                 
@@ -293,13 +487,13 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 )}
               </View>
               
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Date d'échéance</Text>
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'échéance</Text>
                 <TouchableOpacity 
-                  style={styles.dateButton}
+                  className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
                   onPress={() => setDueDatePickerOpen(true)}
                 >
-                  <Text style={styles.dateButtonText}>{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
+                  <Text className="text-base text-gray-800">{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
                   <Ionicons name="calendar-outline" size={20} color="#666" />
                 </TouchableOpacity>
                 
@@ -313,10 +507,10 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                 )}
               </View>
               
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Notes</Text>
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Notes</Text>
                 <TextInput
-                  style={[styles.input, styles.textArea]}
+                  className="border border-gray-300 rounded p-2.5 text-base bg-white h-[100px] textAlignVertical-top"
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="Notes ou commentaires supplémentaires"
@@ -324,188 +518,48 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                   numberOfLines={4}
                 />
               </View>
-              
-              {type === DocumentType.DEVIS && (
-                <View style={styles.tableauContainer}>
-                  <Text style={styles.sectionTitle}>Matériaux</Text>
-                  <Tableau />
-                </View>
-              )}
-            </ScrollView>
+            </CollapsibleSection>
+            
+            {/* Section Matériaux */}
+            {type === DocumentType.DEVIS && (
+              <CollapsibleSection title="Matériaux" initiallyExpanded={true}>
+                <Tableau />
+              </CollapsibleSection>
+            )}
+          </ScrollView>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={onClose}
-              >
-                <Text style={styles.buttonText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.submitButton]}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={[styles.buttonText, styles.submitButtonText]}>
-                    Enregistrer
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+          <View className="flex-row justify-between mt-5 px-4 pb-4">
+            <TouchableOpacity
+              className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
+              onPress={onClose}
+            >
+              <Text className="text-gray-800 font-bold">Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-bold">
+                  Enregistrer
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
+      
+      {/* Modale de sélection/création de client */}
+      <ClientSelectionModal
+        visible={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        onSelectClient={setSelectedClient}
+      />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  modalOuterContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  modalContainer: {
-    width: '90%',
-    height: '90%',
-    maxWidth: 500,
-    maxHeight: 700,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    elevation: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  modalContent: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  formContainer: {
-    padding: 16,
-  },
-  errorContainer: {
-    padding: 10,
-    backgroundColor: '#ffebee',
-    borderRadius: 4,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 14,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 6,
-    color: '#555',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    backgroundColor: '#f9f9f9',
-  },
-  picker: {
-    height: 50,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 10,
-    backgroundColor: '#f9f9f9',
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  button: {
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: '48%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButton: {
-    backgroundColor: '#2196F3',
-  },
-  cancelButton: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  tableauContainer: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-});
 
 export default DocumentsModal;

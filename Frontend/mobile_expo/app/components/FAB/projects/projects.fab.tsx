@@ -83,7 +83,6 @@ const FABButton: React.FC<FABButtonProps> = ({
   });
 
   const handlePress = () => {
-    console.log(`Bouton ${label} pressé`);
     setTimeout(() => {
       onPress();
     }, 50);
@@ -159,7 +158,6 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
 
   // Fonction pour basculer l'état du FAB
   const toggleFAB = () => {
-    console.log('Toggle FAB appelé, état actuel: ', expanded);
     isExpanded.value = !isExpanded.value;
     setExpanded(!expanded);
   };
@@ -176,12 +174,10 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
 
   // Exécuter une action et fermer le FAB
   const handleAction = (callback: () => void) => {
-    console.log('Action FAB déclenchée');
     isExpanded.value = false;
     setExpanded(false);
     
     setTimeout(() => {
-      console.log('Exécution du callback après délai');
       callback();
     }, 100);
   };
@@ -189,7 +185,6 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
   // Ne pas rendre le FAB si:
   // 1. Les filtres sont visibles
   if (filtersVisible) {
-    console.log('FAB non affiché: filtres visibles');
     return null;
   }
   
@@ -207,11 +202,8 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
                              !pathname.endsWith('/projects/index');
   
   if (!isProjectsIndexPage || isProjectDetailPage) {
-    console.log('FAB non affiché:', { isProjectsIndexPage, isProjectDetailPage, pathname });
     return null;
   }
-  
-  console.log('FAB affiché sur:', pathname);
   
   return (
     <View style={styles.container}>
