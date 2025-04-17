@@ -67,6 +67,9 @@ export default function DocumentsScreen() {
   const [modalProjectId, setModalProjectId] = useState<number | undefined>(undefined);
   const [modalClientId, setModalClientId] = useState<number | undefined>(undefined);
   
+  // Déclencheur de rafraîchissement simple
+  const [refreshKey, setRefreshKey] = useState(0);
+  
   // Animation pour le swipe entre filtres
   const [filterPosition] = useState(new Animated.Value(0));
   
@@ -102,8 +105,8 @@ export default function DocumentsScreen() {
   // Référence pour éviter les re-rendus en boucle
   const hasGroupedDocuments = useRef(false);
   
-  // Récupération des documents
-  const { data: documents, loading, error } = useFetch<Document[]>('documents', {
+  // Récupération des documents - utiliser refreshKey pour forcer un nouveau montage du hook
+  const { data: documents, loading, error } = useFetch<Document[]>(`documents?refresh=${refreshKey}`, {
     searchQuery: searchQuery.length > 0 ? searchQuery : undefined
   });
   
@@ -477,10 +480,16 @@ export default function DocumentsScreen() {
     }
   };
   
+  // Fonction pour rafraîchir la liste des documents
+  const refreshDocuments = () => {
+    // Incrémenter la clé pour forcer un nouveau fetch
+    setRefreshKey(prev => prev + 1);
+  };
+  
   // Gérer l'affichage de la modale de document
   const handleShowDocumentModal = (show: boolean, projectId?: number, clientId?: number) => {
     setShowDocumentModal(show);
-    setModalProjectId(projectId || 1);
+    setModalProjectId(projectId);
     setModalClientId(clientId);
   };
   
@@ -590,14 +599,17 @@ export default function DocumentsScreen() {
       {/* MODALE SIMULÉE : Rendue ici conditionnellement par-dessus tout */}
       {showDocumentModal && (
         <DocumentsModal 
-          visible={showDocumentModal} // Peut-être plus nécessaire, mais gardons pour cohérence interne
+          visible={showDocumentModal}
           onClose={() => setShowDocumentModal(false)}
           projectId={modalProjectId}
           clientId={modalClientId}
           onSuccess={() => {
             console.log('Document ajouté avec succès');
             setShowDocumentModal(false);
-            // Recharger les documents ici si nécessaire
+          }}
+          onDocumentAdded={() => {
+            // Rafraîchir la liste lorsqu'un document est ajouté
+            refreshDocuments();
           }}
         />
       )}

@@ -167,6 +167,26 @@ exports.Prisma.DocumentsScalarFieldEnum = {
   due_date: 'due_date',
   payment_date: 'payment_date',
   payment_method: 'payment_method',
+  payment_terms: 'payment_terms',
+  discount_rate: 'discount_rate',
+  discount_amount: 'discount_amount',
+  payment_status: 'payment_status',
+  amount_paid: 'amount_paid',
+  balance_due: 'balance_due',
+  legal_mentions: 'legal_mentions',
+  validity_period: 'validity_period',
+  signed_by_client: 'signed_by_client',
+  signed_date: 'signed_date',
+  approved_by_staff_id: 'approved_by_staff_id',
+  electronic_signature_path: 'electronic_signature_path',
+  version: 'version',
+  parent_document_id: 'parent_document_id',
+  revision_reason: 'revision_reason',
+  quotation_id: 'quotation_id',
+  purchase_order_reference: 'purchase_order_reference',
+  delivery_address_id: 'delivery_address_id',
+  delivery_date: 'delivery_date',
+  shipping_costs: 'shipping_costs',
   notes: 'notes',
   file_path: 'file_path',
   created_at: 'created_at',
@@ -408,6 +428,101 @@ exports.Prisma.Document_linesScalarFieldEnum = {
   updated_at: 'updated_at'
 };
 
+exports.Prisma.Vehicle_incidentsScalarFieldEnum = {
+  id: 'id',
+  vehicle_id: 'vehicle_id',
+  staff_id: 'staff_id',
+  incident_date: 'incident_date',
+  incident_type: 'incident_type',
+  location: 'location',
+  description: 'description',
+  severity: 'severity',
+  mileage: 'mileage',
+  cost_of_repairs: 'cost_of_repairs',
+  reported_to_insurance: 'reported_to_insurance',
+  insurance_claim_number: 'insurance_claim_number',
+  resolution_status: 'resolution_status',
+  resolution_date: 'resolution_date',
+  notes: 'notes',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Vehicle_maintenanceScalarFieldEnum = {
+  id: 'id',
+  vehicle_id: 'vehicle_id',
+  maintenance_type: 'maintenance_type',
+  maintenance_date: 'maintenance_date',
+  mileage_at_maintenance: 'mileage_at_maintenance',
+  description: 'description',
+  cost: 'cost',
+  performed_by: 'performed_by',
+  next_maintenance_date: 'next_maintenance_date',
+  next_maintenance_mileage: 'next_maintenance_mileage',
+  invoice_reference: 'invoice_reference',
+  document_path: 'document_path',
+  notes: 'notes',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Vehicle_refuelingScalarFieldEnum = {
+  id: 'id',
+  vehicle_id: 'vehicle_id',
+  refuel_date: 'refuel_date',
+  mileage: 'mileage',
+  quantity: 'quantity',
+  price_per_liter: 'price_per_liter',
+  total_cost: 'total_cost',
+  staff_id: 'staff_id',
+  fuel_type: 'fuel_type',
+  station: 'station',
+  full_tank: 'full_tank',
+  project_id: 'project_id',
+  notes: 'notes',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.Vehicle_reservationsScalarFieldEnum = {
+  id: 'id',
+  vehicle_id: 'vehicle_id',
+  staff_id: 'staff_id',
+  project_id: 'project_id',
+  start_date: 'start_date',
+  end_date: 'end_date',
+  starting_mileage: 'starting_mileage',
+  ending_mileage: 'ending_mileage',
+  purpose: 'purpose',
+  status: 'status',
+  notes: 'notes',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
+exports.Prisma.VehiclesScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  type: 'type',
+  brand: 'brand',
+  model: 'model',
+  registration_number: 'registration_number',
+  year_of_manufacture: 'year_of_manufacture',
+  purchase_date: 'purchase_date',
+  purchase_price: 'purchase_price',
+  status: 'status',
+  mileage: 'mileage',
+  fuel_type: 'fuel_type',
+  fuel_capacity: 'fuel_capacity',
+  average_consumption: 'average_consumption',
+  next_technical_control: 'next_technical_control',
+  insurance_number: 'insurance_number',
+  insurance_expiry_date: 'insurance_expiry_date',
+  notes: 'notes',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -430,6 +545,9 @@ exports.document_type = exports.$Enums.document_type = {
   fiche_technique: 'fiche_technique',
   photo_chantier: 'photo_chantier',
   plan: 'plan',
+  avoir: 'avoir',
+  acompte: 'acompte',
+  situation: 'situation',
   autre: 'autre'
 };
 
@@ -465,6 +583,23 @@ exports.project_status = exports.$Enums.project_status = {
   annule: 'annule'
 };
 
+exports.vehicle_type = exports.$Enums.vehicle_type = {
+  voiture: 'voiture',
+  utilitaire: 'utilitaire',
+  camion: 'camion',
+  engin_chantier: 'engin_chantier',
+  remorque: 'remorque',
+  autre: 'autre'
+};
+
+exports.vehicle_status = exports.$Enums.vehicle_status = {
+  disponible: 'disponible',
+  en_mission: 'en_mission',
+  en_entretien: 'en_entretien',
+  hors_service: 'hors_service',
+  reserve: 'reserve'
+};
+
 exports.Prisma.ModelName = {
   addresses: 'addresses',
   clients: 'clients',
@@ -486,7 +621,12 @@ exports.Prisma.ModelName = {
   tags: 'tags',
   tasks: 'tasks',
   time_logs: 'time_logs',
-  document_lines: 'document_lines'
+  document_lines: 'document_lines',
+  vehicle_incidents: 'vehicle_incidents',
+  vehicle_maintenance: 'vehicle_maintenance',
+  vehicle_refueling: 'vehicle_refueling',
+  vehicle_reservations: 'vehicle_reservations',
+  vehicles: 'vehicles'
 };
 
 /**

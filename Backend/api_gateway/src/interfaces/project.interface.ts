@@ -125,6 +125,9 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  clients?: any;
 }
 
 export class UpdateProjectDto {
