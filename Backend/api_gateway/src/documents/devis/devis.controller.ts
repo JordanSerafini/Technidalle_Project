@@ -20,6 +20,7 @@ import {
 } from '../../interfaces/devis.interface';
 import { CreateProjectDto } from '../../interfaces/project.interface';
 import { Response } from 'express';
+import axios from 'axios';
 
 @Controller('devis')
 export class DevisController {
@@ -219,35 +220,68 @@ export class DevisController {
   async generateDevisPdf(
     @Param('id') id: number,
     @Res() res: Response,
+    @Query('sendEmail') sendEmail?: string,
   ): Promise<void> {
     try {
-      // Appeler le service de documents pour générer le PDF
-      const pdfResult = await firstValueFrom(
-        this.documentsService.send({ cmd: 'generate_devis_pdf' }, { id }),
-      );
+      console.log(`[API Gateway] Génération du PDF pour le devis ${id}`);
 
-      if (!pdfResult || !pdfResult.pdfPath) {
+      // Construire l'URL
+      let url = `http://documents:3004/devis/${id}/pdf`;
+      if (sendEmail === 'true') {
+        url += '?sendEmail=true';
+        console.log(`[API Gateway] Avec envoi d'email, URL: ${url}`);
+      }
+
+      console.log(`[API Gateway] Envoi de la requête vers: ${url}`);
+
+      try {
+        // Récupérer le PDF depuis le service de documents
+        const response = await axios({
+          method: 'get',
+          url: url,
+          responseType: 'arraybuffer', // Important pour les données binaires
+          timeout: 30000, // 30 secondes de timeout
+        });
+
+        console.log(
+          `[API Gateway] Réponse reçue du service documents, status: ${response.status}, taille: ${response.data.length} octets`,
+        );
+
+        // Configurer les en-têtes pour le PDF
+        res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Length': response.data.length,
+          'Content-Disposition': `attachment; filename=devis_${id}.pdf`,
+        });
+
+        // Envoyer le PDF au client
+        res.send(response.data);
+        console.log(`[API Gateway] PDF envoyé au client avec succès`);
+      } catch (axiosError) {
+        console.error(`[API Gateway] Erreur Axios:`, axiosError.message);
+        if (axiosError.response) {
+          console.error(`[API Gateway] Status: ${axiosError.response.status}`);
+          console.error(
+            `[API Gateway] Message: ${axiosError.response.statusText}`,
+          );
+          console.error(`[API Gateway] Headers:`, axiosError.response.headers);
+        } else if (axiosError.request) {
+          console.error(
+            `[API Gateway] Pas de réponse reçue:`,
+            axiosError.request,
+          );
+        }
         throw new HttpException(
-          'Erreur lors de la génération du PDF',
+          'Erreur lors de la communication avec le service de documents',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-
-      // Envoyer le fichier au client
-      res.sendFile(pdfResult.pdfPath, (err) => {
-        if (err) {
-          throw new HttpException(
-            "Erreur lors de l'envoi du fichier PDF",
-            HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
-      });
     } catch (error) {
       console.error(
-        `Erreur lors de la génération du PDF pour le devis ${id}:`,
-        error,
+        `[API Gateway] Erreur lors de la génération du PDF pour le devis ${id}:`,
+        error.message || error,
       );
-      if (error instanceof HttpException) throw error;
+
       throw new HttpException(
         "Erreur lors de la génération ou de l'envoi du PDF",
         HttpStatus.INTERNAL_SERVER_ERROR,

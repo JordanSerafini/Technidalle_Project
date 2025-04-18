@@ -66,3 +66,12 @@ export interface CreateDevisDto {
   file_path?: string;
   lines: CreateDevisLineDto[];
 }
+
+/**
+ * Interface pour le résultat de la génération d'un PDF
+ */
+export interface PdfResult {
+  pdfPath: string; // Chemin du fichier sur le disque
+  pdfBuffer?: Buffer; // Contenu binaire du PDF (pour transfert entre services)
+  filename: string; // Nom du fichier
+}
