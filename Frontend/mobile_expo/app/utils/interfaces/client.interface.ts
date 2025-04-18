@@ -15,19 +15,26 @@ export interface Address {
 }
 
 export interface Client {
-  id?: number;
+  id: string | number;
+  firstname?: string;
+  lastname?: string;
   company_name?: string;
-  firstname: string;
-  lastname: string;
-  email: string;
+  email?: string;
   phone?: string;
   mobile?: string;
-  address_id?: number;
-  siret?: string;
+  fax?: string;
+  status?: string;
   notes?: string;
-  created_at?: Date;
-  updated_at?: Date;
-  addresses?: Address;
+  addresses?: {
+    street?: string;
+    zipcode?: string;
+    city?: string;
+    country?: string;
+  };
+  orders?: any[];
+  last_order_date?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CreateClientDto {

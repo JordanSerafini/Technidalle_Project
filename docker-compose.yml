@@ -39,6 +39,7 @@ services:
     - ./Database/Dump/restore_sync_db.sh:/docker-entrypoint-initdb.d/restore_sync_db.sh    
     networks:
       - app-network
+    command: ["postgres", "-c", "listen_addresses=*", "-c", "log_statement=all"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sync_user -d sync_db"]
       interval: 5s
@@ -57,6 +58,7 @@ services:
       - app-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "postgres_sync:172.18.0.2"
 
       
 
@@ -79,6 +81,7 @@ services:
   #     - EBP_USER=votre_utilisateur_ebp
   #     - EBP_PASSWORD=votre_mot_de_passe_ebp
   #     - EBP_PORT=1433
+  #     - SENDGRID_API_KEY=${SENDGRID_API_KEY}
   #   depends_on:
   #     postgres_sync:
   #       condition: service_healthy
@@ -99,6 +102,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
       - PORT=3005
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,6 +121,7 @@ services:
       - "3003:3003"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -135,6 +140,7 @@ services:
       - "3002:3002"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,6 +159,7 @@ services:
       - "3004:3004"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -172,6 +179,7 @@ services:
       - "3007:3007"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,6 +198,7 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       resources:
         condition: service_started

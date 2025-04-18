@@ -39,7 +39,7 @@ async function bootstrap() {
   }
 
   // Déterminer le port à utiliser
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3355;
 
   await app.listen(port);
   logger.log(`Service de synchronisation démarré sur le port ${port}`);

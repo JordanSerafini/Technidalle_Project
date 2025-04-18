@@ -24,12 +24,12 @@ export class AppController {
     limit?: number;
     offset?: number;
     searchQuery?: string;
+    typeFilter?: string;
+    cityFilter?: string;
+    statusFilter?: string;
+    lastOrderFilter?: string;
   }): Promise<Client[]> {
-    return await this.appService.getAllClients(
-      data?.limit,
-      data?.offset,
-      data?.searchQuery,
-    );
+    return await this.appService.getAllClients(data);
   }
 
   @MessagePattern({ cmd: 'get_client_by_id' })

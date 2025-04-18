@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
   Res,
+  Query,
 } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { DevisService } from './devis.service';
@@ -12,10 +13,14 @@ import { CreateDevisDto, DevisWithLines } from '../interfaces/devis.interface';
 import { Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { EmailService } from '../email/email.service';
 
 @Controller('devis')
 export class DevisController {
-  constructor(private readonly devisService: DevisService) {}
+  constructor(
+    private readonly devisService: DevisService,
+    private readonly emailService: EmailService,
+  ) {}
 
   @MessagePattern({ cmd: 'create_devis' })
   async createDevis(data: CreateDevisDto): Promise<DevisWithLines> {
@@ -128,6 +133,7 @@ export class DevisController {
   async generatePdf(
     @Param('id') id: number,
     @Res() res: Response,
+    @Query('sendEmail') sendEmail?: string,
   ): Promise<void> {
     try {
       // Générer le PDF
@@ -139,6 +145,48 @@ export class DevisController {
           "Le fichier PDF n'a pas pu être généré",
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
+      }
+
+      // Récupérer le devis pour les infos
+      const devis = await this.devisService.getDevisById(id);
+      if (!devis) {
+        throw new HttpException('Devis introuvable', HttpStatus.NOT_FOUND);
+      }
+
+      // Envoyer par email si demandé
+      if (sendEmail === 'true') {
+        const emailTo = 'jordanserafini74370@gmail.com'; // Email du destinataire fixe
+        const emailSubject = `Devis ${devis.reference}`;
+        const emailText = `Veuillez trouver ci-joint le devis ${devis.reference}.`;
+        const emailHtml = `
+          <h1>Devis ${devis.reference}</h1>
+          <p>Bonjour,</p>
+          <p>Veuillez trouver ci-joint le devis <strong>${devis.reference}</strong>.</p>
+          <p>Date d'émission: ${new Date(devis.issue_date).toLocaleDateString('fr-FR')}</p>
+          <p>Montant: ${devis.amount ? devis.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : 'Non spécifié'}</p>
+          <p>Cordialement,<br>L'équipe Technidalle</p>
+        `;
+
+        // Envoi de l'email en arrière-plan pour ne pas bloquer la réponse
+        this.emailService
+          .sendEmailWithAttachment(
+            emailTo,
+            emailSubject,
+            emailText,
+            emailHtml,
+            pdfPath,
+          )
+          .then((success) => {
+            console.log(
+              `Email envoyé pour le devis ${id}: ${success ? 'Succès' : 'Échec'}`,
+            );
+          })
+          .catch((error) => {
+            console.error(
+              `Erreur lors de l'envoi de l'email pour le devis ${id}:`,
+              error,
+            );
+          });
       }
 
       // Récupérer le nom du fichier
