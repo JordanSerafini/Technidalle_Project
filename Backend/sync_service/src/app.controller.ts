@@ -95,6 +95,45 @@ export class AppController {
     }
   }
 
+  @Post('sync-part/:partNumber')
+  async syncByPart(
+    @Param('partNumber') partNumberParam: string,
+  ): Promise<SyncOperationResponse> {
+    try {
+      const partNumber = parseInt(partNumberParam, 10);
+
+      if (isNaN(partNumber) || partNumber < 1) {
+        return {
+          success: false,
+          message:
+            'Numéro de partie invalide. Doit être un nombre entier positif.',
+        };
+      }
+
+      const totalParts = 10; // Nombre total de parties, peut être paramétré
+
+      await this.appService.insertDataFromMSSQLToPGSQL_ByPart(
+        partNumber,
+        totalParts,
+      );
+
+      return {
+        success: true,
+        message: `Partie ${partNumber}/${totalParts} synchronisée avec succès`,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la synchronisation de la partie`,
+        error,
+      );
+      return {
+        success: false,
+        message: `Erreur lors de la synchronisation de la partie`,
+        error: (error as Error).message,
+      };
+    }
+  }
+
   @Get('columns/:tableName')
   async getColumns(
     @Param('tableName') tableName: string,
@@ -212,7 +251,8 @@ export class AppController {
 
       return {
         success: true,
-        message: 'Synchronisation complète des tables sélectionnées réalisée avec succès',
+        message:
+          'Synchronisation complète des tables sélectionnées réalisée avec succès',
       };
     } catch (error) {
       this.logger.error(
@@ -221,7 +261,8 @@ export class AppController {
       );
       return {
         success: false,
-        message: 'Erreur lors de la synchronisation complète des tables sélectionnées',
+        message:
+          'Erreur lors de la synchronisation complète des tables sélectionnées',
         error: (error as Error).message,
       };
     }

@@ -187,7 +187,9 @@ const synchro_Controller = {
           }
           return 'NULL';
         } catch (error) {
-          Logger.error(`Erreur lors du formatage d'une valeur binaire: ${error}`);
+          Logger.error(
+            `Erreur lors du formatage d'une valeur binaire: ${error}`,
+          );
           return 'NULL';
         }
       case 'boolean':
@@ -199,7 +201,9 @@ const synchro_Controller = {
           // Par sécurité, traiter les types inconnus comme du texte
           return `'${String(value)}'`;
         } catch (error) {
-          Logger.error(`Erreur lors du formatage d'une valeur de type ${dataType}: ${error}`);
+          Logger.error(
+            `Erreur lors du formatage d'une valeur de type ${dataType}: ${error}`,
+          );
           return 'NULL';
         }
     }
@@ -237,7 +241,23 @@ const synchro_Controller = {
       const tables = await synchro_Controller.getTables();
 
       Logger.log("Début du processus d'insertion des données...");
-      const allowedTables = ["Customer", "Item", "StockDocument", "StockDocumentLine", "Address", "Supplier", "SupplierItem", "SaleDocumentLine", "Storehouse", "ScheduleEvent", "ScheduleEventType", "MaintenanceContract", "MaintenanceContractAssociatedFiles", "MaintenanceContractFamily", "MaintenanceContractPurchaseDocument"];
+      const allowedTables = [
+        'Customer',
+        'Item',
+        'StockDocument',
+        'StockDocumentLine',
+        'Address',
+        'Supplier',
+        'SupplierItem',
+        'SaleDocumentLine',
+        'Storehouse',
+        'ScheduleEvent',
+        'ScheduleEventType',
+        'MaintenanceContract',
+        'MaintenanceContractAssociatedFiles',
+        'MaintenanceContractFamily',
+        'MaintenanceContractPurchaseDocument',
+      ];
 
       //const allowedTables = ['Item'];
 
@@ -370,6 +390,99 @@ const synchro_Controller = {
       Logger.log("Processus d'insertion de TOUTES les données terminé.");
     } catch (error) {
       Logger.error("Erreur globale dans le processus d'insertion :", error);
+    }
+  },
+
+  insertDataFromMSSQLToPGSQL_ByPart: async (
+    partNumber: number,
+    totalParts: number = 10,
+  ): Promise<void> => {
+    try {
+      if (partNumber < 1 || partNumber > totalParts) {
+        throw new Error(
+          `Le numéro de partie doit être entre 1 et ${totalParts}`,
+        );
+      }
+
+      const startTime = Date.now();
+      const tables = await synchro_Controller.getTables();
+
+      // Diviser les tables en parties égales
+      const tablesPerPart = Math.ceil(tables.length / totalParts);
+      const startIndex = (partNumber - 1) * tablesPerPart;
+      const endIndex = Math.min(startIndex + tablesPerPart, tables.length);
+
+      const partTables = tables.slice(startIndex, endIndex);
+
+      Logger.log(
+        `Synchronisation de la partie ${partNumber}/${totalParts} - Tables ${startIndex + 1} à ${endIndex} sur ${tables.length}`,
+      );
+      Logger.log(
+        `Tables à traiter: ${partTables.map((t) => t.tableName).join(', ')}`,
+      );
+
+      for (const tableInfo of partTables) {
+        Logger.log(
+          `Démarrage de l'insertion dans la table: ${tableInfo.tableName}`,
+        );
+
+        const selectQuery = `SELECT * FROM "${tableInfo.tableName}"`;
+        let result: EbpQueryResult;
+        try {
+          result = (await EBPclient.query(selectQuery)) as EbpQueryResult;
+        } catch (err) {
+          Logger.error(
+            `Erreur lors de la requête de données de la table ${tableInfo.tableName}:`,
+            err,
+          );
+          continue;
+        }
+
+        const existingColumns = await synchro_Controller.getExistingColumns(
+          tableInfo.tableName,
+        );
+
+        const numRows = result.recordset.length;
+        let successfulInserts = 0;
+
+        const insertQueries = result.recordset.map((rowData) =>
+          synchro_Controller.generateInsertQuery(
+            tableInfo,
+            rowData as Record<string, unknown>,
+            existingColumns,
+          ),
+        );
+
+        for (const insertQuery of insertQueries) {
+          try {
+            await pgClient.query(insertQuery);
+            successfulInserts++;
+          } catch (error) {
+            Logger.error(
+              `Erreur pendant l'insertion dans la table "${tableInfo.tableName}":`,
+              error,
+            );
+            Logger.log(`Requête incorrecte: ${insertQuery}`);
+          }
+        }
+
+        Logger.log(
+          `Table: "${tableInfo.tableName}", Insertions réussies : ${successfulInserts} sur ${numRows}`,
+        );
+      }
+
+      const endTime = Date.now();
+      const executionTime = endTime - startTime;
+      Logger.log(
+        `Temps d'exécution de la partie ${partNumber}: ${executionTime} ms`,
+      );
+      Logger.log(`Partie ${partNumber}/${totalParts} terminée.`);
+    } catch (error) {
+      Logger.error(
+        `Erreur lors de la synchronisation de la partie ${partNumber}:`,
+        error,
+      );
+      throw error;
     }
   },
 
@@ -509,6 +622,16 @@ export class AppService {
 
   async truncateTable(tableName: string): Promise<void> {
     return synchro_Controller.truncateTable(tableName);
+  }
+
+  async insertDataFromMSSQLToPGSQL_ByPart(
+    partNumber: number,
+    totalParts: number = 10,
+  ): Promise<void> {
+    return synchro_Controller.insertDataFromMSSQLToPGSQL_ByPart(
+      partNumber,
+      totalParts,
+    );
   }
 }
 

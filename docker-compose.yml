@@ -10,11 +10,11 @@ services:
       - 5432:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./Database/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
-      - ./Database/seed_db_part1.sql:/docker-entrypoint-initdb.d/seed_db_part1.sql
-      - ./Database/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
-      - ./Database/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
-      - ./Database/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
+      - ./Database/sql_dev/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      - ./Database/sql_dev/seed_db_part1.sql:/docker-entrypoint-initdb.d/seed_db_part1.sql
+      - ./Database/sql_dev/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
+      - ./Database/sql_dev/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
+      - ./Database/sql_dev/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
 
     networks:
       - app-network
@@ -34,7 +34,9 @@ services:
     ports:
       - 5433:5432
     volumes:
-      - postgres_sync_data:/var/lib/postgresql/data
+    - postgres_sync_data:/var/lib/postgresql/data
+    - ./Database/Dump/sync_db_backup.dump:/docker-entrypoint-initdb.d/sync_db_backup.dump
+    - ./Database/Dump/restore_sync_db.sh:/docker-entrypoint-initdb.d/restore_sync_db.sh    
     networks:
       - app-network
     healthcheck:
@@ -42,6 +44,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: pgadmin@pgadmin.org
+      PGADMIN_DEFAULT_PASSWORD: pgadmin
+    ports:
+      - 5050:80
+    networks:
+      - app-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+      
 
   # sync_service:
   #   build:
