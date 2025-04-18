@@ -30,6 +30,8 @@ export default function ClientsScreen() {
   const [allLoaded, setAllLoaded] = useState(false);
   const PAGE_SIZE = 25;
 
+  console.log(clients[10]);
+
   // Pan Responder pour la gestion du swipe
   const panResponder = useRef(
     PanResponder.create({
@@ -321,41 +323,63 @@ export default function ClientsScreen() {
   };
   
   // Rendu d'un élément de la liste
-  const renderClientItem = ({ item: client }: { item: Client }) => (
-    <TouchableOpacity 
-      key={client.id} 
-      onPress={() => navigateToClientDetail(client)}
-      className="flex flex-row justify-between w-full mb-2 p-2 border-b"
-    >
-      {/* Nom et société */}
-      <View className="flex-col gap-y-1">
-        <Text className="font-bold text-blue-900">
-          {client.firstname} {client.lastname}
-        </Text>
-        <Text className={`font-thin tracking-wide italic ${client.company_name == "Particulier" ? 'text-green-700' : 'text-blue-700'}`}>
-          {client.company_name}
-        </Text>
-        {client.addresses?.city && (
-          <Text className="text-gray-500 text-xs">
-            {client.addresses.city}
+  const renderClientItem = ({ item: client }: { item: Client }) => {
+    // Déterminer ce qui doit être affiché comme nom principal
+    let displayName = '';
+    if (client.lastname || client.firstname) {
+      displayName = `${client.lastname || ''} ${client.firstname || ''}`.trim();
+    } else if (client.company_name && client.company_name !== 'Particulier') {
+      displayName = client.company_name;
+    } else {
+      displayName = 'Client sans nom';
+    }
+    
+    // Déterminer ce qui doit être affiché comme info secondaire
+    let secondaryDisplay = '';
+    if (client.company_name && (client.lastname || client.firstname) && client.company_name !== 'Particulier') {
+      secondaryDisplay = client.company_name;
+    } else if (client.company_name === 'Particulier') {
+      secondaryDisplay = 'Particulier';
+    }
+    
+    return (
+      <TouchableOpacity 
+        key={client.id} 
+        onPress={() => navigateToClientDetail(client)}
+        className="flex flex-row justify-between w-full mb-2 p-3 border-b bg-white"
+      >
+        {/* Nom, prénom et société */}
+        <View className="flex-col gap-y-1 flex-1">
+          <Text className="font-bold text-blue-900">
+            {displayName}
           </Text>
-        )}
-      </View>
-      {/* Boutons pour appeler et envoyer un email */}
-      <View className="flex-row gap-x-3">
-        {(client.phone || client.mobile) && (
-          <TouchableOpacity onPress={(e) => handlePhonePress(client, e)}>
-            <Ionicons name="call-outline" size={24} color="#2563eb" />
-          </TouchableOpacity>
-        )}
-        {client.email && (
-          <TouchableOpacity onPress={(e) => handleEmailPress(client.email, e)}>
-            <Ionicons name="mail-outline" size={24} color="#2563eb" />
-          </TouchableOpacity>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+          {secondaryDisplay ? (
+            <Text className={`font-thin tracking-wide italic ${secondaryDisplay === "Particulier" ? 'text-green-700' : 'text-blue-700'}`}>
+              {secondaryDisplay}
+            </Text>
+          ) : null}
+          {client.addresses?.city ? (
+            <Text className="text-gray-500 text-xs">
+              {client.addresses.city}
+            </Text>
+          ) : null}
+        </View>
+        {/* Boutons pour appeler et envoyer un email */}
+        <View className="flex-row gap-x-3 items-center">
+          {(client.phone || client.mobile) && (
+            <TouchableOpacity onPress={(e) => handlePhonePress(client, e)}>
+              <Ionicons name="call-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+          )}
+          {client.email && (
+            <TouchableOpacity onPress={(e) => handleEmailPress(client.email, e)}>
+              <Ionicons name="mail-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   // Rendu du footer de la liste (indicateur de chargement)
   const renderFooter = () => {
