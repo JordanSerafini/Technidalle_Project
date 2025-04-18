@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '@/app/hooks/useFetch';
 import { Document, DocumentStatus, DocumentType } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
+import { url as urlConfig } from '@/app/utils/url';
 
 export default function DocumentDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -30,6 +31,37 @@ export default function DocumentDetailsScreen() {
       });
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de partager ce document');
+    }
+  };
+  
+  // Fonction pour télécharger le PDF avec option d'envoi par email
+  const downloadPdfWithEmail = async () => {
+    if (!document || document.type !== 'devis') return;
+    
+    try {
+      // URL pour télécharger le PDF avec envoi d'email
+      const url = `${urlConfig.local}devis/${document.id}/pdf?sendEmail=true`;
+      
+      Alert.alert(
+        "Téléchargement et envoi par email",
+        "Le document sera téléchargé et envoyé par email à jordanserafini74370@gmail.com",
+        [
+          {
+            text: "Annuler",
+            style: "cancel"
+          },
+          { 
+            text: "Confirmer", 
+            onPress: () => {
+              Linking.openURL(url).catch(err => {
+                Alert.alert('Erreur', 'Impossible de télécharger le document');
+              });
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de télécharger le document');
     }
   };
   
@@ -210,6 +242,38 @@ export default function DocumentDetailsScreen() {
                   <Text className="ml-3 flex-1 text-blue-800">Consulter le document</Text>
                   <Ionicons name="open-outline" size={20} color="#3b82f6" />
                 </TouchableOpacity>
+              </View>
+            )}
+            
+            {document && document.type === 'devis' && (
+              <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
+                <Text className="text-lg font-semibold text-gray-800 mb-3">Actions</Text>
+                
+                <TouchableOpacity 
+                  className="flex-row items-center p-3 bg-blue-50 rounded-lg mb-2"
+                  onPress={downloadPdfWithEmail}
+                >
+                  <MaterialIcons name="email" size={24} color="#3b82f6" />
+                  <Text className="ml-3 flex-1 text-blue-800">Télécharger et envoyer par email</Text>
+                  <Ionicons name="download-outline" size={20} color="#3b82f6" />
+                </TouchableOpacity>
+                
+                {document.file_path && (
+                  <TouchableOpacity 
+                    className="flex-row items-center p-3 bg-blue-50 rounded-lg"
+                    onPress={() => {
+                      if (document.file_path) {
+                        Linking.openURL(document.file_path).catch((err) => {
+                          Alert.alert('Erreur', 'Impossible d\'ouvrir ce document');
+                        });
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="insert-drive-file" size={24} color="#3b82f6" />
+                    <Text className="ml-3 flex-1 text-blue-800">Consulter le document</Text>
+                    <Ionicons name="open-outline" size={20} color="#3b82f6" />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
