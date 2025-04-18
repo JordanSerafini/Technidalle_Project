@@ -157,7 +157,7 @@ const synchro_Controller = {
       case 'nchar':
         return `'${value}'`;
       case 'uniqueidentifier':
-        return `'${value}'`;
+        return `'${String(value)}'`;
       case 'datetime':
         if (value instanceof Date) {
           return `'${value.toISOString()}'`;
@@ -172,14 +172,36 @@ const synchro_Controller = {
       case 'bit':
         return value ? 'true' : 'false';
       case 'varbinary':
-        // Vous pouvez ajouter ici la gestion des valeurs varbinary si nécessaire
-        return `'${value}'`;
+        // Correction pour les données binaires
+        try {
+          // Si c'est une chaîne qui contient des caractères non imprimables
+          // Encoder en base64 puis en hexa pour PostgreSQL
+          if (typeof value === 'string') {
+            // Vérifier si la chaîne contient des caractères non imprimables
+            if (/[\x00-\x1F\x7F-\xFF]/.test(value)) {
+              // Convertir en format hexa pour PostgreSQL
+              return `'\\x${Buffer.from(value, 'binary').toString('hex')}'`;
+            }
+            // Sinon, traiter comme texte normal
+            return `'${value}'`;
+          }
+          return 'NULL';
+        } catch (error) {
+          Logger.error(`Erreur lors du formatage d'une valeur binaire: ${error}`);
+          return 'NULL';
+        }
       case 'boolean':
         return value ? 'true' : 'false';
       case undefined:
         return 'NULL';
       default:
-        throw new Error(`Type de données non géré : ${dataType}`);
+        try {
+          // Par sécurité, traiter les types inconnus comme du texte
+          return `'${String(value)}'`;
+        } catch (error) {
+          Logger.error(`Erreur lors du formatage d'une valeur de type ${dataType}: ${error}`);
+          return 'NULL';
+        }
     }
   },
 
