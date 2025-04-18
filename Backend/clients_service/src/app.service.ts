@@ -30,30 +30,117 @@ export class AppService {
   constructor(private prisma: PrismaService) {}
 
   // Clients API
-  async getAllClients(
-    limit?: number,
-    offset?: number,
-    searchQuery?: string,
-  ): Promise<Client[]> {
+  async getAllClients(data?: {
+    limit?: number;
+    offset?: number;
+    searchQuery?: string;
+    typeFilter?: string;
+    cityFilter?: string;
+    statusFilter?: string;
+    lastOrderFilter?: string;
+  }): Promise<Client[]> {
+    // Définition d'un type pour les conditions de recherche Prisma
+    type WhereCondition = {
+      OR?: any[];
+      AND?: any[];
+      company_name?: string | { not: string | null };
+      status?: any;
+      addresses?: any;
+      last_order_date?: any;
+    };
+
+    const whereConditions: WhereCondition = {};
+
+    // Filtrage par recherche textuelle
+    if (data?.searchQuery) {
+      whereConditions.OR = [
+        { firstname: { contains: data.searchQuery, mode: 'insensitive' } },
+        { lastname: { contains: data.searchQuery, mode: 'insensitive' } },
+        { email: { contains: data.searchQuery, mode: 'insensitive' } },
+        { phone: { contains: data.searchQuery, mode: 'insensitive' } },
+        { mobile: { contains: data.searchQuery, mode: 'insensitive' } },
+        { company_name: { contains: data.searchQuery, mode: 'insensitive' } },
+      ];
+    }
+
+    // Filtrage par type de client (particulier/entreprise)
+    if (data?.typeFilter) {
+      if (data.typeFilter === 'Particulier') {
+        whereConditions.company_name = 'Particulier';
+      } else if (data.typeFilter === 'Entreprise') {
+        whereConditions.AND = whereConditions.AND || [];
+        whereConditions.AND.push({
+          company_name: {
+            not: 'Particulier',
+          },
+        });
+        whereConditions.AND.push({
+          company_name: {
+            not: null,
+          },
+        });
+      }
+    }
+
+    // Filtrage par statut
+    if (data?.statusFilter) {
+      let statusValue = '';
+
+      if (data.statusFilter === 'Actif') {
+        statusValue = 'active';
+      } else if (data.statusFilter === 'Inactif') {
+        statusValue = 'inactive';
+      } else if (data.statusFilter === 'Prospect') {
+        statusValue = 'prospect';
+      }
+
+      if (statusValue) {
+        whereConditions.OR = whereConditions.OR || [];
+        whereConditions.OR.push(
+          { status: { equals: statusValue, mode: 'insensitive' } },
+          { status: { equals: data.statusFilter, mode: 'insensitive' } },
+        );
+      }
+    }
+
+    // Filtrage par ville
+    if (data?.cityFilter) {
+      whereConditions.addresses = {
+        city: { equals: data.cityFilter, mode: 'insensitive' },
+      };
+    }
+
+    // Filtrage par commandes
+    if (data?.lastOrderFilter) {
+      // Cette partie nécessitera une extension du modèle de données pour stocker
+      // les informations relatives aux commandes, ou une jointure avec une table
+      // commandes, si disponible dans le schéma Prisma
+      if (data.lastOrderFilter === 'Avec commandes') {
+        whereConditions.last_order_date = {
+          not: null,
+        };
+      } else if (data.lastOrderFilter === 'Sans commande') {
+        whereConditions.last_order_date = null;
+      } else if (data.lastOrderFilter === 'Récentes') {
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+        whereConditions.last_order_date = {
+          gte: threeMonthsAgo,
+        };
+      }
+    }
+
     const dbClients = await this.prisma.clients.findMany({
-      where: searchQuery
-        ? {
-            OR: [
-              { firstname: { contains: searchQuery, mode: 'insensitive' } },
-              { lastname: { contains: searchQuery, mode: 'insensitive' } },
-              { email: { contains: searchQuery, mode: 'insensitive' } },
-              { phone: { contains: searchQuery, mode: 'insensitive' } },
-              { company_name: { contains: searchQuery, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
+      where: whereConditions,
       include: {
         addresses: true,
       },
-      skip: offset || 0,
-      take: limit || undefined,
+      orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      skip: data?.offset || 0,
+      take: data?.limit || undefined,
     });
-    return dbClients as unknown as Client[];
+    return dbClients as Client[];
   }
 
   async getClientById(id: number): Promise<Client | null> {
@@ -63,7 +150,7 @@ export class AppService {
         addresses: true,
       },
     });
-    return dbClient as unknown as Client | null;
+    return dbClient as Client | null;
   }
 
   async createClient(clientDto: CreateClientDto): Promise<Client> {
@@ -72,7 +159,7 @@ export class AppService {
         ...clientDto,
       },
     });
-    return dbClient as unknown as Client;
+    return dbClient as Client;
   }
 
   async updateClient(
@@ -86,7 +173,7 @@ export class AppService {
           ...clientDto,
         },
       });
-      return dbClient as unknown as Client;
+      return dbClient as Client;
     } catch (error) {
       this.logger.error(
         `Erreur lors de la mise à jour du client ${id}:`,
@@ -126,14 +213,14 @@ export class AppService {
       where: { id: client.address_id },
     });
 
-    return address ? [address as unknown as Address] : [];
+    return address ? [address as Address] : [];
   }
 
   async getAddressById(id: number): Promise<Address | null> {
     const dbAddress = await this.prisma.addresses.findUnique({
       where: { id },
     });
-    return dbAddress as unknown as Address | null;
+    return dbAddress as Address | null;
   }
 
   async createAddress(
@@ -163,7 +250,7 @@ export class AppService {
           },
         });
 
-        return newAddress as unknown as Address;
+        return newAddress as Address;
       });
     } catch (error) {
       this.logger.error(
@@ -185,7 +272,7 @@ export class AppService {
           ...addressDto,
         },
       });
-      return dbAddress as unknown as Address;
+      return dbAddress as Address;
     } catch (error) {
       this.logger.error(
         `Erreur lors de la mise à jour de l'adresse ${id}:`,
@@ -479,7 +566,7 @@ export class AppService {
       // Vérifier si l'adresse contient un ID explicite
       if ('id' in address) {
         this.logger.warn(
-          `L'adresse contient un ID explicite: ${(address as any).id}`,
+          `L'adresse contient un ID explicite: ${(address as { id: number | string }).id}`,
         );
       }
 
@@ -500,11 +587,11 @@ export class AppService {
           );
 
           // Tentative de création de l'adresse
-          let newAddress;
+          let newAddress: { id: number };
           try {
-            newAddress = await tx.addresses.create({
+            newAddress = (await tx.addresses.create({
               data: addressData,
-            });
+            })) as { id: number };
             this.logger.log(`Adresse créée avec l'ID: ${newAddress.id}`);
           } catch (addressError) {
             this.logger.error(
@@ -534,7 +621,7 @@ export class AppService {
             `Client créé avec succès: ${JSON.stringify(newClient)}`,
           );
 
-          return newClient as unknown as Client;
+          return newClient as Client;
         } catch (txError) {
           this.logger.error(
             `Erreur de transaction: ${JSON.stringify(txError)}`,
