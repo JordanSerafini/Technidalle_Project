@@ -13,3 +13,8 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.DS_Store
+
+# Ne pas exclure ces fichiers
+!Database/Dump/sync_db_backup.dump
+!Database/Dump/restore_sync_db.sh
