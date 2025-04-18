@@ -138,24 +138,16 @@ export class DevisController {
   ): Promise<void> {
     try {
       console.log(`Démarrage de la génération du PDF pour le devis ${id}`);
-      // Générer le PDF
-      const pdfResult = await this.devisService.generateDevisPdf(id);
-      console.log(`PDF généré avec succès dans: ${pdfResult.pdfPath}`);
 
-      // Vérifier que le fichier existe
-      if (!fs.existsSync(pdfResult.pdfPath)) {
-        console.error(`Le fichier n'existe pas: ${pdfResult.pdfPath}`);
-        throw new HttpException(
-          "Le fichier PDF n'a pas pu être généré",
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
-      // Récupérer le devis pour les infos
+      // Récupérer le devis
       const devis = await this.devisService.getDevisById(id);
       if (!devis) {
         throw new HttpException('Devis introuvable', HttpStatus.NOT_FOUND);
       }
+
+      // Générer le PDF
+      const pdfResult = await this.devisService.generateDevisPdf(id);
+      console.log(`PDF généré avec succès dans: ${pdfResult.pdfPath}`);
 
       // Envoyer par email si demandé
       if (sendEmail === 'true') {
@@ -200,25 +192,26 @@ export class DevisController {
         }
       }
 
-      // Récupérer le nom du fichier
-      const filename = pdfResult.filename;
-      console.log(`Envoi du fichier: ${filename}`);
+      // Envoyer le fichier PDF directement depuis le buffer
+      console.log(`Envoi du PDF au client: ${pdfResult.filename}`);
 
-      // Envoyer le fichier au client
+      // Définir les en-têtes de la réponse
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=${pdfResult.filename}`,
+      );
 
-      // Envoi direct du buffer au lieu d'utiliser un stream du système de fichiers
-      // Cela évite les problèmes d'accès aux fichiers
+      // Envoyer le contenu du PDF directement
       res.send(pdfResult.pdfBuffer);
-      console.log(`PDF envoyé avec succès pour le devis ${id}`);
+      console.log(`PDF envoyé avec succès au client`);
     } catch (error) {
       console.error(
-        `Erreur lors de la génération du PDF pour le devis ${id}:`,
+        `Erreur lors de la génération ou de l'envoi du PDF pour le devis ${id}:`,
         error,
       );
       throw new HttpException(
-        "Le fichier PDF n'a pas pu être généré",
+        "Erreur lors de l'envoi du fichier PDF",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

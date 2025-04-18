@@ -223,45 +223,64 @@ export class DevisController {
     @Query('sendEmail') sendEmail?: string,
   ): Promise<void> {
     try {
-      console.log(`Génération du PDF pour le devis ${id}`);
+      console.log(`[API Gateway] Génération du PDF pour le devis ${id}`);
 
-      // URL du service de documents
+      // Construire l'URL
       let url = `http://documents:3004/devis/${id}/pdf`;
       if (sendEmail === 'true') {
         url += '?sendEmail=true';
-        console.log(`Ajout de l'option d'envoi d'email, URL: ${url}`);
+        console.log(`[API Gateway] Avec envoi d'email, URL: ${url}`);
       }
 
-      console.log(`Envoi d'une requête vers: ${url}`);
+      console.log(`[API Gateway] Envoi de la requête vers: ${url}`);
 
-      // Utiliser Axios pour obtenir le PDF directement du service documents
-      const response = await axios.get(url, {
-        responseType: 'arraybuffer', // Important pour recevoir des données binaires
-      });
+      try {
+        // Récupérer le PDF depuis le service de documents
+        const response = await axios({
+          method: 'get',
+          url: url,
+          responseType: 'arraybuffer', // Important pour les données binaires
+          timeout: 30000, // 30 secondes de timeout
+        });
 
-      console.log(
-        `Réponse reçue du service documents, status: ${response.status}`,
-      );
+        console.log(
+          `[API Gateway] Réponse reçue du service documents, status: ${response.status}, taille: ${response.data.length} octets`,
+        );
 
-      // Configurer les en-têtes pour le PDF
-      res.set({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename=devis_${id}.pdf`,
-      });
+        // Configurer les en-têtes pour le PDF
+        res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Length': response.data.length,
+          'Content-Disposition': `attachment; filename=devis_${id}.pdf`,
+        });
 
-      // Envoyer le contenu binaire du PDF au client
-      res.send(response.data);
-      console.log(`PDF envoyé au client avec succès`);
+        // Envoyer le PDF au client
+        res.send(response.data);
+        console.log(`[API Gateway] PDF envoyé au client avec succès`);
+      } catch (axiosError) {
+        console.error(`[API Gateway] Erreur Axios:`, axiosError.message);
+        if (axiosError.response) {
+          console.error(`[API Gateway] Status: ${axiosError.response.status}`);
+          console.error(
+            `[API Gateway] Message: ${axiosError.response.statusText}`,
+          );
+          console.error(`[API Gateway] Headers:`, axiosError.response.headers);
+        } else if (axiosError.request) {
+          console.error(
+            `[API Gateway] Pas de réponse reçue:`,
+            axiosError.request,
+          );
+        }
+        throw new HttpException(
+          'Erreur lors de la communication avec le service de documents',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     } catch (error) {
       console.error(
-        `Erreur lors de la génération du PDF pour le devis ${id}:`,
+        `[API Gateway] Erreur lors de la génération du PDF pour le devis ${id}:`,
         error.message || error,
       );
-
-      if (error.response) {
-        console.error(`Statut de la réponse: ${error.response.status}`);
-        console.error(`Message d'erreur: ${error.response.statusText}`);
-      }
 
       throw new HttpException(
         "Erreur lors de la génération ou de l'envoi du PDF",
