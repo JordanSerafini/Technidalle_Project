@@ -14,7 +14,12 @@ enum FilterType {
 
 export default function ClientsScreen() {
   const router = useRouter();
-  const { clients, setClients, setSelectedClient, addClient } = useClientsStore();
+  const { setSelectedClient } = useClientsStore();
+  
+  // State local pour les clients actuellement visibles
+  const [localClients, setLocalClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  
   const [searchInputValue, setSearchInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
@@ -29,8 +34,6 @@ export default function ClientsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [allLoaded, setAllLoaded] = useState(false);
   const PAGE_SIZE = 25;
-
-  console.log(clients[10]);
 
   // Pan Responder pour la gestion du swipe
   const panResponder = useRef(
@@ -76,9 +79,12 @@ export default function ClientsScreen() {
     // Définir un nouveau timeout
     searchTimeout.current = setTimeout(() => {
       setSearchQuery(text);
+      applyFilters(localClients, text, selectedType, selectedCity);
+      
       setOffset(0); // Réinitialiser l'offset lors d'une nouvelle recherche
-      setClients([]); // Vider la liste lors d'une nouvelle recherche
-      setAllLoaded(false); // Réinitialiser le flag
+      if (text.length > 0) {
+        setAllLoaded(false); // Réinitialiser le flag
+      }
     }, 500); // Délai de 500ms avant d'appliquer la recherche
   };
   
@@ -98,17 +104,66 @@ export default function ClientsScreen() {
     searchQuery: searchQuery.length > 0 ? searchQuery : undefined
   });
 
-  // Stocker les données dans le store une fois chargées
+  // Fonction pour appliquer les filtres localement
+  const applyFilters = useCallback((clients: Client[], query?: string, type?: string | null, city?: string | null) => {
+    if (!clients) {
+      setFilteredClients([]);
+      return;
+    }
+    
+    if (!query && !type && !city) {
+      setFilteredClients(clients);
+      return;
+    }
+    
+    const filtered = clients.filter(client => {
+      // Filtre par type (particulier/entreprise)
+      let typeMatch = true;
+      if (type) {
+        if (type === "Particulier") {
+          typeMatch = client.company_name === "Particulier";
+        } else if (type === "Entreprise") {
+          typeMatch = client.company_name !== "Particulier" && !!client.company_name;
+        }
+      }
+      
+      // Filtre par ville
+      const cityMatch = city ? 
+        client.addresses?.city === city : true;
+      
+      // Filtre par recherche textuelle
+      let searchMatch = true;
+      if (query && query.length > 0) {
+        const q = query.toLowerCase();
+        searchMatch = !!(
+          (client.firstname && client.firstname.toLowerCase().includes(q)) ||
+          (client.lastname && client.lastname.toLowerCase().includes(q)) ||
+          (client.company_name && client.company_name.toLowerCase().includes(q)) ||
+          (client.email && client.email.toLowerCase().includes(q)) ||
+          (client.phone && client.phone.toLowerCase().includes(q)) ||
+          (client.mobile && client.mobile.toLowerCase().includes(q)) ||
+          (client.addresses?.city && client.addresses.city.toLowerCase().includes(q))
+        );
+      }
+      
+      return typeMatch && cityMatch && searchMatch;
+    });
+    
+    setFilteredClients(filtered);
+  }, []);
+
+  // Stocker les données dans le state local une fois chargées
   useEffect(() => {
     if (data) {
       if (offset === 0) {
         // Si c'est la première page, remplacer les clients
-        setClients(data);
+        setLocalClients(data);
+        applyFilters(data, searchQuery, selectedType, selectedCity);
       } else if (data.length > 0) {
         // Sinon, ajouter les nouveaux clients à la liste existante
-        data.forEach(client => {
-          addClient(client);
-        });
+        const newClients = [...localClients, ...data];
+        setLocalClients(newClients);
+        applyFilters(newClients, searchQuery, selectedType, selectedCity);
       }
       
       // Si on reçoit moins de clients que la taille de page, on a tout chargé
@@ -118,7 +173,12 @@ export default function ClientsScreen() {
       
       setLoadingMore(false);
     }
-  }, [data, setClients, addClient, offset]);
+  }, [data, offset, applyFilters, searchQuery, selectedType, selectedCity]);
+
+  // Appliquer les filtres quand selectedType ou selectedCity changent
+  useEffect(() => {
+    applyFilters(localClients, searchQuery, selectedType, selectedCity);
+  }, [selectedType, selectedCity, localClients, applyFilters, searchQuery]);
 
   // Fonction pour charger plus de clients
   const loadMoreClients = useCallback(() => {
@@ -154,54 +214,31 @@ export default function ClientsScreen() {
 
   // Extraction des types de client (particulier/entreprise)
   const clientTypes = useMemo(() => {
-    if (!clients) return [];
+    if (!localClients) return [];
     
     const types = new Set<string>();
-    clients.forEach(client => {
+    localClients.forEach(client => {
       if (client.company_name) {
         types.add(client.company_name === "Particulier" ? "Particulier" : "Entreprise");
       }
     });
     
     return Array.from(types);
-  }, [clients]);
+  }, [localClients]);
 
   // Extraction des villes uniques
   const clientCities = useMemo(() => {
-    if (!clients) return [];
+    if (!localClients) return [];
     
     const cities = new Set<string>();
-    clients.forEach(client => {
+    localClients.forEach(client => {
       if (client.addresses?.city) {
         cities.add(client.addresses.city);
       }
     });
     
     return Array.from(cities).sort();
-  }, [clients]);
-
-  // Filtrer les clients selon les critères sélectionnés
-  const filteredClients = useMemo(() => {
-    if (!clients) return [];
-    
-    return clients.filter(client => {
-      // Filtre par type (particulier/entreprise)
-      let typeMatch = true;
-      if (selectedType) {
-        if (selectedType === "Particulier") {
-          typeMatch = client.company_name === "Particulier";
-        } else if (selectedType === "Entreprise") {
-          typeMatch = client.company_name !== "Particulier" && !!client.company_name;
-        }
-      }
-      
-      // Filtre par ville
-      const cityMatch = selectedCity ? 
-        client.addresses?.city === selectedCity : true;
-      
-      return typeMatch && cityMatch;
-    });
-  }, [clients, selectedType, selectedCity]);
+  }, [localClients]);
 
   const handlePhonePress = (client: Client, event: any) => {
     // Empêcher la propagation pour éviter de naviguer vers le détail
@@ -416,6 +453,13 @@ export default function ClientsScreen() {
     setRefreshKey(prev => prev + 1);
     setOffset(0);
     setAllLoaded(false);
+    // Réinitialiser les filtres
+    setSelectedType(null);
+    setSelectedCity(null);
+    setSearchInputValue('');
+    setSearchQuery('');
+    setLocalClients([]);
+    setFilteredClients([]);
   };
 
   if (loading && offset === 0) {
@@ -457,6 +501,9 @@ export default function ClientsScreen() {
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
           initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews={true}
           refreshing={loading && offset === 0}
           onRefresh={refreshClients}
         />
@@ -509,6 +556,7 @@ export default function ClientsScreen() {
               <TouchableOpacity onPress={() => {
                 setSearchInputValue('');
                 setSearchQuery('');
+                applyFilters(localClients, '', selectedType, selectedCity);
                 setOffset(0);
                 setAllLoaded(false);
               }}>
