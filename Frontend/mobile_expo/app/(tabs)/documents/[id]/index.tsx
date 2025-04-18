@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Image, Dimensions, Share, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Image, Dimensions, Share, Alert, Linking, SafeAreaView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '@/app/hooks/useFetch';
 import { Document, DocumentStatus, DocumentType } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
 import { url as urlConfig } from '@/app/utils/url';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function DocumentDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -39,29 +40,59 @@ export default function DocumentDetailsScreen() {
     if (!document || document.type !== 'devis') return;
     
     try {
-      // URL pour télécharger le PDF avec envoi d'email
-      const url = `${urlConfig.local}devis/${document.id}/pdf?sendEmail=true`;
+      // Créer deux URLs : une pour le téléchargement seul et une pour l'envoi d'email
+      const downloadUrl = `${urlConfig.local}devis/${document.id}/pdf`;
+      const emailUrl = `${urlConfig.local}devis/${document.id}/pdf?sendEmail=true`;
+      
+      console.log("URL pour téléchargement:", downloadUrl);
+      console.log("URL pour email:", emailUrl);
       
       Alert.alert(
-        "Téléchargement et envoi par email",
-        "Le document sera téléchargé et envoyé par email à jordanserafini74370@gmail.com",
+        "Options de document",
+        "Que souhaitez-vous faire avec ce document?",
         [
           {
             text: "Annuler",
             style: "cancel"
           },
           { 
-            text: "Confirmer", 
+            text: "Télécharger seulement", 
             onPress: () => {
-              Linking.openURL(url).catch(err => {
+              console.log("Tentative de téléchargement seul");
+              Linking.openURL(downloadUrl).catch(err => {
+                console.error("Erreur de téléchargement:", err);
                 Alert.alert('Erreur', 'Impossible de télécharger le document');
               });
+            }
+          },
+          {
+            text: "Télécharger et envoyer par email",
+            onPress: () => {
+              console.log("Tentative de téléchargement + email");
+              fetch(emailUrl, { method: 'GET' })
+                .then(response => {
+                  console.log("Réponse du serveur:", response.status);
+                  if (response.ok) {
+                    Alert.alert('Succès', 'Le document a été envoyé par email');
+                    // Télécharger le PDF
+                    Linking.openURL(downloadUrl).catch(err => {
+                      console.error("Erreur après email:", err);
+                    });
+                  } else {
+                    Alert.alert('Erreur', 'Problème lors de l\'envoi du document');
+                  }
+                })
+                .catch(error => {
+                  console.error("Erreur fetch:", error);
+                  Alert.alert('Erreur', 'Problème de connexion au serveur');
+                });
             }
           }
         ]
       );
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de télécharger le document');
+      console.error("Erreur générale:", error);
+      Alert.alert('Erreur', 'Une erreur est survenue');
     }
   };
   
@@ -70,8 +101,47 @@ export default function DocumentDetailsScreen() {
     if (!document?.file_path) return;
     
     Linking.openURL(document.file_path).catch((err) => {
+      console.error("Erreur viewDocument:", err);
       Alert.alert('Erreur', 'Impossible d\'ouvrir ce document');
     });
+  };
+  
+  // Fonction pour télécharger le PDF avec option d'envoi par email via le navigateur
+  const openPdfInBrowser = async () => {
+    if (!document || document.type !== 'devis') return;
+    
+    try {
+      // URL pour télécharger le PDF avec envoi d'email
+      const url = `${urlConfig.local}devis/${document.id}/pdf?sendEmail=true`;
+      console.log("Ouverture dans le navigateur:", url);
+      
+      Alert.alert(
+        "Téléchargement via navigateur",
+        "Le document sera ouvert dans votre navigateur et un email sera envoyé",
+        [
+          {
+            text: "Annuler",
+            style: "cancel"
+          },
+          { 
+            text: "Confirmer", 
+            onPress: async () => {
+              try {
+                // Utilisation de WebBrowser d'Expo pour une ouverture plus fiable
+                const result = await WebBrowser.openBrowserAsync(url);
+                console.log("Résultat WebBrowser:", result);
+              } catch (error) {
+                console.error("Erreur WebBrowser:", error);
+                Alert.alert('Erreur', 'Impossible d\'ouvrir le navigateur');
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Erreur openPdfInBrowser:", error);
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le navigateur');
+    }
   };
   
   // Fonction pour obtenir la couleur en fonction du statut
@@ -99,7 +169,7 @@ export default function DocumentDetailsScreen() {
     }
   };
   
-  // Rendu conditionnnel du contenu principal
+  // Rendu du contenu principal
   const renderContent = () => {
     if (loading) {
       return (
@@ -136,7 +206,7 @@ export default function DocumentDetailsScreen() {
     
     // On a un document à afficher
     return (
-      <View className="p-4">
+      <View style={{ paddingBottom: 100 }}>
         {/* En-tête du document */}
         <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
           <View className="flex-row items-center mb-3">
@@ -253,6 +323,15 @@ export default function DocumentDetailsScreen() {
               <Ionicons name="download-outline" size={20} color="#3b82f6" />
             </TouchableOpacity>
             
+            <TouchableOpacity 
+              className="flex-row items-center p-3 bg-blue-50 rounded-lg mb-2"
+              onPress={openPdfInBrowser}
+            >
+              <MaterialIcons name="open-in-browser" size={24} color="#3b82f6" />
+              <Text className="ml-3 flex-1 text-blue-800">Ouvrir dans le navigateur</Text>
+              <Ionicons name="globe-outline" size={20} color="#3b82f6" />
+            </TouchableOpacity>
+            
             {document.file_path && (
               <TouchableOpacity 
                 className="flex-row items-center p-3 bg-blue-50 rounded-lg"
@@ -280,12 +359,15 @@ export default function DocumentDetailsScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Espace supplémentaire pour permettre le défilement */}
+        <View style={{ height: 120 }} />
       </View>
     );
   };
   
   return (
-    <>
+    <SafeAreaView style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title: document ? `${document.reference}` : 'Document',
@@ -297,9 +379,13 @@ export default function DocumentDetailsScreen() {
         }}
       />
       
-      <ScrollView className="flex-1 bg-gray-50">
+      <ScrollView 
+        className="bg-gray-50" 
+        contentContainerStyle={{ padding: 16 }}
+        showsVerticalScrollIndicator={true}
+      >
         {renderContent()}
       </ScrollView>
-    </>
+    </SafeAreaView>
   );
 }
