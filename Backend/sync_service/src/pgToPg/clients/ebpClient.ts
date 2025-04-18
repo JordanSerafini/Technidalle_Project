@@ -9,27 +9,85 @@ import pgClientDestination from '../../clients/pgClient_2';
 export function convertEBPtoAppClient(
   clientEBP: ClientEBP,
 ): CreateClientWithAddressDto {
+  // Récupération du prénom en priorisant MainInvoicingContact puis MainDeliveryContact
+  const firstname = clientEBP.MainInvoicingContact_FirstName || 
+                   clientEBP.MainDeliveryContact_FirstName || 
+                   extractFirstNameFromCompanyName(clientEBP.Name) || 
+                   '';
+
+  // Récupération du nom en priorisant MainInvoicingContact puis MainDeliveryContact
+  const lastname = clientEBP.MainInvoicingContact_Name || 
+                  clientEBP.MainDeliveryContact_Name || 
+                  extractLastNameFromCompanyName(clientEBP.Name) || 
+                  '';
+
   return {
     company_name: clientEBP.Name || undefined,
-    firstname: clientEBP.MainInvoicingContact_FirstName || undefined,
-    lastname: clientEBP.MainInvoicingContact_Name || undefined,
-    email: clientEBP.MainInvoicingContact_Email || '',
-    phone: clientEBP.MainInvoicingContact_Phone || undefined,
-    mobile: clientEBP.MainInvoicingContact_Cellphone || undefined,
+    firstname: firstname,
+    lastname: lastname,
+    email: clientEBP.MainInvoicingContact_Email || clientEBP.MainDeliveryContact_Email || '',
+    phone: clientEBP.MainInvoicingContact_Phone || clientEBP.MainDeliveryContact_Phone || undefined,
+    mobile: clientEBP.MainInvoicingContact_Cellphone || clientEBP.MainDeliveryContact_CellPhone || undefined,
     notes: clientEBP.NotesClear || undefined,
     address: {
-      street_name: clientEBP.MainInvoicingAddress_Address1 || '',
+      street_name: clientEBP.MainInvoicingAddress_Address1 || clientEBP.MainDeliveryAddress_Address1 || '',
       additional_address: combineAdditionalAddresses(
         clientEBP.MainInvoicingAddress_Address2 || '',
         clientEBP.MainInvoicingAddress_Address3 || '',
         clientEBP.MainInvoicingAddress_Address4 || '',
       ),
-      zip_code: clientEBP.MainInvoicingAddress_ZipCode || '',
-      city: clientEBP.MainInvoicingAddress_City || '',
-      country: clientEBP.MainInvoicingAddress_State || '',
+      zip_code: clientEBP.MainInvoicingAddress_ZipCode || clientEBP.MainDeliveryAddress_ZipCode || '',
+      city: clientEBP.MainInvoicingAddress_City || clientEBP.MainDeliveryAddress_City || '',
+      country: clientEBP.MainInvoicingAddress_State || clientEBP.MainDeliveryAddress_State || '',
       street_number: '',
     },
   };
+}
+
+/**
+ * Tente d'extraire un prénom du nom de l'entreprise pour les cas spéciaux
+ * (ex: "DEMILLY Jean" -> "Jean")
+ */
+function extractFirstNameFromCompanyName(companyName: string | null | undefined): string | null {
+  if (!companyName) return null;
+  
+  // Recherche des motifs courants où le prénom suit le nom de famille
+  const patterns = [
+    /([A-Z]+)\s+([A-Z][a-z]+)/, // Format: "NOM Prénom"
+    /([A-Z][a-z]+)\s+([A-Z][a-z]+)/, // Format: "Nom Prénom"
+  ];
+  
+  for (const pattern of patterns) {
+    const match = companyName.match(pattern);
+    if (match && match[2]) {
+      return match[2]; // Le groupe 2 contient le prénom
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Tente d'extraire un nom de famille du nom de l'entreprise pour les cas spéciaux
+ * (ex: "DEMILLY Jean" -> "DEMILLY")
+ */
+function extractLastNameFromCompanyName(companyName: string | null | undefined): string | null {
+  if (!companyName) return null;
+  
+  // Recherche des motifs courants où le nom de famille précède le prénom
+  const patterns = [
+    /([A-Z]+)\s+([A-Z][a-z]+)/, // Format: "NOM Prénom"
+    /([A-Z][a-z]+)\s+([A-Z][a-z]+)/, // Format: "Nom Prénom"
+  ];
+  
+  for (const pattern of patterns) {
+    const match = companyName.match(pattern);
+    if (match && match[1]) {
+      return match[1]; // Le groupe 1 contient le nom de famille
+    }
+  }
+  
+  return null;
 }
 
 /**
