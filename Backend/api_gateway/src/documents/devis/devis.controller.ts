@@ -20,6 +20,7 @@ import {
 } from '../../interfaces/devis.interface';
 import { CreateProjectDto } from '../../interfaces/project.interface';
 import { Response } from 'express';
+import axios from 'axios';
 
 @Controller('devis')
 export class DevisController {
@@ -222,30 +223,46 @@ export class DevisController {
     @Query('sendEmail') sendEmail?: string,
   ): Promise<void> {
     try {
-      // URL du service pour la génération et l'envoi d'email optionnel
       console.log(`Génération du PDF pour le devis ${id}`);
+
+      // URL du service de documents
       let url = `http://documents:3004/devis/${id}/pdf`;
-      
-      // Ajouter le paramètre sendEmail si nécessaire
       if (sendEmail === 'true') {
         url += '?sendEmail=true';
         console.log(`Ajout de l'option d'envoi d'email, URL: ${url}`);
       }
-      
-      // Rediriger vers l'URL du service de documents
-      console.log(`Redirection vers: ${url}`);
-      // Utilisation d'un await sur une promesse pour satisfaire l'avertissement "async sans await"
-      await new Promise<void>((resolve) => {
-        res.redirect(url);
-        // La résolution est immédiate car la redirection ne retourne pas de promesse
-        resolve();
+
+      console.log(`Envoi d'une requête vers: ${url}`);
+
+      // Utiliser Axios pour obtenir le PDF directement du service documents
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer', // Important pour recevoir des données binaires
       });
+
+      console.log(
+        `Réponse reçue du service documents, status: ${response.status}`,
+      );
+
+      // Configurer les en-têtes pour le PDF
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=devis_${id}.pdf`,
+      });
+
+      // Envoyer le contenu binaire du PDF au client
+      res.send(response.data);
+      console.log(`PDF envoyé au client avec succès`);
     } catch (error) {
       console.error(
         `Erreur lors de la génération du PDF pour le devis ${id}:`,
-        error,
+        error.message || error,
       );
-      if (error instanceof HttpException) throw error;
+
+      if (error.response) {
+        console.error(`Statut de la réponse: ${error.response.status}`);
+        console.error(`Message d'erreur: ${error.response.statusText}`);
+      }
+
       throw new HttpException(
         "Erreur lors de la génération ou de l'envoi du PDF",
         HttpStatus.INTERNAL_SERVER_ERROR,
