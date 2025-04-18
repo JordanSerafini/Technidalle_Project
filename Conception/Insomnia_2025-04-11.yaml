@@ -19,12 +19,12 @@ collection:
           modified: 1744209773293
           sortKey: -1744209773293
         children:
-          - url: http://localhost:3000/clients?limit=1
+          - url: http://localhost:3000/clients?limit=10
             name: GetAll
             meta:
               id: req_32218f233d104df0b159bbd5940e96c7
               created: 1744209775242
-              modified: 1744372199293
+              modified: 1744615749607
               isPrivate: false
               sortKey: -1744209775242
             method: GET
@@ -39,15 +39,35 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: http://localhost:3000/clients/1
+          - url: http://localhost:3000/clients/4
             name: Get By ID
             meta:
               id: req_4498ddd422e24d1c8632d7e40eb04e14
               created: 1744211228432
-              modified: 1744354542287
+              modified: 1744620576274
               isPrivate: false
               sortKey: -1744157281346.5
             method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/clients/addresses/geocode-all
+            name: Geocode All
+            meta:
+              id: req_df40461c9ccf494bb8f4f7a58c27f786
+              created: 1744615506138
+              modified: 1744615529872
+              isPrivate: false
+              sortKey: -1744615506138
+            method: POST
             headers:
               - name: User-Agent
                 value: insomnia/11.0.2
@@ -66,12 +86,12 @@ collection:
           modified: 1744209924461
           sortKey: -1744209924461
         children:
-          - url: http://localhost:3000/projects?limit=2
+          - url: http://localhost:3000/projects?limit=5
             name: GetAll
             meta:
               id: req_9c57999da3c0448f9ad63e7ad631fce6
               created: 1744209931717
-              modified: 1744363249428
+              modified: 1744632664155
               isPrivate: false
               sortKey: -1744209927481
             method: GET
@@ -86,14 +106,34 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: http://localhost:3000/projects/5
+          - url: http://localhost:3000/projects/2
             name: Get By ID
             meta:
               id: req_cdfb4b977baf42a89083cc9316313165
               created: 1744211212036
-              modified: 1744211219952
+              modified: 1744640635111
               isPrivate: false
               sortKey: -1744209851361.5
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/projects/client/4
+            name: Get By Client ID
+            meta:
+              id: req_773f887b7b7046cab4a04521283aeead
+              created: 1744633579921
+              modified: 1744633807034
+              isPrivate: false
+              sortKey: -1744209813301.75
             method: GET
             headers:
               - name: User-Agent
@@ -140,6 +180,33 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
+          - name: Staff
+            meta:
+              id: fld_5df1abe9efec43a589c92e58b66aefd4
+              created: 1744707014475
+              modified: 1744707014475
+              sortKey: -1744707014475
+            children:
+              - url: http://localhost:3000/resources/projects/4/staff
+                name: Get staff by project ID
+                meta:
+                  id: req_0d453dd2ef15453abf407c2b3cc1e414
+                  created: 1744707020576
+                  modified: 1744707043591
+                  isPrivate: false
+                  sortKey: -1744707023133
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
       - name: Global
         meta:
           id: fld_340f08e73c9d493b8e93525fd95d25fb
@@ -171,6 +238,406 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
+      - name: Documents
+        meta:
+          id: fld_284d4381fbbb46e09deb7c3181149a02
+          created: 1744617833659
+          modified: 1744617833659
+          sortKey: -1744617833659
+        children:
+          - name: Devis
+            meta:
+              id: fld_806318eee564402ea8a440e2f2c500b7
+              created: 1744892972612
+              modified: 1744892972612
+              sortKey: -1744892972612
+            children:
+              - url: http://localhost:3000/devis/1
+                name: Get Devis By id
+                meta:
+                  id: req_09a49b83268047b59484c7c14ba02e4f
+                  created: 1744892975680
+                  modified: 1744901113266
+                  isPrivate: false
+                  sortKey: -1744892975680
+                method: GET
+                body:
+                  mimeType: application/json
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/devis/1/pdf
+                name: Get Devis to PDF By id
+                meta:
+                  id: req_7e646028f70e4e76962888a11c504371
+                  created: 1744901152777
+                  modified: 1744901169009
+                  isPrivate: false
+                  sortKey: -1744805080979
+                method: GET
+                body:
+                  mimeType: application/json
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - url: http://localhost:3000/documents/client/4
+            name: Get Documents by Client Id
+            meta:
+              id: req_59ce447d99804d44810887d170ae79df
+              created: 1744617843024
+              modified: 1744620338829
+              isPrivate: false
+              sortKey: -1744617843024
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/documents/project/2
+            name: Get Documents by project Id
+            meta:
+              id: req_f4609627a28b4d3d87044f671e966bc7
+              created: 1744640850822
+              modified: 1744640866977
+              isPrivate: false
+              sortKey: -1744616674581
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/documents/project/2/media
+            name: Get Medias by projetct id
+            meta:
+              id: req_bf45c8fd95b1475ba922e5ee4b95f5e7
+              created: 1744642028145
+              modified: 1744642074881
+              isPrivate: false
+              sortKey: -1744642028145
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/documents/9
+            name: Get Documents by Id
+            meta:
+              id: req_eb30a9b411f042a6aa4fbf8c0f6850d2
+              created: 1744729941465
+              modified: 1744730905246
+              isPrivate: false
+              sortKey: -1744616090359.5
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Planning
+        meta:
+          id: fld_1502bdbe23454e21ae3ff48613461334
+          created: 1744717184159
+          modified: 1744717184159
+          sortKey: -1744717184159
+        children:
+          - url: http://localhost:3000/events
+            name: GetAll Events
+            meta:
+              id: req_761dcb7d1f5a40e58fe325d902df6b9b
+              created: 1744717186278
+              modified: 1744718043016
+              isPrivate: false
+              sortKey: -1744717186278
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+  - name: Sync_Service
+    meta:
+      id: fld_4d6aa23d3a6543278d86409ae04fbc1b
+      created: 1744959778390
+      modified: 1744959778390
+      sortKey: -1744959778390
+    children:
+      - name: Drop / Truncate
+        meta:
+          id: fld_977531e0d29649a9bd6ed29744889cd9
+          created: 1744960928648
+          modified: 1744960928648
+          sortKey: -1744960928648
+        children:
+          - url: http://localhost:3000/drop-tables
+            name: Drop Tables
+            meta:
+              id: req_0945fc5a360344388ad53f27cf558b5e
+              created: 1744960187286
+              modified: 1744960932872
+              isPrivate: false
+              sortKey: -1744960932836
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/truncate-tables
+            name: Truncate All Tables
+            meta:
+              id: req_42fb1cbeef1640cb8ac458a11a05680f
+              created: 1744960206523
+              modified: 1744960935380
+              isPrivate: false
+              sortKey: -1744960932936
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/truncate-table/:tableName
+            name: Truncate Tables by tableName
+            meta:
+              id: req_46d1a4f129e24c0aa71a4a39489a6375
+              created: 1744960228231
+              modified: 1744960936712
+              isPrivate: false
+              sortKey: -1744960933036
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+            pathParameters:
+              - name: tableName
+      - name: Create / Get tables
+        meta:
+          id: fld_a4069f79d139484ea394e8b2e2c9372e
+          created: 1744961019692
+          modified: 1744961019692
+          sortKey: -1744961019692
+        children:
+          - url: http://localhost:3000/tables
+            name: Get Tables From EBP
+            meta:
+              id: req_1e71823a0c414708a3b15b9383b1c08e
+              created: 1744959797245
+              modified: 1744961022552
+              isPrivate: false
+              sortKey: -1744961022518
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/create-tables
+            name: Create Tables from EBP(mssql) to PG
+            meta:
+              id: req_f79c53089fd04b29b3492c98264aff91
+              created: 1744960058662
+              modified: 1744961024007
+              isPrivate: false
+              sortKey: -1744961022618
+            method: POST
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: SYNC
+        meta:
+          id: fld_bddbd04f789b4db68563d8377417f466
+          created: 1744961439364
+          modified: 1744961439364
+          sortKey: -1744961439364
+      - url: http://localhost:3000/sync-data-select
+        name: Sync Column SELECTED
+        meta:
+          id: req_4fe1afe6e0144ca592fc427c0dce93a0
+          created: 1744960102568
+          modified: 1744961446651
+          isPrivate: false
+          sortKey: -1744961045921.5
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3000/columns/:tableName
+        name: Sync by column tableName
+        meta:
+          id: req_89313fe9ae7646daa29d8985d49c1cc5
+          created: 1744960151064
+          modified: 1744961447740
+          isPrivate: false
+          sortKey: -1744961032806.75
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+        pathParameters:
+          - name: tableName
+      - url: http://localhost:3000/full-sync
+        name: "FULL Sync: Création + Sync total"
+        meta:
+          id: req_aaa6cbe4e377442bb96af0059db224c5
+          created: 1744960259906
+          modified: 1744961442818
+          isPrivate: false
+          sortKey: -1744961229528
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3000/sync-data-all
+        name: "Sync All Data in Tables EBP>PG "
+        meta:
+          id: req_0cf441b3cc9d4a9c9017f28d00cddaa2
+          created: 1744961227135
+          modified: 1744961445491
+          isPrivate: false
+          sortKey: -1744961072151
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3000/full-sync-selected
+        name: "FULL Sync: Création + Sync SELECTED"
+        meta:
+          id: req_b96e88f71c944293b898aac6848e637c
+          created: 1744961297613
+          modified: 1744961444278
+          isPrivate: false
+          sortKey: -1744961124610
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
