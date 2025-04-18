@@ -34,6 +34,10 @@ export class ClientsController {
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
     @Query('searchQuery') searchQuery?: string,
+    @Query('typeFilter') typeFilter?: string,
+    @Query('cityFilter') cityFilter?: string,
+    @Query('statusFilter') statusFilter?: string,
+    @Query('lastOrderFilter') lastOrderFilter?: string,
   ): Promise<Client[]> {
     return await firstValueFrom(
       this.clientsService.send(
@@ -42,6 +46,10 @@ export class ClientsController {
           limit: limit ? Number(limit) : undefined,
           offset: offset ? Number(offset) : undefined,
           searchQuery,
+          typeFilter,
+          cityFilter,
+          statusFilter,
+          lastOrderFilter,
         },
       ),
     );
