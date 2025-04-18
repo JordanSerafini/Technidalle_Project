@@ -531,7 +531,7 @@ export default function DocumentsScreen() {
         </View>
       )}
       
-      {/* Floating Action Button - caché si la modale est affichée */}
+      {/* Floating Action Button - caché si la modale est affichée
       {!showDocumentModal && (
         <DocumentsFAB 
           filtersVisible={filterVisible} 
@@ -539,7 +539,7 @@ export default function DocumentsScreen() {
           clientId={modalClientId}
           onShowModal={handleShowDocumentModal}
         />
-      )}
+      )} */}
       
       {/* Barre de recherche et filtres en bas de l'écran */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
