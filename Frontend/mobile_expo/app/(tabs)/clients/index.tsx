@@ -326,19 +326,37 @@ export default function ClientsScreen() {
   const renderClientItem = ({ item: client }: { item: Client }) => {
     // Déterminer ce qui doit être affiché comme nom principal
     let displayName = '';
-    if (client.lastname || client.firstname) {
-      displayName = `${client.lastname || ''} ${client.firstname || ''}`.trim();
-    } else if (client.company_name && client.company_name !== 'Particulier') {
-      displayName = client.company_name;
+    
+    // Nettoyer les valeurs de prénom et nom (éliminer les points seuls, etc.)
+    const firstname = client.firstname?.trim();
+    const lastname = client.lastname?.trim();
+    const companyName = client.company_name?.trim();
+    
+    // Vérifier s'il s'agit d'un prénom seul sans nom (comme "Amélie", "Caroline")
+    const isFirstNameOnly = (firstname && firstname.length > 1 && (!lastname || lastname === '.' || lastname === '..'));
+    
+    // Gérer les différents cas pour l'affichage du nom
+    if (isFirstNameOnly) {
+      // Si c'est un prénom sans nom de famille valide
+      displayName = firstname;
+    } else if ((lastname && lastname !== '.' && lastname !== '..') || (firstname && firstname !== '.' && firstname !== '..')) {
+      // Si on a un nom ou un prénom valide (pas juste un point)
+      displayName = `${lastname || ''} ${firstname || ''}`.trim();
+    } else if (companyName && companyName !== 'Particulier') {
+      // Si on a un nom d'entreprise et pas de nom/prénom valides
+      displayName = companyName;
     } else {
+      // Cas par défaut si rien d'autre n'est disponible
       displayName = 'Client sans nom';
     }
     
     // Déterminer ce qui doit être affiché comme info secondaire
     let secondaryDisplay = '';
-    if (client.company_name && (client.lastname || client.firstname) && client.company_name !== 'Particulier') {
-      secondaryDisplay = client.company_name;
-    } else if (client.company_name === 'Particulier') {
+    
+    // Afficher le nom de l'entreprise comme info secondaire uniquement si ce n'est pas déjà le nom principal
+    if (companyName && companyName !== 'Particulier' && displayName !== companyName) {
+      secondaryDisplay = companyName;
+    } else if (companyName === 'Particulier') {
       secondaryDisplay = 'Particulier';
     }
     
