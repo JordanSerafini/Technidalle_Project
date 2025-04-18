@@ -24,6 +24,54 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres_sync:
+    image: postgres:15
+    container_name: postgres_sync
+    environment:
+      POSTGRES_USER: sync_user
+      POSTGRES_PASSWORD: sync_password
+      POSTGRES_DB: sync_db
+    ports:
+      - 5433:5432
+    volumes:
+      - postgres_sync_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sync_user -d sync_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # sync_service:
+  #   build:
+  #     context: ./Backend/sync_service
+  #     dockerfile: Dockerfile
+  #   container_name: sync_service
+  #   ports:
+  #     - "3006:3006"
+  #   environment:
+  #     - PORT=3006
+  #     - DB_HOST=postgres_sync
+  #     - DB_PORT=5432
+  #     - DB_USER=sync_user
+  #     - DB_PASSWORD=sync_password
+  #     - DB_NAME=sync_db
+  #     - EBP_SERVER=host.docker.internal
+  #     - EBP_DATABASE=votre_base_ebp
+  #     - EBP_USER=votre_utilisateur_ebp
+  #     - EBP_PASSWORD=votre_mot_de_passe_ebp
+  #     - EBP_PORT=1433
+  #   depends_on:
+  #     postgres_sync:
+  #       condition: service_healthy
+  #   networks:
+  #     - app-network
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   volumes:
+  #     - ./Backend/sync_service:/app
+
   resources:
     build:
       context: ./Backend/resources_service
@@ -145,3 +193,4 @@ networks:
 
 volumes:
   postgres_data:
+  postgres_sync_data:
