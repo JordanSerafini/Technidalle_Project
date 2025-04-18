@@ -219,28 +219,26 @@ export class DevisController {
   async generateDevisPdf(
     @Param('id') id: number,
     @Res() res: Response,
+    @Query('sendEmail') sendEmail?: string,
   ): Promise<void> {
     try {
-      // Appeler le service de documents pour générer le PDF
-      const pdfResult = await firstValueFrom(
-        this.documentsService.send({ cmd: 'generate_devis_pdf' }, { id }),
-      );
-
-      if (!pdfResult || !pdfResult.pdfPath) {
-        throw new HttpException(
-          'Erreur lors de la génération du PDF',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
+      // URL du service pour la génération et l'envoi d'email optionnel
+      console.log(`Génération du PDF pour le devis ${id}`);
+      let url = `http://documents:3004/devis/${id}/pdf`;
+      
+      // Ajouter le paramètre sendEmail si nécessaire
+      if (sendEmail === 'true') {
+        url += '?sendEmail=true';
+        console.log(`Ajout de l'option d'envoi d'email, URL: ${url}`);
       }
-
-      // Envoyer le fichier au client
-      res.sendFile(pdfResult.pdfPath, (err) => {
-        if (err) {
-          throw new HttpException(
-            "Erreur lors de l'envoi du fichier PDF",
-            HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
+      
+      // Rediriger vers l'URL du service de documents
+      console.log(`Redirection vers: ${url}`);
+      // Utilisation d'un await sur une promesse pour satisfaire l'avertissement "async sans await"
+      await new Promise<void>((resolve) => {
+        res.redirect(url);
+        // La résolution est immédiate car la redirection ne retourne pas de promesse
+        resolve();
       });
     } catch (error) {
       console.error(

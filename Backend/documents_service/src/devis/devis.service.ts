@@ -5,9 +5,12 @@ import {
   CreateDevisLineDto,
   DevisWithLines,
   DevisLine,
+  PdfResult,
 } from '../interfaces/devis.interface';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { PdfGeneratorService } from '../pdf-generator/pdf-generator.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Type pour les lignes récupérées par SQL brut
 interface RawDevisLine {
@@ -623,7 +626,7 @@ export class DevisService {
   /**
    * Génère un PDF pour un devis existant
    */
-  async generateDevisPdf(id: number): Promise<string> {
+  async generateDevisPdf(id: number): Promise<PdfResult> {
     // Récupérer le devis avec toutes ses informations
     const devis = await this.getDevisById(id);
 
@@ -634,12 +637,22 @@ export class DevisService {
     // Générer le PDF
     const pdfPath = await this.pdfGeneratorService.generateDevisPdf(devis);
 
+    // Récupérer le nom du fichier
+    const filename = path.basename(pdfPath);
+
+    // Lire le contenu du fichier
+    const pdfBuffer = fs.readFileSync(pdfPath);
+
     // Mettre à jour le chemin du fichier dans la base de données
     await this.prisma.documents.update({
       where: { id: devis.id },
       data: { file_path: pdfPath },
     });
 
-    return pdfPath;
+    return {
+      pdfPath,
+      pdfBuffer,
+      filename,
+    };
   }
 }
