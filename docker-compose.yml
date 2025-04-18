@@ -81,6 +81,7 @@ services:
   #     - EBP_USER=votre_utilisateur_ebp
   #     - EBP_PASSWORD=votre_mot_de_passe_ebp
   #     - EBP_PORT=1433
+  #     - SENDGRID_API_KEY=${SENDGRID_API_KEY}
   #   depends_on:
   #     postgres_sync:
   #       condition: service_healthy
@@ -101,6 +102,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
       - PORT=3005
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,6 +121,7 @@ services:
       - "3003:3003"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -137,6 +140,7 @@ services:
       - "3002:3002"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -155,6 +159,7 @@ services:
       - "3004:3004"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,6 +179,7 @@ services:
       - "3007:3007"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -192,6 +198,7 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
       resources:
         condition: service_started
