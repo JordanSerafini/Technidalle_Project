@@ -19,12 +19,12 @@ collection:
           modified: 1744209773293
           sortKey: -1744209773293
         children:
-          - url: http://localhost:3000/clients?limit=10
+          - url: http://localhost:3000/clients?limit=100
             name: GetAll
             meta:
               id: req_32218f233d104df0b159bbd5940e96c7
               created: 1744209775242
-              modified: 1744615749607
+              modified: 1744968649695
               isPrivate: false
               sortKey: -1744209775242
             method: GET
@@ -414,61 +414,273 @@ collection:
       modified: 1744959778390
       sortKey: -1744959778390
     children:
-      - name: Drop / Truncate
+      - name: EBP>PG
         meta:
-          id: fld_977531e0d29649a9bd6ed29744889cd9
-          created: 1744960928648
-          modified: 1744960928648
-          sortKey: -1744960928648
+          id: fld_a34a4472847e426a848a0bc4d3bd91c3
+          created: 1744967113521
+          modified: 1744967113521
+          sortKey: -1744967113521
         children:
-          - url: http://localhost:3000/drop-tables
-            name: Drop Tables
+          - name: Drop / Truncate
             meta:
-              id: req_0945fc5a360344388ad53f27cf558b5e
-              created: 1744960187286
-              modified: 1744960932872
-              isPrivate: false
-              sortKey: -1744960932836
-            method: POST
-            headers:
-              - name: User-Agent
-                value: insomnia/11.0.2
-            settings:
-              renderRequestBody: true
-              encodeUrl: true
-              followRedirects: global
-              cookies:
-                send: true
-                store: true
-              rebuildPath: true
-          - url: http://localhost:3000/truncate-tables
-            name: Truncate All Tables
+              id: fld_977531e0d29649a9bd6ed29744889cd9
+              created: 1744960928648
+              modified: 1744967121787
+              sortKey: -1744967119392
+            children:
+              - url: http://localhost:3000/drop-tables
+                name: Drop Tables
+                meta:
+                  id: req_0945fc5a360344388ad53f27cf558b5e
+                  created: 1744960187286
+                  modified: 1744960932872
+                  isPrivate: false
+                  sortKey: -1744960932836
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/truncate-tables
+                name: Truncate All Tables
+                meta:
+                  id: req_42fb1cbeef1640cb8ac458a11a05680f
+                  created: 1744960206523
+                  modified: 1744960935380
+                  isPrivate: false
+                  sortKey: -1744960932936
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/truncate-table/:tableName
+                name: Truncate Tables by tableName
+                meta:
+                  id: req_46d1a4f129e24c0aa71a4a39489a6375
+                  created: 1744960228231
+                  modified: 1744960936712
+                  isPrivate: false
+                  sortKey: -1744960933036
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+                pathParameters:
+                  - name: tableName
+          - name: Create / Get tables
             meta:
-              id: req_42fb1cbeef1640cb8ac458a11a05680f
-              created: 1744960206523
-              modified: 1744960935380
-              isPrivate: false
-              sortKey: -1744960932936
-            method: POST
-            headers:
-              - name: User-Agent
-                value: insomnia/11.0.2
-            settings:
-              renderRequestBody: true
-              encodeUrl: true
-              followRedirects: global
-              cookies:
-                send: true
-                store: true
-              rebuildPath: true
-          - url: http://localhost:3000/truncate-table/:tableName
-            name: Truncate Tables by tableName
+              id: fld_a4069f79d139484ea394e8b2e2c9372e
+              created: 1744961019692
+              modified: 1744967120870
+              sortKey: -1744967119442
+            children:
+              - url: http://localhost:3000/tables
+                name: Get Tables From EBP
+                meta:
+                  id: req_1e71823a0c414708a3b15b9383b1c08e
+                  created: 1744959797245
+                  modified: 1744961022552
+                  isPrivate: false
+                  sortKey: -1744961022518
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/create-tables
+                name: Create Tables from EBP(mssql) to PG
+                meta:
+                  id: req_f79c53089fd04b29b3492c98264aff91
+                  created: 1744960058662
+                  modified: 1744961024007
+                  isPrivate: false
+                  sortKey: -1744961022618
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - name: SYNC
             meta:
-              id: req_46d1a4f129e24c0aa71a4a39489a6375
-              created: 1744960228231
-              modified: 1744960936712
+              id: fld_bddbd04f789b4db68563d8377417f466
+              created: 1744961439364
+              modified: 1744967119367
+              sortKey: -1744967119342
+            children:
+              - url: http://localhost:3000/sync-data-select
+                name: Sync Column SELECTED
+                meta:
+                  id: req_4fe1afe6e0144ca592fc427c0dce93a0
+                  created: 1744960102568
+                  modified: 1744961519462
+                  isPrivate: false
+                  sortKey: -1744961514535
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/columns/:tableName
+                name: Sync by column tableName
+                meta:
+                  id: req_89313fe9ae7646daa29d8985d49c1cc5
+                  created: 1744960151064
+                  modified: 1744961520509
+                  isPrivate: false
+                  sortKey: -1744961514522.5
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+                pathParameters:
+                  - name: tableName
+              - url: http://localhost:3000/full-sync
+                name: "FULL Sync: Création + Sync TOTAL"
+                meta:
+                  id: req_aaa6cbe4e377442bb96af0059db224c5
+                  created: 1744960259906
+                  modified: 1744961528331
+                  isPrivate: false
+                  sortKey: -1744961514710
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/sync-data-all
+                name: "Sync All Data in Tables EBP>PG "
+                meta:
+                  id: req_0cf441b3cc9d4a9c9017f28d00cddaa2
+                  created: 1744961227135
+                  modified: 1744961518286
+                  isPrivate: false
+                  sortKey: -1744961514560
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/full-sync-selected
+                name: "FULL Sync: Création + Sync SELECTED"
+                meta:
+                  id: req_b96e88f71c944293b898aac6848e637c
+                  created: 1744961297613
+                  modified: 1744962492688
+                  isPrivate: false
+                  sortKey: -1744961514610
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/sync-part/10
+                name: PARTIAL Sync query
+                meta:
+                  id: req_d1b67e001ce241d89c812429f3b3d04f
+                  created: 1744963015139
+                  modified: 1744964681520
+                  isPrivate: false
+                  sortKey: -1744961514585
+                method: POST
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+      - name: PG > PG
+        meta:
+          id: fld_6909c9fb60944795b463ba80f52e7fa7
+          created: 1744967130001
+          modified: 1744967130001
+          sortKey: -1744967130001
+        children:
+          - url: http://localhost:3355/sync/sync-clients
+            name: Sync Customer
+            meta:
+              id: req_3766eb37c27b45ec97b60dff10e228b6
+              created: 1744967132440
+              modified: 1744970179072
               isPrivate: false
-              sortKey: -1744960933036
+              sortKey: -1744967132440
             method: GET
             headers:
               - name: User-Agent
@@ -481,23 +693,14 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-            pathParameters:
-              - name: tableName
-      - name: Create / Get tables
-        meta:
-          id: fld_a4069f79d139484ea394e8b2e2c9372e
-          created: 1744961019692
-          modified: 1744961019692
-          sortKey: -1744961019692
-        children:
-          - url: http://localhost:3000/tables
-            name: Get Tables From EBP
+          - url: http://localhost:3355/truncate/clients
+            name: truncate col Local by Col name
             meta:
-              id: req_1e71823a0c414708a3b15b9383b1c08e
-              created: 1744959797245
-              modified: 1744961022552
+              id: req_c269349ff08044298e6b1125ff830383
+              created: 1744969624551
+              modified: 1744970182919
               isPrivate: false
-              sortKey: -1744961022518
+              sortKey: -1744964323575
             method: GET
             headers:
               - name: User-Agent
@@ -510,134 +713,6 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: http://localhost:3000/create-tables
-            name: Create Tables from EBP(mssql) to PG
-            meta:
-              id: req_f79c53089fd04b29b3492c98264aff91
-              created: 1744960058662
-              modified: 1744961024007
-              isPrivate: false
-              sortKey: -1744961022618
-            method: POST
-            headers:
-              - name: User-Agent
-                value: insomnia/11.0.2
-            settings:
-              renderRequestBody: true
-              encodeUrl: true
-              followRedirects: global
-              cookies:
-                send: true
-                store: true
-              rebuildPath: true
-      - name: SYNC
-        meta:
-          id: fld_bddbd04f789b4db68563d8377417f466
-          created: 1744961439364
-          modified: 1744961439364
-          sortKey: -1744961439364
-      - url: http://localhost:3000/sync-data-select
-        name: Sync Column SELECTED
-        meta:
-          id: req_4fe1afe6e0144ca592fc427c0dce93a0
-          created: 1744960102568
-          modified: 1744961446651
-          isPrivate: false
-          sortKey: -1744961045921.5
-        method: POST
-        headers:
-          - name: User-Agent
-            value: insomnia/11.0.2
-        settings:
-          renderRequestBody: true
-          encodeUrl: true
-          followRedirects: global
-          cookies:
-            send: true
-            store: true
-          rebuildPath: true
-      - url: http://localhost:3000/columns/:tableName
-        name: Sync by column tableName
-        meta:
-          id: req_89313fe9ae7646daa29d8985d49c1cc5
-          created: 1744960151064
-          modified: 1744961447740
-          isPrivate: false
-          sortKey: -1744961032806.75
-        method: GET
-        headers:
-          - name: User-Agent
-            value: insomnia/11.0.2
-        settings:
-          renderRequestBody: true
-          encodeUrl: true
-          followRedirects: global
-          cookies:
-            send: true
-            store: true
-          rebuildPath: true
-        pathParameters:
-          - name: tableName
-      - url: http://localhost:3000/full-sync
-        name: "FULL Sync: Création + Sync total"
-        meta:
-          id: req_aaa6cbe4e377442bb96af0059db224c5
-          created: 1744960259906
-          modified: 1744961442818
-          isPrivate: false
-          sortKey: -1744961229528
-        method: POST
-        headers:
-          - name: User-Agent
-            value: insomnia/11.0.2
-        settings:
-          renderRequestBody: true
-          encodeUrl: true
-          followRedirects: global
-          cookies:
-            send: true
-            store: true
-          rebuildPath: true
-      - url: http://localhost:3000/sync-data-all
-        name: "Sync All Data in Tables EBP>PG "
-        meta:
-          id: req_0cf441b3cc9d4a9c9017f28d00cddaa2
-          created: 1744961227135
-          modified: 1744961445491
-          isPrivate: false
-          sortKey: -1744961072151
-        method: POST
-        headers:
-          - name: User-Agent
-            value: insomnia/11.0.2
-        settings:
-          renderRequestBody: true
-          encodeUrl: true
-          followRedirects: global
-          cookies:
-            send: true
-            store: true
-          rebuildPath: true
-      - url: http://localhost:3000/full-sync-selected
-        name: "FULL Sync: Création + Sync SELECTED"
-        meta:
-          id: req_b96e88f71c944293b898aac6848e637c
-          created: 1744961297613
-          modified: 1744961444278
-          isPrivate: false
-          sortKey: -1744961124610
-        method: POST
-        headers:
-          - name: User-Agent
-            value: insomnia/11.0.2
-        settings:
-          renderRequestBody: true
-          encodeUrl: true
-          followRedirects: global
-          cookies:
-            send: true
-            store: true
-          rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
