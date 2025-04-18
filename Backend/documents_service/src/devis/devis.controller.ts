@@ -155,56 +155,99 @@ export class DevisController {
 
       // Envoyer par email si demandé
       if (sendEmail === 'true') {
-        const emailTo = 'jordanserafini74370@gmail.com'; // Email du destinataire fixe
-        const emailSubject = `Devis ${devis.reference}`;
-        const emailText = `Veuillez trouver ci-joint le devis ${devis.reference}.`;
-        const emailHtml = `
-          <h1>Devis ${devis.reference}</h1>
-          <p>Bonjour,</p>
-          <p>Veuillez trouver ci-joint le devis <strong>${devis.reference}</strong>.</p>
-          <p>Date d'émission: ${new Date(devis.issue_date).toLocaleDateString('fr-FR')}</p>
-          <p>Montant: ${devis.amount ? devis.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : 'Non spécifié'}</p>
-          <p>Cordialement,<br>L'équipe Technidalle</p>
-        `;
+        try {
+          const emailTo = 'jordanserafini74370@gmail.com';
+          const emailSubject = `Devis ${devis.reference}`;
+          const emailText = `Veuillez trouver ci-joint le devis ${devis.reference}.`;
+          const emailHtml = `
+            <h1>Devis ${devis.reference}</h1>
+            <p>Bonjour,</p>
+            <p>Veuillez trouver ci-joint le devis <strong>${devis.reference}</strong>.</p>
+            <p>Date d'émission: ${new Date(devis.issue_date).toLocaleDateString('fr-FR')}</p>
+            <p>Montant: ${devis.amount ? devis.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : 'Non spécifié'}</p>
+            <p>Cordialement,<br>L'équipe Technidalle</p>
+          `;
 
-        // Envoi de l'email en arrière-plan pour ne pas bloquer la réponse
-        this.emailService
-          .sendEmailWithAttachment(
+          // Envoi de l'email de façon synchrone pour s'assurer qu'il est envoyé
+          const emailSuccess = await this.emailService.sendEmailWithAttachment(
             emailTo,
             emailSubject,
             emailText,
             emailHtml,
             pdfPath,
-          )
-          .then((success) => {
-            console.log(
-              `Email envoyé pour le devis ${id}: ${success ? 'Succès' : 'Échec'}`,
+          );
+
+          console.log(
+            `Email envoyé pour le devis ${id}: ${emailSuccess ? 'Succès' : 'Échec'}`,
+          );
+
+          if (!emailSuccess) {
+            console.warn(
+              `L'email n'a pas pu être envoyé pour le devis ${id}, mais le PDF sera quand même téléchargé`,
             );
-          })
-          .catch((error) => {
-            console.error(
-              `Erreur lors de l'envoi de l'email pour le devis ${id}:`,
-              error,
-            );
-          });
+          }
+        } catch (emailError) {
+          console.error(
+            `Erreur lors de l'envoi de l'email pour le devis ${id}:`,
+            emailError,
+          );
+          // On continue pour permettre le téléchargement même si l'email échoue
+        }
       }
 
-      // Récupérer le nom du fichier
-      const filename = path.basename(pdfPath);
+      try {
+        // Récupérer le nom du fichier
+        const filename = path.basename(pdfPath);
 
-      // Envoyer le fichier au client
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+        // Envoyer le fichier au client
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${filename}`,
+        );
 
-      const fileStream = fs.createReadStream(pdfPath);
-      fileStream.pipe(res);
+        // Utilisation d'une promesse pour gérer les erreurs de streaming
+        await new Promise<void>((resolve, reject) => {
+          const fileStream = fs.createReadStream(pdfPath);
+
+          fileStream.on('error', (err) => {
+            console.error(
+              `Erreur lors de la lecture du fichier ${pdfPath}:`,
+              err,
+            );
+            reject(
+              new Error(`Erreur lors de la lecture du fichier: ${err.message}`),
+            );
+          });
+
+          fileStream.on('end', () => {
+            resolve();
+          });
+
+          fileStream.pipe(res).on('error', (err) => {
+            console.error(`Erreur lors de l'envoi du fichier au client:`, err);
+            reject(
+              new Error(`Erreur lors de l'envoi du fichier: ${err.message}`),
+            );
+          });
+        });
+      } catch (streamError) {
+        console.error(
+          `Erreur lors de l'envoi du fichier PDF pour le devis ${id}:`,
+          streamError,
+        );
+        throw new HttpException(
+          `Erreur lors de l'envoi du fichier PDF: ${streamError.message}`,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     } catch (error) {
       console.error(
-        `Erreur lors de la génération du PDF pour le devis ${id}:`,
+        `Erreur lors de la génération ou de l'envoi du PDF pour le devis ${id}:`,
         error,
       );
       throw new HttpException(
-        'Erreur lors de la génération du PDF',
+        "Erreur lors de l'envoi du fichier PDF",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
