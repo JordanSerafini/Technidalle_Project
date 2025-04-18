@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import EBPclient from './clients/ebpClient';
 import { Customer as ClientEBP } from '../interfaces/clientEBP';
 import { CreateClientWithAddressDto } from '../interfaces/clientApp';
+import EBPclient from './clients/ebpClient';
 
 @Injectable()
 export class PgSyncService {
