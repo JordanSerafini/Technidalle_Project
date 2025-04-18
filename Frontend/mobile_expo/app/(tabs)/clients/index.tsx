@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, Modal, Linking, Alert, TextInput, Animated, PanResponder, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Animated, PanResponder, SafeAreaView, Dimensions, Alert, Linking } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import useFetch from '@/app/hooks/useFetch';
@@ -7,375 +7,17 @@ import { Client } from '@/app/utils/interfaces/client.interface';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useClientsStore } from '@/app/store/clientsStore';
 
+// Imports des composants séparés
+import ClientItem from '@/app/components/clients/clientsList/ClientItem';
+import PhoneModal from '@/app/components/clients/clientsList/PhoneModal';
+import FilterScrollView from '@/app/components/clients/clientsList/FilterScrollView';
+import SearchBar from '@/app/components/clients/clientsList/SearchBar';
+
+// Imports des types et utilitaires
+import { FilterType, ExtendedFetchOptions } from '@/app/utils/types/clientFilters';
+
 // Obtenir les dimensions de l'écran
 const { width } = Dimensions.get('window');
-
-// Types de filtres disponibles
-enum FilterType {
-  TYPE = 'type',
-  CITY = 'city',
-  STATUS = 'status',
-  LAST_ORDER = 'lastOrder',
-}
-
-// Types pour améliorer les performances
-interface FormattedClientData {
-  displayName: string;
-  secondaryDisplay: string;
-  statusColor: string;
-  displayStatus: string;
-  hasRecentOrders: boolean;
-  hasPhone: boolean;
-  hasEmail: boolean;
-  city: string | undefined;
-}
-
-// Cache pour les données clients formatées, avec clés de type string ou number
-const clientDataCache = new Map<string | number, FormattedClientData>();
-
-// Composant Modal séparé pour les appels téléphoniques
-const PhoneModal = React.memo(({ 
-  visible, 
-  client, 
-  onClose, 
-  onCall 
-}: { 
-  visible: boolean, 
-  client: Client | null, 
-  onClose: () => void, 
-  onCall: (phone: string) => void 
-}) => {
-  if (!client) return null;
-  
-  const handleCallFixed = useCallback(() => {
-    if (client.phone) onCall(client.phone);
-  }, [client, onCall]);
-  
-  const handleCallMobile = useCallback(() => {
-    if (client.mobile) onCall(client.mobile);
-  }, [client, onCall]);
-  
-  return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 justify-center items-center bg-black/50">
-        <View className="bg-white rounded-lg p-4 w-80">
-          <Text className="text-lg font-bold mb-4 text-center">Choisir un numéro</Text>
-          
-          {client.phone && (
-            <TouchableOpacity 
-              className="flex-row items-center p-3 border-b border-gray-200"
-              onPress={handleCallFixed}
-            >
-              <Ionicons name="call-outline" size={24} color="#2563eb" />
-              <Text className="ml-3">{client.phone} (Fixe)</Text>
-            </TouchableOpacity>
-          )}
-          
-          {client.mobile && (
-            <TouchableOpacity 
-              className="flex-row items-center p-3"
-              onPress={handleCallMobile}
-            >
-              <Ionicons name="phone-portrait-outline" size={24} color="#2563eb" />
-              <Text className="ml-3">{client.mobile} (Mobile)</Text>
-            </TouchableOpacity>
-          )}
-          
-          <TouchableOpacity 
-            className="mt-4 p-3 bg-gray-200 rounded-lg"
-            onPress={onClose}
-          >
-            <Text className="text-center">Annuler</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}, (prevProps, nextProps) => {
-  // Ne re-rendre que si la visibilité change ou le client change d'ID
-  return prevProps.visible === nextProps.visible && 
-         prevProps.client?.id === nextProps.client?.id;
-});
-
-// Interface pour les options de fetch étendues
-interface ExtendedFetchOptions {
-  limit?: number;
-  offset?: number;
-  searchQuery?: string;
-  typeFilter?: string;
-  cityFilter?: string;
-  statusFilter?: string;
-  lastOrderFilter?: string;
-}
-
-// Composant FilterOption pour les boutons de filtre
-const FilterOption = React.memo(({ 
-  label, 
-  isSelected, 
-  onPress 
-}: { 
-  label: string, 
-  isSelected: boolean, 
-  onPress: () => void 
-}) => {
-  // Styles précalculés pour éviter les calculs à chaque rendu
-  const containerStyle = {
-    backgroundColor: isSelected ? '#3b82f6' : '#f3f4f6',
-    borderColor: isSelected ? '#2563eb' : '#e5e7eb'
-  };
-  
-  const textStyle = {
-    color: isSelected ? '#ffffff' : '#1f2937'
-  };
-  
-  return (
-    <TouchableOpacity 
-      className="mx-1 px-3 py-1 rounded-full border"
-      style={containerStyle}
-      onPress={onPress}
-    >
-      <Text style={textStyle}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}, (prevProps, nextProps) => {
-  return prevProps.label === nextProps.label && 
-         prevProps.isSelected === nextProps.isSelected;
-});
-
-// Composant FilterScrollView optimisé
-const FilterScrollView = React.memo(({ 
-  options, 
-  selectedOption, 
-  onSelect, 
-  allLabel = "Tous" 
-}: { 
-  options: string[], 
-  selectedOption: string | null, 
-  onSelect: (option: string | null) => void,
-  allLabel?: string
-}) => {
-  const handleAllSelect = useCallback(() => {
-    onSelect(null);
-  }, [onSelect]);
-  
-  // Générer les gestionnaires d'événements une seule fois
-  const optionHandlers = useMemo(() => {
-    return options.map(option => () => onSelect(option));
-  }, [options, onSelect]);
-  
-  return (
-    <Animated.ScrollView 
-      horizontal={true}
-      showsHorizontalScrollIndicator={false}
-      style={{ maxHeight: 75 }}
-      contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', paddingHorizontal: 8 }}
-    >
-      {/* Option "Tous" */}
-      <FilterOption 
-        label={allLabel} 
-        isSelected={selectedOption === null} 
-        onPress={handleAllSelect} 
-      />
-      
-      {/* Options spécifiques */}
-      {options.map((option, index) => (
-        <FilterOption 
-          key={option}
-          label={option} 
-          isSelected={selectedOption === option} 
-          onPress={optionHandlers[index]} 
-        />
-      ))}
-    </Animated.ScrollView>
-  );
-}, (prevProps, nextProps) => {
-  // Seulement re-rendre si les options changent ou la sélection change
-  return prevProps.selectedOption === nextProps.selectedOption && 
-         prevProps.options.length === nextProps.options.length;
-});
-
-// Helper pour formater les données du client (optimisé avec cache)
-const formatClientData = (client: Client): FormattedClientData => {
-  // Utiliser le cache si disponible
-  if (client.id && clientDataCache.has(client.id)) {
-    return clientDataCache.get(client.id)!;
-  }
-  
-  // Nettoyer les valeurs de prénom et nom (éliminer les points seuls, etc.)
-  const firstname = client.firstname?.trim();
-  const lastname = client.lastname?.trim();
-  const companyName = client.company_name?.trim();
-  
-  // Vérifier s'il s'agit d'un prénom seul sans nom
-  const isFirstNameOnly = (firstname && firstname.length > 1 && (!lastname || lastname === '.' || lastname === '..'));
-  
-  // Gérer les différents cas pour l'affichage du nom
-  let displayName = '';
-  if (isFirstNameOnly) {
-    displayName = firstname;
-  } else if ((lastname && lastname !== '.' && lastname !== '..') || (firstname && firstname !== '.' && firstname !== '..')) {
-    displayName = `${lastname || ''} ${firstname || ''}`.trim();
-  } else if (companyName && companyName !== 'Particulier') {
-    displayName = companyName;
-  } else {
-    displayName = 'Client sans nom';
-  }
-  
-  // Déterminer ce qui doit être affiché comme info secondaire
-  let secondaryDisplay = '';
-  if (companyName && companyName !== 'Particulier' && displayName !== companyName) {
-    secondaryDisplay = companyName;
-  } else if (companyName === 'Particulier') {
-    secondaryDisplay = 'Particulier';
-  }
-  
-  // Déterminer la couleur du statut
-  let statusColor = 'bg-gray-200';
-  let displayStatus = '';
-  
-  if (client.status) {
-    const status = client.status.toLowerCase();
-    if (status.includes('actif') || status === 'active') {
-      statusColor = 'bg-green-200 text-green-800';
-      displayStatus = 'Actif';
-    } else if (status.includes('inactif') || status === 'inactive') {
-      statusColor = 'bg-red-200 text-red-800';
-      displayStatus = 'Inactif';
-    } else if (status.includes('prospect')) {
-      statusColor = 'bg-blue-200 text-blue-800';
-      displayStatus = 'Prospect';
-    } else {
-      displayStatus = client.status;
-    }
-  }
-  
-  // Vérifier si le client a des commandes récentes
-  let hasRecentOrders = false;
-  if (client.last_order_date) {
-    const orderDate = new Date(client.last_order_date);
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    hasRecentOrders = orderDate >= threeMonthsAgo;
-  }
-  
-  const formattedData = {
-    displayName,
-    secondaryDisplay,
-    statusColor,
-    displayStatus,
-    hasRecentOrders,
-    hasPhone: !!(client.phone || client.mobile),
-    hasEmail: !!client.email,
-    city: client.addresses?.city
-  };
-  
-  // Stocker dans le cache
-  if (client.id) {
-    clientDataCache.set(client.id, formattedData);
-  }
-  
-  return formattedData;
-};
-
-// Optimisation pour éviter les re-rendus inutiles
-const ClientItem = React.memo(({ 
-  client, 
-  onPhonePress, 
-  onEmailPress, 
-  onItemPress 
-}: { 
-  client: Client, 
-  onPhonePress: (client: Client, event: any) => void, 
-  onEmailPress: (email: string | undefined, event: any) => void, 
-  onItemPress: (client: Client) => void 
-}) => {
-  const { 
-    displayName, 
-    secondaryDisplay, 
-    statusColor, 
-    displayStatus, 
-    hasRecentOrders,
-    hasPhone,
-    hasEmail,
-    city
-  } = formatClientData(client);
-  
-  // Handlers optimisés pour éviter les re-rendus
-  const handleCallPress = useCallback((e: any) => {
-    onPhonePress(client, e);
-  }, [client, onPhonePress]);
-  
-  const handleMailPress = useCallback((e: any) => {
-    onEmailPress(client.email, e);
-  }, [client.email, onEmailPress]);
-  
-  const handleItemPress = useCallback(() => {
-    onItemPress(client);
-  }, [client, onItemPress]);
-  
-  return (
-    <TouchableOpacity 
-      key={client.id} 
-      onPress={handleItemPress}
-      className="flex flex-row justify-between w-full mb-1 p-2 border-b bg-white"
-      style={{ width: width - 32 }}
-    >
-      {/* Nom, prénom et société */}
-      <View className="flex-col gap-y-1 flex-1">
-        <Text className="font-bold text-blue-900" numberOfLines={1}>
-          {displayName}
-        </Text>
-        {secondaryDisplay ? (
-          <Text className={`font-thin tracking-wide italic ${secondaryDisplay === "Particulier" ? 'text-green-700' : 'text-blue-700'}`} numberOfLines={1}>
-            {secondaryDisplay}
-          </Text>
-        ) : null}
-        
-        <View className="flex-row items-center">
-          {city ? (
-            <Text className="text-gray-500 text-xs mr-2" numberOfLines={1}>
-              {city}
-            </Text>
-          ) : null}
-          
-          {displayStatus && (
-            <Text className={`text-xs px-2 py-0.5 rounded-full ${statusColor}`}>
-              {displayStatus}
-            </Text>
-          )}
-          
-          {hasRecentOrders && (
-            <View className="ml-2 w-2 h-2 rounded-full bg-green-500"></View>
-          )}
-        </View>
-      </View>
-      
-      {/* Boutons pour appeler et envoyer un email */}
-      <View className="flex-row gap-x-3 items-center">
-        {hasPhone && (
-          <TouchableOpacity onPress={handleCallPress}>
-            <Ionicons name="call-outline" size={24} color="#2563eb" />
-          </TouchableOpacity>
-        )}
-        {hasEmail && (
-          <TouchableOpacity onPress={handleMailPress}>
-            <Ionicons name="mail-outline" size={24} color="#2563eb" />
-          </TouchableOpacity>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}, (prevProps, nextProps) => {
-  // Optimisation: ne re-rendre que si le client a changé
-  return prevProps.client.id === nextProps.client.id;
-});
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -384,7 +26,7 @@ export default function ClientsScreen() {
   // State local pour les clients actuellement visibles
   const [localClients, setLocalClients] = useState<Client[]>([]);
   
-  // Remplacer la ref par un state pour résoudre le problème de mise à jour UI
+  // States pour la recherche et le filtrage
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
@@ -696,59 +338,21 @@ export default function ClientsScreen() {
     );
   }, [loadingMore]);
 
-  // SearchBar component pour réduire le rendu
-  const SearchBar = React.memo(() => {
-    // Fonction pour effacer la recherche
-    const clearSearch = useCallback(() => {
-      setSearchInput('');
-      setSearchQuery('');
-      setOffset(0);
-      setAllLoaded(false);
-    }, []);
-  
-    return (
-      <View className="flex-row items-center px-4 py-3 border-t border-gray-200 bg-white">
-        <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
-          <Ionicons name="search" size={20} color="#6b7280" />
-          <TextInput
-            className="flex-1 ml-2 text-gray-800"
-            placeholder="Rechercher un client..."
-            value={searchInput}
-            onChangeText={handleSearchChange}
-            returnKeyType="search"
-          />
-          {searchInput.length > 0 && (
-            <TouchableOpacity onPress={clearSearch}>
-              <Ionicons name="close-circle" size={20} color="#6b7280" />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <TouchableOpacity 
-          className="ml-2 bg-blue-50 p-2 rounded-lg border border-blue-200"
-          onPress={() => setFilterVisible(!filterVisible)}
-        >
-          <MaterialIcons 
-            name="filter-list" 
-            size={24} 
-            color={(selectedType || selectedCity || selectedStatus || selectedLastOrder) ? "#1e40af" : "#6b7280"} 
-          />
-        </TouchableOpacity>
-      </View>
-    );
-  });
+  // Vérifier s'il y a des filtres actifs
+  const hasActiveFilters = selectedType !== null || selectedCity !== null || 
+                           selectedStatus !== null || selectedLastOrder !== null;
 
   // Rendu de l'écran vide
   const renderEmptyView = useCallback(() => (
     <View className="flex-1 justify-center items-center p-4">
       <MaterialIcons name="people" size={64} color="#d1d5db" />
       <Text className="mt-4 text-gray-500 text-lg">
-        {(searchQuery.length > 0 || selectedType || selectedCity || selectedStatus || selectedLastOrder)
+        {(searchQuery.length > 0 || hasActiveFilters)
           ? "Aucun client ne correspond à votre recherche" 
           : "Aucun client disponible"}
       </Text>
     </View>
-  ), [searchQuery, selectedType, selectedCity, selectedStatus, selectedLastOrder]);
+  ), [searchQuery, hasActiveFilters]);
 
   // Fonction pour rafraîchir la liste des clients
   const refreshClients = useCallback(() => {
@@ -794,28 +398,6 @@ export default function ClientsScreen() {
         }}
       />
       
-      {filterVisible && (
-        <Animated.View 
-          className="my-2 mx-4 bg-gray-50 p-3 rounded-lg"
-          style={{ transform: [{ translateX: filterPosition }] }}
-          {...panResponder.panHandlers}
-        >
-          <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
-            <TouchableOpacity onPress={switchToPrevFilter}>
-              <Ionicons name="chevron-back" size={20} color="#6b7280" />
-            </TouchableOpacity>
-            
-            <Text className="font-medium text-gray-800">{getFilterTitle()}</Text>
-            
-            <TouchableOpacity onPress={switchToNextFilter}>
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-          
-          {renderFilterContent()}
-        </Animated.View>
-      )}
-      
       <View style={{ flex: 1 }}>
         {localClients.length > 0 ? (
           <FlashList
@@ -833,9 +415,36 @@ export default function ClientsScreen() {
         ) : renderEmptyView()}
       </View>
 
-      {/* SearchBar fixe en bas de l'écran mais en dehors des rendus conditionnels */}
+      {/* Vue pour le filtre et la barre de recherche en bas de l'écran */}
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 }}>
-        <SearchBar />
+        {filterVisible && (
+          <Animated.View 
+          className="mx-4 bg-gray-50 p-3 rounded-lg"
+          style={{ transform: [{ translateX: filterPosition }] }}
+            {...panResponder.panHandlers}
+          >
+            <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
+              <TouchableOpacity onPress={switchToPrevFilter}>
+                <Ionicons name="chevron-back" size={20} color="#6b7280" />
+              </TouchableOpacity>
+              
+              <Text className="font-medium text-gray-800">{getFilterTitle()}</Text>
+              
+              <TouchableOpacity onPress={switchToNextFilter}>
+                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {renderFilterContent()}
+          </Animated.View>
+        )}
+        
+        <SearchBar 
+          searchInput={searchInput}
+          onSearchChange={handleSearchChange}
+          onFilterToggle={() => setFilterVisible(!filterVisible)}
+          hasFilters={hasActiveFilters}
+        />
       </View>
 
       {/* Modal pour choisir entre téléphone fixe et mobile */}
