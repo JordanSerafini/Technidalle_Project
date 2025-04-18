@@ -1,46 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Modal, Linking, Alert, TextInput, Animated, PanResponder, SafeAreaView } from 'react-native';
-import { useRouter, Link, Stack } from 'expo-router';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Modal, Linking, Alert, TextInput, Animated, PanResponder, SafeAreaView } from 'react-native';
+import { useRouter, Stack } from 'expo-router';
 import useFetch from '@/app/hooks/useFetch';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useClientsStore } from '@/app/store/clientsStore';
-
-// Interface pour les props de AccordionItem
-interface AccordionItemProps {
-  isExpanded: boolean;
-  children: React.ReactNode;
-  maxHeight?: number;
-}
-
-// Composant AccordionItem pour l'animation
-function AccordionItem({ isExpanded, children, maxHeight = 1000 }: AccordionItemProps) {
-  const [height] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    Animated.timing(height, {
-      toValue: isExpanded ? maxHeight : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isExpanded, maxHeight]);
-
-  // Si l'accordéon est déplié, on n'applique pas de hauteur fixe
-  if (isExpanded) {
-    return (
-      <View style={{ height: 'auto' }}>
-        {children}
-      </View>
-    );
-  }
-
-  // Si l'accordéon est fermé, on utilise l'animation
-  return (
-    <Animated.View style={{ height, overflow: 'hidden' }}>
-      {children}
-    </Animated.View>
-  );
-}
 
 // Types de filtres disponibles
 enum FilterType {
@@ -50,19 +14,21 @@ enum FilterType {
 
 export default function ClientsScreen() {
   const router = useRouter();
-  const { clients, setClients, setSelectedClient } = useClientsStore();
+  const { clients, setClients, setSelectedClient, addClient } = useClientsStore();
   const [searchInputValue, setSearchInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
-  const [clientsByType, setClientsByType] = useState<{ [key: string]: Client[] }>({});
   const [currentFilter, setCurrentFilter] = useState<FilterType>(FilterType.TYPE);
   const [refreshKey, setRefreshKey] = useState(0);
   const [filterPosition] = useState(new Animated.Value(0));
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [selectedClientForModal, setSelectedClientForModal] = useState<Client | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [allLoaded, setAllLoaded] = useState(false);
+  const PAGE_SIZE = 25;
 
   // Pan Responder pour la gestion du swipe
   const panResponder = useRef(
@@ -108,6 +74,9 @@ export default function ClientsScreen() {
     // Définir un nouveau timeout
     searchTimeout.current = setTimeout(() => {
       setSearchQuery(text);
+      setOffset(0); // Réinitialiser l'offset lors d'une nouvelle recherche
+      setClients([]); // Vider la liste lors d'une nouvelle recherche
+      setAllLoaded(false); // Réinitialiser le flag
     }, 500); // Délai de 500ms avant d'appliquer la recherche
   };
   
@@ -120,18 +89,42 @@ export default function ClientsScreen() {
     };
   }, []);
 
-  // Récupération des clients avec searchQuery
+  // Récupération des clients avec searchQuery, limit et offset
   const { data, loading, error } = useFetch<Client[]>(`clients?refresh=${refreshKey}`, {
-    limit: 20,
+    limit: PAGE_SIZE,
+    offset: offset,
     searchQuery: searchQuery.length > 0 ? searchQuery : undefined
   });
 
   // Stocker les données dans le store une fois chargées
   useEffect(() => {
-    if (data && !loading) {
-      setClients(data);
+    if (data) {
+      if (offset === 0) {
+        // Si c'est la première page, remplacer les clients
+        setClients(data);
+      } else if (data.length > 0) {
+        // Sinon, ajouter les nouveaux clients à la liste existante
+        data.forEach(client => {
+          addClient(client);
+        });
+      }
+      
+      // Si on reçoit moins de clients que la taille de page, on a tout chargé
+      if (data.length < PAGE_SIZE) {
+        setAllLoaded(true);
+      }
+      
+      setLoadingMore(false);
     }
-  }, [data, loading, setClients]);
+  }, [data, setClients, addClient, offset]);
+
+  // Fonction pour charger plus de clients
+  const loadMoreClients = useCallback(() => {
+    if (!loading && !loadingMore && !allLoaded) {
+      setLoadingMore(true);
+      setOffset(prevOffset => prevOffset + PAGE_SIZE);
+    }
+  }, [loading, loadingMore, allLoaded]);
 
   // Fonction pour passer au filtre suivant
   const switchToNextFilter = () => {
@@ -204,58 +197,9 @@ export default function ClientsScreen() {
       const cityMatch = selectedCity ? 
         client.addresses?.city === selectedCity : true;
       
-      // Filtre de recherche textuelle
-      let searchMatch = true;
-      if (searchQuery && searchQuery.length > 0) {
-        const query = searchQuery.toLowerCase();
-        searchMatch = (
-          (client.firstname && client.firstname.toLowerCase().includes(query)) ||
-          (client.lastname && client.lastname.toLowerCase().includes(query)) ||
-          (client.email && client.email.toLowerCase().includes(query)) ||
-          (client.phone && client.phone.toLowerCase().includes(query)) ||
-          (client.mobile && client.mobile.toLowerCase().includes(query)) ||
-          (client.addresses?.city && client.addresses.city.toLowerCase().includes(query)) ||
-          (client.notes && client.notes.toLowerCase().includes(query))
-        );
-      }
-      
-      return typeMatch && cityMatch && searchMatch;
+      return typeMatch && cityMatch;
     });
-  }, [clients, selectedType, selectedCity, searchQuery]);
-  
-  // Regrouper les clients par type (particulier/entreprise)
-  const clientsGroupedByType = useMemo(() => {
-    if (!filteredClients.length) return {};
-    
-    const grouped = filteredClients.reduce((acc, client) => {
-      const type = client.company_name === "Particulier" ? "Particulier" : "Entreprise";
-      
-      if (!acc[type]) {
-        acc[type] = [];
-      }
-      acc[type].push(client);
-      return acc;
-    }, {} as { [key: string]: Client[] });
-    
-    return grouped;
-  }, [filteredClients]);
-  
-  // Mettre à jour clientsByType quand clientsGroupedByType change
-  useEffect(() => {
-    setClientsByType(clientsGroupedByType);
-    
-    // Mettre à jour expandedSections pour conserver l'état d'expansion ou initialiser à false
-    setExpandedSections(prevExpandedSections => {
-      const newExpandedSections = {} as { [key: string]: boolean };
-      
-      // Conserver uniquement les clés qui existent dans clientsGroupedByType
-      Object.keys(clientsGroupedByType).forEach(key => {
-        newExpandedSections[key] = prevExpandedSections[key] || false;
-      });
-      
-      return newExpandedSections;
-    });
-  }, [clientsGroupedByType]);
+  }, [clients, selectedType, selectedCity]);
 
   const handlePhonePress = (client: Client, event: any) => {
     // Empêcher la propagation pour éviter de naviguer vers le détail
@@ -299,14 +243,6 @@ export default function ClientsScreen() {
     }
   };
   
-  // Toggle l'expansion d'une section
-  const toggleSection = (sectionKey: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionKey]: !prev[sectionKey]
-    }));
-  };
-  
   // Titre du filtre actuel
   const getFilterTitle = () => {
     switch (currentFilter) {
@@ -322,7 +258,7 @@ export default function ClientsScreen() {
     switch (currentFilter) {
       case FilterType.TYPE:
         return (
-          <ScrollView 
+          <Animated.ScrollView 
             horizontal={true}
             showsHorizontalScrollIndicator={true}
             style={{ maxHeight: 75 }}
@@ -348,12 +284,12 @@ export default function ClientsScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </Animated.ScrollView>
         );
       
       case FilterType.CITY:
         return (
-          <ScrollView 
+          <Animated.ScrollView 
             horizontal={true}
             showsHorizontalScrollIndicator={true}
             style={{ maxHeight: 75 }}
@@ -379,13 +315,13 @@ export default function ClientsScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </Animated.ScrollView>
         );
     }
   };
   
   // Rendu d'un élément de la liste
-  const renderClientItem = (client: Client) => (
+  const renderClientItem = ({ item: client }: { item: Client }) => (
     <TouchableOpacity 
       key={client.id} 
       onPress={() => navigateToClientDetail(client)}
@@ -421,40 +357,26 @@ export default function ClientsScreen() {
     </TouchableOpacity>
   );
 
-  // Rendu des sections par type
-  const renderTypeSections = () => {
-    return Object.entries(clientsByType).map(([type, clientsList]) => (
-      <View key={type} className="mb-4">
-        <TouchableOpacity 
-          className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
-          onPress={() => toggleSection(type)}
-        >
-          <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
-            <Text className="font-bold text-blue-800">{clientsList.length}</Text>
-          </View>
-          <Text className="flex-1 text-lg font-medium text-gray-800">{type}</Text>
-          <Ionicons 
-            name={expandedSections[type] ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#6b7280" 
-          />
-        </TouchableOpacity>
-        
-        <AccordionItem isExpanded={expandedSections[type]}>
-          <View className="mt-2 bg-white p-4 rounded shadow">
-            {clientsList.map(client => renderClientItem(client))}
-          </View>
-        </AccordionItem>
+  // Rendu du footer de la liste (indicateur de chargement)
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    
+    return (
+      <View className="py-4 flex items-center justify-center">
+        <ActivityIndicator size="small" color="#3b82f6" />
+        <Text className="text-gray-500 mt-2">Chargement...</Text>
       </View>
-    ));
+    );
   };
 
   const refreshClients = () => {
     // Incrémenter la clé pour forcer un nouveau fetch
     setRefreshKey(prev => prev + 1);
+    setOffset(0);
+    setAllLoaded(false);
   };
 
-  if (loading) {
+  if (loading && offset === 0) {
     return (
       <View className="flex items-center justify-center h-full">
         <ActivityIndicator size="large" color="#0000ff" />
@@ -484,9 +406,18 @@ export default function ClientsScreen() {
      
       {/* Liste des clients */}
       {filteredClients && filteredClients.length > 0 ? (
-        <ScrollView className="flex-1 px-4 pt-4 pb-32">
-          {renderTypeSections()}
-        </ScrollView>
+        <FlatList
+          data={filteredClients}
+          renderItem={renderClientItem}
+          keyExtractor={(item: Client) => item.id?.toString() || Math.random().toString()}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80 }}
+          onEndReached={loadMoreClients}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
+          initialNumToRender={10}
+          refreshing={loading && offset === 0}
+          onRefresh={refreshClients}
+        />
       ) : (
         <View className="flex-1 justify-center items-center p-4">
           <MaterialIcons name="people" size={64} color="#d1d5db" />
@@ -536,6 +467,8 @@ export default function ClientsScreen() {
               <TouchableOpacity onPress={() => {
                 setSearchInputValue('');
                 setSearchQuery('');
+                setOffset(0);
+                setAllLoaded(false);
               }}>
                 <Ionicons name="close-circle" size={20} color="#6b7280" />
               </TouchableOpacity>

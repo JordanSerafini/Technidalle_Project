@@ -50,10 +50,11 @@ export class AppService {
       include: {
         addresses: true,
       },
+      orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       skip: offset || 0,
       take: limit || undefined,
     });
-    return dbClients as unknown as Client[];
+    return dbClients as Client[];
   }
 
   async getClientById(id: number): Promise<Client | null> {
@@ -63,7 +64,7 @@ export class AppService {
         addresses: true,
       },
     });
-    return dbClient as unknown as Client | null;
+    return dbClient as Client | null;
   }
 
   async createClient(clientDto: CreateClientDto): Promise<Client> {
@@ -72,7 +73,7 @@ export class AppService {
         ...clientDto,
       },
     });
-    return dbClient as unknown as Client;
+    return dbClient as Client;
   }
 
   async updateClient(
@@ -86,7 +87,7 @@ export class AppService {
           ...clientDto,
         },
       });
-      return dbClient as unknown as Client;
+      return dbClient as Client;
     } catch (error) {
       this.logger.error(
         `Erreur lors de la mise à jour du client ${id}:`,
@@ -126,14 +127,14 @@ export class AppService {
       where: { id: client.address_id },
     });
 
-    return address ? [address as unknown as Address] : [];
+    return address ? [address as Address] : [];
   }
 
   async getAddressById(id: number): Promise<Address | null> {
     const dbAddress = await this.prisma.addresses.findUnique({
       where: { id },
     });
-    return dbAddress as unknown as Address | null;
+    return dbAddress as Address | null;
   }
 
   async createAddress(
@@ -163,7 +164,7 @@ export class AppService {
           },
         });
 
-        return newAddress as unknown as Address;
+        return newAddress as Address;
       });
     } catch (error) {
       this.logger.error(
@@ -185,7 +186,7 @@ export class AppService {
           ...addressDto,
         },
       });
-      return dbAddress as unknown as Address;
+      return dbAddress as Address;
     } catch (error) {
       this.logger.error(
         `Erreur lors de la mise à jour de l'adresse ${id}:`,
@@ -534,7 +535,7 @@ export class AppService {
             `Client créé avec succès: ${JSON.stringify(newClient)}`,
           );
 
-          return newClient as unknown as Client;
+          return newClient as Client;
         } catch (txError) {
           this.logger.error(
             `Erreur de transaction: ${JSON.stringify(txError)}`,
