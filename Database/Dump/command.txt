@@ -1,0 +1,5 @@
+# Assurez-vous que votre conteneur postgres_sync est en cours d'exécution
+docker exec postgres_sync pg_dump -U sync_user -F c -b -v -f /tmp/sync_db_backup.dump sync_db
+
+# Copiez le fichier dump depuis le conteneur vers votre machine locale
+docker cp postgres_sync:/tmp/sync_db_backup.dump C:/Users/j.serafini/Desktop/Jordan/Code/Technidalle_Project/Database/Dump/sync_db_backup.dump
