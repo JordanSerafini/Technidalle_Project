@@ -14,6 +14,10 @@ interface FetchOptions {
   limit?: number;
   offset?: number;
   searchQuery?: string;
+  typeFilter?: string;
+  cityFilter?: string;
+  statusFilter?: string;
+  lastOrderFilter?: string;
 }
 
 export function useFetch<T>(endpoint: string | null, options: FetchOptions = {}) {
@@ -53,6 +57,23 @@ export function useFetch<T>(endpoint: string | null, options: FetchOptions = {})
         
         if (options.searchQuery) {
           params.searchQuery = options.searchQuery;
+        }
+        
+        // Ajouter les paramètres de filtrage
+        if (options.typeFilter) {
+          params.typeFilter = options.typeFilter;
+        }
+        
+        if (options.cityFilter) {
+          params.cityFilter = options.cityFilter;
+        }
+        
+        if (options.statusFilter) {
+          params.statusFilter = options.statusFilter;
+        }
+        
+        if (options.lastOrderFilter) {
+          params.lastOrderFilter = options.lastOrderFilter;
         }
 
         // Conversion des paramètres en chaîne de requête
@@ -120,7 +141,17 @@ export function useFetch<T>(endpoint: string | null, options: FetchOptions = {})
     return () => {
       abortController.abort();
     };
-  }, [endpoint, options.method, options.limit, options.offset, options.searchQuery]);
+  }, [
+    endpoint, 
+    options.method, 
+    options.limit, 
+    options.offset, 
+    options.searchQuery,
+    options.typeFilter,
+    options.cityFilter,
+    options.statusFilter,
+    options.lastOrderFilter
+  ]);
 
   return state;
 }

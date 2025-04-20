@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
-  StyleSheet, 
   TouchableOpacity,
   Alert,
   Platform,
@@ -12,7 +11,7 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  // Modal
+  Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -21,37 +20,29 @@ import { DocumentType, DocumentStatus } from '@/app/utils/interfaces/document';
 import { url as urlConfig } from '@/app/utils/url';
 import Tableau from '../../tableau';
 import { useDevisStore } from '@/app/store/devisStore';
+import { useFetch } from '@/app/hooks/useFetch';
+import { Client, CreateClientDto } from '@/app/utils/interfaces/client.interface';
+import { useClientsStore } from '@/app/store/clientsStore';
+import { AddClientModal } from '../clients/addClient.modal';
+import { CreateDevisDto, CreateDevisLineDto } from '@/app/utils/interfaces/devis.interface';
+import { Material } from '@/app/utils/interfaces/material.interface';
 
-// Interfaces pour le client (définies localement pour éviter les problèmes d'importation)
-interface Client {
-  id: number;
-  company_name?: string;
-  firstname: string;
-  lastname: string;
-  email: string;
-  phone?: string;
-  mobile?: string;
-  address_id?: number;
-  siret?: string;
-  notes?: string;
-  created_at?: Date;
-  updated_at?: Date;
-}
 
-interface CreateClientDto {
-  company_name?: string;
-  firstname: string;
-  lastname: string;
-  email: string;
-  phone?: string;
-  mobile?: string;
-  address_id?: number;
-  siret?: string;
-  notes?: string;
-}
+
 
 // Récupérer les dimensions de l'écran
 const { width, height } = Dimensions.get('window');
+
+// Étendre l'interface DevisRow pour inclure les propriétés manquantes
+interface ExtendedDevisRow {
+  id: string;
+  material: Material | null;
+  quantity: number;
+  price: number;
+  description?: string;
+  unit?: string;
+  discount?: number;
+}
 
 interface DocumentsModalProps {
   visible: boolean;
@@ -59,42 +50,197 @@ interface DocumentsModalProps {
   projectId?: number;
   clientId?: number;
   onSuccess?: () => void;
+  onDocumentAdded?: () => void;
+  documentType?: DocumentType; // Type de document spécifique (optionnel)
 }
+
+// Composant pour les sections dépliables
+interface CollapsibleSectionProps {
+  title: string;
+  children: React.ReactNode;
+  initiallyExpanded?: boolean;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ 
+  title, 
+  children, 
+  initiallyExpanded = true 
+}) => {
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  
+  return (
+    <View className="mb-6 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+      <TouchableOpacity 
+        className="flex-row justify-between items-center p-4 bg-gray-100"
+        onPress={() => setExpanded(!expanded)}
+      >
+        <Text className="text-lg font-bold text-gray-800">{title}</Text>
+        <Ionicons 
+          name={expanded ? "chevron-up" : "chevron-down"} 
+          size={24} 
+          color="#333" 
+        />
+      </TouchableOpacity>
+      
+      {expanded && (
+        <View className="p-4">
+          {children}
+        </View>
+      )}
+    </View>
+  );
+};
+
+// Composant pour la modale de sélection/création de client
+interface ClientSelectionModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onSelectClient: (client: Client) => void;
+}
+
+const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({ 
+  visible, 
+  onClose, 
+  onSelectClient 
+}) => {
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [clientFormError, setClientFormError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Récupération des clients
+  const { data: clients, loading: clientsLoading } = useFetch<Client[]>('clients');
+  const { setClients } = useClientsStore();
+  
+  // Mettre à jour les clients dans le store
+  useEffect(() => {
+    if (clients && !clientsLoading) {
+      setClients(clients);
+    }
+  }, [clients, clientsLoading, setClients]);
+  
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
+        <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
+          <View className="flex-1">
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <Text className="text-xl font-bold text-gray-800">
+                {showClientForm ? 'Nouveau client' : 'Sélectionner un client'}
+              </Text>
+              <TouchableOpacity onPress={onClose} className="p-1">
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            
+            {showClientForm ? (
+              <AddClientModal
+                visible={true}
+                onClose={() => setShowClientForm(false)}
+                onSuccess={(client: Client) => {
+                  onSelectClient(client);
+                  onClose();
+                }}
+              />
+            ) : (
+              <View className="flex-1">
+                {clientFormError && (
+                  <View className="p-2.5 bg-red-50 rounded m-4">
+                    <Text className="text-red-600 text-sm">{clientFormError}</Text>
+                  </View>
+                )}
+                
+                <View className="p-4 flex-1">
+                  <TouchableOpacity
+                    className="flex-row items-center justify-center bg-gray-50 p-4 rounded-lg border border-gray-200 border-dashed mb-4"
+                    onPress={() => setShowClientForm(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={24} color="#2196F3" />
+                    <Text className="text-blue-500 text-base font-medium ml-2">Créer un nouveau client</Text>
+                  </TouchableOpacity>
+                  
+                  <View className="flex-row items-center my-4">
+                    <View className="flex-1 h-[1px] bg-gray-200" />
+                    <Text className="mx-2.5 text-gray-600 text-sm">ou</Text>
+                    <View className="flex-1 h-[1px] bg-gray-200" />
+                  </View>
+                  
+                  <Text className="text-base font-medium text-gray-800 mb-3">Sélectionner un client existant</Text>
+                  
+                  {clientsLoading ? (
+                    <ActivityIndicator size="small" color="#2196F3" className="my-5" />
+                  ) : (
+                    <View className="flex-1 max-h-[300px]">
+                      <ScrollView className="flex-1">
+                        <View className="pb-4">
+                          {clients && clients.length > 0 ? (
+                            clients.map(client => (
+                              <TouchableOpacity
+                                key={client.id}
+                                className="p-3 border-b border-gray-200 bg-white"
+                                onPress={() => {
+                                  onSelectClient(client);
+                                  onClose();
+                                }}
+                              >
+                                <Text className="text-base font-medium text-gray-800">
+                                  {client.company_name || `${client.firstname} ${client.lastname}`}
+                                </Text>
+                                <Text className="text-sm text-gray-600 mt-1">{client.email}</Text>
+                              </TouchableOpacity>
+                            ))
+                          ) : (
+                            <Text className="text-base text-gray-600 text-center my-4">Aucun client disponible</Text>
+                          )}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   visible,
   onClose,
   projectId,
   clientId,
-  onSuccess
+  onSuccess,
+  onDocumentAdded,
+  documentType
 }) => {
   // États pour les champs du formulaire
-  const [type, setType] = useState<DocumentType>(DocumentType.DEVIS);
+  const [type, setType] = useState<DocumentType>(documentType || DocumentType.DEVIS);
   const [status, setStatus] = useState<DocumentStatus>(DocumentStatus.BROUILLON);
   const [tvaRate, setTvaRate] = useState('20');
   const [issueDate, setIssueDate] = useState(new Date());
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
+  const [reference, setReference] = useState('');
   const [filePath, setFilePath] = useState('');
-  
-  // États pour l'UI
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [issueDatePickerOpen, setIssueDatePickerOpen] = useState(false);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
-  // États pour les sections pliables
-  const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
-  const [isClientOpen, setIsClientOpen] = useState(false);
-
-  // États pour la section Client
-  const [clients, setClients] = useState<Client[]>([]);
+  
+  // États pour la section client
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isAddingClient, setIsAddingClient] = useState(false);
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
   const [newClientError, setNewClientError] = useState<string | null>(null);
+  const [isAddingClient, setIsAddingClient] = useState(false);
   const [isClientLoading, setIsClientLoading] = useState(false);
-
-  // États pour le formulaire d'ajout de client
   const [newClientFirstName, setNewClientFirstName] = useState('');
   const [newClientLastName, setNewClientLastName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
@@ -103,18 +249,21 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const [newClientMobile, setNewClientMobile] = useState('');
   const [newClientSiret, setNewClientSiret] = useState('');
   const [newClientNotes, setNewClientNotes] = useState('');
-
+  
   // Store pour les lignes du devis
   const { rows, calculateTotal, clearRows } = useDevisStore();
   
-  // Fetch clients quand la modale s'ouvre ou projectId change
+  // Convertir les rows en ExtendedDevisRow pour accéder aux propriétés étendues
+  const extendedRows = rows as unknown as ExtendedDevisRow[];
+  
+  // Reset form quand la modale s'ouvre
   useEffect(() => {
     if (visible) {
       fetchClients();
       resetForm();
     }
-  }, [visible]);
-  
+  }, [visible, projectId, clientId]);
+
   // Gestion du bouton retour Android
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -153,29 +302,18 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
 
   // Réinitialiser le formulaire
   const resetForm = () => {
-    setType(DocumentType.DEVIS);
+    setType(documentType || DocumentType.DEVIS);
     setStatus(DocumentStatus.BROUILLON);
     setTvaRate('20');
     setIssueDate(new Date());
     setDueDate(null);
     setNotes('');
+    setReference('');
     setFilePath('');
     setError(null);
-    clearRows();
-
-    // Réinitialisation section client
-    setSelectedClient(null); 
-    setIsAddingClient(false);
-    setNewClientError(null);
-    // Réinitialisation formulaire ajout client
-    setNewClientFirstName('');
-    setNewClientLastName('');
-    setNewClientEmail('');
-    setNewClientCompanyName('');
-    setNewClientPhone('');
-    setNewClientMobile('');
-    setNewClientSiret('');
-    setNewClientNotes('');
+    setSelectedClient(null);
+    setReference('');
+    clearRows(); // Réinitialiser les lignes du devis
   };
 
   // Formater les dates pour l'affichage
@@ -200,161 +338,93 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     }
   };
 
-  // Valider le formulaire
+  // Valider le formulaire principal
   const validateForm = () => {
-    if (!projectId) {
-      setError("L'ID du projet est obligatoire");
+    if (!selectedClient) {
+      setError("Veuillez sélectionner ou créer un client");
       return false;
     }
-    if (!selectedClient && !isAddingClient) {
-      setError("Veuillez sélectionner ou ajouter un client");
+
+    if (!issueDate) {
+      setError("La date d'émission est obligatoire");
       return false;
     }
-    if (isAddingClient) {
-       if (!newClientFirstName.trim() && !newClientLastName.trim()) {
-         setNewClientError("Le prénom ou le nom est obligatoire pour ajouter un client.");
-         return false;
-       }
+
+    if (type === DocumentType.DEVIS) {
+      if (rows.length === 0) {
+        setError("Veuillez ajouter au moins une ligne au devis");
+        return false;
+      }
+
+      const hasInvalidRow = rows.some(row => !row.material || row.quantity <= 0 || row.price <= 0);
+      if (hasInvalidRow) {
+        setError("Veuillez remplir correctement toutes les lignes du devis");
+        return false;
+      }
     }
+
     setError(null);
     return true;
   };
 
-  // Gérer l'ajout d'un nouveau client
-  const handleAddClient = async () => {
-    if (!newClientFirstName.trim() && !newClientLastName.trim()) {
-       setNewClientError("Le prénom ou le nom est obligatoire.");
-       return;
-    }
-    
-    // Vérifier l'email seulement s'il est fourni
-    if (newClientEmail.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(newClientEmail)) {
-          setNewClientError("Veuillez entrer une adresse email valide ou laisser le champ vide.");
-          return;
-      }
-    }
-
-    setIsClientLoading(true);
-    setNewClientError(null);
-
-    // S'assurer qu'aucun ID n'est inclus dans la requête
-    const newClientData = {
-      firstname: newClientFirstName || undefined,
-      lastname: newClientLastName || undefined,
-      email: newClientEmail || undefined,
-      company_name: newClientCompanyName || undefined,
-      phone: newClientPhone || undefined,
-      mobile: newClientMobile || undefined,
-      siret: newClientSiret || undefined,
-      notes: newClientNotes || undefined,
-    };
-
-    try {
-      const response = await fetch(`${urlConfig.local}clients`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newClientData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erreur lors de la création du client');
-      }
-
-      // Actualiser la liste des clients après l'ajout
-      await fetchClients();
-      
-      // Réinitialiser le formulaire mais rester en mode sélection pour choisir le client
-      setIsAddingClient(false);
-      setNewClientFirstName('');
-      setNewClientLastName('');
-      setNewClientEmail('');
-      setNewClientCompanyName('');
-      setNewClientPhone('');
-      setNewClientMobile('');
-      setNewClientSiret('');
-      setNewClientNotes('');
-      
-      // Afficher un message de succès avec indication de sélectionner le client
-      Alert.alert(
-        "Client ajouté",
-        "Le client a été ajouté avec succès. Veuillez maintenant le sélectionner dans la liste.",
-        [{ text: "OK" }]
-      );
-
-    } catch (err) {
-      setNewClientError(err instanceof Error ? err.message : 'Une erreur est survenue lors de l\'ajout du client');
-    } finally {
-      setIsClientLoading(false);
-    }
-  };
-
-  // Soumettre le formulaire
+  // Gérer la soumission du formulaire
   const handleSubmit = async () => {
-    if (!validateForm()) {
-        if (isAddingClient && newClientError) {
-           Alert.alert("Erreur Client", newClientError); 
-        } else if (!selectedClient) {
-           Alert.alert("Erreur", error || "Veuillez sélectionner ou ajouter un client.");
-        } else {
-           Alert.alert("Erreur", error || "Veuillez vérifier les champs du document.");
-        }
-        return; 
-    }
-
-    // Si nous sommes en mode ajout client, il faut d'abord créer le client
-    if (isAddingClient) {
-        await handleAddClient();
-        // Ne pas continuer après l'ajout du client, car l'utilisateur doit le sélectionner manuellement
-        return;
-    }
-
-    // Vérification finale que selectedClient existe et a un id
-    if (!selectedClient || !selectedClient.id) {
-      setError("Client non sélectionné ou invalide.");
-      Alert.alert("Erreur", "Veuillez sélectionner un client valide.");
-      return;
-    }
-
+    if (!validateForm()) return;
+    
     setLoading(true);
     setError(null);
     
     try {
-      const documentData = {
+      if (!selectedClient) {
+        setError("Veuillez sélectionner ou créer un client");
+        return;
+      }
+
+      // Préparer les lignes du devis
+      const devisLines: CreateDevisLineDto[] = extendedRows.map(row => ({
+        material_id: row.material?.id,
+        description: row.description || '',
+        quantity: row.quantity,
+        unit: row.unit || 'unité',
+        unit_price: row.price,
+        discount_percent: row.discount || 0,
+        tax_rate: parseFloat(tvaRate)
+      }));
+      
+      // Créer le DTO pour le devis
+      const devisData: CreateDevisDto = {
         project_id: projectId,
-        client_id: selectedClient.id,
-        type,
-        status,
-        amount: calculateTotal(),
-        tva_rate: parseFloat(tvaRate),
-        issue_date: issueDate.toISOString(),
-        due_date: dueDate?.toISOString() || null,
-        notes,
+        client_id: Number(selectedClient.id),
+        reference: reference || '',
+        status: status,
+        issue_date: issueDate,
+        due_date: dueDate || undefined,
+        notes: notes,
         file_path: filePath,
-        materials: rows.map(row => ({
-          material_id: row.material?.id,
-          quantity: row.quantity,
-          price: row.price
-        }))
+        lines: devisLines
       };
       
-      const response = await fetch(`${urlConfig.local}documents`, {
+      // Envoyer la requête pour créer le devis
+      const response = await fetch(`${urlConfig.local}devis`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(documentData)
+        body: JSON.stringify(devisData)
       });
       
       if (!response.ok) {
-        throw new Error('Erreur lors de la création du document');
+        throw new Error('Erreur lors de la création du devis');
+      }
+      
+      // Appeler la fonction de rafraîchissement de la liste des documents
+      if (onDocumentAdded) {
+        onDocumentAdded();
       }
       
       Alert.alert(
         'Succès',
-        'Le document a été créé avec succès',
+        `Le ${type === DocumentType.DEVIS ? 'devis' : 'document'} a été créé avec succès`,
         [
           {
             text: 'OK',
@@ -374,576 +444,209 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     }
   };
 
-  // Ajouter un useEffect pour mettre à jour les totaux si le taux de TVA change
-  useEffect(() => {
-    // Les calculs se feront dans le composant Tableau grâce à la prop tvaRate
-  }, [tvaRate]);
-
   // Si la modale n'est pas visible, ne pas la rendre du tout
   if (!visible) return null;
 
   return (
-    <View style={styles.modalOuterContainer}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nouveau document</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-          </View>
+    <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
+      <View className="bg-white w-[90%] max-h-[90%] rounded-lg overflow-hidden">
+        <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+          <Text className="text-xl font-bold text-gray-800">
+            {type === DocumentType.DEVIS ? 'Nouveau Devis' : 'Nouveau Document'}
+          </Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView className="flex-1" contentContainerClassName="p-4">
+          {error && (
+            <View className="p-2.5 bg-red-50 rounded mb-4">
+              <Text className="text-red-600 text-sm">{error}</Text>
+            </View>
+          )}
           
-          <ScrollView 
-            style={styles.scrollView} 
-            contentContainerStyle={styles.formContainer}
-            showsVerticalScrollIndicator={true}
-            keyboardShouldPersistTaps="handled"
-          >
-            {error && !newClientError && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+          {/* Section Client */}
+          <CollapsibleSection title="Client" initiallyExpanded={true}>
+            {selectedClient ? (
+              <View className="flex-row justify-between items-center p-4 bg-white rounded-lg border border-gray-200">
+                <View className="flex-1">
+                  <Text className="text-lg font-bold text-gray-800">
+                    {selectedClient.company_name || `${selectedClient.firstname} ${selectedClient.lastname}`}
+                  </Text>
+                  <Text className="text-sm text-gray-600 mt-1">{selectedClient.email}</Text>
+                  {selectedClient.phone && (
+                    <Text className="text-sm text-gray-600 mt-1">{selectedClient.phone}</Text>
+                  )}
+                  {selectedClient.addresses && (
+                    <Text className="text-sm text-gray-600 mt-1">
+                      {selectedClient.addresses.street}, {selectedClient.addresses.zipcode} {selectedClient.addresses.city}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity 
+                  className="p-2"
+                  onPress={() => setShowClientModal(true)}
+                >
+                  <Text className="text-blue-500 text-sm font-medium">Changer</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                className="flex-row items-center justify-center bg-gray-50 p-4 rounded-lg border border-gray-200 border-dashed"
+                onPress={() => setShowClientModal(true)}
+              >
+                <Ionicons name="person-outline" size={20} color="#2196F3" />
+                <Text className="text-blue-500 text-base font-medium ml-2">Sélectionner un client</Text>
+              </TouchableOpacity>
+            )}
+          </CollapsibleSection>
+          
+          {/* Section Informations */}
+          <CollapsibleSection title="Informations" initiallyExpanded={true}>
+            {!documentType && (
+              <View className="mb-4">
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Type de document *</Text>
+                <View className="border border-gray-300 rounded bg-white">
+                  <Picker
+                    selectedValue={type}
+                    onValueChange={(itemValue) => setType(itemValue as DocumentType)}
+                    className="h-[50px]"
+                  >
+                    {Object.values(DocumentType).map((docType) => (
+                      <Picker.Item 
+                        key={docType} 
+                        label={docType.replace(/_/g, ' ')} 
+                        value={docType} 
+                      />
+                    ))}
+                  </Picker>
+                </View>
               </View>
             )}
-
-            <TouchableOpacity 
-              style={styles.sectionHeader} 
-              onPress={() => setIsClientOpen(!isClientOpen)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Client *</Text>
-              <Ionicons 
-                name={isClientOpen ? "chevron-up-outline" : "chevron-down-outline"} 
-                size={20} 
-                color="#333" 
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Statut</Text>
+              <View className="border border-gray-300 rounded bg-white">
+                <Picker
+                  selectedValue={status}
+                  onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
+                  className="h-[50px]"
+                >
+                  {Object.values(DocumentStatus).map((docStatus) => (
+                    <Picker.Item 
+                      key={docStatus} 
+                      label={docStatus.replace(/_/g, ' ')} 
+                      value={docStatus} 
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Taux TVA (%)</Text>
+              <TextInput
+                className="border border-gray-300 rounded p-2.5 text-base bg-white"
+                value={tvaRate}
+                onChangeText={setTvaRate}
+                placeholder="20"
+                keyboardType="decimal-pad"
               />
-            </TouchableOpacity>
-
-            {isClientOpen && (
-              <View style={styles.sectionContent}>
-                 {newClientError && (
-                   <View style={styles.errorContainer}>
-                     <Text style={styles.errorText}>{newClientError}</Text>
-                   </View>
-                 )}
-                 {isClientLoading && <ActivityIndicator size="small" color="#0000ff" style={{ marginBottom: 10}} />}
-
-                 {!isAddingClient && !selectedClient && !isClientLoading && (
-                   <>
-                      <View style={styles.pickerContainer}>
-                         <Picker
-                          selectedValue={selectedClient ? (selectedClient as any).id : undefined}
-                          onValueChange={(itemValue: any) => {
-                              if (itemValue) {
-                                  const client = clients.find(c => (c as any).id === itemValue);
-                                  setSelectedClient(client || null);
-                              } else {
-                                  setSelectedClient(null);
-                              }
-                          }}
-                          style={styles.picker}
-                          prompt="Sélectionnez un client"
-                         >
-                          <Picker.Item label="-- Sélectionner un client existant --" value={null} />
-                          {clients.map((client) => (
-                              <Picker.Item 
-                              key={(client as any).id} 
-                              label={`${client.firstname} ${client.lastname}${client.company_name ? ' (' + client.company_name + ')' : ''}`} 
-                              value={(client as any).id} 
-                              />
-                          ))}
-                         </Picker>
-                      </View>
-                      <TouchableOpacity 
-                        style={[styles.button, styles.addButton, { marginTop: 10 }]} 
-                        onPress={() => { setIsAddingClient(true); setSelectedClient(null); setNewClientError(null); }}>
-                         <Text style={styles.buttonText}>Ajouter un nouveau client</Text>
-                      </TouchableOpacity>
-                   </>
-                 )}
-
-                 {isAddingClient && !isClientLoading && (
-                   <>
-                      <Text style={styles.subHeader}>Nouveau Client</Text>
-                      <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Prénom *</Text>
-                         <TextInput style={styles.input} value={newClientFirstName} onChangeText={setNewClientFirstName} />
-                      </View>
-                      <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Nom *</Text>
-                         <TextInput style={styles.input} value={newClientLastName} onChangeText={setNewClientLastName} />
-                      </View>
-                       <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Email</Text>
-                         <TextInput style={styles.input} value={newClientEmail} onChangeText={setNewClientEmail} keyboardType="email-address" autoCapitalize="none" />
-                      </View>
-                      <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Société</Text>
-                         <TextInput style={styles.input} value={newClientCompanyName} onChangeText={setNewClientCompanyName} />
-                      </View>
-                      <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Téléphone</Text>
-                         <TextInput style={styles.input} value={newClientPhone} onChangeText={setNewClientPhone} keyboardType="phone-pad" />
-                      </View>
-                       <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Mobile</Text>
-                         <TextInput style={styles.input} value={newClientMobile} onChangeText={setNewClientMobile} keyboardType="phone-pad" />
-                      </View>
-                       <View style={styles.inputGroup}>
-                         <Text style={styles.label}>SIRET</Text>
-                         <TextInput style={styles.input} value={newClientSiret} onChangeText={setNewClientSiret} />
-                      </View>
-                       <View style={styles.inputGroup}>
-                         <Text style={styles.label}>Notes</Text>
-                         <TextInput style={[styles.input, styles.textArea]} value={newClientNotes} onChangeText={setNewClientNotes} multiline />
-                      </View>
-
-                      <View style={styles.buttonRow}>
-                         <TouchableOpacity 
-                           style={[styles.button, styles.cancelButton, { flex: 1, marginRight: 5 }]} 
-                           onPress={() => { setIsAddingClient(false); setNewClientError(null); }}>
-                               <Text style={styles.buttonText}>Annuler</Text>
-                           </TouchableOpacity>
-                            <TouchableOpacity 
-                              style={[styles.button, styles.submitButton, { flex: 1, marginLeft: 5 }]} 
-                              onPress={handleAddClient}
-                              disabled={isClientLoading} >
-                                <Text style={[styles.buttonText, styles.submitButtonText]}>Enregistrer Client</Text>
-                            </TouchableOpacity>
-                      </View>
-                   </>
-                 )}
-
-                 {!isAddingClient && selectedClient && !isClientLoading && (
-                   <View style={styles.clientInfoContainer}>
-                     <Text style={styles.clientInfoTitle}>Informations client</Text>
-                     
-                     <Text style={styles.clientInfoText}>
-                       <Text style={{fontWeight: 'bold'}}>Client : </Text>
-                       {selectedClient.firstname} {selectedClient.lastname} 
-                       {selectedClient.company_name ? ` (${selectedClient.company_name})` : ''}
-                     </Text>
-                     
-                     <Text style={styles.clientInfoText}>
-                        <Text style={{fontWeight: 'bold'}}>Email : </Text>
-                        {selectedClient.email}
-                     </Text>
-                     
-                     {selectedClient.phone && 
-                      <Text style={styles.clientInfoText}>
-                        <Text style={{fontWeight: 'bold'}}>Tél : </Text>
-                        {selectedClient.phone}
-                      </Text>
-                     }
-                     
-                     {selectedClient.mobile && 
-                        <Text style={styles.clientInfoText}>
-                          <Text style={{fontWeight: 'bold'}}>Mobile : </Text>
-                          {selectedClient.mobile}
-                        </Text>
-                       }
-                       
-                       {selectedClient.siret && 
-                        <Text style={styles.clientInfoText}>
-                          <Text style={{fontWeight: 'bold'}}>SIRET : </Text>
-                          {selectedClient.siret}
-                        </Text>
-                       }
-                       
-                       {selectedClient.notes && 
-                        <View style={styles.clientNotesContainer}>
-                          <Text style={[styles.clientInfoText, {fontWeight: 'bold'}]}>Notes :</Text>
-                          <Text style={styles.clientNotes}>{selectedClient.notes}</Text>
-                        </View>
-                       }
-                       
-                       <TouchableOpacity 
-                          style={[styles.button, styles.changeButton, { marginTop: 15 }]} 
-                          onPress={() => setSelectedClient(null)}>
-                           <Text style={styles.buttonText}>Changer de client</Text>
-                       </TouchableOpacity>
-                     </View>
-                   )}
-                </View>
-              )} 
-
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'émission *</Text>
               <TouchableOpacity 
-                style={[styles.sectionHeader, { marginTop: 20 }]}
-                onPress={() => setIsInfoOpen(!isInfoOpen)}
-                activeOpacity={0.7}
+                className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
+                onPress={() => setIssueDatePickerOpen(true)}
               >
-                <Text style={styles.sectionTitle}>Information</Text>
-                <Ionicons 
-                  name={isInfoOpen ? "chevron-up-outline" : "chevron-down-outline"} 
-                  size={20} 
-                  color="#333" 
-                />
+                <Text className="text-base text-gray-800">{formatDate(issueDate)}</Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
               </TouchableOpacity>
-              {isInfoOpen && (
-                 <View style={styles.sectionContent}>
-                   <View style={styles.inputGroup}>
-                     <Text style={styles.label}>Type de document *</Text>
-                     <View style={styles.pickerContainer}>
-                       <Picker
-                         selectedValue={type}
-                         onValueChange={(itemValue) => setType(itemValue as DocumentType)}
-                         style={styles.picker}
-                       >
-                         {Object.values(DocumentType).map((docType) => (
-                           <Picker.Item 
-                             key={docType} 
-                             label={docType.replace(/_/g, ' ')} 
-                             value={docType} 
-                           />
-                         ))}
-                       </Picker>
-                     </View>
-                   </View>
-                   
-                   <View style={styles.inputGroup}>
-                     <Text style={styles.label}>Statut</Text>
-                     <View style={styles.pickerContainer}>
-                       <Picker
-                         selectedValue={status}
-                         onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
-                         style={styles.picker}
-                       >
-                         {Object.values(DocumentStatus).map((docStatus) => (
-                           <Picker.Item 
-                             key={docStatus} 
-                             label={docStatus.replace(/_/g, ' ')} 
-                             value={docStatus} 
-                           />
-                         ))}
-                       </Picker>
-                     </View>
-                   </View>
-                   
-                   <View style={styles.inputGroup}>
-                     <Text style={styles.label}>Taux TVA (%)</Text>
-                     <TextInput
-                       style={styles.input}
-                       value={tvaRate}
-                       onChangeText={setTvaRate}
-                       placeholder="20"
-                       keyboardType="decimal-pad"
-                     />
-                   </View>
-                   
-                   <View style={styles.inputGroup}>
-                     <Text style={styles.label}>Date d'émission *</Text>
-                     <TouchableOpacity 
-                       style={styles.dateButton}
-                       onPress={() => setIssueDatePickerOpen(true)}
-                     >
-                       <Text style={styles.dateButtonText}>{formatDate(issueDate)}</Text>
-                       <Ionicons name="calendar-outline" size={20} color="#666" />
-                     </TouchableOpacity>
-                     
-                     {issueDatePickerOpen && (
-                       <DateTimePicker
-                         value={issueDate}
-                         mode="date"
-                         display="default"
-                         onChange={handleIssueDateChange}
-                       />
-                     )}
-                   </View>
-                   
-                   <View style={styles.inputGroup}>
-                     <Text style={styles.label}>Date d'échéance</Text>
-                     <TouchableOpacity 
-                       style={styles.dateButton}
-                       onPress={() => setDueDatePickerOpen(true)}
-                     >
-                       <Text style={styles.dateButtonText}>{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
-                       <Ionicons name="calendar-outline" size={20} color="#666" />
-                     </TouchableOpacity>
-                     
-                     {dueDatePickerOpen && (
-                       <DateTimePicker
-                         value={dueDate || new Date()}
-                         mode="date"
-                         display="default"
-                         onChange={handleDueDateChange}
-                       />
-                     )}
-                   </View>
-                   
-                   <View style={styles.inputGroup}>
-                     <Text style={styles.label}>Notes</Text>
-                     <TextInput
-                       style={[styles.input, styles.textArea]}
-                       value={notes}
-                       onChangeText={setNotes}
-                       placeholder="Notes ou commentaires supplémentaires"
-                       multiline
-                       numberOfLines={4}
-                     />
-                   </View>
-                 </View>
-              )} 
               
-              {type === DocumentType.DEVIS && (
-                 <View style={styles.sectionContainer}>
-                    <TouchableOpacity 
-                      style={[styles.sectionHeader, { marginTop: 20 }]}
-                      onPress={() => setIsMaterialsOpen(!isMaterialsOpen)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.sectionTitle}>Matériaux</Text>
-                       <Ionicons 
-                        name={isMaterialsOpen ? "chevron-up-outline" : "chevron-down-outline"} 
-                        size={20} 
-                        color="#333" 
-                      />
-                    </TouchableOpacity>
-                    
-                    {isMaterialsOpen && (
-                       <View style={styles.sectionContent}>
-                          <Tableau tvaRate={parseFloat(tvaRate) || 20} />
-                       </View>
-                    )}
-                 </View>
+              {issueDatePickerOpen && (
+                <DateTimePicker
+                  value={issueDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleIssueDateChange}
+                />
               )}
-          </ScrollView>
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'échéance</Text>
+              <TouchableOpacity 
+                className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
+                onPress={() => setDueDatePickerOpen(true)}
+              >
+                <Text className="text-base text-gray-800">{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              
+              {dueDatePickerOpen && (
+                <DateTimePicker
+                  value={dueDate || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={handleDueDateChange}
+                />
+              )}
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Notes</Text>
+              <TextInput
+                className="border border-gray-300 rounded p-2.5 text-base bg-white h-[100px] textAlignVertical-top"
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Notes ou commentaires supplémentaires"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+          </CollapsibleSection>
+          
+          {/* Section Matériaux */}
+          {type === DocumentType.DEVIS && (
+            <CollapsibleSection title="Lignes du devis" initiallyExpanded={true}>
+              <Tableau />
+            </CollapsibleSection>
+          )}
+        </ScrollView>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onClose}
-            >
-              <Text style={styles.buttonText}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={[styles.buttonText, styles.submitButtonText]}>
-                  Enregistrer
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+        <View className="flex-row justify-between mt-5 px-4 pb-4">
+          <TouchableOpacity
+            className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
+            onPress={onClose}
+          >
+            <Text className="text-gray-800 font-bold">Annuler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white font-bold">
+                Enregistrer
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
+      
+      {/* Modale de sélection/création de client */}
+      <ClientSelectionModal
+        visible={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        onSelectClient={setSelectedClient}
+      />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  modalOuterContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  modalContainer: {
-    width: '90%',
-    height: '90%',
-    maxWidth: 500,
-    maxHeight: 700,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    elevation: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  modalContent: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  formContainer: {
-    padding: 16,
-    paddingBottom: 30,
-  },
-  errorContainer: {
-    padding: 10,
-    backgroundColor: '#ffebee',
-    borderRadius: 4,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 14,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 6,
-    color: '#555',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    backgroundColor: '#f9f9f9',
-  },
-  picker: {
-    height: 50,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 10,
-    backgroundColor: '#f9f9f9',
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  button: {
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: '48%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButton: {
-    backgroundColor: '#2196F3',
-  },
-  cancelButton: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  sectionTitle: { 
-    fontSize: 16, 
-    fontWeight: '600', 
-    color: '#333',
-    marginBottom: 0, 
-  },
-  sectionContainer: {
-    marginTop: 0,
-    marginBottom: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 4,
-    marginBottom: 10,
-  },
-  sectionContent: {
-    paddingTop: 10,
-    paddingHorizontal: 8,
-    overflow: 'visible',
-  },
-  subHeader: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#444',
-    marginTop: 5,
-    marginBottom: 15,
-    paddingBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
-  },
-   addButton: {
-    backgroundColor: '#4CAF50',
-  },
-  changeButton: {
-    backgroundColor: '#FF9800',
-  },
-  clientInfoContainer: {
-    padding: 10,
-    backgroundColor: '#e3f2fd',
-    borderRadius: 4,
-    marginTop: 10,
-  },
-  clientInfoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  clientInfoText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
-  },
-  clientNotesContainer: {
-    marginTop: 5,
-  },
-  clientNotes: {
-    fontSize: 14,
-    color: '#333',
-  },
-});
 
 export default DocumentsModal;

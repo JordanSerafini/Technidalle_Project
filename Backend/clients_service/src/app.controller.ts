@@ -3,6 +3,7 @@ import { AppService } from './app.service';
 import {
   Client,
   CreateClientDto,
+  CreateClientWithAddressDto,
   UpdateClientDto,
 } from './interfaces/client.interface';
 import {
@@ -23,12 +24,12 @@ export class AppController {
     limit?: number;
     offset?: number;
     searchQuery?: string;
+    typeFilter?: string;
+    cityFilter?: string;
+    statusFilter?: string;
+    lastOrderFilter?: string;
   }): Promise<Client[]> {
-    return await this.appService.getAllClients(
-      data?.limit,
-      data?.offset,
-      data?.searchQuery,
-    );
+    return await this.appService.getAllClients(data);
   }
 
   @MessagePattern({ cmd: 'get_client_by_id' })
@@ -52,6 +53,13 @@ export class AppController {
   @MessagePattern({ cmd: 'delete_client' })
   async deleteClient(data: { id: number }): Promise<boolean> {
     return await this.appService.deleteClient(data.id);
+  }
+
+  @MessagePattern({ cmd: 'create_client_with_address' })
+  async createClientWithAddress(
+    data: CreateClientWithAddressDto,
+  ): Promise<Client> {
+    return await this.appService.createClientWithAddress(data);
   }
 
   // Addresses Endpoints

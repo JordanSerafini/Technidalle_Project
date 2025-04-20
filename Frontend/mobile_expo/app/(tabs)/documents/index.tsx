@@ -67,6 +67,9 @@ export default function DocumentsScreen() {
   const [modalProjectId, setModalProjectId] = useState<number | undefined>(undefined);
   const [modalClientId, setModalClientId] = useState<number | undefined>(undefined);
   
+  // Déclencheur de rafraîchissement simple
+  const [refreshKey, setRefreshKey] = useState(0);
+  
   // Animation pour le swipe entre filtres
   const [filterPosition] = useState(new Animated.Value(0));
   
@@ -102,8 +105,8 @@ export default function DocumentsScreen() {
   // Référence pour éviter les re-rendus en boucle
   const hasGroupedDocuments = useRef(false);
   
-  // Récupération des documents
-  const { data: documents, loading, error } = useFetch<Document[]>('documents', {
+  // Récupération des documents - utiliser refreshKey pour forcer un nouveau montage du hook
+  const { data: documents, loading, error } = useFetch<Document[]>(`documents?refresh=${refreshKey}`, {
     searchQuery: searchQuery.length > 0 ? searchQuery : undefined
   });
   
@@ -308,7 +311,7 @@ export default function DocumentsScreen() {
     }));
   };
   
-  // Rendu d'un élément de la liste
+  //? -------------------------------------------------------------------------------------  Rendu d'un élément de la liste
   const renderItem = ({ item }: { item: Document }) => (
     <TouchableOpacity
       key={item.id}
@@ -339,7 +342,7 @@ export default function DocumentsScreen() {
     </TouchableOpacity>
   );
   
-  // Rendu des sections mensuelles
+  //? -------------------------------------------------------------------------------------  Rendu des sections mensuelles
   const renderMonthSections = () => {
     return Object.entries(documentsByMonth).map(([monthYear, docs]) => (
       <View key={monthYear} className="mb-4">
@@ -477,10 +480,16 @@ export default function DocumentsScreen() {
     }
   };
   
+  // Fonction pour rafraîchir la liste des documents
+  const refreshDocuments = () => {
+    // Incrémenter la clé pour forcer un nouveau fetch
+    setRefreshKey(prev => prev + 1);
+  };
+  
   // Gérer l'affichage de la modale de document
   const handleShowDocumentModal = (show: boolean, projectId?: number, clientId?: number) => {
     setShowDocumentModal(show);
-    setModalProjectId(projectId || 1);
+    setModalProjectId(projectId);
     setModalClientId(clientId);
   };
   
@@ -522,16 +531,40 @@ export default function DocumentsScreen() {
         </View>
       )}
       
-      {/* Floating Action Button */}
-      <DocumentsFAB 
-        filtersVisible={filterVisible} 
-        projectId={modalProjectId}
-        clientId={modalClientId}
-        onShowModal={handleShowDocumentModal}
-      />
+      {/* Floating Action Button - caché si la modale est affichée
+      {!showDocumentModal && (
+        <DocumentsFAB 
+          filtersVisible={filterVisible} 
+          projectId={modalProjectId}
+          clientId={modalClientId}
+          onShowModal={handleShowDocumentModal}
+        />
+      )} */}
       
       {/* Barre de recherche et filtres en bas de l'écran */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
+        {/* Filtres */}
+        {filterVisible && (
+          <Animated.View 
+            className="mb-2 bg-gray-50 p-3 rounded-lg"
+            style={{ transform: [{ translateX: filterPosition }] }}
+            {...panResponder.panHandlers}
+          >
+            <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
+              <TouchableOpacity onPress={switchToPrevFilter}>
+                <Ionicons name="chevron-back" size={20} color="#6b7280" />
+              </TouchableOpacity>
+              
+              <Text className="font-medium text-gray-800">{getFilterTitle()}</Text>
+              
+              <TouchableOpacity onPress={switchToNextFilter}>
+                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {renderFilterContent()}
+          </Animated.View>
+        )}
         {/* Barre de recherche */}
         <View className="flex-row items-center mb-4">
           <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
@@ -561,41 +594,23 @@ export default function DocumentsScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* Filtres */}
-        {filterVisible && (
-          <Animated.View 
-            className="mb-2 bg-gray-50 p-3 rounded-lg"
-            style={{ transform: [{ translateX: filterPosition }] }}
-            {...panResponder.panHandlers}
-          >
-            <View className="flex-row items-center justify-between border-b border-gray-400 pb-4 mb-4">
-              <TouchableOpacity onPress={switchToPrevFilter}>
-                <Ionicons name="chevron-back" size={20} color="#6b7280" />
-              </TouchableOpacity>
-              
-              <Text className="font-medium text-gray-800">{getFilterTitle()}</Text>
-              
-              <TouchableOpacity onPress={switchToNextFilter}>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-            
-            {renderFilterContent()}
-          </Animated.View>
-        )}
+        
       </View>
 
       {/* MODALE SIMULÉE : Rendue ici conditionnellement par-dessus tout */}
       {showDocumentModal && (
         <DocumentsModal 
-          visible={showDocumentModal} // Peut-être plus nécessaire, mais gardons pour cohérence interne
+          visible={showDocumentModal}
           onClose={() => setShowDocumentModal(false)}
           projectId={modalProjectId}
           clientId={modalClientId}
           onSuccess={() => {
             console.log('Document ajouté avec succès');
             setShowDocumentModal(false);
-            // Recharger les documents ici si nécessaire
+          }}
+          onDocumentAdded={() => {
+            // Rafraîchir la liste lorsqu'un document est ajouté
+            refreshDocuments();
           }}
         />
       )}

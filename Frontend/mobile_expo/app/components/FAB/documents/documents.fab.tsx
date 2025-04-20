@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Pressable, Text, View } from 'react-native';
+import { StyleSheet, Pressable, Text, View, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import Animated, {
@@ -23,9 +23,6 @@ const SPRING_CONFIG = {
 
 // Décalage vertical entre les boutons
 const BUTTON_OFFSET = 60;
-
-// Créer un Pressable animé
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // Propriétés pour les boutons FAB secondaires
 interface FABButtonProps {
@@ -54,8 +51,6 @@ const FABButton: React.FC<FABButtonProps> = ({
   onPress,
   visible
 }) => {
-  const buttonRef = React.useRef(null);
-  
   const animatedStyles = useAnimatedStyle(() => {
     const moveValue = isExpanded.value ? BUTTON_OFFSET * index : 0;
     const translateValue = withSpring(-moveValue, SPRING_CONFIG);
@@ -84,15 +79,31 @@ const FABButton: React.FC<FABButtonProps> = ({
     };
   });
 
+  const handlePress = () => {
+    setTimeout(() => {
+      onPress();
+    }, 50);
+  };
+
+  if (!visible) return null;
+
   return (
     <View style={styles.fabButtonContainer}>
-      <AnimatedPressable 
-        ref={buttonRef}
-        style={[animatedStyles, styles.fabButton]}
-        onPress={onPress}
-      >
-        {icon}
-      </AnimatedPressable>
+      <Animated.View style={[animatedStyles, styles.fabButton]}>
+        <TouchableOpacity 
+          onPress={handlePress} 
+          style={{
+            width: '100%',
+            height: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: 25,
+          }}
+          activeOpacity={0.7}
+        >
+          {icon}
+        </TouchableOpacity>
+      </Animated.View>
       {visible && (
         <Animated.View style={[labelAnimatedStyle, styles.labelContainer]}>
           <Text style={styles.labelText}>{label}</Text>
@@ -103,7 +114,7 @@ const FABButton: React.FC<FABButtonProps> = ({
 };
 
 // Composant principal FAB
-export const DocumentsFAB: React.FC<DocumentsFABProps> = ({ 
+const DocumentsFAB: React.FC<DocumentsFABProps> = ({ 
   filtersVisible = false,
   projectId,
   clientId,
@@ -113,7 +124,6 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
   const navigation = useNavigation();
   const isExpanded = useSharedValue(false);
   const [expanded, setExpanded] = useState(false);
-  const mainButtonRef = React.useRef(null);
 
   // Nettoyage à la destruction du composant
   useEffect(() => {
@@ -124,21 +134,26 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
     return unsubscribe;
   }, []);
 
+  // Fonction pour fermer le FAB
+  const closeFab = () => {
+    if (isExpanded.value || expanded) {
+      isExpanded.value = false;
+      setExpanded(false);
+    }
+  };
+
   // Fermer le FAB lors d'un changement de route/page
   useEffect(() => {
-    const closeFab = () => {
-      if (isExpanded.value || expanded) {
-        isExpanded.value = false;
-        setExpanded(false);
-      }
-    };
-
     // S'abonner aux événements de navigation
     const unsubscribe = navigation.addListener('beforeRemove', closeFab);
+    const focusListener = navigation.addListener('focus', closeFab);
+    const blurListener = navigation.addListener('blur', closeFab);
     const stateListener = navigation.addListener('state', closeFab);
 
     return () => {
       unsubscribe();
+      focusListener();
+      blurListener();
       stateListener();
     };
   }, [navigation, isExpanded, expanded]);
@@ -161,26 +176,37 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
 
   // Exécuter une action et fermer le FAB
   const handleAction = (callback: () => void) => {
+    // Fermer immédiatement le FAB
     isExpanded.value = false;
     setExpanded(false);
-    callback();
+    
+    // Attendre que l'animation se termine avant d'exécuter l'action
+    setTimeout(() => {
+      callback();
+    }, 100);
   };
 
   // Ouvrir la modale pour ajouter un document
   const handleAddDocument = () => {
-    if (onShowModal) {
-      onShowModal(true, projectId, clientId);
-    }
+    handleAction(() => {
+      if (onShowModal) {
+        onShowModal(true, projectId, clientId);
+      }
+    });
   };
 
   // Naviguer vers la page d'importation
   const handleImportDocument = () => {
-    console.log('Import document');
+    handleAction(() => {
+      // Implémentation à venir
+    });
   };
 
   // Fonction pour les autres actions
   const handleOtherActions = () => {
-    console.log('Autres actions');
+    handleAction(() => {
+      // Implémentation à venir
+    });
   };
   
   // Si les filtres sont visibles, on ne rend pas le FAB du tout
@@ -192,10 +218,9 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
     <View style={styles.container}>
       {/* Overlay pour fermer le FAB quand ouvert */}
       {expanded && (
-        <Pressable 
-          style={StyleSheet.absoluteFill} 
-          onPress={toggleFAB}
-        />
+        <TouchableWithoutFeedback onPress={toggleFAB}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
       )}
 
       {/* Bouton "Autres" */}
@@ -229,15 +254,15 @@ export const DocumentsFAB: React.FC<DocumentsFABProps> = ({
       />
 
       {/* Bouton principal */}
-      <Pressable 
-        ref={mainButtonRef}
+      <TouchableOpacity 
         style={styles.mainButton}
         onPress={toggleFAB}
+        activeOpacity={0.8}
       >
         <Animated.View style={mainIconStyle}>
           <Ionicons name="add" size={30} color="#fff" />
         </Animated.View>
-      </Pressable>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -262,11 +287,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
+    zIndex: 1000,
   },
   fabButtonContainer: {
     position: 'absolute',
     alignItems: 'center',
     flexDirection: 'row',
+    zIndex: 1000,
   },
   fabButton: {
     width: 50,
