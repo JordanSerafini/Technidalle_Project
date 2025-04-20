@@ -2,7 +2,7 @@
 #  Makefile docker-compose + Swarm
 ############################################
 
-.PHONY: up down
+.PHONY: up down prismaUp
 
 up:
 	@echo "Lancement de l'application en utilisant docker-compose..."
@@ -41,6 +41,15 @@ artillery: artillery-clean
 	cd Backend && \
 	artillery run artillery/scenarios/artillery.yml -o artillery/scenarios/artillery.json && \
 	artillery report artillery/scenarios/artillery.json
+
+prismaUp:
+	@echo "Mise a jour des schemas Prisma dans tous les services..."
+ifeq ($(OS),Windows_NT)
+	powershell -ExecutionPolicy Bypass -File updatePrisma.ps1
+else
+	bash updatePrisma.sh
+endif
+	@echo "Mise a jour Prisma terminee."
 
 
 	

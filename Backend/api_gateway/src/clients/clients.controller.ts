@@ -13,6 +13,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import {
   Client,
   CreateClientDto,
+  CreateClientWithAddressDto,
   UpdateClientDto,
 } from '../interfaces/client.interface';
 import {
@@ -33,6 +34,10 @@ export class ClientsController {
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
     @Query('searchQuery') searchQuery?: string,
+    @Query('typeFilter') typeFilter?: string,
+    @Query('cityFilter') cityFilter?: string,
+    @Query('statusFilter') statusFilter?: string,
+    @Query('lastOrderFilter') lastOrderFilter?: string,
   ): Promise<Client[]> {
     return await firstValueFrom(
       this.clientsService.send(
@@ -41,6 +46,10 @@ export class ClientsController {
           limit: limit ? Number(limit) : undefined,
           offset: offset ? Number(offset) : undefined,
           searchQuery,
+          typeFilter,
+          cityFilter,
+          statusFilter,
+          lastOrderFilter,
         },
       ),
     );
@@ -146,6 +155,18 @@ export class ClientsController {
   async updateAllAddressesCoordinates() {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'update_all_addresses_coordinates' }, {}),
+    );
+  }
+
+  @Post('with-address')
+  async createClientWithAddress(
+    @Body() createClientWithAddressDto: CreateClientWithAddressDto,
+  ): Promise<Client> {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'create_client_with_address' },
+        createClientWithAddressDto,
+      ),
     );
   }
 }
