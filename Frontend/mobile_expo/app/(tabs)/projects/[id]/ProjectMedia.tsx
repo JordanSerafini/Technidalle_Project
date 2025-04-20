@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Modal, Image, Dimensions } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface ProjectMedia {
   id: number;
@@ -161,11 +162,12 @@ export const ProjectMedia: React.FC<ProjectMediaProps> = ({
         </View>
       </Modal>
       
-      {isOpen && (
+      {/* Utiliser AccordionItem */}
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           <MediaListContent />
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 };

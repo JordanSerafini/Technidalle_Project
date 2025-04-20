@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface TagData {
   tag_id: number;
@@ -39,7 +40,7 @@ export const ProjectTags: React.FC<ProjectTagsProps> = ({
         />
       </TouchableOpacity>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           <View className="flex-row flex-wrap">
             {tags.length > 0 ? (
@@ -59,7 +60,7 @@ export const ProjectTags: React.FC<ProjectTagsProps> = ({
             )}
           </View>
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 

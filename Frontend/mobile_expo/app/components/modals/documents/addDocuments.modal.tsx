@@ -21,11 +21,14 @@ import { url as urlConfig } from '@/app/utils/url';
 import Tableau from '../../tableau';
 import { useDevisStore } from '@/app/store/devisStore';
 import { useFetch } from '@/app/hooks/useFetch';
-import { Client } from '@/app/utils/interfaces/client.interface';
+import { Client, CreateClientDto } from '@/app/utils/interfaces/client.interface';
 import { useClientsStore } from '@/app/store/clientsStore';
 import { AddClientModal } from '../clients/addClient.modal';
 import { CreateDevisDto, CreateDevisLineDto } from '@/app/utils/interfaces/devis.interface';
 import { Material } from '@/app/utils/interfaces/material.interface';
+
+
+
 
 // Récupérer les dimensions de l'écran
 const { width, height } = Dimensions.get('window');
@@ -223,18 +226,29 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   const [issueDate, setIssueDate] = useState(new Date());
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
-  const [filePath, setFilePath] = useState('');
   const [reference, setReference] = useState('');
-  
-  // États pour l'UI
-  const [loading, setLoading] = useState(false);
+  const [filePath, setFilePath] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [issueDatePickerOpen, setIssueDatePickerOpen] = useState(false);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
   
   // États pour la section client
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [newClientError, setNewClientError] = useState<string | null>(null);
+  const [isAddingClient, setIsAddingClient] = useState(false);
+  const [isClientLoading, setIsClientLoading] = useState(false);
+  const [newClientFirstName, setNewClientFirstName] = useState('');
+  const [newClientLastName, setNewClientLastName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientCompanyName, setNewClientCompanyName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientMobile, setNewClientMobile] = useState('');
+  const [newClientSiret, setNewClientSiret] = useState('');
+  const [newClientNotes, setNewClientNotes] = useState('');
   
   // Store pour les lignes du devis
   const { rows, calculateTotal, clearRows } = useDevisStore();
@@ -245,10 +259,11 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   // Reset form quand la modale s'ouvre
   useEffect(() => {
     if (visible) {
+      fetchClients();
       resetForm();
     }
-  }, [visible]);
-  
+  }, [visible, projectId, clientId]);
+
   // Gestion du bouton retour Android
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -267,6 +282,24 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     }
   }, [visible, onClose]);
 
+  // Fonction pour récupérer les clients
+  const fetchClients = async () => {
+    setIsClientLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${urlConfig.local}clients`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des clients');
+      }
+      const data: Client[] = await response.json();
+      setClients(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la récupération des clients');
+    } finally {
+      setIsClientLoading(false);
+    }
+  };
+
   // Réinitialiser le formulaire
   const resetForm = () => {
     setType(documentType || DocumentType.DEVIS);
@@ -275,6 +308,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
     setIssueDate(new Date());
     setDueDate(null);
     setNotes('');
+    setReference('');
     setFilePath('');
     setError(null);
     setSelectedClient(null);
@@ -310,34 +344,30 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       setError("Veuillez sélectionner ou créer un client");
       return false;
     }
-    
-    if (type === DocumentType.DEVIS && extendedRows.length === 0) {
-      setError("Veuillez ajouter au moins une ligne au devis");
-      return false;
-    }
-    
-    // Validation supplémentaire pour le taux de TVA
-    if (isNaN(parseFloat(tvaRate)) || parseFloat(tvaRate) < 0) {
-      setError("Le taux de TVA doit être un nombre positif valide");
+
+    if (!issueDate) {
+      setError("La date d'émission est obligatoire");
       return false;
     }
 
-    // Validation des lignes du devis
-    for (const row of extendedRows) {
-      if (row.quantity <= 0) {
-        setError("Les quantités doivent être positives");
+    if (type === DocumentType.DEVIS) {
+      if (rows.length === 0) {
+        setError("Veuillez ajouter au moins une ligne au devis");
         return false;
       }
-      if (row.price < 0) {
-        setError("Les prix ne peuvent pas être négatifs");
+
+      const hasInvalidRow = rows.some(row => !row.material || row.quantity <= 0 || row.price <= 0);
+      if (hasInvalidRow) {
+        setError("Veuillez remplir correctement toutes les lignes du devis");
         return false;
       }
     }
-    
+
+    setError(null);
     return true;
   };
 
-  // Soumettre le formulaire
+  // Gérer la soumission du formulaire
   const handleSubmit = async () => {
     if (!validateForm()) return;
     
@@ -349,78 +379,42 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
         setError("Veuillez sélectionner ou créer un client");
         return;
       }
+
+      // Préparer les lignes du devis
+      const devisLines: CreateDevisLineDto[] = extendedRows.map(row => ({
+        material_id: row.material?.id,
+        description: row.description || '',
+        quantity: row.quantity,
+        unit: row.unit || 'unité',
+        unit_price: row.price,
+        discount_percent: row.discount || 0,
+        tax_rate: parseFloat(tvaRate)
+      }));
       
-      // Préparer les données en fonction du type de document
-      if (type === DocumentType.DEVIS) {
-        // Préparer les lignes du devis
-        const devisLines: CreateDevisLineDto[] = extendedRows.map(row => ({
-          material_id: row.material?.id,
-          description: row.description || '',
-          quantity: row.quantity,
-          unit: row.unit || 'unité',
-          unit_price: row.price,
-          discount_percent: row.discount || 0,
-          tax_rate: parseFloat(tvaRate)
-        }));
-        
-        // Créer le DTO pour le devis
-        const devisData: CreateDevisDto = {
-          project_id: projectId,
-          client_id: selectedClient.id || 0, 
-          reference: reference || '',
-          status: status,
-          amount: calculateTotal(),
-          tva_rate: parseFloat(tvaRate),
-          issue_date: issueDate,
-          due_date: dueDate || undefined,
-          notes: notes,
-          file_path: filePath,
-          lines: devisLines
-        };
-        
-        // Envoyer la requête pour créer le devis
-        const response = await fetch(`${urlConfig.local}devis`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(devisData)
-        });
-        
-        if (!response.ok) {
-          throw new Error('Erreur lors de la création du devis');
-        }
-      } else {
-        // Pour les autres types de documents
-        const documentData = {
-          project_id: projectId,
-          client_id: selectedClient.id,
-          type,
-          status,
-          amount: calculateTotal(),
-          tva_rate: parseFloat(tvaRate),
-          issue_date: issueDate,
-          due_date: dueDate || null,
-          notes,
-          file_path: filePath,
-          materials: extendedRows.map(row => ({
-            material_id: row.material?.id || null,
-            quantity: row.quantity,
-            price: row.price
-          }))
-        };
-        
-        const response = await fetch(`${urlConfig.local}documents`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(documentData)
-        });
-        
-        if (!response.ok) {
-          throw new Error('Erreur lors de la création du document');
-        }
+      // Créer le DTO pour le devis
+      const devisData: CreateDevisDto = {
+        project_id: projectId,
+        client_id: Number(selectedClient.id),
+        reference: reference || '',
+        status: status,
+        issue_date: issueDate,
+        due_date: dueDate || undefined,
+        notes: notes,
+        file_path: filePath,
+        lines: devisLines
+      };
+      
+      // Envoyer la requête pour créer le devis
+      const response = await fetch(`${urlConfig.local}devis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(devisData)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la création du devis');
       }
       
       // Appeler la fonction de rafraîchissement de la liste des documents
@@ -443,7 +437,8 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
       );
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la création du document');
+      Alert.alert("Erreur Document", err instanceof Error ? err.message : 'Une erreur est survenue lors de la création du document');
     } finally {
       setLoading(false);
     }
@@ -454,195 +449,193 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
 
   return (
     <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
-      <View className="w-[90%] h-[90%] max-w-[500px] max-h-[700px] rounded-xl bg-white overflow-hidden shadow-2xl">
-        <View className="flex-1">
-          <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-            <Text className="text-xl font-bold text-gray-800">
-              {type === DocumentType.DEVIS ? 'Nouveau devis' : 'Nouveau document'}
-            </Text>
-            <TouchableOpacity onPress={onClose} className="p-1">
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-          </View>
+      <View className="bg-white w-[90%] max-h-[90%] rounded-lg overflow-hidden">
+        <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+          <Text className="text-xl font-bold text-gray-800">
+            {type === DocumentType.DEVIS ? 'Nouveau Devis' : 'Nouveau Document'}
+          </Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView className="flex-1" contentContainerClassName="p-4">
+          {error && (
+            <View className="p-2.5 bg-red-50 rounded mb-4">
+              <Text className="text-red-600 text-sm">{error}</Text>
+            </View>
+          )}
           
-          <ScrollView className="flex-1" contentContainerClassName="p-4">
-            {error && (
-              <View className="p-2.5 bg-red-50 rounded mb-4">
-                <Text className="text-red-600 text-sm">{error}</Text>
-              </View>
-            )}
-            
-            {/* Section Client */}
-            <CollapsibleSection title="Client" initiallyExpanded={true}>
-              {selectedClient ? (
-                <View className="flex-row justify-between items-center p-4 bg-white rounded-lg border border-gray-200">
-                  <View className="flex-1">
-                    <Text className="text-lg font-bold text-gray-800">
-                      {selectedClient.company_name || `${selectedClient.firstname} ${selectedClient.lastname}`}
+          {/* Section Client */}
+          <CollapsibleSection title="Client" initiallyExpanded={true}>
+            {selectedClient ? (
+              <View className="flex-row justify-between items-center p-4 bg-white rounded-lg border border-gray-200">
+                <View className="flex-1">
+                  <Text className="text-lg font-bold text-gray-800">
+                    {selectedClient.company_name || `${selectedClient.firstname} ${selectedClient.lastname}`}
+                  </Text>
+                  <Text className="text-sm text-gray-600 mt-1">{selectedClient.email}</Text>
+                  {selectedClient.phone && (
+                    <Text className="text-sm text-gray-600 mt-1">{selectedClient.phone}</Text>
+                  )}
+                  {selectedClient.addresses && (
+                    <Text className="text-sm text-gray-600 mt-1">
+                      {selectedClient.addresses.street}, {selectedClient.addresses.zipcode} {selectedClient.addresses.city}
                     </Text>
-                    <Text className="text-sm text-gray-600 mt-1">{selectedClient.email}</Text>
-                    {selectedClient.phone && (
-                      <Text className="text-sm text-gray-600 mt-1">{selectedClient.phone}</Text>
-                    )}
-                    {selectedClient.addresses && (
-                      <Text className="text-sm text-gray-600 mt-1">
-                        {selectedClient.addresses.street_name}, {selectedClient.addresses.zip_code} {selectedClient.addresses.city}
-                      </Text>
-                    )}
-                  </View>
-                  <TouchableOpacity 
-                    className="p-2"
-                    onPress={() => setShowClientModal(true)}
-                  >
-                    <Text className="text-blue-500 text-sm font-medium">Changer</Text>
-                  </TouchableOpacity>
+                  )}
                 </View>
-              ) : (
-                <TouchableOpacity
-                  className="flex-row items-center justify-center bg-gray-50 p-4 rounded-lg border border-gray-200 border-dashed"
+                <TouchableOpacity 
+                  className="p-2"
                   onPress={() => setShowClientModal(true)}
                 >
-                  <Ionicons name="person-outline" size={20} color="#2196F3" />
-                  <Text className="text-blue-500 text-base font-medium ml-2">Sélectionner un client</Text>
+                  <Text className="text-blue-500 text-sm font-medium">Changer</Text>
                 </TouchableOpacity>
-              )}
-            </CollapsibleSection>
-            
-            {/* Section Informations */}
-            <CollapsibleSection title="Informations" initiallyExpanded={true}>
-              {!documentType && (
-                <View className="mb-4">
-                  <Text className="text-sm font-medium mb-1.5 text-gray-600">Type de document *</Text>
-                  <View className="border border-gray-300 rounded bg-white">
-                    <Picker
-                      selectedValue={type}
-                      onValueChange={(itemValue) => setType(itemValue as DocumentType)}
-                      className="h-[50px]"
-                    >
-                      {Object.values(DocumentType).map((docType) => (
-                        <Picker.Item 
-                          key={docType} 
-                          label={docType.replace(/_/g, ' ')} 
-                          value={docType} 
-                        />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
-              )}
-              
+              </View>
+            ) : (
+              <TouchableOpacity
+                className="flex-row items-center justify-center bg-gray-50 p-4 rounded-lg border border-gray-200 border-dashed"
+                onPress={() => setShowClientModal(true)}
+              >
+                <Ionicons name="person-outline" size={20} color="#2196F3" />
+                <Text className="text-blue-500 text-base font-medium ml-2">Sélectionner un client</Text>
+              </TouchableOpacity>
+            )}
+          </CollapsibleSection>
+          
+          {/* Section Informations */}
+          <CollapsibleSection title="Informations" initiallyExpanded={true}>
+            {!documentType && (
               <View className="mb-4">
-                <Text className="text-sm font-medium mb-1.5 text-gray-600">Statut</Text>
+                <Text className="text-sm font-medium mb-1.5 text-gray-600">Type de document *</Text>
                 <View className="border border-gray-300 rounded bg-white">
                   <Picker
-                    selectedValue={status}
-                    onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
+                    selectedValue={type}
+                    onValueChange={(itemValue) => setType(itemValue as DocumentType)}
                     className="h-[50px]"
                   >
-                    {Object.values(DocumentStatus).map((docStatus) => (
+                    {Object.values(DocumentType).map((docType) => (
                       <Picker.Item 
-                        key={docStatus} 
-                        label={docStatus.replace(/_/g, ' ')} 
-                        value={docStatus} 
+                        key={docType} 
+                        label={docType.replace(/_/g, ' ')} 
+                        value={docType} 
                       />
                     ))}
                   </Picker>
                 </View>
               </View>
-              
-              <View className="mb-4">
-                <Text className="text-sm font-medium mb-1.5 text-gray-600">Taux TVA (%)</Text>
-                <TextInput
-                  className="border border-gray-300 rounded p-2.5 text-base bg-white"
-                  value={tvaRate}
-                  onChangeText={setTvaRate}
-                  placeholder="20"
-                  keyboardType="decimal-pad"
-                />
-              </View>
-              
-              <View className="mb-4">
-                <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'émission *</Text>
-                <TouchableOpacity 
-                  className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
-                  onPress={() => setIssueDatePickerOpen(true)}
-                >
-                  <Text className="text-base text-gray-800">{formatDate(issueDate)}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#666" />
-                </TouchableOpacity>
-                
-                {issueDatePickerOpen && (
-                  <DateTimePicker
-                    value={issueDate}
-                    mode="date"
-                    display="default"
-                    onChange={handleIssueDateChange}
-                  />
-                )}
-              </View>
-              
-              <View className="mb-4">
-                <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'échéance</Text>
-                <TouchableOpacity 
-                  className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
-                  onPress={() => setDueDatePickerOpen(true)}
-                >
-                  <Text className="text-base text-gray-800">{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#666" />
-                </TouchableOpacity>
-                
-                {dueDatePickerOpen && (
-                  <DateTimePicker
-                    value={dueDate || new Date()}
-                    mode="date"
-                    display="default"
-                    onChange={handleDueDateChange}
-                  />
-                )}
-              </View>
-              
-              <View className="mb-4">
-                <Text className="text-sm font-medium mb-1.5 text-gray-600">Notes</Text>
-                <TextInput
-                  className="border border-gray-300 rounded p-2.5 text-base bg-white h-[100px] textAlignVertical-top"
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Notes ou commentaires supplémentaires"
-                  multiline
-                  numberOfLines={4}
-                />
-              </View>
-            </CollapsibleSection>
-            
-            {/* Section Matériaux */}
-            {type === DocumentType.DEVIS && (
-              <CollapsibleSection title="Lignes du devis" initiallyExpanded={true}>
-                <Tableau />
-              </CollapsibleSection>
             )}
-          </ScrollView>
-
-          <View className="flex-row justify-between mt-5 px-4 pb-4">
-            <TouchableOpacity
-              className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
-              onPress={onClose}
-            >
-              <Text className="text-gray-800 font-bold">Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-bold">
-                  Enregistrer
-                </Text>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Statut</Text>
+              <View className="border border-gray-300 rounded bg-white">
+                <Picker
+                  selectedValue={status}
+                  onValueChange={(itemValue) => setStatus(itemValue as DocumentStatus)}
+                  className="h-[50px]"
+                >
+                  {Object.values(DocumentStatus).map((docStatus) => (
+                    <Picker.Item 
+                      key={docStatus} 
+                      label={docStatus.replace(/_/g, ' ')} 
+                      value={docStatus} 
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Taux TVA (%)</Text>
+              <TextInput
+                className="border border-gray-300 rounded p-2.5 text-base bg-white"
+                value={tvaRate}
+                onChangeText={setTvaRate}
+                placeholder="20"
+                keyboardType="decimal-pad"
+              />
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'émission *</Text>
+              <TouchableOpacity 
+                className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
+                onPress={() => setIssueDatePickerOpen(true)}
+              >
+                <Text className="text-base text-gray-800">{formatDate(issueDate)}</Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              
+              {issueDatePickerOpen && (
+                <DateTimePicker
+                  value={issueDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleIssueDateChange}
+                />
               )}
-            </TouchableOpacity>
-          </View>
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Date d'échéance</Text>
+              <TouchableOpacity 
+                className="flex-row justify-between items-center border border-gray-300 rounded p-2.5 bg-white"
+                onPress={() => setDueDatePickerOpen(true)}
+              >
+                <Text className="text-base text-gray-800">{dueDate ? formatDate(dueDate) : 'Non définie'}</Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              
+              {dueDatePickerOpen && (
+                <DateTimePicker
+                  value={dueDate || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={handleDueDateChange}
+                />
+              )}
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium mb-1.5 text-gray-600">Notes</Text>
+              <TextInput
+                className="border border-gray-300 rounded p-2.5 text-base bg-white h-[100px] textAlignVertical-top"
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Notes ou commentaires supplémentaires"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+          </CollapsibleSection>
+          
+          {/* Section Matériaux */}
+          {type === DocumentType.DEVIS && (
+            <CollapsibleSection title="Lignes du devis" initiallyExpanded={true}>
+              <Tableau />
+            </CollapsibleSection>
+          )}
+        </ScrollView>
+
+        <View className="flex-row justify-between mt-5 px-4 pb-4">
+          <TouchableOpacity
+            className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
+            onPress={onClose}
+          >
+            <Text className="text-gray-800 font-bold">Annuler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white font-bold">
+                Enregistrer
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
       
