@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface ProjectNotesProps {
   notes: string;
@@ -30,11 +31,11 @@ export const ProjectNotes: React.FC<ProjectNotesProps> = ({
         />
       </TouchableOpacity>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           <Text className="text-gray-800">{notes}</Text>
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 

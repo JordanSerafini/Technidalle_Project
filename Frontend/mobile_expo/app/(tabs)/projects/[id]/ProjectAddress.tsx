@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableHighlight, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface AddressData {
   street_number?: string;
@@ -51,7 +52,7 @@ export const ProjectAddress: React.FC<ProjectAddressProps> = ({
         </View>
       </TouchableHighlight>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-4">
           <View className="mb-3">
             <Text className="text-gray-800">
@@ -80,7 +81,7 @@ export const ProjectAddress: React.FC<ProjectAddressProps> = ({
             <Text className="text-white ml-1 font-medium">Voir sur la carte</Text>
           </TouchableOpacity>
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 

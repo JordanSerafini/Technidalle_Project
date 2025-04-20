@@ -1,7 +1,8 @@
-import React, { memo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { project_status } from '../../../utils/interfaces/project.interface';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AccordionItem from '../../../components/AccordionItem';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -48,88 +49,70 @@ export const ProjectInfo = memo(({
   isOpen,
   onToggle
 }: ProjectInfoProps) => {
-  const [lastPress, setLastPress] = useState(0);
-  
-  const handlePress = () => {
-    // Empêcher les doubles clics accidentels
-    const now = Date.now();
-    if (now - lastPress < 300) return;
-    setLastPress(now);
-    
-    // Appel direct sans logique supplémentaire
-    onToggle();
-  };
   
   return (
-    <Pressable onPress={handlePress}>
-      <View style={styles.container}>
-        {/* Utilisation de Pressable au lieu de TouchableOpacity pour plus de fiabilité */}
-        <Pressable
-          onPress={handlePress}
-          style={({ pressed }) => [
-            styles.pressableArea,
-            { backgroundColor: pressed ? '#f0f0f0' : 'transparent' }
-          ]}
-          android_ripple={{ color: '#f0f0f0', borderless: false }}
-        >
-          <View style={styles.header}>
-            <MaterialIcons name="info" size={22} color="#1e40af" />
-            <Text style={styles.headerTitle}>Informations générales</Text>
-            <View style={styles.spacer} />
-            <Ionicons 
-              name={isOpen ? "chevron-up" : "chevron-down"} 
-              size={24} 
-              color="#2563eb" 
-            />
-          </View>
-        </Pressable>
-        
-        {isOpen && (
-          <View style={styles.content}>
-            <InfoRow label="Nom du projet:" value={name || ''} />
-            <InfoRow label="Référence:" value={reference} bold />
-            
-            {status && (
-              <View style={styles.row}>
-                <Text style={styles.label}>Statut:</Text>
-                <View style={[styles.statusBadge, { backgroundColor: statusColors[status] }]}>
-                  <Text style={styles.statusText}>{statusLabels[status]}</Text>
-                </View>
+    <View style={styles.container}>
+      <TouchableOpacity
+        onPress={onToggle}
+        style={styles.headerContainer}
+        activeOpacity={0.7}
+      >
+        <View style={styles.headerContent}>
+          <MaterialIcons name="info" size={22} color="#1e40af" />
+          <Text style={styles.headerTitle}>Informations générales</Text>
+          <View style={styles.spacer} />
+          <Ionicons 
+            name={isOpen ? "chevron-up" : "chevron-down"} 
+            size={24} 
+            color="#2563eb" 
+          />
+        </View>
+      </TouchableOpacity>
+      
+      <AccordionItem isExpanded={isOpen}>
+        <View style={styles.content}>
+          <InfoRow label="Nom du projet:" value={name || ''} />
+          <InfoRow label="Référence:" value={reference} bold />
+          
+          {status && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Statut:</Text>
+              <View style={[styles.statusBadge, { backgroundColor: statusColors[status] }]}>
+                <Text style={styles.statusText}>{statusLabels[status]}</Text>
               </View>
-            )}
-            
+            </View>
+          )}
+          
+          <InfoRow 
+            label="Date de début:" 
+            value={start_date ? new Date(start_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+          />
+          
+          <InfoRow 
+            label="Date de fin:" 
+            value={end_date ? new Date(end_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+          />
+          
+          {budget && (
             <InfoRow 
-              label="Date de début:" 
-              value={start_date ? new Date(start_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+              label="Budget:" 
+              value={`${budget.toLocaleString('fr-FR')} €`} 
+              bold 
             />
-            
-            <InfoRow 
-              label="Date de fin:" 
-              value={end_date ? new Date(end_date).toLocaleDateString('fr-FR') : 'Non définie'} 
-            />
-            
-            {budget && (
-              <InfoRow 
-                label="Budget:" 
-                value={`${budget.toLocaleString('fr-FR')} €`} 
-                bold 
-              />
-            )}
-            
-            {description && (
-              <View style={styles.descriptionContainer}>
-                <Text style={styles.descriptionLabel}>Description:</Text>
-                <Text style={styles.descriptionText}>{description}</Text>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-    </Pressable>
+          )}
+          
+          {description && (
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionLabel}>Description:</Text>
+              <Text style={styles.descriptionText}>{description}</Text>
+            </View>
+          )}
+        </View>
+      </AccordionItem>
+    </View>
   );
 });
 
-// Composant réutilisable pour les lignes d'information
 interface InfoRowProps {
   label: string;
   value: string;
@@ -154,14 +137,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  headerContainer: {
     padding: 16,
   },
-  pressableArea: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    marginHorizontal: -8,
-    marginVertical: -8,
-    borderRadius: 8,
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -177,7 +159,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    marginTop: 16,
+    marginTop: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   row: {
     flexDirection: 'row',

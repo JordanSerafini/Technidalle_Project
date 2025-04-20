@@ -7,14 +7,17 @@ import { Material } from '../utils/interfaces/material.interface';
 import { Ionicons } from '@expo/vector-icons';
 import { useDevisStore } from '../store/devisStore';
 
-function Tableau() {
+interface TableauProps {
+    tvaRate?: number;  // Ajout d'une prop pour le taux de TVA
+}
+
+function Tableau({ tvaRate = 20 }: TableauProps) { 
     const { data: materials, loading, error } = useFetch<Material[]>('resources/materials');
     const { rows, addRow, updateRow, deleteRow, calculateTotal } = useDevisStore();
     
     const [modalVisible, setModalVisible] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-    const [tvaRate, setTvaRate] = useState(20); // Taux de TVA par défaut à 20%
 
     // Vérifier si la dernière ligne est remplie pour ajouter automatiquement une nouvelle ligne
     useEffect(() => {
@@ -45,7 +48,7 @@ function Tableau() {
         (material.reference && material.reference.toLowerCase().includes(searchTerm.toLowerCase()))
     ) || [];
 
-    // Calculer la TVA
+    // Calculer la TVA en utilisant le taux passé en prop
     const calculateTVA = () => {
         return calculateTotal() * (tvaRate / 100);
     };
@@ -78,7 +81,7 @@ function Tableau() {
                 {/* Table Header (thead) */}
                 <View className="bg-gray-100">
                     <View className="flex-row h-12 border-b border-gray-300">
-                        <View className="w-[40%] justify-center">
+                        <View className="w-[60%] justify-center">
                             <Text className="text-center font-bold">Article</Text>
                         </View>
                         <View className="w-[20%] justify-center">
@@ -86,9 +89,6 @@ function Tableau() {
                         </View>
                         <View className="w-[20%] justify-center">
                             <Text className="text-center font-bold">Prix (€)</Text>
-                        </View>
-                        <View className="w-[20%] justify-center">
-                            <Text className="text-center font-bold">Total</Text>
                         </View>
                     </View>
                 </View>
@@ -110,7 +110,7 @@ function Tableau() {
                         >
                             <View className="flex-row h-14 border-b border-gray-300 bg-white">
                                 {/* Article Cell */}
-                                <View className="w-[40%] justify-center items-center">
+                                <View className="w-[60%] justify-center items-center">
                                     <TouchableOpacity 
                                         className="w-[95%] h-10 justify-center bg-gray-50 rounded"
                                         onPress={() => openMaterialSelector(row.id)}
@@ -118,7 +118,7 @@ function Tableau() {
                                         <Text 
                                             numberOfLines={2} 
                                             ellipsizeMode="tail"
-                                            className="text-center px-2"
+                                            className="text-center px-2 text-xs"
                                         >
                                             {row.material ? row.material.name : 'Sélectionner un article'}
                                         </Text>
@@ -128,7 +128,7 @@ function Tableau() {
                                 {/* Quantity Cell */}
                                 <View className="w-[20%] justify-center items-center">
                                     <TextInput
-                                        className="w-[90%] h-10 bg-gray-50 rounded text-center"
+                                        className="w-[90%] h-10 bg-gray-50 rounded text-center text-xs"
                                         value={row.quantity.toString()}
                                         keyboardType="numeric"
                                         onChangeText={(text) => updateRow(row.id, 'quantity', parseInt(text) || 0)}
@@ -138,16 +138,11 @@ function Tableau() {
                                 {/* Price Cell */}
                                 <View className="w-[20%] justify-center items-center">
                                     <TextInput
-                                        className="w-[90%] h-10 bg-gray-50 rounded text-center"
+                                        className="w-[90%] h-10 bg-gray-50 rounded text-center text-xs"
                                         value={row.price.toString()}
                                         keyboardType="numeric"
                                         onChangeText={(text) => updateRow(row.id, 'price', parseFloat(text) || 0)}
                                     />
-                                </View>
-                                
-                                {/* Total Cell */}
-                                <View className="w-[20%] justify-center">
-                                    <Text className="text-center">{(row.quantity * row.price).toFixed(2)} €</Text>
                                 </View>
                             </View>
                         </Swipeable>
@@ -156,19 +151,19 @@ function Tableau() {
             </View>
             
             {/* Table Footer */}
-            <View className="flex-row justify-end py-4 px-2">
+            <View className="flex-row justify-end pt-1 px-2">
                 <Text className="font-bold text-base mr-2.5">Total du devis:</Text>
                 <Text className="font-bold text-base text-blue-600">{calculateTotal().toFixed(2)} €</Text>
             </View>
 
             {/* Totaux */}
-            <View className="flex-row justify-end py-4 px-2">
+            <View className="flex-row justify-end py-1 px-2">
                 <Text className="font-bold text-base mr-2.5">TVA ({tvaRate}%):</Text>
                 <Text className="font-bold text-base text-blue-600">{calculateTVA().toFixed(2)} €</Text>
             </View>
 
             {/* Totaux */}
-            <View className="flex-row justify-end py-4 px-2 border-t ">
+            <View className="flex-row justify-end py-1 px-2 border-t ">
                 <Text className="font-bold text-base mr-2.5">Total TTC:</Text>
                 <Text className="font-bold text-base text-blue-600">{calculateTTC().toFixed(2)} €</Text>
             </View>

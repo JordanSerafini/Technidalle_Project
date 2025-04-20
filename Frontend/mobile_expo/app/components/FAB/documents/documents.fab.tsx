@@ -229,7 +229,7 @@ const DocumentsFAB: React.FC<DocumentsFABProps> = ({
         index={3}
         icon={<MaterialIcons name="more-horiz" size={24} color="#fff" />}
         label="Autres"
-        onPress={handleOtherActions}
+        onPress={() => handleAction(handleOtherActions)}
         visible={expanded}
       />
 
@@ -239,7 +239,7 @@ const DocumentsFAB: React.FC<DocumentsFABProps> = ({
         index={2}
         icon={<MaterialIcons name="file-upload" size={24} color="#fff" />}
         label="Importer"
-        onPress={handleImportDocument}
+        onPress={() => handleAction(handleImportDocument)}
         visible={expanded}
       />
 
@@ -249,7 +249,7 @@ const DocumentsFAB: React.FC<DocumentsFABProps> = ({
         index={1}
         icon={<MaterialIcons name="add" size={24} color="#fff" />}
         label="Ajouter"
-        onPress={handleAddDocument}
+        onPress={() => handleAction(handleAddDocument)}
         visible={expanded}
       />
 

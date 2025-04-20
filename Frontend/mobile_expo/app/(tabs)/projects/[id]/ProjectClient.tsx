@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableHighlight, TouchableOpacity } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import AccordionItem from '../../../components/AccordionItem';
 
 interface ClientData {
   id: number;
@@ -51,7 +52,7 @@ export const ProjectClient: React.FC<ProjectClientProps> = ({
         </View>
       </TouchableHighlight>
       
-      {isOpen && (
+      <AccordionItem isExpanded={isOpen}>
         <View className="mt-2">
           <TouchableOpacity 
             className="flex-row justify-between items-center py-2"
@@ -85,7 +86,7 @@ export const ProjectClient: React.FC<ProjectClientProps> = ({
             <Ionicons name="chevron-forward" size={24} color="#9ca3af" />
           </TouchableOpacity>
         </View>
-      )}
+      </AccordionItem>
     </View>
   );
 }; 
