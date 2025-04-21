@@ -145,29 +145,84 @@ export default function ProjectDetailScreen() {
         keyboardShouldPersistTaps='handled'
       >
         <View style={styles.content}>
-          {/* === BOUTON DE TEST SEUL === */}
-          <TouchableOpacity 
-            onPress={handleTestButtonPress} 
-            style={styles.testButton}
-          >
-            <Text style={styles.testButtonText}>BOUTON TEST CLIC</Text>
-          </TouchableOpacity>
-          {/* === FIN BOUTON DE TEST === */}
+          <ProjectInfo 
+            reference={project.reference}
+            name={project.name}
+            status={project.status}
+            start_date={project.start_date}
+            end_date={project.end_date}
+            budget={project.budget}
+            description={project.description}
+            isOpen={openSection === 'infos'} 
+            onToggle={() => toggleSection('infos')}
+          />
           
-          {/* TOUTES LES SECTIONS SONT COMMENTÉES POUR LE TEST */}
-          {/* 
-          <ProjectInfo ... />
-          {project.clients && <ProjectClient ... />} 
-          {project.addresses && <ProjectAddress ... />} 
-          {project.project_stages && <ProjectStages ... />} 
-          <ProjectStaff ... /> 
-          <ProjectMaterials ... /> 
-          <ProjectDocuments ... /> 
-          <ProjectMedia ... /> 
-          {project.project_tags && project.project_tags.length > 0 && <ProjectTags ... />} 
-          {project.notes && <ProjectNotes ... />} 
-          */}
+          {project.clients && (
+            <ProjectClient 
+              client={project.clients}
+              isOpen={openSection === 'client'}
+              onToggle={() => toggleSection('client')}
+              onClientPress={handleClientPress}
+            />
+          )}
           
+          {project.addresses && (
+            <ProjectAddress 
+              address={project.addresses}
+              isOpen={openSection === 'address'}
+              onToggle={() => toggleSection('address')}
+              onLocationPress={handleLocationPress}
+            />
+          )}
+          
+          {project.project_stages && (
+            <ProjectStages 
+              stages={project.project_stages}
+              isOpen={openSection === 'stages'}
+              onToggle={() => toggleSection('stages')}
+            />
+          )}
+          
+          <ProjectStaff 
+            projectId={Number(id)}
+            isOpen={openSection === 'staff'}
+            onToggle={() => toggleSection('staff')}
+          />
+          
+          <ProjectMaterials 
+            projectId={Number(id)}
+            isOpen={openSection === 'materials'}
+            onToggle={() => toggleSection('materials')}
+          />
+          
+          <ProjectDocuments 
+            projectId={Number(id)}
+            isOpen={openSection === 'documents'}
+            onToggle={() => toggleSection('documents')}
+            onDocumentPress={handleDocumentPress}
+          />
+          
+          <ProjectMedia 
+            projectId={Number(id)}
+            isOpen={openSection === 'media'}
+            onToggle={() => toggleSection('media')}
+          />
+          
+          {project.project_tags && project.project_tags.length > 0 && (
+            <ProjectTags 
+              tags={project.project_tags}
+              isOpen={openSection === 'tags'}
+              onToggle={() => toggleSection('tags')}
+            />
+          )}
+          
+          {project.notes && (
+            <ProjectNotes 
+              notes={project.notes}
+              isOpen={openSection === 'notes'}
+              onToggle={() => toggleSection('notes')}
+            />
+          )}
         </View>
       </ScrollView>
     </View>
