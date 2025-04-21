@@ -202,6 +202,7 @@ VALUES
  (SELECT id FROM addresses WHERE street_name = 'Rue de la République' AND street_number = '22' LIMIT 1),
  '87654321098765', 'Nouveau client professionnel');
 
+
 -- Insertion des projets supplémentaires
 WITH project_addresses AS (
   SELECT id, row_number() over (order by id) + 20 as rn FROM addresses
