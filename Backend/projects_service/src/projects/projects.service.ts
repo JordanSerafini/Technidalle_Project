@@ -73,7 +73,7 @@ export class ProjectsService {
       clients: {
         connect: { id: data.clientId },
       },
-      // Champs optionnels
+
       ...(data.addressId && {
         addresses: {
           connect: { id: data.addressId },
