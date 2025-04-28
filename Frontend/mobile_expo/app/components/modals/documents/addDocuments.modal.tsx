@@ -68,6 +68,8 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   
+  console.log('FAB State:', { filtersVisible: false, expanded, isExpanded: expanded });
+  
   return (
     <View className="mb-6 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
       <TouchableOpacity 
@@ -107,11 +109,9 @@ const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({
   const [clientFormError, setClientFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // Récupération des clients
   const { data: clients, loading: clientsLoading } = useFetch<Client[]>('clients');
   const { setClients } = useClientsStore();
   
-  // Mettre à jour les clients dans le store
   useEffect(() => {
     if (clients && !clientsLoading) {
       setClients(clients);
@@ -178,7 +178,7 @@ const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({
                       <ScrollView className="flex-1">
                         <View className="pb-4">
                           {clients && clients.length > 0 ? (
-                            clients.map(client => (
+                            clients.slice(0, 20).map(client => (
                               <TouchableOpacity
                                 key={client.id}
                                 className="p-3 border-b border-gray-200 bg-white"
@@ -447,9 +447,17 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
   // Si la modale n'est pas visible, ne pas la rendre du tout
   if (!visible) return null;
 
+  console.log('Modal State:', {
+    type,
+    status,
+    selectedClient,
+    rows: extendedRows,
+    expanded: true // pour CollapsibleSection
+  });
+
   return (
     <View className="absolute inset-0 flex-1 justify-center items-center bg-black/70 z-50">
-      <View className="bg-white w-[90%] max-h-[90%] rounded-lg overflow-hidden">
+      <View className="bg-white w-[90%] h-[90%] rounded-lg">
         <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
           <Text className="text-xl font-bold text-gray-800">
             {type === DocumentType.DEVIS ? 'Nouveau Devis' : 'Nouveau Document'}
@@ -459,7 +467,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
           </TouchableOpacity>
         </View>
         
-        <ScrollView className="flex-1" contentContainerClassName="p-4">
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
           {error && (
             <View className="p-2.5 bg-red-50 rounded mb-4">
               <Text className="text-red-600 text-sm">{error}</Text>
@@ -616,26 +624,28 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
           )}
         </ScrollView>
 
-        <View className="flex-row justify-between mt-5 px-4 pb-4">
-          <TouchableOpacity
-            className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
-            onPress={onClose}
-          >
-            <Text className="text-gray-800 font-bold">Annuler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white font-bold">
-                Enregistrer
-              </Text>
-            )}
-          </TouchableOpacity>
+        <View className="px-4 py-4 border-t border-gray-200">
+          <View className="flex-row justify-between">
+            <TouchableOpacity
+              className="flex-1 mr-2 rounded-lg py-3 px-4 bg-gray-100 border border-gray-300 items-center justify-center"
+              onPress={onClose}
+            >
+              <Text className="text-gray-800 font-bold">Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 ml-2 rounded-lg py-3 px-4 bg-blue-500 items-center justify-center"
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-bold">
+                  Enregistrer
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       
