@@ -1,7 +1,5 @@
 import { Controller, Get, Logger } from '@nestjs/common';
 import { PgSyncService } from './pgSync.service';
-import { Customer as ClientEBP } from '../interfaces/clientEBP';
-import { CreateClientWithAddressDto } from '../interfaces/clientApp';
 
 @Controller('sync')
 export class PgSyncController {
@@ -15,5 +13,11 @@ export class PgSyncController {
   async syncAllClients() {
     this.logger.log('Démarrage de la synchronisation des clients');
     return this.pgSyncService.syncAllClients();
+  }
+
+  @Get('sync-items')
+  async syncAllItems() {
+    this.logger.log('Démarrage de la synchronisation des articles');
+    return this.pgSyncService.syncAllItems();
   }
 }
