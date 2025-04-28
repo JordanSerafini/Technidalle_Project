@@ -225,7 +225,6 @@ export class DevisController {
     try {
       console.log(`[API Gateway] Génération du PDF pour le devis ${id}`);
 
-      // Construire l'URL
       let url = `http://documents:3004/devis/${id}/pdf`;
       if (sendEmail === 'true') {
         url += '?sendEmail=true';
@@ -235,19 +234,17 @@ export class DevisController {
       console.log(`[API Gateway] Envoi de la requête vers: ${url}`);
 
       try {
-        // Récupérer le PDF depuis le service de documents
         const response = await axios({
           method: 'get',
           url: url,
-          responseType: 'arraybuffer', // Important pour les données binaires
-          timeout: 30000, // 30 secondes de timeout
+          responseType: 'arraybuffer',
+          timeout: 30000,
         });
 
         console.log(
           `[API Gateway] Réponse reçue du service documents, status: ${response.status}, taille: ${response.data.length} octets`,
         );
 
-        // Configurer les en-têtes pour le PDF
         res.set({
           'Content-Type': 'application/pdf',
           'Content-Length': response.data.length,
