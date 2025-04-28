@@ -60,8 +60,6 @@ services:
       - "host.docker.internal:host-gateway"
       - "postgres_sync:172.18.0.2"
 
-      
-
   # sync_service:
   #   build:
   #     context: ./Backend/sync_service
