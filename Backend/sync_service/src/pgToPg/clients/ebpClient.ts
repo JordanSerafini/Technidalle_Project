@@ -1,7 +1,9 @@
-import { Customer as ClientEBP } from '../../interfaces/clientEBP';
-import { CreateClientWithAddressDto } from '../../interfaces/clientApp';
+import { Customer as ClientEBP } from '../../interfaces/clients/clientEBP';
+import { CreateClientWithAddressDto } from '../../interfaces/clients/clientApp';
 import * as pgClientSource from '../../clients/PgClient';
 import pgClientDestination from '../../clients/pgClient_2';
+import { Item as ItemEBP } from '../../interfaces/items/itemEBP';
+import { ItemAPP } from '../../interfaces/items/itemAPP';
 
 /**
  * Convertit un client EBP en client format application
@@ -10,35 +12,58 @@ export function convertEBPtoAppClient(
   clientEBP: ClientEBP,
 ): CreateClientWithAddressDto {
   // Récupération du prénom en priorisant MainInvoicingContact puis MainDeliveryContact
-  const firstname = clientEBP.MainInvoicingContact_FirstName || 
-                   clientEBP.MainDeliveryContact_FirstName || 
-                   extractFirstNameFromCompanyName(clientEBP.Name) || 
-                   '';
+  const firstname =
+    clientEBP.MainInvoicingContact_FirstName ||
+    clientEBP.MainDeliveryContact_FirstName ||
+    extractFirstNameFromCompanyName(clientEBP.Name) ||
+    '';
 
   // Récupération du nom en priorisant MainInvoicingContact puis MainDeliveryContact
-  const lastname = clientEBP.MainInvoicingContact_Name || 
-                  clientEBP.MainDeliveryContact_Name || 
-                  extractLastNameFromCompanyName(clientEBP.Name) || 
-                  '';
+  const lastname =
+    clientEBP.MainInvoicingContact_Name ||
+    clientEBP.MainDeliveryContact_Name ||
+    extractLastNameFromCompanyName(clientEBP.Name) ||
+    '';
 
   return {
     company_name: clientEBP.Name || undefined,
     firstname: firstname,
     lastname: lastname,
-    email: clientEBP.MainInvoicingContact_Email || clientEBP.MainDeliveryContact_Email || '',
-    phone: clientEBP.MainInvoicingContact_Phone || clientEBP.MainDeliveryContact_Phone || undefined,
-    mobile: clientEBP.MainInvoicingContact_Cellphone || clientEBP.MainDeliveryContact_CellPhone || undefined,
+    email:
+      clientEBP.MainInvoicingContact_Email ||
+      clientEBP.MainDeliveryContact_Email ||
+      '',
+    phone:
+      clientEBP.MainInvoicingContact_Phone ||
+      clientEBP.MainDeliveryContact_Phone ||
+      undefined,
+    mobile:
+      clientEBP.MainInvoicingContact_Cellphone ||
+      clientEBP.MainDeliveryContact_CellPhone ||
+      undefined,
     notes: clientEBP.NotesClear || undefined,
     address: {
-      street_name: clientEBP.MainInvoicingAddress_Address1 || clientEBP.MainDeliveryAddress_Address1 || '',
+      street_name:
+        clientEBP.MainInvoicingAddress_Address1 ||
+        clientEBP.MainDeliveryAddress_Address1 ||
+        '',
       additional_address: combineAdditionalAddresses(
         clientEBP.MainInvoicingAddress_Address2 || '',
         clientEBP.MainInvoicingAddress_Address3 || '',
         clientEBP.MainInvoicingAddress_Address4 || '',
       ),
-      zip_code: clientEBP.MainInvoicingAddress_ZipCode || clientEBP.MainDeliveryAddress_ZipCode || '',
-      city: clientEBP.MainInvoicingAddress_City || clientEBP.MainDeliveryAddress_City || '',
-      country: clientEBP.MainInvoicingAddress_State || clientEBP.MainDeliveryAddress_State || '',
+      zip_code:
+        clientEBP.MainInvoicingAddress_ZipCode ||
+        clientEBP.MainDeliveryAddress_ZipCode ||
+        '',
+      city:
+        clientEBP.MainInvoicingAddress_City ||
+        clientEBP.MainDeliveryAddress_City ||
+        '',
+      country:
+        clientEBP.MainInvoicingAddress_State ||
+        clientEBP.MainDeliveryAddress_State ||
+        '',
       street_number: '',
     },
   };
@@ -48,22 +73,24 @@ export function convertEBPtoAppClient(
  * Tente d'extraire un prénom du nom de l'entreprise pour les cas spéciaux
  * (ex: "DEMILLY Jean" -> "Jean")
  */
-function extractFirstNameFromCompanyName(companyName: string | null | undefined): string | null {
+function extractFirstNameFromCompanyName(
+  companyName: string | null | undefined,
+): string | null {
   if (!companyName) return null;
-  
+
   // Recherche des motifs courants où le prénom suit le nom de famille
   const patterns = [
     /([A-Z]+)\s+([A-Z][a-z]+)/, // Format: "NOM Prénom"
     /([A-Z][a-z]+)\s+([A-Z][a-z]+)/, // Format: "Nom Prénom"
   ];
-  
+
   for (const pattern of patterns) {
     const match = companyName.match(pattern);
     if (match && match[2]) {
       return match[2]; // Le groupe 2 contient le prénom
     }
   }
-  
+
   return null;
 }
 
@@ -71,22 +98,24 @@ function extractFirstNameFromCompanyName(companyName: string | null | undefined)
  * Tente d'extraire un nom de famille du nom de l'entreprise pour les cas spéciaux
  * (ex: "DEMILLY Jean" -> "DEMILLY")
  */
-function extractLastNameFromCompanyName(companyName: string | null | undefined): string | null {
+function extractLastNameFromCompanyName(
+  companyName: string | null | undefined,
+): string | null {
   if (!companyName) return null;
-  
+
   // Recherche des motifs courants où le nom de famille précède le prénom
   const patterns = [
     /([A-Z]+)\s+([A-Z][a-z]+)/, // Format: "NOM Prénom"
     /([A-Z][a-z]+)\s+([A-Z][a-z]+)/, // Format: "Nom Prénom"
   ];
-  
+
   for (const pattern of patterns) {
     const match = companyName.match(pattern);
     if (match && match[1]) {
       return match[1]; // Le groupe 1 contient le nom de famille
     }
   }
-  
+
   return null;
 }
 
@@ -266,5 +295,125 @@ export default class EBPclient {
     clientsEBP: ClientEBP[],
   ): CreateClientWithAddressDto[] {
     return clientsEBP.map((clientEBP) => convertEBPtoAppClient(clientEBP));
+  }
+
+  /**
+   * Récupère tous les articles EBP depuis la base de données source
+   */
+  async getAllItemsFromEBP(): Promise<ItemEBP[]> {
+    const query = `
+      SELECT 
+        "Id", 
+        "UniqueId",
+        "Caption", 
+        "DesCom",
+        "SalePriceVatExcluded",
+        "RealStock",
+        "SupplierId",
+        "ManageStock",
+        "Weight",
+        "Volume",
+        "VatId",
+        "PurchasePrice",
+        "SalePriceVatIncluded"
+      FROM "Item"`;
+
+    try {
+      const itemsData = (await pgClientSource.executeQuery(query)) as ItemEBP[];
+      return itemsData;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des articles EBP:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Insère un article dans la base de données de destination
+   */
+  async insertItemIntoApp(itemData: ItemAPP): Promise<number> {
+    // Préparation des données pour l'insertion
+    const dbObject = itemData.toDBObject();
+
+    try {
+      // Vérifier si l'article existe déjà par sa référence
+      if (itemData.reference) {
+        const checkRefQuery = `SELECT id FROM materials WHERE reference = $1`;
+        const existingItem = await pgClientDestination.query(checkRefQuery, [
+          itemData.reference,
+        ]);
+
+        if (existingItem.rows && existingItem.rows.length > 0) {
+          // Mise à jour de l'article existant
+          const updateQuery = `
+            UPDATE materials 
+            SET 
+              name = $1,
+              description = $2,
+              unit = $3,
+              price = $4,
+              stock_quantity = $5,
+              minimum_stock = $6,
+              supplier = $7,
+              supplier_reference = $8,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = $9
+            RETURNING id`;
+
+          const updateValues = [
+            dbObject.name,
+            dbObject.description,
+            dbObject.unit,
+            dbObject.price,
+            dbObject.stock_quantity,
+            dbObject.minimum_stock,
+            dbObject.supplier,
+            dbObject.supplier_reference,
+            existingItem.rows[0].id,
+          ];
+
+          const updateResult = await pgClientDestination.query(
+            updateQuery,
+            updateValues,
+          );
+          return updateResult.rows[0].id;
+        }
+      }
+
+      // Insertion d'un nouvel article
+      const insertQuery = `
+        INSERT INTO materials (
+          name,
+          description,
+          reference,
+          unit,
+          price,
+          stock_quantity,
+          minimum_stock,
+          supplier,
+          supplier_reference
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+        RETURNING id`;
+
+      const insertValues = [
+        dbObject.name,
+        dbObject.description,
+        itemData.reference,
+        dbObject.unit,
+        dbObject.price,
+        dbObject.stock_quantity,
+        dbObject.minimum_stock,
+        dbObject.supplier,
+        dbObject.supplier_reference,
+      ];
+
+      const insertResult = await pgClientDestination.query(
+        insertQuery,
+        insertValues,
+      );
+      return insertResult.rows[0].id;
+    } catch (error) {
+      console.error("Erreur lors de l'insertion de l'article:", error);
+      throw error;
+    }
   }
 }
