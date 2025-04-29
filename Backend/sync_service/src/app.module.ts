@@ -3,11 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PgSyncController } from './pgToPg/pgSync.controller';
 import { PgSyncService } from './pgToPg/pgSync.service';
-import { TruncateModule } from './truncate/truncate.module';
+import { EbpDocumentsController } from './controllers/ebpDocuments.controller';
+import { EbpDocumentsService } from './services/ebpDocuments.service';
 
 @Module({
-  imports: [TruncateModule],
-  controllers: [AppController, PgSyncController],
-  providers: [AppService, PgSyncService],
+  imports: [],
+  controllers: [AppController, PgSyncController, EbpDocumentsController],
+  providers: [AppService, PgSyncService, EbpDocumentsService],
 })
 export class AppModule {}

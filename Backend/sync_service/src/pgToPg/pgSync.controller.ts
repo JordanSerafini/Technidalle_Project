@@ -26,4 +26,10 @@ export class PgSyncController {
     this.logger.log('Démarrage de la synchronisation des projets');
     return await this.pgSyncService.syncAllProjects();
   }
+
+  @Get('sync-documents')
+  async syncDocuments() {
+    this.logger.log('Démarrage de la synchronisation des documents');
+    return await this.pgSyncService.syncDocuments();
+  }
 }
