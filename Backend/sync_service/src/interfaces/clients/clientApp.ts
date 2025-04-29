@@ -66,7 +66,7 @@ export interface CreateClientWithAddressDto {
   siret?: string;
   notes?: string;
   address: {
-    street_number: string;
+    street_number: string | null;
     street_name: string;
     additional_address?: string;
     zip_code: string;
