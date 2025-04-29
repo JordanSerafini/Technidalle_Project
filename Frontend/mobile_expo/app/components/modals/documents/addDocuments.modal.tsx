@@ -25,24 +25,8 @@ import { Client, CreateClientDto } from '@/app/utils/interfaces/client.interface
 import { useClientsStore } from '@/app/store/clientsStore';
 import { AddClientModal } from '../clients/addClient.modal';
 import { CreateDevisDto, CreateDevisLineDto } from '@/app/utils/interfaces/devis.interface';
-import { Material } from '@/app/utils/interfaces/material.interface';
+import { ExtendedDevisRow } from '@/app/utils/interfaces/devis.interface';
 
-
-
-
-// Récupérer les dimensions de l'écran
-const { width, height } = Dimensions.get('window');
-
-// Étendre l'interface DevisRow pour inclure les propriétés manquantes
-interface ExtendedDevisRow {
-  id: string;
-  material: Material | null;
-  quantity: number;
-  price: number;
-  description?: string;
-  unit?: string;
-  discount?: number;
-}
 
 interface DocumentsModalProps {
   visible: boolean;

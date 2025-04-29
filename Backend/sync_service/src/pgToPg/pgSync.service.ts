@@ -5,6 +5,12 @@ import EBPclient from './clients/ebpClient';
 import { Item as ItemEBP } from '../interfaces/items/itemEBP';
 import { ItemAPP } from '../interfaces/items/itemAPP';
 
+// Interface pour typer les erreurs de synchronisation
+export interface SyncErrorDetail {
+  identifier: string | number | undefined; // Email client ou référence article
+  error: string; // Message d'erreur
+}
+
 @Injectable()
 export class PgSyncService {
   private readonly logger = new Logger(PgSyncService.name);
@@ -39,7 +45,7 @@ export class PgSyncService {
   async syncAllClients(): Promise<{
     success: boolean;
     count: number;
-    errors?: any[];
+    errors?: SyncErrorDetail[];
   }> {
     try {
       this.logger.log('Démarrage de la synchronisation des clients');
@@ -52,7 +58,7 @@ export class PgSyncService {
       const clientsApp = this.convertMultipleEBPClientsToAppClients(clientsEBP);
 
       // Insérer les clients dans la base App
-      const errors: any[] = [];
+      const errors: SyncErrorDetail[] = [];
       let successCount = 0;
 
       for (const clientApp of clientsApp) {
@@ -65,7 +71,11 @@ export class PgSyncService {
             `Erreur lors de l'insertion du client: ${clientApp.email}`,
             error,
           );
-          errors.push({ client: clientApp.email, error: error.message });
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Erreur inconnue lors de l'insertion du client";
+          errors.push({ identifier: clientApp.email, error: errorMessage });
         }
       }
 
@@ -80,10 +90,14 @@ export class PgSyncService {
       };
     } catch (error) {
       this.logger.error('Erreur lors de la synchronisation des clients', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Erreur inconnue lors de la synchronisation des clients';
       return {
         success: false,
         count: 0,
-        errors: [error.message],
+        errors: [{ identifier: 'global', error: errorMessage }],
       };
     }
   }
@@ -109,7 +123,7 @@ export class PgSyncService {
   async syncAllItems(): Promise<{
     success: boolean;
     count: number;
-    errors?: any[];
+    errors?: SyncErrorDetail[];
   }> {
     try {
       this.logger.log('Démarrage de la synchronisation des articles');
@@ -122,7 +136,7 @@ export class PgSyncService {
       const itemsApp = this.convertMultipleEBPItemsToAppItems(itemsEBP);
 
       // Insérer les articles dans la base App
-      const errors: any[] = [];
+      const errors: SyncErrorDetail[] = [];
       let successCount = 0;
 
       for (const itemApp of itemsApp) {
@@ -135,7 +149,11 @@ export class PgSyncService {
             `Erreur lors de l'insertion de l'article: ${itemApp.reference}`,
             error,
           );
-          errors.push({ item: itemApp.reference, error: error.message });
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Erreur inconnue lors de l'insertion de l'article";
+          errors.push({ identifier: itemApp.reference, error: errorMessage });
         }
       }
 
@@ -153,10 +171,14 @@ export class PgSyncService {
         'Erreur lors de la synchronisation des articles',
         error,
       );
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Erreur inconnue lors de la synchronisation des articles';
       return {
         success: false,
         count: 0,
-        errors: [error.message],
+        errors: [{ identifier: 'global', error: errorMessage }],
       };
     }
   }

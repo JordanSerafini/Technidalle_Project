@@ -44,7 +44,7 @@ class DatabaseClient {
     params?: { [name: string]: any },
   ): Promise<sql.IResult<any>> {
     if (!this.pool) {
-      await this.connect(); // Make sure the pool is connected
+      await this.connect();
     }
 
     if (!this.pool) {
@@ -55,7 +55,7 @@ class DatabaseClient {
 
     if (params) {
       Object.keys(params).forEach((key) => {
-        request.input(key, params[key]);
+        request.input(key, sql.NVarChar, params[key]);
       });
     }
 
@@ -64,7 +64,7 @@ class DatabaseClient {
       return result;
     } catch (error) {
       console.error('Error executing query:', error);
-      throw error; // Rethrowing the error is important to handle it in the calling function
+      throw error;
     }
   }
 }

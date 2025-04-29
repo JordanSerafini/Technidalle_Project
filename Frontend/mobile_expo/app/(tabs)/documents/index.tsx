@@ -7,49 +7,8 @@ import { Document, DocumentType, DocumentStatus } from '@/app/utils/interfaces/d
 import { formatDate } from '@/app/utils/dateFormatter';
 import DocumentsFAB from '@/app/components/FAB/documents/documents.fab';
 import DocumentsModal from '@/app/components/modals/documents/addDocuments.modal';
-
-// Interface pour les props de AccordionItem
-interface AccordionItemProps {
-  isExpanded: boolean;
-  children: React.ReactNode;
-  maxHeight?: number;
-}
-
-// Composant AccordionItem pour l'animation
-function AccordionItem({ isExpanded, children, maxHeight = 1000 }: AccordionItemProps) {
-  const [height] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    Animated.timing(height, {
-      toValue: isExpanded ? maxHeight : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isExpanded, maxHeight]);
-
-  // Si l'accordéon est déplié, on n'applique pas de hauteur fixe
-  if (isExpanded) {
-    return (
-      <View style={{ height: 'auto' }}>
-        {children}
-      </View>
-    );
-  }
-
-  // Si l'accordéon est fermé, on utilise l'animation
-  return (
-    <Animated.View style={{ height, overflow: 'hidden' }}>
-      {children}
-    </Animated.View>
-  );
-}
-
-// Types de filtres disponibles
-enum FilterType {
-  TYPE = 'type',
-  STATUS = 'status',
-  DATE = 'date'
-}
+import AccordionItem from '@/app/components/documents/AccordionItem';
+import { FilterType } from '@/app/utils/constants/documentConstants';
 
 export default function DocumentsScreen() {
   const router = useRouter();

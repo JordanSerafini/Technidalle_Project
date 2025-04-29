@@ -1,6 +1,7 @@
 import EBPclient from './clients/ebpClient';
 import { Injectable, Logger } from '@nestjs/common';
 import { pgClient } from './clients/PgClient';
+import * as sql from 'mssql';
 
 interface TableInfo {
   tableName: string;
@@ -10,6 +11,7 @@ interface TableInfo {
 interface Column {
   name: string;
   type: string;
+  isNullable?: boolean;
 }
 
 interface EbpQueryResult {
@@ -55,6 +57,40 @@ const synchro_Controller = {
       Logger.error('Error getting tables:', error);
       throw new Error(
         `Erreur lors de la récupération des tables: ${(error as Error).message}`,
+      );
+    }
+  },
+
+  getTableColumns: async (tableName: string): Promise<Column[]> => {
+    const columnsQuery = `
+      SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE 
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = @tableName
+    `;
+    try {
+      const result = (await EBPclient.query(columnsQuery, 
+        { tableName: tableName } 
+      )) as EbpQueryResult;
+
+      if (!result.recordset || result.recordset.length === 0) {
+        throw new Error(
+          `Table '${tableName}' non trouvée ou aucune colonne trouvée.`,
+        );
+      }
+
+      const columns: Column[] = result.recordset.map((column) => ({
+        name: String(column.COLUMN_NAME),
+        type: String(column.DATA_TYPE),
+        isNullable: String(column.IS_NULLABLE).toUpperCase() === 'YES',
+      }));
+      return columns;
+    } catch (error) {
+      Logger.error(`Error getting columns for table ${tableName}:`, error);
+      if (error instanceof Error && error.message.includes('non trouvée')) {
+        throw error;
+      }
+      throw new Error(
+        `Erreur lors de la récupération des colonnes pour la table ${tableName}: ${(error as Error).message}`,
       );
     }
   },
@@ -172,17 +208,11 @@ const synchro_Controller = {
       case 'bit':
         return value ? 'true' : 'false';
       case 'varbinary':
-        // Correction pour les données binaires
         try {
-          // Si c'est une chaîne qui contient des caractères non imprimables
-          // Encoder en base64 puis en hexa pour PostgreSQL
           if (typeof value === 'string') {
-            // Vérifier si la chaîne contient des caractères non imprimables
             if (/[\x00-\x1F\x7F-\xFF]/.test(value)) {
-              // Convertir en format hexa pour PostgreSQL
               return `'\\x${Buffer.from(value, 'binary').toString('hex')}'`;
             }
-            // Sinon, traiter comme texte normal
             return `'${value}'`;
           }
           return 'NULL';
@@ -198,7 +228,6 @@ const synchro_Controller = {
         return 'NULL';
       default:
         try {
-          // Par sécurité, traiter les types inconnus comme du texte
           return `'${String(value)}'`;
         } catch (error) {
           Logger.error(
@@ -258,8 +287,6 @@ const synchro_Controller = {
         'MaintenanceContractFamily',
         'MaintenanceContractPurchaseDocument',
       ];
-
-      //const allowedTables = ['Item'];
 
       for (const tableInfo of tables) {
         if (!allowedTables.includes(tableInfo.tableName)) {
@@ -407,7 +434,6 @@ const synchro_Controller = {
       const startTime = Date.now();
       const tables = await synchro_Controller.getTables();
 
-      // Diviser les tables en parties égales
       const tablesPerPart = Math.ceil(tables.length / totalParts);
       const startIndex = (partNumber - 1) * tablesPerPart;
       const endIndex = Math.min(startIndex + tablesPerPart, tables.length);
@@ -632,6 +658,57 @@ export class AppService {
       partNumber,
       totalParts,
     );
+  }
+
+  async generateInterfaceFromTable(tableName: string): Promise<string> {
+    try {
+      const columns = await synchro_Controller.getTableColumns(tableName);
+
+      const mapSqlTypeToTsType = (sqlType: string): string => {
+        sqlType = sqlType.toLowerCase();
+        if (
+          sqlType.includes('char') ||
+          sqlType.includes('text') ||
+          sqlType === 'uniqueidentifier'
+        )
+          return 'string';
+        if (
+          sqlType.includes('int') ||
+          sqlType.includes('decimal') ||
+          sqlType.includes('numeric') ||
+          sqlType.includes('float') ||
+          sqlType.includes('real') ||
+          sqlType.includes('money') ||
+          sqlType.includes('double')
+        )
+          return 'number';
+        if (sqlType.includes('date') || sqlType.includes('time')) return 'Date';
+        if (sqlType === 'bit') return 'boolean';
+        if (sqlType.includes('binary') || sqlType.includes('image'))
+          return 'Buffer';
+        return 'any';
+      };
+
+      const interfaceName = `${tableName.charAt(0).toUpperCase()}${tableName.slice(1)}Interface`;
+      let interfaceString = `export interface ${interfaceName} {
+`;
+      columns.forEach((col) => {
+        const tsType = mapSqlTypeToTsType(col.type);
+        const nullableMarker = col.isNullable ? '?' : '';
+        const validColName = col.name.replace(/[^a-zA-Z0-9_]/g, '_');
+        interfaceString += `  ${validColName}${nullableMarker}: ${tsType};
+`;
+      });
+      interfaceString += `}`;
+
+      return interfaceString;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération de l'interface pour la table ${tableName}`,
+        error,
+      );
+      throw error;
+    }
   }
 }
 
