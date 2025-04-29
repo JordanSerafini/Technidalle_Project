@@ -409,68 +409,46 @@ export default class EBPDocuments {
   async syncAllDocuments(): Promise<{
     success: boolean;
     count: number;
+    total: number;
     error?: string;
   }> {
-    this.logger.log('Début de la synchronisation des documents');
-    const sourceClient: PoolClient | null = null;
-    const destinationClient: PoolClient | null = null;
-    const transactionCommitted = false;
-    let count = 0;
-
     try {
-      // Récupérer les documents depuis EBP
       const ebpDocs = await this.getAllDocumentsFromEBP();
       const ebpDocsEx = await this.getAllDocumentsExFromEBP();
+      const total = ebpDocs.length;
+      let count = 0;
 
-      // Créer un Map pour faciliter la recherche des documents étendus
-      const ebpDocsExMap = new Map<
-        string,
-        ConstructionsitereferencedocumentexInterface
-      >();
-      ebpDocsEx.forEach((doc) => {
-        if (doc.Id) {
-          ebpDocsExMap.set(doc.Id, doc);
-        }
-      });
+      this.logger.log(`Début de la synchronisation de ${total} documents`);
 
-      // Convertir les documents
-      const convertedDocs = await this.convertMultipleToAppDocument(ebpDocs);
+      for (const ebpDoc of ebpDocs) {
+        try {
+          const ebpDocEx = ebpDocsEx.find((ex) => ex.Id === ebpDoc.Id);
+          const appDoc = await this.convertToAppDocument(ebpDoc, ebpDocEx);
 
-      // Insérer les documents
-      for (const doc of convertedDocs) {
-        if (doc.documentId) {
-          const ebpDocEx = ebpDocsExMap.get(doc.documentId);
-          const result = await this.insertDocumentIntoApp(doc);
-          if (result) {
-            count++;
-            this.logger.log(
-              `Document ${doc.reference} synchronisé avec succès (${count}/${ebpDocs.length})`,
-            );
+          if (appDoc) {
+            const insertedId = await this.insertDocumentIntoApp(appDoc);
+            if (insertedId) {
+              count++;
+              this.logger.log(`Progression: ${count}/${total} documents traités`);
+            }
           }
+        } catch (error) {
+          this.logger.error(
+            `Erreur lors de la synchronisation du document ${ebpDoc.Id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
         }
       }
 
-      this.logger.log(
-        `Synchronisation terminée avec succès. ${count}/${ebpDocs.length} documents traités.`,
-      );
-      return { success: true, count };
+      return { success: true, count, total };
     } catch (error) {
       this.logger.error(
-        'Erreur lors de la synchronisation des documents:',
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        `Erreur lors de la synchronisation des documents: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
-      return {
-        success: false,
-        count,
-        error: error instanceof Error ? error.message : 'Erreur inconnue',
-      };
-    } finally {
-      if (sourceClient) {
-        sourceClient.release();
-      }
-      if (destinationClient) {
-        destinationClient.release();
-      }
+      return { success: false, count: 0, total: 0, error: String(error) };
     }
   }
 
@@ -561,25 +539,16 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      // Utiliser "customerId" comme défini dans init_db.sql
-      const result = await destinationClient.query<DbObject>(
-        'SELECT id FROM clients WHERE "customerId" = $1',
+      const result = await destinationClient.query(
+        'SELECT id, "customerId" FROM clients WHERE "customerId" = $1',
         [ebpId],
       );
-
-      if (result.rows.length > 0) {
-        this.logger.log(
-          `Client trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
-        );
-        return result.rows[0];
-      }
-
-      this.logger.warn(`Aucun client trouvé avec l'ID EBP ${ebpId}`);
-      return null;
+      return result.rows[0] || null;
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la récupération du client avec EBP ID ${ebpId}:`,
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        `Erreur lors de la récupération du client avec l'ID EBP ${ebpId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       return null;
     }
@@ -646,25 +615,16 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      // Utiliser "staffId" comme défini dans init_db.sql
-      const result = await destinationClient.query<DbObject>(
-        'SELECT id FROM staff WHERE "staffId" = $1',
+      const result = await destinationClient.query(
+        'SELECT id, "staffId" FROM staff WHERE "staffId" = $1',
         [ebpId],
       );
-
-      if (result.rows.length > 0) {
-        this.logger.log(
-          `Staff trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
-        );
-        return result.rows[0];
-      }
-
-      this.logger.warn(`Aucun staff trouvé avec l'ID EBP ${ebpId}`);
-      return null;
+      return result.rows[0] || null;
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la récupération du staff avec EBP ID ${ebpId}:`,
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        `Erreur lors de la récupération du staff avec l'ID EBP ${ebpId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       return null;
     }
@@ -675,45 +635,52 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<number | null> {
     try {
-      // Vérifier si l'adresse existe déjà
-      const checkResult = await destinationClient.query<DbObject>(
-        'SELECT id FROM addresses WHERE address1 = $1 AND zip_code = $2 AND city = $3',
-        [
-          addressData.Address1 || '',
-          addressData.ZipCode || '',
-          addressData.City || '',
-        ],
-      );
+      // Convertir les données d'adresse au nouveau format
+      const addressQuery = `
+        INSERT INTO addresses (
+          street_number,
+          street_name,
+          additional_address,
+          zip_code,
+          city,
+          state,
+          country_iso_code,
+          longitude,
+          latitude
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (street_number, street_name, zip_code, city)
+        DO UPDATE SET
+          additional_address = EXCLUDED.additional_address,
+          state = EXCLUDED.state,
+          country_iso_code = EXCLUDED.country_iso_code,
+          longitude = EXCLUDED.longitude,
+          latitude = EXCLUDED.latitude
+        RETURNING id
+      `;
 
-      if (checkResult.rows.length > 0) {
-        return checkResult.rows[0].id;
-      }
+      // Extraire le numéro et le nom de la rue de Address1
+      const addressParts = addressData.Address1?.split(' ') || [];
+      const streetNumber = addressParts[0] || '';
+      const streetName = addressParts.slice(1).join(' ') || '';
 
-      // Insérer la nouvelle adresse
-      const insertResult = await destinationClient.query<DbObject>(
-        `INSERT INTO addresses (
-          address1, address2, address3, address4, zip_code, city, state, country, 
-          longitude, latitude
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-        [
-          addressData.Address1 || '',
-          addressData.Address2 || null,
-          addressData.Address3 || null,
-          addressData.Address4 || null,
-          addressData.ZipCode || '',
-          addressData.City || '',
-          addressData.State || null,
-          addressData.CountryIsoCode || 'FR',
-          addressData.Longitude || null,
-          addressData.Latitude || null,
-        ],
-      );
+      const result = await destinationClient.query(addressQuery, [
+        streetNumber,
+        streetName,
+        addressData.Address2 || '',
+        addressData.ZipCode || '',
+        addressData.City || '',
+        addressData.State || '',
+        addressData.CountryIsoCode || '',
+        addressData.Longitude || null,
+        addressData.Latitude || null,
+      ]);
 
-      return insertResult.rows[0].id;
+      return result.rows[0]?.id || null;
     } catch (error) {
       this.logger.error(
-        "Erreur lors de l'upsert de l'adresse:",
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        `Erreur lors de l'insertion/mise à jour de l'adresse: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       return null;
     }
