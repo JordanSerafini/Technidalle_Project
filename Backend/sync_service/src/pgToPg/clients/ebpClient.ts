@@ -4,6 +4,7 @@ import * as pgClientSource from '../../clients/PgClient';
 import pgClientDestination from '../../clients/pgClient_2';
 import { Item as ItemEBP } from '../../interfaces/items/itemEBP';
 import { ItemAPP } from '../../interfaces/items/itemAPP';
+import { QueryResult } from 'pg';
 
 /**
  * Convertit un client EBP en client format application
@@ -25,8 +26,16 @@ export function convertEBPtoAppClient(
     extractLastNameFromCompanyName(clientEBP.Name) ||
     '';
 
+  // Vérifier si clientEBP.Id est null
+  if (clientEBP.Id === null) {
+    throw new Error(
+      `L'ID client EBP est null pour le client ${clientEBP.Name || 'Inconnu'}. Impossible de convertir.`,
+    );
+  }
+
   return {
     company_name: clientEBP.Name || undefined,
+    customerId: clientEBP.Id,
     firstname: firstname,
     lastname: lastname,
     email:
@@ -135,11 +144,11 @@ export default class EBPclient {
    */
   async getAllClientsFromEBP(): Promise<ClientEBP[]> {
     const query = `
-      SELECT 
-        "Name", 
-        "Id", 
-        "MainInvoicingContact_Name", 
-        "MainInvoicingContact_FirstName", 
+      SELECT
+        "Name",
+        "Id",
+        "MainInvoicingContact_Name",
+        "MainInvoicingContact_FirstName",
         "MainInvoicingContact_Phone",
         "MainInvoicingContact_CellPhone",
         "MainInvoicingContact_Email",
@@ -169,6 +178,13 @@ export default class EBPclient {
       const clientsData = (await pgClientSource.executeQuery(
         query,
       )) as ClientEBP[];
+      if (!Array.isArray(clientsData)) {
+        console.error(
+          "Erreur: executeQuery pour getAllClientsFromEBP n'a pas retourné un tableau.",
+          clientsData,
+        );
+        return [];
+      }
       return clientsData;
     } catch (error) {
       console.error('Erreur lors de la récupération des clients EBP:', error);
@@ -182,12 +198,10 @@ export default class EBPclient {
   async insertClientIntoApp(
     clientData: CreateClientWithAddressDto,
   ): Promise<number> {
-    // Préparation des données avec validation pour respecter les contraintes
     const addressValues = [
       clientData.address.street_number || '',
       clientData.address.street_name,
       clientData.address.additional_address || null,
-      // S'assurer que le code postal est au format correct (5 chiffres)
       clientData.address.zip_code
         ? clientData.address.zip_code.padStart(5, '0')
         : '00000',
@@ -202,19 +216,28 @@ export default class EBPclient {
       // Insérer l'adresse
       const addressQuery = `
       INSERT INTO addresses (
-        street_number, 
-        street_name, 
-        additional_address, 
-        zip_code, 
-        city, 
+        street_number,
+        street_name,
+        additional_address,
+        zip_code,
+        city,
         country
-      ) VALUES ($1, $2, $3, $4, $5, $6) 
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id`;
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const addressResult = (await pgClientDestination.query(
         addressQuery,
         addressValues,
-      )) as { rows: { id: number }[] };
+      )) as QueryResult<{ id: number }>;
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (!addressResult?.rows?.[0]?.id) {
+        throw new Error(
+          "La création de l'adresse a échoué, pas d'ID retourné.",
+        );
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const addressId = addressResult.rows[0].id;
 
       // Vérifier si l'email existe déjà
@@ -223,13 +246,15 @@ export default class EBPclient {
         `no-email-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
 
       if (clientData.email) {
-        const checkEmailQuery = `SELECT EXISTS(SELECT 1 FROM clients WHERE email = $1)`;
-        const emailExists = await pgClientDestination.query(checkEmailQuery, [
-          emailToUse,
-        ]);
+        const checkEmailQuery = `SELECT EXISTS(SELECT 1 FROM clients WHERE email = $1) as exists`;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const emailExistsResult = (await pgClientDestination.query(
+          checkEmailQuery,
+          [emailToUse],
+        )) as QueryResult<{ exists: boolean }>;
 
-        if (emailExists.rows[0].exists) {
-          // Ajouter un timestamp unique à l'email existant
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if (emailExistsResult?.rows?.[0]?.exists) {
           const emailParts = emailToUse.split('@');
           emailToUse = `${emailParts[0]}-${Date.now()}-${Math.floor(Math.random() * 10000)}@${emailParts[1]}`;
         }
@@ -240,11 +265,8 @@ export default class EBPclient {
         clientData.company_name || null,
         clientData.firstname || '',
         clientData.lastname || '',
-        // Utiliser l'email unique
         emailToUse,
-        // S'assurer que le numéro de téléphone est au format valide
         clientData.phone ? clientData.phone.replace(/[^\d+]/g, '') : null,
-        // S'assurer que le numéro de mobile est au format valide
         clientData.mobile ? clientData.mobile.replace(/[^\d+]/g, '') : null,
         addressId,
         clientData.notes || null,
@@ -253,25 +275,32 @@ export default class EBPclient {
       // Insérer le client avec l'ID de l'adresse
       const clientQuery = `
         INSERT INTO clients (
-          company_name, 
-          firstname, 
-          lastname, 
-          email, 
-          phone, 
-          mobile, 
-          address_id, 
+          company_name,
+          firstname,
+          lastname,
+          email,
+          phone,
+          mobile,
+          address_id,
           notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id`;
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const clientResult = (await pgClientDestination.query(
         clientQuery,
         clientValues,
-      )) as { rows: { id: number }[] };
+      )) as QueryResult<{ id: number }>;
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (!clientResult?.rows?.[0]?.id) {
+        throw new Error("La création du client a échoué, pas d'ID retourné.");
+      }
 
       // Valider la transaction
       await pgClientDestination.query('COMMIT');
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
       return clientResult.rows[0].id;
     } catch (error) {
       // Annuler la transaction en cas d'erreur
@@ -302,10 +331,10 @@ export default class EBPclient {
    */
   async getAllItemsFromEBP(): Promise<ItemEBP[]> {
     const query = `
-      SELECT 
-        "Id", 
+      SELECT
+        "Id",
         "UniqueId",
-        "Caption", 
+        "Caption",
         "DesCom",
         "SalePriceVatExcluded",
         "RealStock",
@@ -320,6 +349,13 @@ export default class EBPclient {
 
     try {
       const itemsData = (await pgClientSource.executeQuery(query)) as ItemEBP[];
+      if (!Array.isArray(itemsData)) {
+        console.error(
+          "Erreur: executeQuery pour getAllItemsFromEBP n'a pas retourné un tableau.",
+          itemsData,
+        );
+        return [];
+      }
       return itemsData;
     } catch (error) {
       console.error('Erreur lors de la récupération des articles EBP:', error);
@@ -331,22 +367,27 @@ export default class EBPclient {
    * Insère un article dans la base de données de destination
    */
   async insertItemIntoApp(itemData: ItemAPP): Promise<number> {
-    // Préparation des données pour l'insertion
-    const dbObject = itemData.toDBObject();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const dbObject: any = itemData.toDBObject();
 
     try {
       // Vérifier si l'article existe déjà par sa référence
       if (itemData.reference) {
         const checkRefQuery = `SELECT id FROM materials WHERE reference = $1`;
-        const existingItem = await pgClientDestination.query(checkRefQuery, [
-          itemData.reference,
-        ]);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const existingItemResult = (await pgClientDestination.query(
+          checkRefQuery,
+          [itemData.reference],
+        )) as QueryResult<{ id: number }>;
 
-        if (existingItem.rows && existingItem.rows.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if (existingItemResult?.rows?.[0]?.id) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          const existingItemId = existingItemResult.rows[0].id;
           // Mise à jour de l'article existant
           const updateQuery = `
-            UPDATE materials 
-            SET 
+            UPDATE materials
+            SET
               name = $1,
               description = $2,
               unit = $3,
@@ -360,21 +401,38 @@ export default class EBPclient {
             RETURNING id`;
 
           const updateValues = [
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.name,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.description,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.unit,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.price,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.stock_quantity,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.minimum_stock,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.supplier,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             dbObject.supplier_reference,
-            existingItem.rows[0].id,
+            existingItemId,
           ];
 
-          const updateResult = await pgClientDestination.query(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          const updateResult = (await pgClientDestination.query(
             updateQuery,
             updateValues,
-          );
+          )) as QueryResult<{ id: number }>;
+
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          if (!updateResult?.rows?.[0]?.id) {
+            throw new Error(
+              "La mise à jour de l'article a échoué, pas d'ID retourné.",
+            );
+          }
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
           return updateResult.rows[0].id;
         }
       }
@@ -391,28 +449,143 @@ export default class EBPclient {
           minimum_stock,
           supplier,
           supplier_reference
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`;
 
       const insertValues = [
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.name,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.description,
         itemData.reference,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.unit,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.price,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.stock_quantity,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.minimum_stock,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.supplier,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         dbObject.supplier_reference,
       ];
 
-      const insertResult = await pgClientDestination.query(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const insertResult = (await pgClientDestination.query(
         insertQuery,
         insertValues,
-      );
+      )) as QueryResult<{ id: number }>;
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (!insertResult?.rows?.[0]?.id) {
+        throw new Error(
+          "L'insertion de l'article a échoué, pas d'ID retourné.",
+        );
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
       return insertResult.rows[0].id;
     } catch (error) {
       console.error("Erreur lors de l'insertion de l'article:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère tous les sites de construction depuis la base EBP
+   */
+  async getAllConstructionSitesFromEBP(): Promise<any[] | undefined> {
+    console.log('[EBPClient] Début de getAllConstructionSitesFromEBP');
+    try {
+      const query = `SELECT * FROM "ConstructionSite"`;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = await pgClientSource.executeQuery(query);
+      console.log(
+        '[EBPClient] getAllConstructionSitesFromEBP - Requête réussie, résultat:',
+        result,
+      );
+
+      if (!Array.isArray(result)) {
+        console.error(
+          "[EBPClient] Erreur: executeQuery pour getAllConstructionSitesFromEBP n'a pas retourné un tableau.",
+          result,
+        );
+        return undefined;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return result;
+    } catch (error) {
+      console.error(
+        '[EBPClient] Erreur dans getAllConstructionSitesFromEBP',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère tous les documents de référence des sites de construction depuis la base EBP
+   */
+  async getAllConstructionSiteReferenceDocumentsFromEBP(): Promise<any[]> {
+    console.log(
+      '[EBPClient] Début de getAllConstructionSiteReferenceDocumentsFromEBP',
+    );
+    try {
+      const query = `SELECT * FROM "ConstructionSiteReferenceDocument"`;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = await pgClientSource.executeQuery(query);
+
+      if (!Array.isArray(result)) {
+        console.error(
+          "[EBPClient] Erreur: executeQuery pour getAllConstructionSiteReferenceDocumentsFromEBP n'a pas retourné un tableau.",
+          result,
+        );
+        return [];
+      }
+      return result;
+    } catch (error) {
+      console.error(
+        'Erreur lors de la récupération des documents de référence',
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Synchronise un client spécifique par son ID CustomerId
+   * @param customerId ID du client dans la base EBP
+   */
+  async syncClientByCustomerId(customerId: string): Promise<number> {
+    try {
+      const query = `SELECT * FROM "Customer" WHERE "Id" = $1`;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = await pgClientSource.executeQuery(query, [customerId]);
+
+      if (!Array.isArray(result) || result.length === 0) {
+        throw new Error(
+          `Client avec l'ID ${customerId} non trouvé dans la base EBP ou erreur de requête`,
+        );
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const clientEBP: ClientEBP = result[0] as ClientEBP;
+
+      if (!clientEBP?.Id) {
+        throw new Error(
+          `Données invalides pour le client EBP avec l'ID de recherche ${customerId}. ID manquant.`,
+        );
+      }
+
+      const clientApp = this.convertToAppClient(clientEBP);
+
+      return await this.insertClientIntoApp(clientApp);
+    } catch (error) {
+      console.error(
+        `Erreur lors de la synchronisation du client ${customerId}`,
+        error,
+      );
       throw error;
     }
   }

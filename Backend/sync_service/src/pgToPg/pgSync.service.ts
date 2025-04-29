@@ -4,6 +4,9 @@ import { CreateClientWithAddressDto } from '../interfaces/clients/clientApp';
 import EBPclient from './clients/ebpClient';
 import { Item as ItemEBP } from '../interfaces/items/itemEBP';
 import { ItemAPP } from '../interfaces/items/itemAPP';
+import { ProjectEBP } from '../interfaces/projects/projectEBP';
+import { ProjectAPP } from '../interfaces/projects/projectAPP';
+import EBPProject from './projects/ebpProject';
 
 // Interface pour typer les erreurs de synchronisation
 export interface SyncErrorDetail {
@@ -15,6 +18,7 @@ export interface SyncErrorDetail {
 export class PgSyncService {
   private readonly logger = new Logger(PgSyncService.name);
   private ebpClient = new EBPclient();
+  private ebpProject = new EBPProject();
 
   constructor() {
     this.logger.log('PgSyncService initialized');
@@ -175,6 +179,91 @@ export class PgSyncService {
         error instanceof Error
           ? error.message
           : 'Erreur inconnue lors de la synchronisation des articles';
+      return {
+        success: false,
+        count: 0,
+        errors: [{ identifier: 'global', error: errorMessage }],
+      };
+    }
+  }
+
+  /**
+   * Convertit un projet EBP en projet format application
+   */
+  convertEBPProjectToAppProject(projectEBP: ProjectEBP): ProjectAPP {
+    return this.ebpProject.convertToAppProject(projectEBP);
+  }
+
+  /**
+   * Convertit une liste de projets EBP en projets format application
+   */
+  convertMultipleEBPProjectsToAppProjects(
+    projectsEBP: ProjectEBP[],
+  ): ProjectAPP[] {
+    return this.ebpProject.convertMultipleToAppProject(projectsEBP);
+  }
+
+  /**
+   * Synchronise tous les projets depuis EBP vers l'application
+   * Récupère les projets depuis la base EBP, les convertit, et les insère dans la base App
+   */
+  async syncAllProjects(): Promise<{
+    success: boolean;
+    count: number;
+    errors?: SyncErrorDetail[];
+  }> {
+    try {
+      this.logger.log('Démarrage de la synchronisation des projets');
+
+      // Récupérer tous les projets depuis EBP
+      const projectsEBP = await this.ebpProject.getAllProjectsFromEBP();
+      this.logger.log(`${projectsEBP.length} projets récupérés depuis EBP`);
+
+      // Convertir les projets au format App
+      const projectsApp =
+        this.convertMultipleEBPProjectsToAppProjects(projectsEBP);
+
+      // Insérer les projets dans la base App
+      const errors: SyncErrorDetail[] = [];
+      let successCount = 0;
+
+      for (const projectApp of projectsApp) {
+        try {
+          const projectId =
+            await this.ebpProject.insertProjectIntoApp(projectApp);
+          this.logger.log(`Projet inséré avec la référence: ${projectId}`);
+          successCount++;
+        } catch (error) {
+          this.logger.error(
+            `Erreur lors de l'insertion du projet: ${projectApp.reference}`,
+            error,
+          );
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Erreur inconnue lors de l'insertion du projet";
+          errors.push({
+            identifier: projectApp.reference,
+            error: errorMessage,
+          });
+        }
+      }
+
+      this.logger.log(
+        `Synchronisation terminée: ${successCount}/${projectsApp.length} projets synchronisés`,
+      );
+
+      return {
+        success: true,
+        count: successCount,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    } catch (error) {
+      this.logger.error('Erreur lors de la synchronisation des projets', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Erreur inconnue lors de la synchronisation des projets';
       return {
         success: false,
         count: 0,
