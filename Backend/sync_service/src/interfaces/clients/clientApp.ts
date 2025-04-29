@@ -14,6 +14,7 @@ export interface Address {
 
 export interface Client {
   id: number;
+  customerId: string;
   company_name?: string | null;
   firstname: string;
   lastname: string;
@@ -29,6 +30,7 @@ export interface Client {
 }
 
 export interface CreateClientDto {
+  customerId: string;
   company_name?: string | null;
   firstname: string;
   lastname: string;
@@ -41,6 +43,7 @@ export interface CreateClientDto {
 }
 
 export interface UpdateClientDto {
+  customerId: string;
   company_name?: string | null;
   firstname?: string;
   lastname?: string;
@@ -53,6 +56,7 @@ export interface UpdateClientDto {
 }
 
 export interface CreateClientWithAddressDto {
+  customerId: string;
   company_name?: string;
   firstname?: string;
   lastname?: string;

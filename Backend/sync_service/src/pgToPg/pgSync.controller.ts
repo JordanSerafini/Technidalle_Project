@@ -20,4 +20,10 @@ export class PgSyncController {
     this.logger.log('Démarrage de la synchronisation des articles');
     return await this.pgSyncService.syncAllItems();
   }
+
+  @Get('sync-projects')
+  async syncAllProjects() {
+    this.logger.log('Démarrage de la synchronisation des projets');
+    return await this.pgSyncService.syncAllProjects();
+  }
 }
