@@ -443,6 +443,9 @@ export default class EBPDocuments {
           const result = await this.insertDocumentIntoApp(doc);
           if (result) {
             count++;
+            this.logger.log(
+              `Document ${doc.reference} synchronisé avec succès (${count}/${ebpDocs.length})`,
+            );
           }
         }
       }
@@ -558,16 +561,20 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      // Utiliser "customerId" avec la bonne casse
+      // Utiliser "customerId" comme défini dans init_db.sql
       const result = await destinationClient.query<DbObject>(
         'SELECT id FROM clients WHERE "customerId" = $1',
         [ebpId],
       );
-      
+
       if (result.rows.length > 0) {
+        this.logger.log(
+          `Client trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
+        );
         return result.rows[0];
       }
-      
+
+      this.logger.warn(`Aucun client trouvé avec l'ID EBP ${ebpId}`);
       return null;
     } catch (error) {
       this.logger.error(
@@ -583,16 +590,47 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      // Utiliser "projectId" avec la bonne casse
+      this.logger.log(`Recherche du projet avec l'ID EBP ${ebpId}`);
+
+      // Vérifier d'abord si la table existe
+      const tableCheck = await destinationClient.query(
+        `SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'projects'
+        );`,
+      );
+
+      if (!tableCheck.rows[0].exists) {
+        this.logger.error("La table projects n'existe pas !");
+        return null;
+      }
+
+      // Vérifier la structure de la table
+      const columnCheck = await destinationClient.query(
+        `SELECT column_name 
+         FROM information_schema.columns 
+         WHERE table_name = 'projects' 
+         AND column_name LIKE '%id%';`,
+      );
+
+      this.logger.log(
+        `Colonnes trouvées: ${columnCheck.rows.map((r) => r.column_name).join(', ')}`,
+      );
+
+      // Utiliser la requête avec le bon nom de colonne
       const result = await destinationClient.query<DbObject>(
-        'SELECT id FROM projects WHERE "projectId" = $1',
+        'SELECT id FROM projects WHERE "projectid" = $1',
         [ebpId],
       );
 
       if (result.rows.length > 0) {
+        this.logger.log(
+          `Projet trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
+        );
         return result.rows[0];
       }
 
+      this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
       return null;
     } catch (error) {
       this.logger.error(
@@ -608,16 +646,20 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      // Utiliser "staffId" avec la bonne casse
+      // Utiliser "staffId" comme défini dans init_db.sql
       const result = await destinationClient.query<DbObject>(
         'SELECT id FROM staff WHERE "staffId" = $1',
         [ebpId],
       );
-      
+
       if (result.rows.length > 0) {
+        this.logger.log(
+          `Staff trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
+        );
         return result.rows[0];
       }
-      
+
+      this.logger.warn(`Aucun staff trouvé avec l'ID EBP ${ebpId}`);
       return null;
     } catch (error) {
       this.logger.error(

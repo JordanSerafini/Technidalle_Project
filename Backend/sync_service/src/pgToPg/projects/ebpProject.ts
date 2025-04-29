@@ -211,9 +211,9 @@ export default class EBPProject {
       const projectQuery = `
         INSERT INTO projects (
           reference, name, description, client_id, address_id,
-          start_date, end_date, budget, actual_cost, margin, notes
-          -- Retrait de ebp_id ici
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          start_date, end_date, budget, actual_cost, margin, notes,
+          projectid
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (reference)
         DO UPDATE SET
           name = EXCLUDED.name,
@@ -225,12 +225,11 @@ export default class EBPProject {
           budget = EXCLUDED.budget,
           actual_cost = EXCLUDED.actual_cost,
           margin = EXCLUDED.margin,
-          notes = EXCLUDED.notes
-          -- Retrait de ebp_id ici aussi
+          notes = EXCLUDED.notes,
+          projectid = EXCLUDED.projectid
         RETURNING reference
       `;
 
-      // Retrait de la valeur pour ebp_id
       const projectValues = [
         projectApp.reference,
         projectApp.name,
@@ -243,7 +242,7 @@ export default class EBPProject {
         projectApp.actual_cost,
         projectApp.margin,
         projectApp.notes,
-        // customerEbpId, // Retiré
+        projectApp.constructionSite?.Id // Ajout de l'ID EBP comme projectid
       ];
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
