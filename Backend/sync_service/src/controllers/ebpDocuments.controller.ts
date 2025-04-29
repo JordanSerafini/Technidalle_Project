@@ -17,7 +17,9 @@ export class EbpDocumentsController {
 
   @Get('sync/:documentId')
   async syncDocumentByDocumentId(@Param('documentId') documentId: string) {
-    this.logger.log(`Démarrage de la synchronisation du document avec ID EBP ${documentId}`);
+    this.logger.log(
+      `Démarrage de la synchronisation du document avec ID EBP ${documentId}`,
+    );
     return this.ebpDocumentsService.syncDocumentByDocumentId(documentId);
   }
-} 
+}

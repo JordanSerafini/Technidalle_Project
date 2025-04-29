@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { PoolClient } from 'pg';
+import { PoolClient, DatabaseError } from 'pg';
 import * as pgClientSource from '../../clients/PgClient';
 import pgClientDestination from '../../clients/pgClient_2';
 import {
@@ -13,6 +13,8 @@ import {
   DocumentType,
   DocumentStatus,
 } from '../../interfaces/documents/documents.interface';
+import { QueryService } from '../../services/query.service';
+import { ClientSyncService } from '../../services/client-sync.service';
 
 // Interface pour les objets de base de données
 interface DbObject {
@@ -38,10 +40,14 @@ export default class EBPDocuments {
   private readonly logger = new Logger(EBPDocuments.name);
   private ebpClient: EBPclient;
   private ebpProject: EBPProject;
+  private queryService: QueryService;
+  private clientSyncService: ClientSyncService;
 
-  constructor() {
+  constructor(queryService: QueryService, clientSyncService: ClientSyncService) {
     this.ebpClient = new EBPclient();
-    this.ebpProject = new EBPProject();
+    this.queryService = queryService;
+    this.clientSyncService = clientSyncService;
+    this.ebpProject = new EBPProject(queryService, clientSyncService);
     this.logger.log('EBPDocuments initialized');
   }
 
@@ -52,8 +58,15 @@ export default class EBPDocuments {
     ebpDoc: ConstructionsitereferencedocumentInterface,
     ebpDocEx?: ConstructionsitereferencedocumentexInterface,
   ): Promise<Partial<Document> | null> {
+    let destinationClient: PoolClient | null = null;
     try {
-      const destinationClient = await pgClientDestination.getClient();
+      destinationClient = await pgClientDestination.getClient();
+      if (!destinationClient) {
+        this.logger.error(
+          "Impossible d'obtenir un client de la pool de destination.",
+        );
+        return null;
+      }
 
       // Vérifier si ConstructionSiteId existe
       if (!ebpDoc.ConstructionSiteId) {
@@ -182,11 +195,11 @@ export default class EBPDocuments {
                   (1000 * 60 * 60 * 24),
               )
             : null,
-        signed_by_client: ebpDocEx?.SignatureDate ? true : false,
+        signed_by_client: !!ebpDocEx?.SignatureDate,
         signed_date: ebpDocEx?.SignatureDate,
         approved_by_staff_id: approvedByStaffId,
         electronic_signature_path: null,
-        version: ebpDoc.sysEditCounter,
+        version: ebpDoc.sysEditCounter ?? 1,
         revision_reason: ebpDoc.CorrectionReasonId,
         purchase_order_reference: ebpDocEx?.BuyerReference || null,
         delivery_address_id: deliveryAddressId,
@@ -207,8 +220,13 @@ export default class EBPDocuments {
       this.logger.error(
         `Erreur lors de la conversion du document ${ebpDoc.DocumentNumber}:`,
         error instanceof Error ? error.message : 'Erreur inconnue',
+        error instanceof Error ? error.stack : undefined,
       );
       return null;
+    } finally {
+      if (destinationClient) {
+        destinationClient.release();
+      }
     }
   }
 
@@ -242,26 +260,25 @@ export default class EBPDocuments {
   > {
     this.logger.log('Début de getAllDocumentsFromEBP');
     try {
-      // Au lieu d'utiliser connect() sur un client déjà connecté, utilisons la fonction executeQuery
+      // Utiliser la fonction executeQuery qui gère la connexion/libération
       const ebpDocsResult = await pgClientSource.executeQuery(`
         SELECT * FROM "ConstructionSiteReferenceDocument"
       `);
 
-      if (Array.isArray(ebpDocsResult)) {
-        this.logger.log(
-          `Récupération de ${ebpDocsResult.length} documents depuis EBP`,
-        );
-        return ebpDocsResult as ConstructionsitereferencedocumentInterface[];
-      } else {
-        this.logger.warn('Format de résultat inattendu pour les documents');
-        return [];
-      }
+      // pgClientSource.executeQuery devrait retourner un tableau ou lancer une erreur
+      this.logger.log(
+        `Récupération de ${ebpDocsResult.length} documents depuis EBP`,
+      );
+      // Nous devons nous assurer que le type retourné est correct, même sans générique
+      // Une assertion de type peut être nécessaire si executeQuery retourne 'any'
+      return ebpDocsResult as ConstructionsitereferencedocumentInterface[];
     } catch (error) {
       this.logger.error(
         'Erreur lors de la récupération des documents depuis EBP:',
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
       );
-      return [];
+      return []; // Retourner un tableau vide en cas d'erreur
     }
   }
 
@@ -273,26 +290,19 @@ export default class EBPDocuments {
   > {
     this.logger.log('Début de getAllDocumentsExFromEBP');
     try {
-      // Au lieu d'utiliser connect() sur un client déjà connecté, utilisons la fonction executeQuery
       const ebpDocsExResult = await pgClientSource.executeQuery(`
         SELECT * FROM "ConstructionSiteReferenceDocumentEx"
       `);
-
-      if (Array.isArray(ebpDocsExResult)) {
-        this.logger.log(
-          `Récupération de ${ebpDocsExResult.length} documents étendus depuis EBP`,
-        );
-        return ebpDocsExResult as ConstructionsitereferencedocumentexInterface[];
-      } else {
-        this.logger.warn(
-          'Format de résultat inattendu pour les documents étendus',
-        );
-        return [];
-      }
+      this.logger.log(
+        `Récupération de ${ebpDocsExResult.length} documents étendus depuis EBP`,
+      );
+      // Assertion de type ici aussi
+      return ebpDocsExResult as ConstructionsitereferencedocumentexInterface[];
     } catch (error) {
       this.logger.error(
         'Erreur lors de la récupération des documents étendus depuis EBP:',
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
       );
       return [];
     }
@@ -305,78 +315,123 @@ export default class EBPDocuments {
     documentData: Partial<Document>,
   ): Promise<number | null> {
     this.logger.log(
-      `Tentative d'insertion du document ${documentData.reference}`,
+      `Tentative d'insertion/mise à jour du document ${documentData.reference}`,
     );
+    let destinationClient: PoolClient | null = null;
     try {
-      const destinationClient = await pgClientDestination.getClient();
+      destinationClient = await pgClientDestination.getClient();
+      if (!destinationClient) {
+        this.logger.error(
+          "Impossible d'obtenir un client de la pool de destination pour insertDocumentIntoApp.",
+        );
+        return null;
+      }
 
-      // Vérifier si le document existe déjà
-      const existingDocResult = await destinationClient.query<DbObject>(
-        'SELECT id FROM documents WHERE "documentId" = $1',
+      // Vérifier si le document existe déjà par documentId (qui devrait être unique)
+      const existingDocResult = await destinationClient.query<{ id: number }>(
+        'SELECT id FROM documents WHERE "document_id" = $1',
         [documentData.documentId],
       );
 
       if (existingDocResult.rows.length > 0) {
+        const existingId = existingDocResult.rows[0].id;
         this.logger.log(
-          `Document ${documentData.reference} existe déjà, mise à jour...`,
+          `Document ${documentData.reference} (ID EBP: ${documentData.documentId}) existe déjà (ID App: ${existingId}), mise à jour...`,
         );
-        const existingDoc = existingDocResult.rows[0];
 
         // Construire la requête de mise à jour
         const updateFields: string[] = [];
         const updateValues: any[] = [];
         let paramIndex = 1;
 
-        Object.entries(documentData).forEach(([key, value]) => {
-          if (key !== 'id' && key !== 'documentId' && value !== undefined) {
-            updateFields.push(`"${key}" = $${paramIndex}`);
-            updateValues.push(value);
-            paramIndex++;
+        // Utiliser Object.keys pour itérer sur les clés de Partial<Document>
+        Object.keys(documentData).forEach((key) => {
+          const typedKey = key as keyof Document;
+          // Exclure id et documentId des mises à jour directes, et les valeurs undefined
+          if (
+            typedKey !== 'id' &&
+            typedKey !== 'documentId' &&
+            documentData[typedKey] !== undefined
+          ) {
+            // S'assurer que la clé est bien une colonne de la table 'documents' pour éviter les erreurs SQL.
+            // Ceci est une simplification; une validation plus robuste pourrait être nécessaire.
+            if (true) {
+              // Remplacez 'true' par une validation si nécessaire
+              updateFields.push(`"${typedKey}" = $${paramIndex}`);
+              updateValues.push(documentData[typedKey]);
+              paramIndex++;
+            }
           }
         });
 
-        // Ajouter la date de mise à jour
-        updateFields.push(`"updated_at" = NOW()`);
+        if (updateFields.length === 0) {
+          this.logger.log(
+            `Aucun champ à mettre à jour pour le document ${documentData.reference}.`,
+          );
+          return existingId; // Retourner l'ID existant si aucune mise à jour n'est nécessaire
+        }
 
-        // Ajouter l'ID du document
-        updateValues.push(existingDoc.id);
+        updateFields.push(`"updated_at" = NOW()`); // Mettre à jour la date de modification
+        updateValues.push(existingId); // Valeur pour la clause WHERE
 
         const updateQuery = `
-          UPDATE documents 
-          SET ${updateFields.join(', ')} 
+          UPDATE documents
+          SET ${updateFields.join(', ')}
           WHERE id = $${paramIndex}
           RETURNING id
         `;
 
-        const updateResult = await destinationClient.query<DbObject>(
+        const updateResult = await destinationClient.query<{ id: number }>(
           updateQuery,
           updateValues,
         );
 
-        this.logger.log(
-          `Document ${documentData.reference} mis à jour avec succès`,
-        );
-        return updateResult.rows[0].id;
+        if (updateResult.rows.length > 0) {
+          this.logger.log(
+            `Document ${documentData.reference} mis à jour avec succès (ID App: ${updateResult.rows[0].id})`,
+          );
+          return updateResult.rows[0].id;
+        } else {
+          this.logger.error(
+            `Échec de la mise à jour du document ${documentData.reference} (ID App: ${existingId}). Aucun ID retourné.`,
+          );
+          return null;
+        }
       } else {
+        // Le document n'existe pas, procéder à l'insertion
+        this.logger.log(
+          `Document ${documentData.reference} (ID EBP: ${documentData.documentId}) non trouvé, insertion...`,
+        );
         // Construire la requête d'insertion
         const insertFields: string[] = [];
         const insertValues: any[] = [];
         const paramPlaceholders: string[] = [];
         let paramIndex = 1;
 
-        Object.entries(documentData).forEach(([key, value]) => {
-          if (value !== undefined) {
-            insertFields.push(`"${key}"`);
-            insertValues.push(value);
+        Object.keys(documentData).forEach((key) => {
+          const typedKey = key as keyof Document;
+          if (documentData[typedKey] !== undefined) {
+            // Inclure toutes les clés définies
+            insertFields.push(`"${typedKey}"`);
+            insertValues.push(documentData[typedKey]);
             paramPlaceholders.push(`$${paramIndex}`);
             paramIndex++;
           }
         });
 
-        // Ajouter les dates de création et mise à jour
-        insertFields.push(`"created_at"`, `"updated_at"`);
-        insertValues.push(new Date(), new Date());
-        paramPlaceholders.push(`NOW()`, `NOW()`);
+        // Ajouter created_at et updated_at pour les nouvelles insertions
+        if (!insertFields.includes('"created_at"')) {
+          insertFields.push(`"created_at"`);
+          paramPlaceholders.push(`$${paramIndex}`);
+          insertValues.push(new Date());
+          paramIndex++;
+        }
+        if (!insertFields.includes('"updated_at"')) {
+          insertFields.push(`"updated_at"`);
+          paramPlaceholders.push(`$${paramIndex}`);
+          insertValues.push(new Date());
+          paramIndex++;
+        }
 
         const insertQuery = `
           INSERT INTO documents (${insertFields.join(', ')})
@@ -384,22 +439,35 @@ export default class EBPDocuments {
           RETURNING id
         `;
 
-        const insertResult = await destinationClient.query<DbObject>(
+        const insertResult = await destinationClient.query<{ id: number }>(
           insertQuery,
           insertValues,
         );
 
-        this.logger.log(
-          `Document ${documentData.reference} inséré avec succès`,
-        );
-        return insertResult.rows[0].id;
+        if (insertResult.rows.length > 0) {
+          this.logger.log(
+            `Document ${documentData.reference} inséré avec succès (ID App: ${insertResult.rows[0].id})`,
+          );
+          return insertResult.rows[0].id;
+        } else {
+          this.logger.error(
+            `Échec de l'insertion du document ${documentData.reference}. Aucun ID retourné.`,
+          );
+          return null;
+        }
       }
     } catch (error) {
+      const typedError = error as DatabaseError; // Typer l'erreur
       this.logger.error(
-        `Erreur lors de l'insertion du document ${documentData.reference}:`,
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        `Erreur lors de l'insertion/mise à jour du document ${documentData.reference} (ID EBP: ${documentData.documentId}): ${typedError.message}`,
+        `Code: ${typedError.code}, Table: ${typedError.table}, Colonne: ${typedError.column}, Contrainte: ${typedError.constraint}`,
+        typedError.stack, // Stack trace complet
       );
       return null;
+    } finally {
+      if (destinationClient) {
+        destinationClient.release(); // Toujours libérer le client
+      }
     }
   }
 
@@ -410,17 +478,23 @@ export default class EBPDocuments {
     success: boolean;
     count: number;
     total: number;
-    error?: string;
+    errors: { identifier: string; error: string }[];
   }> {
+    let ebpDocs: ConstructionsitereferencedocumentInterface[] = [];
+    let ebpDocsEx: ConstructionsitereferencedocumentexInterface[] = [];
+    let total = 0;
+    let count = 0;
+    const errors: { identifier: string; error: string }[] = [];
+
     try {
-      const ebpDocs = await this.getAllDocumentsFromEBP();
-      const ebpDocsEx = await this.getAllDocumentsExFromEBP();
-      const total = ebpDocs.length;
-      let count = 0;
+      ebpDocs = await this.getAllDocumentsFromEBP();
+      ebpDocsEx = await this.getAllDocumentsExFromEBP();
+      total = ebpDocs.length;
 
       this.logger.log(`Début de la synchronisation de ${total} documents`);
 
       for (const ebpDoc of ebpDocs) {
+        const identifier = ebpDoc.DocumentNumber || ebpDoc.Id || 'ID_INCONNU'; // Utiliser un identifiant pertinent
         try {
           const ebpDocEx = ebpDocsEx.find((ex) => ex.Id === ebpDoc.Id);
           const appDoc = await this.convertToAppDocument(ebpDoc, ebpDocEx);
@@ -429,26 +503,58 @@ export default class EBPDocuments {
             const insertedId = await this.insertDocumentIntoApp(appDoc);
             if (insertedId) {
               count++;
-              this.logger.log(`Progression: ${count}/${total} documents traités`);
+              if (count % 50 === 0 || count === total) {
+                // Log tous les 50 ou à la fin
+                this.logger.log(
+                  `Progression: ${count}/${total} documents traités`,
+                );
+              }
+            } else {
+              // Erreur loggée dans insertDocumentIntoApp
+              errors.push({
+                identifier,
+                error: `Échec de l'insertion/màj pour le document ${identifier}`,
+              });
             }
+          } else {
+            // Erreur loggée dans convertToAppDocument
+            errors.push({
+              identifier,
+              error: `Échec de la conversion pour le document ${identifier}`,
+            });
           }
-        } catch (error) {
+        } catch (docError) {
+          // Capturer les erreurs inattendues au niveau de la boucle
+          const errorMessage =
+            docError instanceof Error ? docError.message : String(docError);
           this.logger.error(
-            `Erreur lors de la synchronisation du document ${ebpDoc.Id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            `Erreur majeure lors de la synchronisation du document ${identifier}: ${errorMessage}`,
+            docError instanceof Error ? docError.stack : undefined,
           );
+          errors.push({ identifier, error: `Erreur majeure: ${errorMessage}` });
         }
       }
 
-      return { success: true, count, total };
-    } catch (error) {
-      this.logger.error(
-        `Erreur lors de la synchronisation des documents: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+      this.logger.log(
+        `Synchronisation terminée. ${count} documents traités sur ${total}. ${errors.length} erreurs rencontrées.`,
       );
-      return { success: false, count: 0, total: 0, error: String(error) };
+      return { success: errors.length === 0, count, total, errors };
+    } catch (globalError) {
+      // Erreur lors de la récupération initiale des documents
+      const errorMessage =
+        globalError instanceof Error
+          ? globalError.message
+          : String(globalError);
+      this.logger.error(
+        `Erreur globale lors de la synchronisation des documents: ${errorMessage}`,
+        globalError instanceof Error ? globalError.stack : undefined,
+      );
+      return {
+        success: false,
+        count: 0,
+        total: ebpDocs.length,
+        errors: [{ identifier: 'GLOBAL', error: errorMessage }],
+      };
     }
   }
 
@@ -539,16 +645,19 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      const result = await destinationClient.query(
-        'SELECT id, "customerId" FROM clients WHERE "customerId" = $1',
-        [ebpId],
-      );
-      return result.rows[0] || null;
+      const result = await destinationClient.query<{
+        id: number;
+        customer_id: string;
+      }>('SELECT id, "customer_id" FROM clients WHERE "customer_id" = $1', [
+        ebpId,
+      ]);
+      return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
+      const typedError = error as DatabaseError;
       this.logger.error(
-        `Erreur lors de la récupération du client avec l'ID EBP ${ebpId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Erreur lors de la récupération du client avec l'ID EBP ${ebpId}: ${typedError.message}`,
+        `Code: ${typedError.code}`,
+        typedError.stack,
       );
       return null;
     }
@@ -559,52 +668,27 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      this.logger.log(`Recherche du projet avec l'ID EBP ${ebpId}`);
-
-      // Vérifier d'abord si la table existe
-      const tableCheck = await destinationClient.query(
-        `SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_name = 'projects'
-        );`,
-      );
-
-      if (!tableCheck.rows[0].exists) {
-        this.logger.error("La table projects n'existe pas !");
-        return null;
-      }
-
-      // Vérifier la structure de la table
-      const columnCheck = await destinationClient.query(
-        `SELECT column_name 
-         FROM information_schema.columns 
-         WHERE table_name = 'projects' 
-         AND column_name LIKE '%id%';`,
-      );
-
-      this.logger.log(
-        `Colonnes trouvées: ${columnCheck.rows.map((r) => r.column_name).join(', ')}`,
-      );
-
-      // Utiliser la requête avec le bon nom de colonne
-      const result = await destinationClient.query<DbObject>(
-        'SELECT id FROM projects WHERE "projectid" = $1',
+      this.logger.debug(`Recherche du projet avec l'ID EBP ${ebpId}`);
+      const result = await destinationClient.query<{ id: number }>(
+        'SELECT id FROM projects WHERE "project_id" = $1',
         [ebpId],
       );
 
       if (result.rows.length > 0) {
-        this.logger.log(
+        this.logger.debug(
           `Projet trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
         );
         return result.rows[0];
+      } else {
+        this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
+        return null;
       }
-
-      this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
-      return null;
     } catch (error) {
+      const typedError = error as DatabaseError;
       this.logger.error(
-        `Erreur lors de la récupération du projet avec EBP ID ${ebpId}:`,
-        error instanceof Error ? error.message : 'Erreur inconnue',
+        `Erreur lors de la récupération du projet avec EBP ID ${ebpId}: ${typedError.message}`,
+        `Code: ${typedError.code}`,
+        typedError.stack,
       );
       return null;
     }
@@ -615,16 +699,17 @@ export default class EBPDocuments {
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
     try {
-      const result = await destinationClient.query(
-        'SELECT id, "staffId" FROM staff WHERE "staffId" = $1',
-        [ebpId],
-      );
-      return result.rows[0] || null;
+      const result = await destinationClient.query<{
+        id: number;
+        staff_id: string;
+      }>('SELECT id, "staff_id" FROM staff WHERE "staff_id" = $1', [ebpId]);
+      return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
+      const typedError = error as DatabaseError;
       this.logger.error(
-        `Erreur lors de la récupération du staff avec l'ID EBP ${ebpId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Erreur lors de la récupération du staff avec l'ID EBP ${ebpId}: ${typedError.message}`,
+        `Code: ${typedError.code}`,
+        typedError.stack,
       );
       return null;
     }
@@ -634,55 +719,100 @@ export default class EBPDocuments {
     addressData: AddressData,
     destinationClient: PoolClient,
   ): Promise<number | null> {
-    try {
-      // Convertir les données d'adresse au nouveau format
-      const addressQuery = `
-        INSERT INTO addresses (
-          street_number,
-          street_name,
-          additional_address,
-          zip_code,
-          city,
-          state,
-          country_iso_code,
-          longitude,
-          latitude
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (street_number, street_name, zip_code, city)
-        DO UPDATE SET
-          additional_address = EXCLUDED.additional_address,
-          state = EXCLUDED.state,
-          country_iso_code = EXCLUDED.country_iso_code,
-          longitude = EXCLUDED.longitude,
-          latitude = EXCLUDED.latitude
-        RETURNING id
-      `;
+    const streetParts = addressData.Address1?.trim().split(/\s+/) || [];
+    const streetNumber = streetParts[0] || '';
+    const streetName = streetParts.slice(1).join(' ') || '';
+    const zipCode = addressData.ZipCode?.trim() || '';
+    const city = addressData.City?.trim() || '';
+    const additionalAddress = addressData.Address2?.trim() || '';
+    const country = addressData.CountryIsoCode?.trim() || 'France';
+    const longitude = addressData.Longitude || null;
+    const latitude = addressData.Latitude || null;
 
-      // Extraire le numéro et le nom de la rue de Address1
-      const addressParts = addressData.Address1?.split(' ') || [];
-      const streetNumber = addressParts[0] || '';
-      const streetName = addressParts.slice(1).join(' ') || '';
-
-      const result = await destinationClient.query(addressQuery, [
-        streetNumber,
-        streetName,
-        addressData.Address2 || '',
-        addressData.ZipCode || '',
-        addressData.City || '',
-        addressData.State || '',
-        addressData.CountryIsoCode || '',
-        addressData.Longitude || null,
-        addressData.Latitude || null,
-      ]);
-
-      return result.rows[0]?.id || null;
-    } catch (error) {
-      this.logger.error(
-        `Erreur lors de l'insertion/mise à jour de l'adresse: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+    if (!streetName || !zipCode || !city) {
+      this.logger.warn(
+        `Adresse incomplète ignorée car les champs clés sont manquants: Rue='${streetName}', CP='${zipCode}', Ville='${city}'`,
       );
       return null;
+    }
+
+    try {
+      const insertQuery = `
+        INSERT INTO addresses (
+          street_number, street_name, additional_address, zip_code, city, country, longitude, latitude
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `;
+      const insertResult = await destinationClient.query<{ id: number }>(
+        insertQuery,
+        [
+          streetNumber,
+          streetName,
+          additionalAddress,
+          zipCode,
+          city,
+          country,
+          longitude,
+          latitude,
+        ],
+      );
+      this.logger.debug(
+        `Nouvelle adresse insérée avec ID: ${insertResult.rows[0].id}`,
+      );
+      return insertResult.rows[0].id;
+    } catch (error) {
+      const typedError = error as DatabaseError;
+
+      if (
+        typedError.code === '23505' &&
+        typedError.constraint === 'addresses_unique_constraint'
+      ) {
+        this.logger.debug(
+          `Conflit d'adresse (code: ${typedError.code}) détecté pour: Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'. Recherche de l'ID existant.`,
+        );
+
+        try {
+          const selectQuery = `
+            SELECT id FROM addresses
+            WHERE COALESCE(street_number, '') = $1
+              AND street_name = $2
+              AND zip_code = $3
+              AND city = $4
+            LIMIT 1
+          `;
+          const selectResult = await destinationClient.query<{ id: number }>(
+            selectQuery,
+            [streetNumber, streetName, zipCode, city],
+          );
+
+          if (selectResult.rows.length > 0) {
+            const existingId = selectResult.rows[0].id;
+            this.logger.debug(
+              `Adresse existante trouvée avec ID: ${existingId}`,
+            );
+            return existingId;
+          } else {
+            this.logger.error(
+              `Erreur incohérente après conflit d'adresse (code: ${typedError.code}): Impossible de retrouver l'adresse existante. Adresse: Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'`,
+              typedError.stack,
+            );
+            return null;
+          }
+        } catch (selectError) {
+          const typedSelectError = selectError as DatabaseError;
+          this.logger.error(
+            `Erreur lors de la recherche de l'adresse existante après conflit: ${typedSelectError.message}`,
+            typedSelectError.stack,
+          );
+          return null;
+        }
+      } else {
+        this.logger.error(
+          `Erreur inattendue lors de l'insertion de l'adresse (Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'): ${typedError.message} (Code: ${typedError.code})`,
+          typedError.stack,
+        );
+        return null;
+      }
     }
   }
 

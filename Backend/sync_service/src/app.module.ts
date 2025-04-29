@@ -5,10 +5,19 @@ import { PgSyncController } from './pgToPg/pgSync.controller';
 import { PgSyncService } from './pgToPg/pgSync.service';
 import { EbpDocumentsController } from './controllers/ebpDocuments.controller';
 import { EbpDocumentsService } from './services/ebpDocuments.service';
+import { TruncateModule } from './truncate/truncate.module';
+import { QueryService } from './services/query.service';
+import { ClientSyncService } from './services/client-sync.service';
 
 @Module({
-  imports: [],
+  imports: [TruncateModule],
   controllers: [AppController, PgSyncController, EbpDocumentsController],
-  providers: [AppService, PgSyncService, EbpDocumentsService],
+  providers: [
+    AppService, 
+    QueryService, 
+    ClientSyncService, 
+    PgSyncService, 
+    EbpDocumentsService
+  ],
 })
 export class AppModule {}
