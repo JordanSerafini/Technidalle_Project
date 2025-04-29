@@ -14,6 +14,7 @@ import {
 import { Pool, PoolClient } from 'pg';
 import { QueryService } from '../../services/query.service';
 import { ClientSyncService } from '../../services/client-sync.service';
+import { CreateClientWithAddressDto } from '../../interfaces/clients/clientApp';
 
 export default class EBPProject {
   private readonly logger = new Logger(EBPProject.name);
@@ -21,10 +22,7 @@ export default class EBPProject {
   private queryService: QueryService;
   private clientSync: ClientSyncService;
 
-  constructor(
-    queryService: QueryService,
-    clientSync: ClientSyncService,
-  ) {
+  constructor(queryService: QueryService, clientSync: ClientSyncService) {
     this.ebpClient = new EBPclient();
     this.queryService = queryService;
     this.clientSync = clientSync;
@@ -135,12 +133,17 @@ export default class EBPProject {
       this.logger.log(
         `Client avec EBP ID ${ebpClientId} non trouvé, tentative de synchronisation...`,
       );
-      const newClientIdNumber = await this.clientSync.syncClientByCustomerId(dbClient, ebpClientId);
-      
+      const newClientIdNumber = await this.clientSync.syncClientByCustomerId(
+        dbClient,
+        ebpClientId,
+      );
+
       if (newClientIdNumber === null) {
-        throw new Error(`Échec de synchronisation du client avec EBP ID ${ebpClientId}`);
+        throw new Error(
+          `Échec de synchronisation du client avec EBP ID ${ebpClientId}`,
+        );
       }
-      
+
       return newClientIdNumber.toString();
     } catch (error) {
       this.logger.error(
@@ -169,57 +172,52 @@ export default class EBPProject {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await client.query('BEGIN');
 
-      const appClientId = await this.getAppClientIdFromEbpId(client, customerEbpId);
+      const appClientId = await this.getAppClientIdFromEbpId(
+        client,
+        customerEbpId,
+      );
 
-      let projectAddressId = projectApp.address_id;
-      if (
-        !projectAddressId &&
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        projectApp.constructionSite?.ConstructionSiteAddress_Address1
-      ) {
-        const addressQuery = `
-          INSERT INTO addresses (
-            street_name, additional_address, city, zip_code, country, street_number
-          ) VALUES ($1, $2, $3, $4, $5, $6)
-          RETURNING id
-        `;
-        const addressValues = [
+      let projectAddressId: number | null = null;
+      // Vérifier si les données d'adresse du site existent
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const siteAddress1 = projectApp.constructionSite?.ConstructionSiteAddress_Address1;
+
+      if (siteAddress1) { // On ne tente l'upsert que si au moins l'adresse 1 existe
+        // Créer un objet d'adresse compatible avec upsertAddress
+        // Assurer que les champs requis sont des string (même vides), et non undefined
+        const addressDataForUpsert: CreateClientWithAddressDto['address'] = {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          projectApp.constructionSite.ConstructionSiteAddress_Address1,
+          street_name: String(projectApp.constructionSite?.ConstructionSiteAddress_Address1 || ''),
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          projectApp.constructionSite.ConstructionSiteAddress_Address2 || null,
+          additional_address: String(projectApp.constructionSite?.ConstructionSiteAddress_Address2 || ''),
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          projectApp.constructionSite.ConstructionSiteAddress_City,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-          projectApp.constructionSite.ConstructionSiteAddress_ZipCode?.padStart(
-            5,
-            '0',
-          ) || '00000',
+          city: String(projectApp.constructionSite?.ConstructionSiteAddress_City || ''),
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          projectApp.constructionSite.ConstructionSiteAddress_CountryIsoCode ||
-            null,
-          '',
-        ];
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        const addressResult = (await client.query(
-          addressQuery,
-          addressValues,
-        )) as QueryResult<{ id: number }>; // L'ID d'adresse est un nombre (SERIAL)
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (!addressResult?.rows?.[0]?.id) {
-          throw new Error(
-            "Résultat de requête d'adresse invalide ou ID manquant",
+          zip_code: String(projectApp.constructionSite?.ConstructionSiteAddress_ZipCode || ''),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          country: String(projectApp.constructionSite?.ConstructionSiteAddress_CountryIsoCode || 'France'), // Default à France si null/undefined
+          street_number: null, // Laisser upsertAddress gérer l'extraction, passer null explicitement
+        };
+
+        // Appeler la fonction upsertAddress centralisée
+        projectAddressId = await this.ebpClient.upsertAddress(addressDataForUpsert, client);
+
+        if (projectAddressId === null) {
+          this.logger.warn(
+            `Impossible de déterminer l'ID de l'adresse pour le projet ${projectApp.reference}, insertion du projet avec address_id = NULL.`,
           );
+        } else {
+          this.logger.debug(`Adresse upserted pour projet ${projectApp.reference}, ID: ${projectAddressId}`);
         }
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        projectAddressId = addressResult.rows[0].id;
+      } else {
+        this.logger.warn(`Pas de données d'adresse (Address1) trouvées pour le projet ${projectApp.reference}, address_id sera NULL.`);
       }
 
       // Vérification et attribution de l'ID du site de construction
       let constructionSiteId = null;
       if (
-        projectApp.constructionSite && 
-        typeof projectApp.constructionSite === 'object' && 
+        projectApp.constructionSite &&
+        typeof projectApp.constructionSite === 'object' &&
         'Id' in projectApp.constructionSite
       ) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -260,7 +258,7 @@ export default class EBPProject {
         projectApp.actual_cost,
         projectApp.margin,
         projectApp.notes,
-        constructionSiteId // Utilisation de la variable sécurisée
+        constructionSiteId, // Utilisation de la variable sécurisée
       ];
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access

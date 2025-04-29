@@ -244,179 +244,154 @@ export default class EBPclient {
   }
 
   /**
-   * Insère ou récupère l'ID d'une adresse. Fonction helper réutilisable.
-   * Gère les conflits d'unicité en récupérant l'ID existant.
+   * Insère ou met à jour une adresse dans la base de données de destination.
+   * Gère les conflits d'unicité et l'extraction du numéro de rue.
+   * @param addressData Données de l'adresse à insérer/màj.
+   * @param dbClient Client de base de données PostgreSQL actif.
+   * @returns L'ID de l'adresse insérée ou trouvée, ou null en cas d'erreur ou d'adresse invalide.
    */
-  private async upsertAddress(
+  public async upsertAddress(
     addressData: CreateClientWithAddressDto['address'],
     dbClient: PoolClient,
   ): Promise<number | null> {
-    // Normalisation et validation
-    const streetNameFromData = addressData.street_name?.trim() || ''; // street_name from convert function (EBP Address1)
-    const streetNumberFromData = addressData.street_number?.trim() || ''; // street_number from convert function (always '')
+    // 1. Normalisation et validation des données d'entrée
+    const streetNameFromData = addressData.street_name?.trim() || '';
+    const streetNumberFromData = addressData.street_number?.trim() || null; // Garder null si vide/null
 
-    // Revised logic for streetNumber and streetName
-    let finalStreetNumber: string | null = streetNumberFromData || null; // Start with provided number (which is null initially)
-    let finalStreetName: string = streetNameFromData; // Start with provided name
+    let finalStreetNumber: string | null = streetNumberFromData;
+    let finalStreetName: string = streetNameFromData;
 
-    // Try to extract a standard street number from the beginning of streetNameFromData if streetNumberFromData is null/empty
+    // 2. Extraction du numéro de rue (si nécessaire)
     if (!finalStreetNumber && finalStreetName) {
-      // Regex to match leading number (up to 9 digits + optional letter, max 10 chars total) followed by space
       const parts = finalStreetName.match(/^(\d{1,9}[a-zA-Z]?)\s+(.*)/);
       if (parts) {
         const potentialNumber = parts[1];
         if (potentialNumber.length <= 10) {
-          // Check length constraint for street_number
           finalStreetNumber = potentialNumber;
-          finalStreetName = parts[2].trim(); // Update street name to the remainder
+          finalStreetName = parts[2].trim();
         }
-        // If potential number is too long (>10), leave finalStreetNumber as null
       }
     }
 
-    // If finalStreetName is empty or became empty after extraction, set a default
-    if (!finalStreetName || finalStreetName.trim() === '') {
-      finalStreetName = 'Adresse non spécifiée'; // Default value if name is empty
+    // Default pour nom de rue vide
+    if (!finalStreetName) {
+      finalStreetName = 'Adresse non spécifiée';
     }
 
-    // Ensure finalStreetNumber does not exceed 10 characters if it's not null (shouldn't happen with the check above, but as a safeguard)
+    // Tronquer numéro si > 10 (sécurité)
     if (finalStreetNumber && finalStreetNumber.length > 10) {
-      this.logger.warn(
-        `Numéro de rue "${finalStreetNumber}" tronqué à 10 caractères.`,
-      );
+      this.logger.warn(`Numéro de rue "${finalStreetNumber}" tronqué.`);
       finalStreetNumber = finalStreetNumber.substring(0, 10);
     }
 
-    // Zip code processing
-    const zipCode = addressData.zip_code
-      ? addressData.zip_code.trim().padStart(5, '0')
-      : '';
+    // Autres champs
+    const zipCode = addressData.zip_code?.trim().padStart(5, '0') || '';
     const city = addressData.city?.trim() || '';
     const additionalAddress = addressData.additional_address?.trim() || '';
     const country = addressData.country?.trim() || 'France';
 
-    // Validate essential fields (zipCode and city are mandatory)
+    // 3. Validation des champs essentiels
     if (!zipCode || !city) {
       this.logger.warn(
-        `Adresse client incomplète ignorée (code postal ou ville manquant): CP='${zipCode}', Ville='${city}'`,
+        `Adresse incomplète ignorée (CP ou Ville manquant): CP='${zipCode}', Ville='${city}'`,
       );
       return null;
     }
-
-    // Validate zipCode length before attempting insert
     if (zipCode.length > 10) {
-      this.logger.warn(
-        `Code Postal "${zipCode}" trop long (> 10 chars) pour l'adresse ${finalStreetName}, ${city}. Adresse ignorée.`,
-      );
-      return null; // Skip this address
+       this.logger.warn(`Code Postal "${zipCode}" trop long. Adresse ignorée.`);
+       return null;
     }
 
     this.logger.debug(
-      `Tentative d'insertion/upsert d'adresse avec les valeurs finales: ` +
-        `Numéro='${finalStreetNumber}', Rue='${finalStreetName}', Complément='${additionalAddress}', ` +
-        `CP='${zipCode}', Ville='${city}', Pays='${country}'`,
+      `Recherche/Upsert pour adresse: Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}', Pays='${country}'`,
     );
 
-    // Tentative d'insertion
+    // 4. Essayer de SELECTIONNER d'abord
+    const selectQuery = `
+      SELECT id FROM addresses WHERE
+        (street_number = $1 OR ($1 IS NULL AND street_number IS NULL)) AND
+        street_name = $2 AND
+        zip_code = $3 AND
+        city = $4 AND
+        (additional_address = $5 OR ($5 IS NULL AND additional_address IS NULL)) AND
+        country = $6
+      LIMIT 1
+    `;
+    const selectValues = [
+      finalStreetNumber,
+      finalStreetName,
+      zipCode,
+      city,
+      additionalAddress || null, // Assurer null si vide
+      country,
+    ];
+
     try {
+      const selectResult = await dbClient.query<{ id: number }>(
+        selectQuery,
+        selectValues,
+      );
+
+      if (selectResult.rows.length > 0 && selectResult.rows[0].id) {
+        this.logger.debug(`Adresse existante trouvée avec ID: ${selectResult.rows[0].id}`);
+        return selectResult.rows[0].id;
+      }
+
+      // 5. Si non trouvée, INSERER
+      this.logger.debug('Adresse non trouvée, tentative d\'insertion.');
       const insertQuery = `
         INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country)
         VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT DO NOTHING -- Gérer la race condition potentielle
         RETURNING id
       `;
-      const insertResult = await dbClient.query<{ id: number }>(insertQuery, [
-        finalStreetNumber,
-        finalStreetName,
-        additionalAddress,
-        zipCode,
-        city,
-        country,
-      ]);
-      if (insertResult && insertResult.rows && insertResult.rows.length > 0 && insertResult.rows[0].id) {
-        this.logger.debug(
-          `Nouvelle adresse client insérée avec ID: ${insertResult.rows[0].id}`,
-        );
+       const insertValues = [
+          finalStreetNumber,
+          finalStreetName,
+          additionalAddress || null,
+          zipCode,
+          city,
+          country,
+       ];
+
+      const insertResult = await dbClient.query<{ id: number }>(
+          insertQuery,
+          insertValues
+      );
+
+      if (insertResult.rows.length > 0 && insertResult.rows[0].id) {
+        this.logger.debug(`Nouvelle adresse insérée avec ID: ${insertResult.rows[0].id}`);
         return insertResult.rows[0].id;
-      } else {
-        this.logger.error("L'insertion d'adresse n'a pas retourné de résultat ou d'ID valide.", { insertResult });
-        throw new Error("L'insertion d'adresse n'a pas retourné d'ID.");
       }
-    } catch (error) {
-      if (error instanceof Error && 'code' in error && 'constraint' in error) {
-        const dbError = error as unknown as { code?: string; constraint?: string; message: string; stack?: string };
 
-        if (
-          dbError.code === '23505' &&
-          dbError.constraint === 'addresses_unique_constraint'
-        ) {
-          this.logger.debug(
-            `Conflit d'adresse client détecté (Code: ${dbError.code}) pour: Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}'. Recherche de l'ID existant.`,
-          );
-          try {
-            const selectQuery = `
-              SELECT id
-              FROM addresses
-              WHERE
-                (street_number = $1 OR ($1 IS NULL AND street_number IS NULL)) AND
-                (street_name = $2 OR ($2 IS NULL AND street_name IS NULL)) AND
-                zip_code = $3 AND
-                city = $4 AND
-                (country = $5 OR ($5 IS NULL AND country IS NULL))
-            `;
-            const selectResult = await dbClient.query<{ id: number }>(
-              selectQuery,
-              [finalStreetNumber, finalStreetName, zipCode, city, country],
-            );
-
-            if (selectResult && selectResult.rows && selectResult.rows.length > 0 && selectResult.rows[0].id) {
-              const existingId = selectResult.rows[0].id;
-              this.logger.debug(
-                `Adresse client existante trouvée avec ID: ${existingId}`,
-              );
-              return existingId;
-            } else {
-              this.logger.error(
-                `Erreur incohérente après conflit d'adresse client (Code: ${dbError.code}): Impossible de retrouver l'adresse existante. Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}', Pays='${country}'`,
-                 dbError.stack ?? 'Pas de stack trace',
-              );
-              return null;
-            }
-          } catch (selectError) {
-            if (selectError instanceof Error) {
-                const typedSelectError = selectError as { message: string; stack?: string };
-                this.logger.error(
-                `Erreur lors de la recherche de l'adresse client existante après conflit: ${typedSelectError.message}`,
-                typedSelectError.stack ?? 'Pas de stack trace',
-                );
-             } else {
-                 this.logger.error(
-                `Erreur non-standard lors de la recherche de l'adresse client existante après conflit:`,
-                selectError
-                );
-             }
-
-            return null;
-          }
+       // 6. Si l'insertion (avec ON CONFLICT DO NOTHING) n'a rien retourné (à cause d'une race condition)
+       // Re-sélectionner pour obtenir l'ID inséré par l'autre processus.
+       this.logger.debug('Insertion n\'a pas retourné d\'ID (probablement race condition), re-sélection...');
+       const reSelectResult = await dbClient.query<{ id: number }>(
+           selectQuery,
+           selectValues,
+       );
+        if (reSelectResult.rows.length > 0 && reSelectResult.rows[0].id) {
+           this.logger.debug(`Adresse existante (après race condition) trouvée avec ID: ${reSelectResult.rows[0].id}`);
+           return reSelectResult.rows[0].id;
         } else {
-          this.logger.error(
-            `Erreur inattendue lors de l'upsert de l'adresse client: ${dbError.message} (Code: ${dbError.code}). Données: Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}'`,
-            dbError.stack ?? 'Pas de stack trace',
-          );
-          return null;
+           // Ceci ne devrait VRAIMENT pas arriver
+           this.logger.error("ERREUR CRITIQUE: Impossible de trouver ou d'insérer l'adresse après tentative de gestion de race condition.", { addressData });
+           return null;
         }
-      } else if (error instanceof Error) {
-         this.logger.error(
-            `Erreur (non-DB) lors de l'upsert de l'adresse client: ${error.message}. Données: Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}'`,
-            error.stack ?? 'Pas de stack trace',
-          );
-          return null;
-      }
-       else {
-        this.logger.error(
-          `Erreur inconnue lors de l'upsert de l'adresse. Données: Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}'`, error
-        );
-        return null;
-      }
+
+    } catch (error) {
+       // Gérer les erreurs inattendues
+       if (error instanceof Error) {
+             this.logger.error(
+                 `Erreur BDD inattendue lors de l'upsert adresse: ${error.message}`,
+                 error.stack,
+                 { addressData }
+             );
+       } else {
+           this.logger.error('Erreur BDD inconnue lors de l\'upsert adresse', error, { addressData });
+       }
+      return null;
     }
   }
 
