@@ -11,13 +11,23 @@ import {
   ConstructionsiteInterface,
   ConstructionsitereferencedocumentInterface,
 } from '../../interfaces/projects/constructionSite';
+import { Pool, PoolClient } from 'pg';
+import { QueryService } from '../../services/query.service';
+import { ClientSyncService } from '../../services/client-sync.service';
 
 export default class EBPProject {
   private readonly logger = new Logger(EBPProject.name);
   private ebpClient: EBPclient;
+  private queryService: QueryService;
+  private clientSync: ClientSyncService;
 
-  constructor() {
+  constructor(
+    queryService: QueryService,
+    clientSync: ClientSyncService,
+  ) {
     this.ebpClient = new EBPclient();
+    this.queryService = queryService;
+    this.clientSync = clientSync;
     this.logger.log('EBPProject initialized');
   }
 
@@ -96,51 +106,49 @@ export default class EBPProject {
   }
 
   /**
-   * Vérifie si un client existe dans la base App et récupère son ID interne
-   * S'il n'existe pas, le synchronise depuis EBP.
-   * @param ebpClientId ID du client dans la base EBP (CustomerId)
-   * @returns ID interne du client dans la base App
+   * Récupère l'ID client interne de l'application à partir de l'ID client EBP
    */
-  async getAppClientIdFromEbpId(ebpClientId: string): Promise<string> {
+  private async getAppClientIdFromEbpId(
+    dbClient: Pool | PoolClient,
+    ebpClientId: string,
+  ): Promise<string> {
     try {
+      // Vérifier d'abord si nous avons déjà le client dans la base de données de l'application
       const clientQuery = `
-        SELECT id FROM clients WHERE customerId = $1
+        SELECT id FROM clients 
+        WHERE customer_id = $1
       `;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const clientResult = (await pgClientDestination.query(clientQuery, [
-        ebpClientId,
-      ])) as QueryResult<{ id: string }>; // Supposons que l'ID client est une string
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (!clientResult?.rows) {
-        throw new Error(
-          'Résultat de requête invalide pour la recherche de client par customerId',
-        );
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (clientResult.rows.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        const id = clientResult.rows[0].id;
-        if (typeof id !== 'string') {
-          throw new Error(
-            `ID client interne invalide récupéré pour EBP ID ${ebpClientId}: ${id}`,
-          );
-        }
-        return id;
-      }
-
-      this.logger.log(
-        `Client EBP ${ebpClientId} non trouvé, démarrage synchronisation`,
+      // Exécuter la requête pour obtenir l'ID interne du client
+      const clientResult = await this.queryService.executeQuery<{ id: number }>(
+        dbClient,
+        clientQuery,
+        [ebpClientId],
       );
-      const newClientIdNumber =
-        await this.ebpClient.syncClientByCustomerId(ebpClientId);
+
+      if (clientResult.rowCount > 0 && clientResult.rows[0]?.id) {
+        // Convertir l'ID numérique en chaîne de caractères pour la cohérence
+        return clientResult.rows[0].id.toString();
+      }
+
+      // Si le client n'existe pas encore, on le synchronise
+      this.logger.log(
+        `Client avec EBP ID ${ebpClientId} non trouvé, tentative de synchronisation...`,
+      );
+      const newClientIdNumber = await this.clientSync.syncClientByCustomerId(dbClient, ebpClientId);
+      
+      if (newClientIdNumber === null) {
+        throw new Error(`Échec de synchronisation du client avec EBP ID ${ebpClientId}`);
+      }
+      
       return newClientIdNumber.toString();
     } catch (error) {
       this.logger.error(
         `Erreur lors de la récupération/synchronisation de l'ID interne du client pour EBP ID: ${ebpClientId}`,
-        error,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
       );
+      // Relancer l'erreur pour que l'appelant (insertProjectIntoApp) sache qu'il y a eu un problème
       throw error;
     }
   }
@@ -161,7 +169,7 @@ export default class EBPProject {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await client.query('BEGIN');
 
-      const appClientId = await this.getAppClientIdFromEbpId(customerEbpId);
+      const appClientId = await this.getAppClientIdFromEbpId(client, customerEbpId);
 
       let projectAddressId = projectApp.address_id;
       if (
@@ -207,12 +215,22 @@ export default class EBPProject {
         projectAddressId = addressResult.rows[0].id;
       }
 
-      // Retrait de ebp_id de la requête
+      // Vérification et attribution de l'ID du site de construction
+      let constructionSiteId = null;
+      if (
+        projectApp.constructionSite && 
+        typeof projectApp.constructionSite === 'object' && 
+        'Id' in projectApp.constructionSite
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        constructionSiteId = projectApp.constructionSite.Id;
+      }
+
       const projectQuery = `
         INSERT INTO projects (
           reference, name, description, client_id, address_id,
           start_date, end_date, budget, actual_cost, margin, notes,
-          projectid
+          project_id
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (reference)
         DO UPDATE SET
@@ -226,7 +244,7 @@ export default class EBPProject {
           actual_cost = EXCLUDED.actual_cost,
           margin = EXCLUDED.margin,
           notes = EXCLUDED.notes,
-          projectid = EXCLUDED.projectid
+          project_id = EXCLUDED.project_id
         RETURNING reference
       `;
 
@@ -242,7 +260,7 @@ export default class EBPProject {
         projectApp.actual_cost,
         projectApp.margin,
         projectApp.notes,
-        projectApp.constructionSite?.Id // Ajout de l'ID EBP comme projectid
+        constructionSiteId // Utilisation de la variable sécurisée
       ];
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access

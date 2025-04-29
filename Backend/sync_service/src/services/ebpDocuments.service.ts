@@ -5,6 +5,8 @@ import {
   ConstructionsitereferencedocumentexInterface,
 } from '../../EBP_interface/ConstructionSite - Projets/constructionSite';
 import EBPDocuments from '../pgToPg/documents/ebpDocuments';
+import { QueryService } from '../services/query.service';
+import { ClientSyncService } from '../services/client-sync.service';
 
 // Interface pour typer les erreurs de synchronisation
 export interface SyncErrorDetail {
@@ -15,9 +17,13 @@ export interface SyncErrorDetail {
 @Injectable()
 export class EbpDocumentsService {
   private readonly logger = new Logger(EbpDocumentsService.name);
-  private ebpDocuments = new EBPDocuments();
+  private ebpDocuments: EBPDocuments;
 
-  constructor() {
+  constructor(
+    private readonly queryService: QueryService,
+    private readonly clientSyncService: ClientSyncService,
+  ) {
+    this.ebpDocuments = new EBPDocuments(queryService, clientSyncService);
     this.logger.log('EbpDocumentsService initialized');
   }
 

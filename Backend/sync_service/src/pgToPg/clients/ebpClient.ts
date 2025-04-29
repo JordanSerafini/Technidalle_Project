@@ -4,7 +4,8 @@ import * as pgClientSource from '../../clients/PgClient';
 import pgClientDestination from '../../clients/pgClient_2';
 import { Item as ItemEBP } from '../../interfaces/items/itemEBP';
 import { ItemAPP } from '../../interfaces/items/itemAPP';
-import { QueryResult } from 'pg';
+import { QueryResult, DatabaseError, PoolClient } from 'pg';
+import { Logger } from '@nestjs/common';
 
 /**
  * Convertit un client EBP en client format application
@@ -33,23 +34,46 @@ export function convertEBPtoAppClient(
     );
   }
 
+  // Nettoyage et formatage du numéro de téléphone
+  let phone =
+    clientEBP.MainInvoicingContact_Phone ||
+    clientEBP.MainDeliveryContact_Phone ||
+    '';
+  phone = phone.replace(/[^0-9+\s]/g, ''); // Ne garde que chiffres, +, et espaces
+  if (phone && (phone.length < 10 || phone.length > 15)) {
+    phone = ''; // Si format invalide, on préfère ne pas mettre de valeur
+  }
+
+  // Nettoyage et formatage du numéro de mobile
+  let mobile =
+    clientEBP.MainInvoicingContact_Cellphone ||
+    clientEBP.MainDeliveryContact_CellPhone ||
+    '';
+  mobile = mobile.replace(/[^0-9+\s]/g, ''); // Ne garde que chiffres, +, et espaces
+  if (mobile && (mobile.length < 10 || mobile.length > 15)) {
+    mobile = ''; // Si format invalide, on préfère ne pas mettre de valeur
+  }
+
+  // Formatage et validation de l'email
+  let email =
+    clientEBP.MainInvoicingContact_Email ||
+    clientEBP.MainDeliveryContact_Email ||
+    '';
+  // Vérification basique du format email
+  const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    // Génération d'un email factice basé sur l'ID client
+    email = `no-email-${clientEBP.Id}@example.com`;
+  }
+
   return {
     company_name: clientEBP.Name || undefined,
-    customerId: clientEBP.Id,
+    customer_id: clientEBP.Id,
     firstname: firstname,
     lastname: lastname,
-    email:
-      clientEBP.MainInvoicingContact_Email ||
-      clientEBP.MainDeliveryContact_Email ||
-      '',
-    phone:
-      clientEBP.MainInvoicingContact_Phone ||
-      clientEBP.MainDeliveryContact_Phone ||
-      undefined,
-    mobile:
-      clientEBP.MainInvoicingContact_Cellphone ||
-      clientEBP.MainDeliveryContact_CellPhone ||
-      undefined,
+    email: email,
+    phone: phone || undefined,
+    mobile: mobile || undefined,
     notes: clientEBP.NotesClear || undefined,
     address: {
       street_name:
@@ -139,6 +163,8 @@ function combineAdditionalAddresses(...addresses: string[]): string {
  * Service pour gérer les clients EBP
  */
 export default class EBPclient {
+  private readonly logger = new Logger(EBPclient.name);
+
   /**
    * Récupère tous les clients EBP depuis la base de données source
    */
@@ -193,120 +219,304 @@ export default class EBPclient {
   }
 
   /**
-   * Insère un client dans la base de données de destination
+   * Insère ou récupère l'ID d'une adresse. Fonction helper réutilisable.
+   * Gère les conflits d'unicité en récupérant l'ID existant.
+   */
+  private async upsertAddress(
+    addressData: CreateClientWithAddressDto['address'],
+    dbClient: PoolClient,
+  ): Promise<number | null> {
+    // Normalisation et validation
+    const streetParts = addressData.street_name?.trim().split(/\\s+/) || [];
+    const streetNumber =
+      addressData.street_number?.trim() || streetParts[0] || '';
+    // Utiliser une valeur par défaut pour street_name si elle est vide
+    let streetName = addressData.street_number?.trim()
+      ? (addressData.street_name?.trim() ?? '')
+      : streetParts.slice(1).join(' ') || '';
+    
+    // Si la rue est vide, utiliser une valeur par défaut basée sur la ville
+    if (!streetName || streetName.trim() === '') {
+      streetName = "Adresse non spécifiée";
+    }
+
+    const zipCode = addressData.zip_code
+      ? addressData.zip_code.trim().padStart(5, '0')
+      : '';
+    const city = addressData.city?.trim() || '';
+    const additionalAddress = addressData.additional_address?.trim() || '';
+    const country = addressData.country?.trim() || 'France';
+
+    // Maintenant on vérifie seulement si le code postal et la ville sont présents
+    if (!zipCode || !city) {
+      this.logger.warn(
+        `Adresse client incomplète ignorée (code postal ou ville manquant): CP='${zipCode}', Ville='${city}'`,
+      );
+      return null;
+    }
+
+    // Tentative d'insertion
+    try {
+      const insertQuery = `
+        INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+      `;
+      if (!dbClient)
+        throw new Error(
+          'Client DB invalide pour insert query dans upsertAddress',
+        );
+      const insertResult = await dbClient.query<{ id: number }>(insertQuery, [
+        streetNumber,
+        streetName,
+        additionalAddress,
+        zipCode,
+        city,
+        country,
+      ]);
+      if (insertResult?.rows?.[0]?.id) {
+        this.logger.debug(
+          `Nouvelle adresse client insérée avec ID: ${insertResult.rows[0].id}`,
+        );
+        return insertResult.rows[0].id;
+      } else {
+        throw new Error("L'insertion d'adresse n'a pas retourné d'ID.");
+      }
+    } catch (error) {
+      const typedError = error as DatabaseError;
+      if (
+        typedError.code === '23505' &&
+        typedError.constraint === 'addresses_unique_constraint'
+      ) {
+        this.logger.debug(
+          `Conflit d'adresse client détecté (Code: ${typedError.code}) pour: Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'. Recherche de l'ID existant.`,
+        );
+        // Si conflit, sélectionner l'ID existant
+        try {
+          const selectQuery = `
+            SELECT id FROM addresses
+            WHERE COALESCE(street_number, '') = $1
+              AND street_name = $2
+              AND zip_code = $3
+              AND city = $4
+            LIMIT 1
+          `;
+          if (!dbClient)
+            throw new Error(
+              'Client DB invalide pour select query dans upsertAddress',
+            );
+          const selectResult = await dbClient.query<{ id: number }>(
+            selectQuery,
+            [streetNumber, streetName, zipCode, city],
+          );
+
+          if (selectResult?.rows?.[0]?.id) {
+            const existingId = selectResult.rows[0].id;
+            this.logger.debug(
+              `Adresse client existante trouvée avec ID: ${existingId}`,
+            );
+            return existingId;
+          } else {
+            this.logger.error(
+              `Erreur incohérente après conflit d'adresse client (Code: ${typedError.code}): Impossible de retrouver l'adresse existante.`,
+              typedError.stack ?? 'Pas de stack trace',
+            );
+            return null;
+          }
+        } catch (selectError) {
+          const typedSelectError = selectError as DatabaseError;
+          this.logger.error(
+            `Erreur lors de la recherche de l'adresse client existante après conflit: ${typedSelectError.message}`,
+            typedSelectError.stack ?? 'Pas de stack trace',
+          );
+          return null;
+        }
+      } else {
+        this.logger.error(
+          `Erreur inattendue lors de l'upsert de l'adresse client: ${typedError.message} (Code: ${typedError.code})`,
+          typedError.stack ?? 'Pas de stack trace',
+        );
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Insère un client dans la base de données de destination, en gérant les adresses dupliquées.
+   * Transaction explicite retirée pour le debug.
    */
   async insertClientIntoApp(
     clientData: CreateClientWithAddressDto,
-  ): Promise<number> {
-    const addressValues = [
-      clientData.address.street_number || '',
-      clientData.address.street_name,
-      clientData.address.additional_address || null,
-      clientData.address.zip_code
-        ? clientData.address.zip_code.padStart(5, '0')
-        : '00000',
-      clientData.address.city,
-      clientData.address.country || null,
-    ];
+  ): Promise<number | null> {
+    let dbClient: PoolClient | null = null;
+    let addressId: number | null = null;
 
     try {
-      // Commencer une transaction
-      await pgClientDestination.query('BEGIN');
+      dbClient = await pgClientDestination.getClient();
+      if (!dbClient) {
+        this.logger.error(
+          "Impossible d'obtenir un client de pool pour insertClientIntoApp.",
+        );
+        return null;
+      }
 
-      // Insérer l'adresse
-      const addressQuery = `
-      INSERT INTO addresses (
-        street_number,
-        street_name,
-        additional_address,
-        zip_code,
-        city,
-        country
-      ) VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id`;
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const addressResult = (await pgClientDestination.query(
-        addressQuery,
-        addressValues,
-      )) as QueryResult<{ id: number }>;
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (!addressResult?.rows?.[0]?.id) {
-        throw new Error(
-          "La création de l'adresse a échoué, pas d'ID retourné.",
+      if (
+        clientData.address &&
+        clientData.address.street_name &&
+        clientData.address.zip_code &&
+        clientData.address.city
+      ) {
+        addressId = await this.upsertAddress(clientData.address, dbClient);
+        if (addressId === null) {
+          this.logger.warn(
+            `Impossible de déterminer l'ID de l'adresse pour le client ${clientData.customer_id}. address_id sera NULL.`,
+          );
+        }
+      } else {
+        this.logger.warn(
+          `Données d'adresse incomplètes pour le client ${clientData.customer_id}. address_id sera NULL.`,
         );
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      const addressId = addressResult.rows[0].id;
+
+      // S'assurer que l'email est valide ou créer un email de secours
+      let emailToUse =
+        clientData.email || `no-email-${clientData.customer_id}@example.com`;
+
+      // Email validation plus stricte pour correspondre à la contrainte PostgreSQL
+      // Le format doit être exactement conforme à xxx@xxx.xxx sans caractères spéciaux autres que ceux autorisés
+      const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+      if (!emailRegex.test(emailToUse)) {
+        // Si l'email n'est pas valide, générer un email sécurisé qui respecte certainement la contrainte
+        const safeCustomerId = clientData.customer_id.replace(
+          /[^a-zA-Z0-9]/g,
+          '',
+        );
+        emailToUse = `no-email-${safeCustomerId}@example.com`;
+      }
+
+      // Vérifier que la longueur de l'email est valide (généralement limité dans les BDD)
+      if (emailToUse.length > 254) {
+        // Tronquer l'email tout en gardant le format valide
+        const emailParts = emailToUse.split('@');
+        const localPart = emailParts[0].substring(0, 64); // Local part max 64 caractères
+        const domainPart = emailParts[1] || 'example.com';
+        emailToUse = `${localPart}@${domainPart}`;
+      }
 
       // Vérifier si l'email existe déjà
-      let emailToUse =
-        clientData.email ||
-        `no-email-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
-
       if (clientData.email) {
-        const checkEmailQuery = `SELECT EXISTS(SELECT 1 FROM clients WHERE email = $1) as exists`;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const emailExistsResult = (await pgClientDestination.query(
-          checkEmailQuery,
-          [emailToUse],
-        )) as QueryResult<{ exists: boolean }>;
+        try {
+          const emailExistsResult = await dbClient.query<{ exists: boolean }>(
+            `SELECT EXISTS(SELECT 1 FROM clients WHERE email = $1) as "exists"`,
+            [emailToUse],
+          );
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (emailExistsResult?.rows?.[0]?.exists) {
-          const emailParts = emailToUse.split('@');
-          emailToUse = `${emailParts[0]}-${Date.now()}-${Math.floor(Math.random() * 10000)}@${emailParts[1]}`;
+          if (emailExistsResult?.rows?.[0]?.exists) {
+            this.logger.warn(
+              `Email ${emailToUse} existe déjà pour le client ${clientData.customer_id}. Génération d'un email unique.`,
+            );
+            const safeCustomerId = clientData.customer_id.replace(
+              /[^a-zA-Z0-9]/g,
+              '',
+            );
+            const timestamp = Date.now();
+            emailToUse = `no-email-${safeCustomerId}-${timestamp}@example.com`;
+          }
+        } catch (emailCheckError) {
+          this.logger.error(
+            `Erreur lors de la vérification de l'email ${emailToUse} pour le client ${clientData.customer_id}`,
+            emailCheckError,
+          );
+          // En cas d'erreur, utiliser un email de secours garanti valide
+          const safeCustomerId = clientData.customer_id.replace(
+            /[^a-zA-Z0-9]/g,
+            '',
+          );
+          const timestamp = Date.now();
+          emailToUse = `no-email-${safeCustomerId}-${timestamp}@example.com`;
         }
       }
 
-      // Préparation des données client avec validation pour respecter les contraintes
+      // Nettoyage des numéros de téléphone et mobile
+      let phoneToUse = clientData.phone
+        ? clientData.phone.replace(/[^0-9+\s]/g, '')
+        : null;
+      if (phoneToUse && (phoneToUse.length < 10 || phoneToUse.length > 15)) {
+        this.logger.warn(
+          `Numéro de téléphone invalide pour le client ${clientData.customer_id}: "${clientData.phone}". Sera remplacé par NULL.`,
+        );
+        phoneToUse = null;
+      }
+
+      let mobileToUse = clientData.mobile
+        ? clientData.mobile.replace(/[^0-9+\s]/g, '')
+        : null;
+      if (mobileToUse && (mobileToUse.length < 10 || mobileToUse.length > 15)) {
+        this.logger.warn(
+          `Numéro de mobile invalide pour le client ${clientData.customer_id}: "${clientData.mobile}". Sera remplacé par NULL.`,
+        );
+        mobileToUse = null;
+      }
+
       const clientValues = [
         clientData.company_name || null,
+        clientData.customer_id,
         clientData.firstname || '',
         clientData.lastname || '',
         emailToUse,
-        clientData.phone ? clientData.phone.replace(/[^\d+]/g, '') : null,
-        clientData.mobile ? clientData.mobile.replace(/[^\d+]/g, '') : null,
+        phoneToUse,
+        mobileToUse,
         addressId,
+        clientData.siret || null,
         clientData.notes || null,
       ];
 
-      // Insérer le client avec l'ID de l'adresse
       const clientQuery = `
         INSERT INTO clients (
-          company_name,
-          firstname,
-          lastname,
-          email,
-          phone,
-          mobile,
-          address_id,
-          notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          company_name, customer_id, firstname, lastname, email, phone, mobile, address_id, siret, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT (customer_id) DO UPDATE SET
+          company_name = EXCLUDED.company_name,
+          firstname = EXCLUDED.firstname,
+          lastname = EXCLUDED.lastname,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          mobile = EXCLUDED.mobile,
+          address_id = CASE WHEN EXCLUDED.address_id IS NOT NULL THEN EXCLUDED.address_id ELSE clients.address_id END,
+          siret = EXCLUDED.siret,
+          notes = EXCLUDED.notes,
+          updated_at = NOW()
         RETURNING id`;
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const clientResult = (await pgClientDestination.query(
+      if (!dbClient) throw new Error('Client DB invalide pour client query');
+      const clientResult = await dbClient.query<{ id: number }>(
         clientQuery,
         clientValues,
-      )) as QueryResult<{ id: number }>;
+      );
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (!clientResult?.rows?.[0]?.id) {
-        throw new Error("La création du client a échoué, pas d'ID retourné.");
+        throw new Error(
+          `L'upsert du client ${clientData.customer_id} a échoué, pas d'ID retourné.`,
+        );
       }
+      const clientId = clientResult.rows[0].id;
+      this.logger.log(
+        `Client ${clientData.customer_id} inséré/mis à jour avec succès (ID App: ${clientId})`,
+      );
 
-      // Valider la transaction
-      await pgClientDestination.query('COMMIT');
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-      return clientResult.rows[0].id;
+      return clientId;
     } catch (error) {
-      // Annuler la transaction en cas d'erreur
-      await pgClientDestination.query('ROLLBACK');
-      console.error("Erreur lors de l'insertion du client:", error);
-      throw error;
+      this.logger.error(
+        `Erreur lors de l'insertion/màj du client ${clientData.customer_id}:`,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      return null;
+    } finally {
+      if (dbClient) {
+        dbClient.release();
+      }
     }
   }
 
@@ -554,39 +764,42 @@ export default class EBPclient {
   }
 
   /**
-   * Synchronise un client spécifique par son ID CustomerId
-   * @param customerId ID du client dans la base EBP
+   * Synchronise un client spécifique par son ID customer_id.
+   * @param customer_id ID du client dans la base EBP
+   * @returns L'ID du client dans l'application ou null en cas d'erreur.
    */
-  async syncClientByCustomerId(customerId: string): Promise<number> {
+  async syncClientByCustomerId(customer_id: string): Promise<number | null> {
     try {
       const query = `SELECT * FROM "Customer" WHERE "Id" = $1`;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const result = await pgClientSource.executeQuery(query, [customerId]);
+      const result = await pgClientSource.executeQuery(query, [customer_id]);
 
-      if (!Array.isArray(result) || result.length === 0) {
-        throw new Error(
-          `Client avec l'ID ${customerId} non trouvé dans la base EBP ou erreur de requête`,
+      const clientsEBP = result as ClientEBP[];
+
+      if (!Array.isArray(clientsEBP) || clientsEBP.length === 0) {
+        this.logger.warn(
+          `Client avec l'ID EBP ${customer_id} non trouvé dans la source.`,
         );
+        return null;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const clientEBP: ClientEBP = result[0] as ClientEBP;
+      const clientEBP: ClientEBP = clientsEBP[0];
 
       if (!clientEBP?.Id) {
-        throw new Error(
-          `Données invalides pour le client EBP avec l'ID de recherche ${customerId}. ID manquant.`,
+        this.logger.error(
+          `Données EBP invalides pour le client avec l'ID de recherche ${customer_id}. ID manquant après récupération.`,
         );
+        return null;
       }
 
       const clientApp = this.convertToAppClient(clientEBP);
-
       return await this.insertClientIntoApp(clientApp);
     } catch (error) {
-      console.error(
-        `Erreur lors de la synchronisation du client ${customerId}`,
-        error,
+      this.logger.error(
+        `Erreur majeure lors de la synchronisation du client EBP ${customer_id}:`,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : 'Pas de stack trace',
       );
-      throw error;
+      return null;
     }
   }
 }

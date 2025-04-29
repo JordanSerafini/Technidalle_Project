@@ -97,13 +97,14 @@ CREATE TABLE IF NOT EXISTS addresses (
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT addresses_unique_constraint UNIQUE (street_number, street_name, zip_code, city)
 );
 
 -- Table des clients améliorée
 CREATE TABLE IF NOT EXISTS clients (
     id SERIAL PRIMARY KEY,
-    customerId VARCHAR(255),
+    customer_id VARCHAR(255) UNIQUE,
     company_name VARCHAR(255),
     firstname VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
@@ -121,7 +122,7 @@ CREATE TABLE IF NOT EXISTS clients (
 -- Table des projets (principale)
 CREATE TABLE IF NOT EXISTS projects (
     id SERIAL PRIMARY KEY,
-    projectId VARCHAR(255),
+    project_id VARCHAR(255),
     reference VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -155,7 +156,7 @@ CREATE TABLE IF NOT EXISTS roles (
 -- Table du personnel
 CREATE TABLE IF NOT EXISTS staff (
     id SERIAL PRIMARY KEY,
-    staffId VARCHAR(255),
+    staff_id VARCHAR(255),
     firstname VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
@@ -174,7 +175,7 @@ CREATE TABLE IF NOT EXISTS staff (
 -- Table des documents (devis, factures, etc.) - Maintenant après staff
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
-    documentId VARCHAR(255),
+    document_id VARCHAR(255),
     project_id INTEGER NOT NULL,
     client_id INTEGER,
     type document_type NOT NULL,

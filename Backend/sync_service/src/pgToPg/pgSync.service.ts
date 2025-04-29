@@ -13,6 +13,9 @@ import {
   ConstructionsitereferencedocumentInterface,
   ConstructionsitereferencedocumentexInterface,
 } from '../../EBP_interface/ConstructionSite - Projets/constructionSite';
+import { QueryService } from '../services/query.service';
+import { ClientSyncService } from '../services/client-sync.service';
+
 // Interface pour typer les erreurs de synchronisation
 export interface SyncErrorDetail {
   identifier: string | number | undefined; // Email client ou référence article
@@ -23,10 +26,16 @@ export interface SyncErrorDetail {
 export class PgSyncService {
   private readonly logger = new Logger(PgSyncService.name);
   private ebpClient = new EBPclient();
-  private ebpProject = new EBPProject();
-  private ebpDocuments = new EBPDocuments();
+  private ebpProject: EBPProject;
+  private ebpDocuments: EBPDocuments;
+  private queryService: QueryService;
+  private clientSyncService: ClientSyncService;
 
-  constructor() {
+  constructor(queryService: QueryService, clientSyncService: ClientSyncService) {
+    this.queryService = queryService;
+    this.clientSyncService = clientSyncService;
+    this.ebpProject = new EBPProject(queryService, clientSyncService);
+    this.ebpDocuments = new EBPDocuments(queryService, clientSyncService);
     this.logger.log('PgSyncService initialized');
   }
 

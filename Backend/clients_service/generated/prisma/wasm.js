@@ -133,7 +133,7 @@ exports.Prisma.AddressesScalarFieldEnum = {
 
 exports.Prisma.ClientsScalarFieldEnum = {
   id: 'id',
-  customerid: 'customerid',
+  customer_id: 'customer_id',
   company_name: 'company_name',
   firstname: 'firstname',
   lastname: 'lastname',
@@ -157,7 +157,7 @@ exports.Prisma.Document_tagsScalarFieldEnum = {
 
 exports.Prisma.DocumentsScalarFieldEnum = {
   id: 'id',
-  documentid: 'documentid',
+  document_id: 'document_id',
   project_id: 'project_id',
   client_id: 'client_id',
   type: 'type',
@@ -298,7 +298,7 @@ exports.Prisma.Project_tagsScalarFieldEnum = {
 
 exports.Prisma.ProjectsScalarFieldEnum = {
   id: 'id',
-  projectid: 'projectid',
+  project_id: 'project_id',
   reference: 'reference',
   name: 'name',
   description: 'description',
@@ -341,7 +341,7 @@ exports.Prisma.Site_reportsScalarFieldEnum = {
 
 exports.Prisma.StaffScalarFieldEnum = {
   id: 'id',
-  staffid: 'staffid',
+  staff_id: 'staff_id',
   firstname: 'firstname',
   lastname: 'lastname',
   email: 'email',
