@@ -30,6 +30,7 @@ model addresses {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model clients {
   id           Int         @id @default(autoincrement())
+  customerid   String?     @db.VarChar(255)
   company_name String?     @db.VarChar(255)
   firstname    String      @db.VarChar(100)
   lastname     String      @db.VarChar(100)
@@ -67,6 +68,7 @@ model document_tags {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model documents {
   id                                                      Int              @id @default(autoincrement())
+  documentid                                              String?          @db.VarChar(255)
   project_id                                              Int
   client_id                                               Int?
   type                                                    document_type
@@ -281,6 +283,7 @@ model project_tags {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model projects {
   id                   Int                    @id @default(autoincrement())
+  projectid            String?                @db.VarChar(255)
   reference            String                 @unique @db.VarChar(50)
   name                 String                 @db.VarChar(255)
   description          String?
@@ -352,6 +355,7 @@ model site_reports {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model staff {
   id                   Int                    @id @default(autoincrement())
+  staffid              String?                @db.VarChar(255)
   firstname            String                 @db.VarChar(100)
   lastname             String                 @db.VarChar(100)
   email                String                 @unique @db.VarChar(255)

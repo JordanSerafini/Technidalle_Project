@@ -5247,6 +5247,7 @@ export namespace Prisma {
 
   export type ClientsMinAggregateOutputType = {
     id: number | null
+    customerid: string | null
     company_name: string | null
     firstname: string | null
     lastname: string | null
@@ -5262,6 +5263,7 @@ export namespace Prisma {
 
   export type ClientsMaxAggregateOutputType = {
     id: number | null
+    customerid: string | null
     company_name: string | null
     firstname: string | null
     lastname: string | null
@@ -5277,6 +5279,7 @@ export namespace Prisma {
 
   export type ClientsCountAggregateOutputType = {
     id: number
+    customerid: number
     company_name: number
     firstname: number
     lastname: number
@@ -5304,6 +5307,7 @@ export namespace Prisma {
 
   export type ClientsMinAggregateInputType = {
     id?: true
+    customerid?: true
     company_name?: true
     firstname?: true
     lastname?: true
@@ -5319,6 +5323,7 @@ export namespace Prisma {
 
   export type ClientsMaxAggregateInputType = {
     id?: true
+    customerid?: true
     company_name?: true
     firstname?: true
     lastname?: true
@@ -5334,6 +5339,7 @@ export namespace Prisma {
 
   export type ClientsCountAggregateInputType = {
     id?: true
+    customerid?: true
     company_name?: true
     firstname?: true
     lastname?: true
@@ -5436,6 +5442,7 @@ export namespace Prisma {
 
   export type ClientsGroupByOutputType = {
     id: number
+    customerid: string | null
     company_name: string | null
     firstname: string
     lastname: string
@@ -5470,6 +5477,7 @@ export namespace Prisma {
 
   export type clientsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    customerid?: boolean
     company_name?: boolean
     firstname?: boolean
     lastname?: boolean
@@ -5490,6 +5498,7 @@ export namespace Prisma {
 
   export type clientsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    customerid?: boolean
     company_name?: boolean
     firstname?: boolean
     lastname?: boolean
@@ -5506,6 +5515,7 @@ export namespace Prisma {
 
   export type clientsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    customerid?: boolean
     company_name?: boolean
     firstname?: boolean
     lastname?: boolean
@@ -5522,6 +5532,7 @@ export namespace Prisma {
 
   export type clientsSelectScalar = {
     id?: boolean
+    customerid?: boolean
     company_name?: boolean
     firstname?: boolean
     lastname?: boolean
@@ -5535,7 +5546,7 @@ export namespace Prisma {
     updated_at?: boolean
   }
 
-  export type clientsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "company_name" | "firstname" | "lastname" | "email" | "phone" | "mobile" | "address_id" | "siret" | "notes" | "created_at" | "updated_at", ExtArgs["result"]["clients"]>
+  export type clientsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "customerid" | "company_name" | "firstname" | "lastname" | "email" | "phone" | "mobile" | "address_id" | "siret" | "notes" | "created_at" | "updated_at", ExtArgs["result"]["clients"]>
   export type clientsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     addresses?: boolean | clients$addressesArgs<ExtArgs>
     documents?: boolean | clients$documentsArgs<ExtArgs>
@@ -5560,6 +5571,7 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
+      customerid: string | null
       company_name: string | null
       firstname: string
       lastname: string
@@ -5999,6 +6011,7 @@ export namespace Prisma {
    */
   interface clientsFieldRefs {
     readonly id: FieldRef<"clients", 'Int'>
+    readonly customerid: FieldRef<"clients", 'String'>
     readonly company_name: FieldRef<"clients", 'String'>
     readonly firstname: FieldRef<"clients", 'String'>
     readonly lastname: FieldRef<"clients", 'String'>
@@ -7671,6 +7684,7 @@ export namespace Prisma {
 
   export type DocumentsMinAggregateOutputType = {
     id: number | null
+    documentid: string | null
     project_id: number | null
     client_id: number | null
     type: $Enums.document_type | null
@@ -7710,6 +7724,7 @@ export namespace Prisma {
 
   export type DocumentsMaxAggregateOutputType = {
     id: number | null
+    documentid: string | null
     project_id: number | null
     client_id: number | null
     type: $Enums.document_type | null
@@ -7749,6 +7764,7 @@ export namespace Prisma {
 
   export type DocumentsCountAggregateOutputType = {
     id: number
+    documentid: number
     project_id: number
     client_id: number
     type: number
@@ -7828,6 +7844,7 @@ export namespace Prisma {
 
   export type DocumentsMinAggregateInputType = {
     id?: true
+    documentid?: true
     project_id?: true
     client_id?: true
     type?: true
@@ -7867,6 +7884,7 @@ export namespace Prisma {
 
   export type DocumentsMaxAggregateInputType = {
     id?: true
+    documentid?: true
     project_id?: true
     client_id?: true
     type?: true
@@ -7906,6 +7924,7 @@ export namespace Prisma {
 
   export type DocumentsCountAggregateInputType = {
     id?: true
+    documentid?: true
     project_id?: true
     client_id?: true
     type?: true
@@ -8032,6 +8051,7 @@ export namespace Prisma {
 
   export type DocumentsGroupByOutputType = {
     id: number
+    documentid: string | null
     project_id: number
     client_id: number | null
     type: $Enums.document_type
@@ -8090,6 +8110,7 @@ export namespace Prisma {
 
   export type documentsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    documentid?: boolean
     project_id?: boolean
     client_id?: boolean
     type?: boolean
@@ -8140,6 +8161,7 @@ export namespace Prisma {
 
   export type documentsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    documentid?: boolean
     project_id?: boolean
     client_id?: boolean
     type?: boolean
@@ -8185,6 +8207,7 @@ export namespace Prisma {
 
   export type documentsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    documentid?: boolean
     project_id?: boolean
     client_id?: boolean
     type?: boolean
@@ -8230,6 +8253,7 @@ export namespace Prisma {
 
   export type documentsSelectScalar = {
     id?: boolean
+    documentid?: boolean
     project_id?: boolean
     client_id?: boolean
     type?: boolean
@@ -8267,7 +8291,7 @@ export namespace Prisma {
     updated_at?: boolean
   }
 
-  export type documentsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "project_id" | "client_id" | "type" | "reference" | "status" | "amount" | "tva_rate" | "issue_date" | "due_date" | "payment_date" | "payment_method" | "payment_terms" | "discount_rate" | "discount_amount" | "payment_status" | "amount_paid" | "balance_due" | "legal_mentions" | "validity_period" | "signed_by_client" | "signed_date" | "approved_by_staff_id" | "electronic_signature_path" | "version" | "parent_document_id" | "revision_reason" | "quotation_id" | "purchase_order_reference" | "delivery_address_id" | "delivery_date" | "shipping_costs" | "notes" | "file_path" | "created_at" | "updated_at", ExtArgs["result"]["documents"]>
+  export type documentsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "documentid" | "project_id" | "client_id" | "type" | "reference" | "status" | "amount" | "tva_rate" | "issue_date" | "due_date" | "payment_date" | "payment_method" | "payment_terms" | "discount_rate" | "discount_amount" | "payment_status" | "amount_paid" | "balance_due" | "legal_mentions" | "validity_period" | "signed_by_client" | "signed_date" | "approved_by_staff_id" | "electronic_signature_path" | "version" | "parent_document_id" | "revision_reason" | "quotation_id" | "purchase_order_reference" | "delivery_address_id" | "delivery_date" | "shipping_costs" | "notes" | "file_path" | "created_at" | "updated_at", ExtArgs["result"]["documents"]>
   export type documentsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     document_lines?: boolean | documents$document_linesArgs<ExtArgs>
     document_tags?: boolean | documents$document_tagsArgs<ExtArgs>
@@ -8314,6 +8338,7 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
+      documentid: string | null
       project_id: number
       client_id: number | null
       type: $Enums.document_type
@@ -8783,6 +8808,7 @@ export namespace Prisma {
    */
   interface documentsFieldRefs {
     readonly id: FieldRef<"documents", 'Int'>
+    readonly documentid: FieldRef<"documents", 'String'>
     readonly project_id: FieldRef<"documents", 'Int'>
     readonly client_id: FieldRef<"documents", 'Int'>
     readonly type: FieldRef<"documents", 'document_type'>
@@ -18282,6 +18308,7 @@ export namespace Prisma {
 
   export type ProjectsMinAggregateOutputType = {
     id: number | null
+    projectid: string | null
     reference: string | null
     name: string | null
     description: string | null
@@ -18302,6 +18329,7 @@ export namespace Prisma {
 
   export type ProjectsMaxAggregateOutputType = {
     id: number | null
+    projectid: string | null
     reference: string | null
     name: string | null
     description: string | null
@@ -18322,6 +18350,7 @@ export namespace Prisma {
 
   export type ProjectsCountAggregateOutputType = {
     id: number
+    projectid: number
     reference: number
     name: number
     description: number
@@ -18366,6 +18395,7 @@ export namespace Prisma {
 
   export type ProjectsMinAggregateInputType = {
     id?: true
+    projectid?: true
     reference?: true
     name?: true
     description?: true
@@ -18386,6 +18416,7 @@ export namespace Prisma {
 
   export type ProjectsMaxAggregateInputType = {
     id?: true
+    projectid?: true
     reference?: true
     name?: true
     description?: true
@@ -18406,6 +18437,7 @@ export namespace Prisma {
 
   export type ProjectsCountAggregateInputType = {
     id?: true
+    projectid?: true
     reference?: true
     name?: true
     description?: true
@@ -18513,6 +18545,7 @@ export namespace Prisma {
 
   export type ProjectsGroupByOutputType = {
     id: number
+    projectid: string | null
     reference: string
     name: string
     description: string | null
@@ -18552,6 +18585,7 @@ export namespace Prisma {
 
   export type projectsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    projectid?: boolean
     reference?: boolean
     name?: boolean
     description?: boolean
@@ -18586,6 +18620,7 @@ export namespace Prisma {
 
   export type projectsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    projectid?: boolean
     reference?: boolean
     name?: boolean
     description?: boolean
@@ -18608,6 +18643,7 @@ export namespace Prisma {
 
   export type projectsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    projectid?: boolean
     reference?: boolean
     name?: boolean
     description?: boolean
@@ -18630,6 +18666,7 @@ export namespace Prisma {
 
   export type projectsSelectScalar = {
     id?: boolean
+    projectid?: boolean
     reference?: boolean
     name?: boolean
     description?: boolean
@@ -18648,7 +18685,7 @@ export namespace Prisma {
     updated_at?: boolean
   }
 
-  export type projectsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "reference" | "name" | "description" | "client_id" | "address_id" | "status" | "start_date" | "end_date" | "estimated_duration" | "budget" | "actual_cost" | "margin" | "priority" | "notes" | "created_at" | "updated_at", ExtArgs["result"]["projects"]>
+  export type projectsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "projectid" | "reference" | "name" | "description" | "client_id" | "address_id" | "status" | "start_date" | "end_date" | "estimated_duration" | "budget" | "actual_cost" | "margin" | "priority" | "notes" | "created_at" | "updated_at", ExtArgs["result"]["projects"]>
   export type projectsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     documents?: boolean | projects$documentsArgs<ExtArgs>
     events?: boolean | projects$eventsArgs<ExtArgs>
@@ -18693,6 +18730,7 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
+      projectid: string | null
       reference: string
       name: string
       description: string | null
@@ -19146,6 +19184,7 @@ export namespace Prisma {
    */
   interface projectsFieldRefs {
     readonly id: FieldRef<"projects", 'Int'>
+    readonly projectid: FieldRef<"projects", 'String'>
     readonly reference: FieldRef<"projects", 'String'>
     readonly name: FieldRef<"projects", 'String'>
     readonly description: FieldRef<"projects", 'String'>
@@ -22225,6 +22264,7 @@ export namespace Prisma {
 
   export type StaffMinAggregateOutputType = {
     id: number | null
+    staffid: string | null
     firstname: string | null
     lastname: string | null
     email: string | null
@@ -22240,6 +22280,7 @@ export namespace Prisma {
 
   export type StaffMaxAggregateOutputType = {
     id: number | null
+    staffid: string | null
     firstname: string | null
     lastname: string | null
     email: string | null
@@ -22255,6 +22296,7 @@ export namespace Prisma {
 
   export type StaffCountAggregateOutputType = {
     id: number
+    staffid: number
     firstname: number
     lastname: number
     email: number
@@ -22284,6 +22326,7 @@ export namespace Prisma {
 
   export type StaffMinAggregateInputType = {
     id?: true
+    staffid?: true
     firstname?: true
     lastname?: true
     email?: true
@@ -22299,6 +22342,7 @@ export namespace Prisma {
 
   export type StaffMaxAggregateInputType = {
     id?: true
+    staffid?: true
     firstname?: true
     lastname?: true
     email?: true
@@ -22314,6 +22358,7 @@ export namespace Prisma {
 
   export type StaffCountAggregateInputType = {
     id?: true
+    staffid?: true
     firstname?: true
     lastname?: true
     email?: true
@@ -22416,6 +22461,7 @@ export namespace Prisma {
 
   export type StaffGroupByOutputType = {
     id: number
+    staffid: string | null
     firstname: string
     lastname: string
     email: string
@@ -22450,6 +22496,7 @@ export namespace Prisma {
 
   export type staffSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    staffid?: boolean
     firstname?: boolean
     lastname?: boolean
     email?: boolean
@@ -22479,6 +22526,7 @@ export namespace Prisma {
 
   export type staffSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    staffid?: boolean
     firstname?: boolean
     lastname?: boolean
     email?: boolean
@@ -22496,6 +22544,7 @@ export namespace Prisma {
 
   export type staffSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    staffid?: boolean
     firstname?: boolean
     lastname?: boolean
     email?: boolean
@@ -22513,6 +22562,7 @@ export namespace Prisma {
 
   export type staffSelectScalar = {
     id?: boolean
+    staffid?: boolean
     firstname?: boolean
     lastname?: boolean
     email?: boolean
@@ -22526,7 +22576,7 @@ export namespace Prisma {
     updated_at?: boolean
   }
 
-  export type staffOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "firstname" | "lastname" | "email" | "role_id" | "phone" | "mobile" | "address_id" | "hire_date" | "is_available" | "created_at" | "updated_at", ExtArgs["result"]["staff"]>
+  export type staffOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "staffid" | "firstname" | "lastname" | "email" | "role_id" | "phone" | "mobile" | "address_id" | "hire_date" | "is_available" | "created_at" | "updated_at", ExtArgs["result"]["staff"]>
   export type staffInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     documents?: boolean | staff$documentsArgs<ExtArgs>
     events?: boolean | staff$eventsArgs<ExtArgs>
@@ -22571,6 +22621,7 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
+      staffid: string | null
       firstname: string
       lastname: string
       email: string
@@ -23019,6 +23070,7 @@ export namespace Prisma {
    */
   interface staffFieldRefs {
     readonly id: FieldRef<"staff", 'Int'>
+    readonly staffid: FieldRef<"staff", 'String'>
     readonly firstname: FieldRef<"staff", 'String'>
     readonly lastname: FieldRef<"staff", 'String'>
     readonly email: FieldRef<"staff", 'String'>
@@ -37448,6 +37500,7 @@ export namespace Prisma {
 
   export const ClientsScalarFieldEnum: {
     id: 'id',
+    customerid: 'customerid',
     company_name: 'company_name',
     firstname: 'firstname',
     lastname: 'lastname',
@@ -37477,6 +37530,7 @@ export namespace Prisma {
 
   export const DocumentsScalarFieldEnum: {
     id: 'id',
+    documentid: 'documentid',
     project_id: 'project_id',
     client_id: 'client_id',
     type: 'type',
@@ -37641,6 +37695,7 @@ export namespace Prisma {
 
   export const ProjectsScalarFieldEnum: {
     id: 'id',
+    projectid: 'projectid',
     reference: 'reference',
     name: 'name',
     description: 'description',
@@ -37692,6 +37747,7 @@ export namespace Prisma {
 
   export const StaffScalarFieldEnum: {
     id: 'id',
+    staffid: 'staffid',
     firstname: 'firstname',
     lastname: 'lastname',
     email: 'email',
@@ -38207,6 +38263,7 @@ export namespace Prisma {
     OR?: clientsWhereInput[]
     NOT?: clientsWhereInput | clientsWhereInput[]
     id?: IntFilter<"clients"> | number
+    customerid?: StringNullableFilter<"clients"> | string | null
     company_name?: StringNullableFilter<"clients"> | string | null
     firstname?: StringFilter<"clients"> | string
     lastname?: StringFilter<"clients"> | string
@@ -38226,6 +38283,7 @@ export namespace Prisma {
 
   export type clientsOrderByWithRelationInput = {
     id?: SortOrder
+    customerid?: SortOrderInput | SortOrder
     company_name?: SortOrderInput | SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
@@ -38249,6 +38307,7 @@ export namespace Prisma {
     AND?: clientsWhereInput | clientsWhereInput[]
     OR?: clientsWhereInput[]
     NOT?: clientsWhereInput | clientsWhereInput[]
+    customerid?: StringNullableFilter<"clients"> | string | null
     company_name?: StringNullableFilter<"clients"> | string | null
     firstname?: StringFilter<"clients"> | string
     lastname?: StringFilter<"clients"> | string
@@ -38267,6 +38326,7 @@ export namespace Prisma {
 
   export type clientsOrderByWithAggregationInput = {
     id?: SortOrder
+    customerid?: SortOrderInput | SortOrder
     company_name?: SortOrderInput | SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
@@ -38290,6 +38350,7 @@ export namespace Prisma {
     OR?: clientsScalarWhereWithAggregatesInput[]
     NOT?: clientsScalarWhereWithAggregatesInput | clientsScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"clients"> | number
+    customerid?: StringNullableWithAggregatesFilter<"clients"> | string | null
     company_name?: StringNullableWithAggregatesFilter<"clients"> | string | null
     firstname?: StringWithAggregatesFilter<"clients"> | string
     lastname?: StringWithAggregatesFilter<"clients"> | string
@@ -38369,6 +38430,7 @@ export namespace Prisma {
     OR?: documentsWhereInput[]
     NOT?: documentsWhereInput | documentsWhereInput[]
     id?: IntFilter<"documents"> | number
+    documentid?: StringNullableFilter<"documents"> | string | null
     project_id?: IntFilter<"documents"> | number
     client_id?: IntNullableFilter<"documents"> | number | null
     type?: Enumdocument_typeFilter<"documents"> | $Enums.document_type
@@ -38418,6 +38480,7 @@ export namespace Prisma {
 
   export type documentsOrderByWithRelationInput = {
     id?: SortOrder
+    documentid?: SortOrderInput | SortOrder
     project_id?: SortOrder
     client_id?: SortOrderInput | SortOrder
     type?: SortOrder
@@ -38471,6 +38534,7 @@ export namespace Prisma {
     AND?: documentsWhereInput | documentsWhereInput[]
     OR?: documentsWhereInput[]
     NOT?: documentsWhereInput | documentsWhereInput[]
+    documentid?: StringNullableFilter<"documents"> | string | null
     project_id?: IntFilter<"documents"> | number
     client_id?: IntNullableFilter<"documents"> | number | null
     type?: Enumdocument_typeFilter<"documents"> | $Enums.document_type
@@ -38519,6 +38583,7 @@ export namespace Prisma {
 
   export type documentsOrderByWithAggregationInput = {
     id?: SortOrder
+    documentid?: SortOrderInput | SortOrder
     project_id?: SortOrder
     client_id?: SortOrderInput | SortOrder
     type?: SortOrder
@@ -38566,6 +38631,7 @@ export namespace Prisma {
     OR?: documentsScalarWhereWithAggregatesInput[]
     NOT?: documentsScalarWhereWithAggregatesInput | documentsScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"documents"> | number
+    documentid?: StringNullableWithAggregatesFilter<"documents"> | string | null
     project_id?: IntWithAggregatesFilter<"documents"> | number
     client_id?: IntNullableWithAggregatesFilter<"documents"> | number | null
     type?: Enumdocument_typeWithAggregatesFilter<"documents"> | $Enums.document_type
@@ -39287,6 +39353,7 @@ export namespace Prisma {
     OR?: projectsWhereInput[]
     NOT?: projectsWhereInput | projectsWhereInput[]
     id?: IntFilter<"projects"> | number
+    projectid?: StringNullableFilter<"projects"> | string | null
     reference?: StringFilter<"projects"> | string
     name?: StringFilter<"projects"> | string
     description?: StringNullableFilter<"projects"> | string | null
@@ -39320,6 +39387,7 @@ export namespace Prisma {
 
   export type projectsOrderByWithRelationInput = {
     id?: SortOrder
+    projectid?: SortOrderInput | SortOrder
     reference?: SortOrder
     name?: SortOrder
     description?: SortOrderInput | SortOrder
@@ -39357,6 +39425,7 @@ export namespace Prisma {
     AND?: projectsWhereInput | projectsWhereInput[]
     OR?: projectsWhereInput[]
     NOT?: projectsWhereInput | projectsWhereInput[]
+    projectid?: StringNullableFilter<"projects"> | string | null
     name?: StringFilter<"projects"> | string
     description?: StringNullableFilter<"projects"> | string | null
     client_id?: IntFilter<"projects"> | number
@@ -39389,6 +39458,7 @@ export namespace Prisma {
 
   export type projectsOrderByWithAggregationInput = {
     id?: SortOrder
+    projectid?: SortOrderInput | SortOrder
     reference?: SortOrder
     name?: SortOrder
     description?: SortOrderInput | SortOrder
@@ -39417,6 +39487,7 @@ export namespace Prisma {
     OR?: projectsScalarWhereWithAggregatesInput[]
     NOT?: projectsScalarWhereWithAggregatesInput | projectsScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"projects"> | number
+    projectid?: StringNullableWithAggregatesFilter<"projects"> | string | null
     reference?: StringWithAggregatesFilter<"projects"> | string
     name?: StringWithAggregatesFilter<"projects"> | string
     description?: StringNullableWithAggregatesFilter<"projects"> | string | null
@@ -39590,6 +39661,7 @@ export namespace Prisma {
     OR?: staffWhereInput[]
     NOT?: staffWhereInput | staffWhereInput[]
     id?: IntFilter<"staff"> | number
+    staffid?: StringNullableFilter<"staff"> | string | null
     firstname?: StringFilter<"staff"> | string
     lastname?: StringFilter<"staff"> | string
     email?: StringFilter<"staff"> | string
@@ -39618,6 +39690,7 @@ export namespace Prisma {
 
   export type staffOrderByWithRelationInput = {
     id?: SortOrder
+    staffid?: SortOrderInput | SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
     email?: SortOrder
@@ -39650,6 +39723,7 @@ export namespace Prisma {
     AND?: staffWhereInput | staffWhereInput[]
     OR?: staffWhereInput[]
     NOT?: staffWhereInput | staffWhereInput[]
+    staffid?: StringNullableFilter<"staff"> | string | null
     firstname?: StringFilter<"staff"> | string
     lastname?: StringFilter<"staff"> | string
     role_id?: IntFilter<"staff"> | number
@@ -39677,6 +39751,7 @@ export namespace Prisma {
 
   export type staffOrderByWithAggregationInput = {
     id?: SortOrder
+    staffid?: SortOrderInput | SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
     email?: SortOrder
@@ -39700,6 +39775,7 @@ export namespace Prisma {
     OR?: staffScalarWhereWithAggregatesInput[]
     NOT?: staffScalarWhereWithAggregatesInput | staffScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"staff"> | number
+    staffid?: StringNullableWithAggregatesFilter<"staff"> | string | null
     firstname?: StringWithAggregatesFilter<"staff"> | string
     lastname?: StringWithAggregatesFilter<"staff"> | string
     email?: StringWithAggregatesFilter<"staff"> | string
@@ -40921,6 +40997,7 @@ export namespace Prisma {
   }
 
   export type clientsCreateInput = {
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -40939,6 +41016,7 @@ export namespace Prisma {
 
   export type clientsUncheckedCreateInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -40956,6 +41034,7 @@ export namespace Prisma {
   }
 
   export type clientsUpdateInput = {
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -40974,6 +41053,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -40992,6 +41072,7 @@ export namespace Prisma {
 
   export type clientsCreateManyInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -41006,6 +41087,7 @@ export namespace Prisma {
   }
 
   export type clientsUpdateManyMutationInput = {
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -41020,6 +41102,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -41088,6 +41171,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -41131,6 +41215,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -41173,6 +41258,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -41216,6 +41302,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -41259,6 +41346,7 @@ export namespace Prisma {
 
   export type documentsCreateManyInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -41297,6 +41385,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateManyMutationInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -41330,6 +41419,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -42082,6 +42172,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -42113,6 +42204,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -42143,6 +42235,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42174,6 +42267,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42205,6 +42299,7 @@ export namespace Prisma {
 
   export type projectsCreateManyInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -42224,6 +42319,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateManyMutationInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42242,6 +42338,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42410,6 +42507,7 @@ export namespace Prisma {
   }
 
   export type staffCreateInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -42436,6 +42534,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -42461,6 +42560,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -42487,6 +42587,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -42513,6 +42614,7 @@ export namespace Prisma {
 
   export type staffCreateManyInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -42527,6 +42629,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateManyMutationInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -42540,6 +42643,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -44007,6 +44111,7 @@ export namespace Prisma {
 
   export type clientsCountOrderByAggregateInput = {
     id?: SortOrder
+    customerid?: SortOrder
     company_name?: SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
@@ -44027,6 +44132,7 @@ export namespace Prisma {
 
   export type clientsMaxOrderByAggregateInput = {
     id?: SortOrder
+    customerid?: SortOrder
     company_name?: SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
@@ -44042,6 +44148,7 @@ export namespace Prisma {
 
   export type clientsMinOrderByAggregateInput = {
     id?: SortOrder
+    customerid?: SortOrder
     company_name?: SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
@@ -44197,6 +44304,7 @@ export namespace Prisma {
 
   export type documentsCountOrderByAggregateInput = {
     id?: SortOrder
+    documentid?: SortOrder
     project_id?: SortOrder
     client_id?: SortOrder
     type?: SortOrder
@@ -44255,6 +44363,7 @@ export namespace Prisma {
 
   export type documentsMaxOrderByAggregateInput = {
     id?: SortOrder
+    documentid?: SortOrder
     project_id?: SortOrder
     client_id?: SortOrder
     type?: SortOrder
@@ -44294,6 +44403,7 @@ export namespace Prisma {
 
   export type documentsMinOrderByAggregateInput = {
     id?: SortOrder
+    documentid?: SortOrder
     project_id?: SortOrder
     client_id?: SortOrder
     type?: SortOrder
@@ -45006,6 +45116,7 @@ export namespace Prisma {
 
   export type projectsCountOrderByAggregateInput = {
     id?: SortOrder
+    projectid?: SortOrder
     reference?: SortOrder
     name?: SortOrder
     description?: SortOrder
@@ -45037,6 +45148,7 @@ export namespace Prisma {
 
   export type projectsMaxOrderByAggregateInput = {
     id?: SortOrder
+    projectid?: SortOrder
     reference?: SortOrder
     name?: SortOrder
     description?: SortOrder
@@ -45057,6 +45169,7 @@ export namespace Prisma {
 
   export type projectsMinOrderByAggregateInput = {
     id?: SortOrder
+    projectid?: SortOrder
     reference?: SortOrder
     name?: SortOrder
     description?: SortOrder
@@ -45201,6 +45314,7 @@ export namespace Prisma {
 
   export type staffCountOrderByAggregateInput = {
     id?: SortOrder
+    staffid?: SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
     email?: SortOrder
@@ -45222,6 +45336,7 @@ export namespace Prisma {
 
   export type staffMaxOrderByAggregateInput = {
     id?: SortOrder
+    staffid?: SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
     email?: SortOrder
@@ -45237,6 +45352,7 @@ export namespace Prisma {
 
   export type staffMinOrderByAggregateInput = {
     id?: SortOrder
+    staffid?: SortOrder
     firstname?: SortOrder
     lastname?: SortOrder
     email?: SortOrder
@@ -49356,6 +49472,7 @@ export namespace Prisma {
   }
 
   export type clientsCreateWithoutAddressesInput = {
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -49373,6 +49490,7 @@ export namespace Prisma {
 
   export type clientsUncheckedCreateWithoutAddressesInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -49399,6 +49517,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutAddressesInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -49441,6 +49560,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutAddressesInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -49492,6 +49612,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutAddressesInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -49522,6 +49643,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutAddressesInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -49561,6 +49683,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutAddressesInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -49586,6 +49709,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutAddressesInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -49640,6 +49764,7 @@ export namespace Prisma {
     OR?: clientsScalarWhereInput[]
     NOT?: clientsScalarWhereInput | clientsScalarWhereInput[]
     id?: IntFilter<"clients"> | number
+    customerid?: StringNullableFilter<"clients"> | string | null
     company_name?: StringNullableFilter<"clients"> | string | null
     firstname?: StringFilter<"clients"> | string
     lastname?: StringFilter<"clients"> | string
@@ -49674,6 +49799,7 @@ export namespace Prisma {
     OR?: documentsScalarWhereInput[]
     NOT?: documentsScalarWhereInput | documentsScalarWhereInput[]
     id?: IntFilter<"documents"> | number
+    documentid?: StringNullableFilter<"documents"> | string | null
     project_id?: IntFilter<"documents"> | number
     client_id?: IntNullableFilter<"documents"> | number | null
     type?: Enumdocument_typeFilter<"documents"> | $Enums.document_type
@@ -49732,6 +49858,7 @@ export namespace Prisma {
     OR?: projectsScalarWhereInput[]
     NOT?: projectsScalarWhereInput | projectsScalarWhereInput[]
     id?: IntFilter<"projects"> | number
+    projectid?: StringNullableFilter<"projects"> | string | null
     reference?: StringFilter<"projects"> | string
     name?: StringFilter<"projects"> | string
     description?: StringNullableFilter<"projects"> | string | null
@@ -49771,6 +49898,7 @@ export namespace Prisma {
     OR?: staffScalarWhereInput[]
     NOT?: staffScalarWhereInput | staffScalarWhereInput[]
     id?: IntFilter<"staff"> | number
+    staffid?: StringNullableFilter<"staff"> | string | null
     firstname?: StringFilter<"staff"> | string
     lastname?: StringFilter<"staff"> | string
     email?: StringFilter<"staff"> | string
@@ -49823,6 +49951,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutClientsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -49865,6 +49994,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutClientsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     type: $Enums.document_type
     reference: string
@@ -49959,6 +50089,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutClientsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -49989,6 +50120,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutClientsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -50141,6 +50273,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutDocument_tagsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -50183,6 +50316,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutDocument_tagsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -50264,6 +50398,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutDocument_tagsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -50306,6 +50441,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutDocument_tagsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -50442,6 +50578,7 @@ export namespace Prisma {
   }
 
   export type clientsCreateWithoutDocumentsInput = {
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -50459,6 +50596,7 @@ export namespace Prisma {
 
   export type clientsUncheckedCreateWithoutDocumentsInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -50518,6 +50656,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutOther_documents_documents_parent_document_idTodocumentsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -50560,6 +50699,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutOther_documents_documents_parent_document_idTodocumentsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -50606,6 +50746,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutDocuments_documents_parent_document_idTodocumentsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -50648,6 +50789,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutDocuments_documents_parent_document_idTodocumentsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -50699,6 +50841,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutDocumentsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -50729,6 +50872,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutDocumentsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -50763,6 +50907,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutOther_documents_documents_quotation_idTodocumentsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -50805,6 +50950,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutOther_documents_documents_quotation_idTodocumentsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -50851,6 +50997,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutDocuments_documents_quotation_idTodocumentsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -50893,6 +51040,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutDocuments_documents_quotation_idTodocumentsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -50944,6 +51092,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutDocumentsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -50969,6 +51118,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutDocumentsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -51072,6 +51222,7 @@ export namespace Prisma {
   }
 
   export type clientsUpdateWithoutDocumentsInput = {
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -51089,6 +51240,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateWithoutDocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -51160,6 +51312,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutOther_documents_documents_parent_document_idTodocumentsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -51202,6 +51355,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutOther_documents_documents_parent_document_idTodocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -51270,6 +51424,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutDocumentsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -51300,6 +51455,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutDocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -51340,6 +51496,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutOther_documents_documents_quotation_idTodocumentsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -51382,6 +51539,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutOther_documents_documents_quotation_idTodocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -51450,6 +51608,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutDocumentsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -51475,6 +51634,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutDocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -51499,6 +51659,7 @@ export namespace Prisma {
   }
 
   export type clientsCreateWithoutEventsInput = {
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -51516,6 +51677,7 @@ export namespace Prisma {
 
   export type clientsUncheckedCreateWithoutEventsInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -51537,6 +51699,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutEventsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -51567,6 +51730,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutEventsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -51601,6 +51765,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutEventsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -51626,6 +51791,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutEventsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -51666,6 +51832,7 @@ export namespace Prisma {
   }
 
   export type clientsUpdateWithoutEventsInput = {
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -51683,6 +51850,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateWithoutEventsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -51710,6 +51878,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutEventsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -51740,6 +51909,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutEventsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -51780,6 +51950,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutEventsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -51805,6 +51976,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutEventsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -51987,6 +52159,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutProject_materialsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -52017,6 +52190,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutProject_materialsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -52160,6 +52334,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutProject_materialsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52190,6 +52365,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutProject_materialsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52281,6 +52457,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutProject_mediaInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -52311,6 +52488,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutProject_mediaInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -52345,6 +52523,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutProject_mediaInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -52370,6 +52549,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutProject_mediaInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -52466,6 +52646,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutProject_mediaInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52496,6 +52677,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutProject_mediaInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52536,6 +52718,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutProject_mediaInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -52561,6 +52744,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutProject_mediaInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -52647,6 +52831,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutProject_staffInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -52677,6 +52862,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutProject_staffInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -52711,6 +52897,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutProject_staffInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -52736,6 +52923,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutProject_staffInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -52832,6 +53020,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutProject_staffInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52862,6 +53051,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutProject_staffInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52902,6 +53092,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutProject_staffInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -52927,6 +53118,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutProject_staffInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -53116,6 +53308,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutProject_stagesInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -53146,6 +53339,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutProject_stagesInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -53441,6 +53635,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutProject_stagesInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -53471,6 +53666,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutProject_stagesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -53661,6 +53857,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutProject_tagsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -53691,6 +53888,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutProject_tagsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -53760,6 +53958,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutProject_tagsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -53790,6 +53989,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutProject_tagsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -53849,6 +54049,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutProjectsInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -53891,6 +54092,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutProjectsInput = {
     id?: number
+    documentid?: string | null
     client_id?: number | null
     type: $Enums.document_type
     reference: string
@@ -54211,6 +54413,7 @@ export namespace Prisma {
   }
 
   export type clientsCreateWithoutProjectsInput = {
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -54228,6 +54431,7 @@ export namespace Prisma {
 
   export type clientsUncheckedCreateWithoutProjectsInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -54605,6 +54809,7 @@ export namespace Prisma {
   }
 
   export type clientsUpdateWithoutProjectsInput = {
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -54622,6 +54827,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateWithoutProjectsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -54742,6 +54948,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutRolesInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -54767,6 +54974,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutRolesInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -54817,6 +55025,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutSite_reportsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -54847,6 +55056,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutSite_reportsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -54881,6 +55091,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutSite_reportsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -54906,6 +55117,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutSite_reportsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -55002,6 +55214,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutSite_reportsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -55032,6 +55245,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutSite_reportsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -55072,6 +55286,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutSite_reportsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -55097,6 +55312,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutSite_reportsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -55183,6 +55399,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutStaffInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -55225,6 +55442,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutStaffInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -55989,6 +56207,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutStage_checklistsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -56014,6 +56233,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutStage_checklistsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -56110,6 +56330,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutStage_checklistsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -56135,6 +56356,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutStage_checklistsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -56513,6 +56735,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutTasksInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -56538,6 +56761,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutTasksInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -56634,6 +56858,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutTasksInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -56659,6 +56884,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutTasksInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -56745,6 +56971,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutTime_logsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -56775,6 +57002,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutTime_logsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -56809,6 +57037,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutTime_logsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -56834,6 +57063,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutTime_logsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -56930,6 +57160,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutTime_logsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -56960,6 +57191,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutTime_logsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -57000,6 +57232,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutTime_logsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -57025,6 +57258,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutTime_logsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -57111,6 +57345,7 @@ export namespace Prisma {
   }
 
   export type documentsCreateWithoutDocument_linesInput = {
+    documentid?: string | null
     type: $Enums.document_type
     reference: string
     status?: $Enums.document_status | null
@@ -57153,6 +57388,7 @@ export namespace Prisma {
 
   export type documentsUncheckedCreateWithoutDocument_linesInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -57246,6 +57482,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutDocument_linesInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -57288,6 +57525,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutDocument_linesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -57371,6 +57609,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutVehicle_incidentsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -57396,6 +57635,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutVehicle_incidentsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -57492,6 +57732,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutVehicle_incidentsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -57517,6 +57758,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutVehicle_incidentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -57721,6 +57963,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutVehicle_refuelingInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -57751,6 +57994,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutVehicle_refuelingInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -57785,6 +58029,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutVehicle_refuelingInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -57810,6 +58055,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutVehicle_refuelingInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -57906,6 +58152,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutVehicle_refuelingInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -57936,6 +58183,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutVehicle_refuelingInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -57976,6 +58224,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutVehicle_refuelingInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -58001,6 +58250,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutVehicle_refuelingInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -58087,6 +58337,7 @@ export namespace Prisma {
   }
 
   export type projectsCreateWithoutVehicle_reservationsInput = {
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -58117,6 +58368,7 @@ export namespace Prisma {
 
   export type projectsUncheckedCreateWithoutVehicle_reservationsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -58151,6 +58403,7 @@ export namespace Prisma {
   }
 
   export type staffCreateWithoutVehicle_reservationsInput = {
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -58176,6 +58429,7 @@ export namespace Prisma {
 
   export type staffUncheckedCreateWithoutVehicle_reservationsInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -58272,6 +58526,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutVehicle_reservationsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -58302,6 +58557,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutVehicle_reservationsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -58342,6 +58598,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutVehicle_reservationsInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -58367,6 +58624,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutVehicle_reservationsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -58711,6 +58969,7 @@ export namespace Prisma {
 
   export type clientsCreateManyAddressesInput = {
     id?: number
+    customerid?: string | null
     company_name?: string | null
     firstname: string
     lastname: string
@@ -58725,6 +58984,7 @@ export namespace Prisma {
 
   export type documentsCreateManyAddressesInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -58763,6 +59023,7 @@ export namespace Prisma {
 
   export type projectsCreateManyAddressesInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -58782,6 +59043,7 @@ export namespace Prisma {
 
   export type staffCreateManyAddressesInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -58795,6 +59057,7 @@ export namespace Prisma {
   }
 
   export type clientsUpdateWithoutAddressesInput = {
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -58812,6 +59075,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -58829,6 +59093,7 @@ export namespace Prisma {
 
   export type clientsUncheckedUpdateManyWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    customerid?: NullableStringFieldUpdateOperationsInput | string | null
     company_name?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
@@ -58842,6 +59107,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutAddressesInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -58884,6 +59150,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -58926,6 +59193,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -58963,6 +59231,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutAddressesInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -58993,6 +59262,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59023,6 +59293,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateManyWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59041,6 +59312,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutAddressesInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -59066,6 +59338,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -59091,6 +59364,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateManyWithoutAddressesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -59105,6 +59379,7 @@ export namespace Prisma {
 
   export type documentsCreateManyClientsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     type: $Enums.document_type
     reference: string
@@ -59160,6 +59435,7 @@ export namespace Prisma {
 
   export type projectsCreateManyClientsInput = {
     id?: number
+    projectid?: string | null
     reference: string
     name: string
     description?: string | null
@@ -59178,6 +59454,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutClientsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -59220,6 +59497,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutClientsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
@@ -59262,6 +59540,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyWithoutClientsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
@@ -59349,6 +59628,7 @@ export namespace Prisma {
   }
 
   export type projectsUpdateWithoutClientsInput = {
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59379,6 +59659,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateWithoutClientsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59409,6 +59690,7 @@ export namespace Prisma {
 
   export type projectsUncheckedUpdateManyWithoutClientsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    projectid?: NullableStringFieldUpdateOperationsInput | string | null
     reference?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59451,6 +59733,7 @@ export namespace Prisma {
 
   export type documentsCreateManyDocuments_documents_parent_document_idTodocumentsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -59489,6 +59772,7 @@ export namespace Prisma {
 
   export type documentsCreateManyDocuments_documents_quotation_idTodocumentsInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -59594,6 +59878,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutDocuments_documents_parent_document_idTodocumentsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -59636,6 +59921,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutDocuments_documents_parent_document_idTodocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -59678,6 +59964,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyWithoutDocuments_documents_parent_document_idTodocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -59715,6 +60002,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutDocuments_documents_quotation_idTodocumentsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -59757,6 +60045,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutDocuments_documents_quotation_idTodocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -59799,6 +60088,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyWithoutDocuments_documents_quotation_idTodocumentsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -60336,6 +60626,7 @@ export namespace Prisma {
 
   export type documentsCreateManyProjectsInput = {
     id?: number
+    documentid?: string | null
     client_id?: number | null
     type: $Enums.document_type
     reference: string
@@ -60513,6 +60804,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutProjectsInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -60555,6 +60847,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutProjectsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
@@ -60597,6 +60890,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyWithoutProjectsInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
@@ -61062,6 +61356,7 @@ export namespace Prisma {
 
   export type staffCreateManyRolesInput = {
     id?: number
+    staffid?: string | null
     firstname: string
     lastname: string
     email: string
@@ -61075,6 +61370,7 @@ export namespace Prisma {
   }
 
   export type staffUpdateWithoutRolesInput = {
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -61100,6 +61396,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateWithoutRolesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -61125,6 +61422,7 @@ export namespace Prisma {
 
   export type staffUncheckedUpdateManyWithoutRolesInput = {
     id?: IntFieldUpdateOperationsInput | number
+    staffid?: NullableStringFieldUpdateOperationsInput | string | null
     firstname?: StringFieldUpdateOperationsInput | string
     lastname?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -61139,6 +61437,7 @@ export namespace Prisma {
 
   export type documentsCreateManyStaffInput = {
     id?: number
+    documentid?: string | null
     project_id: number
     client_id?: number | null
     type: $Enums.document_type
@@ -61324,6 +61623,7 @@ export namespace Prisma {
   }
 
   export type documentsUpdateWithoutStaffInput = {
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
     reference?: StringFieldUpdateOperationsInput | string
     status?: NullableEnumdocument_statusFieldUpdateOperationsInput | $Enums.document_status | null
@@ -61366,6 +61666,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateWithoutStaffInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
@@ -61408,6 +61709,7 @@ export namespace Prisma {
 
   export type documentsUncheckedUpdateManyWithoutStaffInput = {
     id?: IntFieldUpdateOperationsInput | number
+    documentid?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: IntFieldUpdateOperationsInput | number
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     type?: Enumdocument_typeFieldUpdateOperationsInput | $Enums.document_type
