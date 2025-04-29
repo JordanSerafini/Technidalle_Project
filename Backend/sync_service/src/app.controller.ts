@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Param, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Param, Logger, Res } from '@nestjs/common';
 import { AppService } from './app.service';
+import { Response } from 'express';
 
 interface SyncOperationResponse {
   success: boolean;
@@ -265,6 +266,32 @@ export class AppController {
           'Erreur lors de la synchronisation complète des tables sélectionnées',
         error: (error as Error).message,
       };
+    }
+  }
+
+  @Get('generate-interface/:tableName')
+  async generateInterface(
+    @Param('tableName') tableName: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const interfaceString = await this.appService.generateInterfaceFromTable(tableName);
+      res.setHeader('Content-Type', 'text/plain');
+      res.status(200).send(interfaceString);
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération de l'interface pour la table ${tableName}`,
+        error,
+      );
+      const message = 
+        error instanceof Error && error.message.includes('non trouvée')
+        ? `Table '${tableName}' non trouvée.`
+        : `Erreur lors de la génération de l'interface pour la table ${tableName}`;
+      res.status(error instanceof Error && error.message.includes('non trouvée') ? 404 : 500).json({
+        success: false,
+        message: message,
+        error: (error as Error).message,
+      });
     }
   }
 }

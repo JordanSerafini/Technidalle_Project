@@ -1,4 +1,5 @@
 import { DocumentStatus, DocumentType } from './document';
+import { Material } from './material.interface';
 
 export interface DevisLine {
   id?: number;
@@ -64,3 +65,15 @@ export interface CreateDevisDto {
   file_path?: string;
   lines: CreateDevisLineDto[];
 } 
+
+
+// Étendre l'interface DevisRow pour inclure les propriétés manquantes
+export interface ExtendedDevisRow {
+  id: string;
+  material: Material | null;
+  quantity: number;
+  price: number;
+  description?: string;
+  unit?: string;
+  discount?: number;
+}

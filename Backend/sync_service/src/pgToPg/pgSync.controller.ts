@@ -18,6 +18,6 @@ export class PgSyncController {
   @Get('sync-items')
   async syncAllItems() {
     this.logger.log('Démarrage de la synchronisation des articles');
-    return this.pgSyncService.syncAllItems();
+    return await this.pgSyncService.syncAllItems();
   }
 }

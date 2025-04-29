@@ -7,6 +7,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
+import AccordionItem from '../../components/documents/AccordionItem';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -30,41 +31,12 @@ const statusColors: Record<project_status, string> = {
   annule: '#F44336'
 };
 
-// Interface pour les props de AccordionItem
-interface AccordionItemProps {
-  isExpanded: boolean;
-  children: React.ReactNode;
-  maxHeight?: number;
-}
-
-// Composant AccordionItem pour l'animation
-function AccordionItem({ isExpanded, children, maxHeight = 1000 }: AccordionItemProps) {
-  const [height] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    Animated.timing(height, {
-      toValue: isExpanded ? maxHeight : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isExpanded, maxHeight]);
-
-  // Si l'accordéon est déplié, on n'applique pas de hauteur fixe
-  if (isExpanded) {
-    return (
-      <View style={{ height: 'auto' }}>
-        {children}
-      </View>
-    );
-  }
-
-  // Si l'accordéon est fermé, on utilise l'animation
-  return (
-    <Animated.View style={{ height, overflow: 'hidden' }}>
-      {children}
-    </Animated.View>
-  );
-}
+const getProjectCountColor = (count: number): string => {
+  if (count >= 10) return '#F44336';
+  if (count >= 7) return '#FF9800';
+  if (count >= 4) return '#4CAF50'; 
+  return '#2196F3';                  
+};
 
 export default function ProjetsScreen() {
   const router = useRouter();
@@ -85,9 +57,7 @@ export default function ProjetsScreen() {
     removeApplyListener
   } = useProjectStore();
   
-  // Gestionnaires simplifiés pour le filtre
   const handleCloseFilter = useCallback(() => {
-    // Animer d'abord, puis masquer
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -155,18 +125,15 @@ export default function ProjetsScreen() {
     }
   }, [data, setProjects]);
   
-  // Écouter l'événement d'application des filtres pour fermer automatiquement le filtre
   useEffect(() => {
     const handleApplyFilters = () => {
       handleCloseFilter();
     };
     
-    // Ajouter l'écouteur d'événement
     if (addApplyListener) {
       addApplyListener(handleApplyFilters);
     }
     
-    // Nettoyer l'écouteur à la destruction du composant
     return () => {
       if (removeApplyListener) {
         removeApplyListener(handleApplyFilters);
@@ -174,12 +141,10 @@ export default function ProjetsScreen() {
     };
   }, [handleCloseFilter, addApplyListener, removeApplyListener]);
 
-  // Regrouper les projets par mois avec useMemo
   const sortedProjectsByMonth = useMemo(() => {
     if (!filteredProjects || filteredProjects.length === 0) return {};
     
     const grouped = filteredProjects.reduce((acc, project) => {
-      // Utiliser la date de début comme référence pour le regroupement
       const dateReference = project.start_date ? new Date(project.start_date) : new Date();
       const monthYear = `${dateReference.getMonth() + 1}/${dateReference.getFullYear()}`;
       
@@ -191,7 +156,6 @@ export default function ProjetsScreen() {
       return acc;
     }, {} as { [key: string]: Project[] });
     
-    // Trier les mois par ordre chronologique inverse (plus récent d'abord)
     return Object.keys(grouped)
       .sort((a, b) => {
         const [monthA, yearA] = a.split('/').map(Number);
@@ -204,15 +168,12 @@ export default function ProjetsScreen() {
       }, {} as { [key: string]: Project[] });
   }, [filteredProjects]);
   
-  // Mettre à jour projectsByMonth et expandedSections quand sortedProjectsByMonth change
   useEffect(() => {
     setProjectsByMonth(sortedProjectsByMonth);
     
-    // Mettre à jour expandedSections pour conserver l'état d'expansion ou initialiser à false
     setExpandedSections(prevExpandedSections => {
       const newExpandedSections = {} as { [key: string]: boolean };
       
-      // Conserver uniquement les clés qui existent dans sortedProjectsByMonth
       Object.keys(sortedProjectsByMonth).forEach(key => {
         newExpandedSections[key] = prevExpandedSections[key] || false;
       });
@@ -221,7 +182,6 @@ export default function ProjetsScreen() {
     });
   }, [sortedProjectsByMonth]);
 
-  // Formater l'affichage du mois en français
   const formatMonthYear = (monthYear: string) => {
     const [month, year] = monthYear.split('/');
     const monthNames = [
@@ -231,7 +191,6 @@ export default function ProjetsScreen() {
     return `${monthNames[parseInt(month) - 1]} ${year}`;
   };
   
-  // Toggle l'expansion d'une section
   const toggleSection = (monthYear: string) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -258,11 +217,9 @@ export default function ProjetsScreen() {
         { text: 'OK', onPress: () => {} }
       ]
     );
-    // Implémentation à venir
   };
 
   const handleEditProject = () => {
-    // Action pour éditer un projet
     Alert.alert(
       'Éditer un projet',
       'Voulez-vous éditer un projet?',
@@ -271,7 +228,6 @@ export default function ProjetsScreen() {
         { text: 'OK', onPress: () => {} }
       ]
     );
-    // Implémentation à venir
   };
 
   const handleOtherOptions = () => {
@@ -283,20 +239,16 @@ export default function ProjetsScreen() {
         { text: 'OK', onPress: () => {} }
       ]
     );
-    // Implémentation à venir
   };
 
-  // Fonction pour effacer la recherche
   const clearSearch = () => {
     setSearchQuery('');
   };
   
-  // Rendu d'un élément projet individuel
   const renderProjectItem = (projet: Project) => (
     <TouchableOpacity 
       key={projet.id} 
-      className="bg-white p-4 rounded-lg shadow-sm mb-4"
-      onPress={() => navigateToProjectDetail(projet.id)}
+      className="bg-white p-4 rounded-xl shadow-md mb-5 active:opacity-70"      onPress={() => navigateToProjectDetail(projet.id)}
     >
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
@@ -334,32 +286,164 @@ export default function ProjetsScreen() {
     </TouchableOpacity>
   );
   
+  const getWeekNumber = (date: Date): number => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
+
+  // Fonction pour formater l'affichage de la semaine
+  const formatWeek = (weekNum: number, year: number, projectCount: number): string => {
+    // Calculer la date du premier jour de la semaine (lundi)
+    const firstDayOfYear = new Date(year, 0, 1);
+    const dayOffset = firstDayOfYear.getDay() === 0 ? 7 : firstDayOfYear.getDay();
+    const dayOfYear = (weekNum * 7) - (7 - (dayOffset - 1));
+    
+    // Date de début (lundi de la semaine)
+    const startDate = new Date(year, 0, dayOfYear);
+    
+    // Date de fin (dimanche de la semaine)
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    
+    // Formater les dates en DD/MM/YYYY
+    const formatDate = (date: Date): string => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    
+    return `du ${formatDate(startDate)} au ${formatDate(endDate)}`;
+  };
+
+  const groupProjectsByWeek = (projects: Project[]): { [key: string]: Project[] } => {
+    const grouped: { [key: string]: Project[] } = {};
+
+    if (projects.length > 5) {
+      projects.forEach(project => {
+        const date = project.start_date ? new Date(project.start_date) : new Date();
+        const weekNum = getWeekNumber(date);
+        const year = date.getFullYear();
+        const weekKey = `${weekNum}-${year}`;
+        
+        if (!grouped[weekKey]) {
+          grouped[weekKey] = [];
+        }
+        
+        grouped[weekKey].push(project);
+      });
+      
+      // Trier les semaines par ordre chronologique 
+      return Object.keys(grouped)
+        .sort((a, b) => {
+          const [weekA, yearA] = a.split('-').map(Number);
+          const [weekB, yearB] = b.split('-').map(Number);
+          return (yearB - yearA) || (weekA - weekB);
+        })
+        .reduce((acc, key) => {
+          acc[key] = grouped[key];
+          return acc;
+        }, {} as { [key: string]: Project[] });
+    } else {
+      grouped["all"] = projects;
+      return grouped;
+    }
+  };
+  
+  // État pour suivre les sous-sections développées
+  const [expandedWeeks, setExpandedWeeks] = useState<{ [key: string]: boolean }>({});
+  
+  // Toggle l'expansion d'une sous-section semaine
+  const toggleWeekSection = (weekKey: string) => {
+    setExpandedWeeks(prev => ({
+      ...prev,
+      [weekKey]: !prev[weekKey]
+    }));
+  };
+
   // Rendu des sections mensuelles
   const renderMonthSections = () => {
-    return Object.entries(projectsByMonth).map(([monthYear, projets]) => (
-      <View key={monthYear} className="mb-4">
-        <TouchableOpacity 
-          className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
-          onPress={() => toggleSection(monthYear)}
-        >
-          <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
-            <Text className="font-bold text-blue-800">{projets.length}</Text>
-          </View>
-          <Text className="flex-1 text-lg font-medium text-gray-800">{formatMonthYear(monthYear)}</Text>
-          <Ionicons 
-            name={expandedSections[monthYear] ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#6b7280" 
-          />
-        </TouchableOpacity>
-        
-        <AccordionItem isExpanded={expandedSections[monthYear]}>
-          <View className="mt-2">
-            {projets.map(projet => renderProjectItem(projet))}
-          </View>
-        </AccordionItem>
-      </View>
-    ));
+    return Object.entries(projectsByMonth).map(([monthYear, projets]) => {
+      // Utiliser une couleur fixe pour tous les badges
+      const badgeColor = '#3F51B5'; // Couleur fixe (indigo)
+      
+      return (
+        <View key={monthYear} className="mb-4">
+          <TouchableOpacity 
+            className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
+            onPress={() => toggleSection(monthYear)}
+          >
+            {/* Badge stylisé pour le nombre de projets */}
+            <View style={{ 
+              width: 40, 
+              height: 40, 
+              borderRadius: 20, 
+              backgroundColor: badgeColor,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.2,
+              shadowRadius: 2,
+              elevation: 2,
+            }} className="items-center justify-center mr-3">
+              <Text className="font-bold text-white" style={{ fontSize: 16 }}>
+                {projets.length}
+              </Text>
+            </View>
+            
+            <Text className="flex-1 text-lg font-medium text-gray-800">{formatMonthYear(monthYear)}</Text>
+            <Ionicons 
+              name={expandedSections[monthYear] ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color="#6b7280" 
+            />
+          </TouchableOpacity>
+          
+          <AccordionItem isExpanded={expandedSections[monthYear]}>
+            <View className="mt-2">
+              {/* Regrouper par semaine si beaucoup de projets */}
+              {(() => {
+                const projectsByWeek = groupProjectsByWeek(projets);
+                
+                return Object.entries(projectsByWeek).map(([weekKey, weekProjects]) => {
+                  // Si c'est le groupe "all", on affiche directement les projets
+                  if (weekKey === "all") {
+                    return weekProjects.map(projet => renderProjectItem(projet));
+                  }
+                  
+                  // Sinon, on crée un sous-accordéon par semaine
+                  const [weekNum, year] = weekKey.split('-').map(Number);
+                  
+                  return (
+                    <View key={weekKey} className="mb-3">
+                      <TouchableOpacity 
+                        className="flex-row items-center bg-gray-100 rounded-lg p-2 mb-2"
+                        onPress={() => toggleWeekSection(weekKey)}
+                      >
+                        <Text className="flex-1 text-md font-medium text-gray-700">
+                          {formatWeek(weekNum, year, weekProjects.length)} <Text className="text-gray-500 text-sm">({weekProjects.length})</Text>
+                        </Text>
+                        <Ionicons 
+                          name={expandedWeeks[weekKey] ? "chevron-up" : "chevron-down"} 
+                          size={18} 
+                          color="#6b7280" 
+                        />
+                      </TouchableOpacity>
+                      
+                      <AccordionItem isExpanded={expandedWeeks[weekKey] ?? false}>
+                        <View>
+                          {weekProjects.map(projet => renderProjectItem(projet))}
+                        </View>
+                      </AccordionItem>
+                    </View>
+                  );
+                });
+              })()}
+            </View>
+          </AccordionItem>
+        </View>
+      );
+    });
   };
 
   if (loading) {
