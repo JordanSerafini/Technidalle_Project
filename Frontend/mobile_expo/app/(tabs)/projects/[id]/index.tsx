@@ -200,24 +200,33 @@ export default function ProjectDetailScreen() {
       
       // 2. Assigner le personnel si nécessaire
       if (staffAssignments.length > 0) {
-        // Ceci suppose que votre backend a un endpoint pour associer du personnel à une étape
-        // Vous devrez probablement créer cet endpoint
+        // Utiliser le bon endpoint et le bon format de données
         for (const assignment of staffAssignments) {
-          const staffAssignmentResponse = await fetch(`${url.local}/projects/stages/${newStage.id}/staff`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-              staffId: assignment.staffId,
-              roleDescription: assignment.roleDescription || 'Membre d\'équipe',
-              // Ajoutez d'autres champs selon vos besoins
-            })
-          });
-          
-          if (!staffAssignmentResponse.ok) {
-            console.warn(`Erreur lors de l'assignation du membre ${assignment.staffName}`);
+          try {
+            const staffAssignmentResponse = await fetch(`${url.local}events/assign-staff`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({
+                projectId: Number(id), // ID du projet
+                staffId: assignment.staffId, // ID du membre du personnel
+                stageId: newStage.id, // ID de la nouvelle étape
+                roleDescription: assignment.roleDescription || 'Membre d\'équipe',
+                startDate: stageDataForPrisma.start_date, // Utiliser la date de début de l'étape
+                endDate: stageDataForPrisma.end_date, // Utiliser la date de fin de l'étape
+                // hoursPlanned: ... // Non disponible ici, gérer séparément si nécessaire
+              })
+            });
+            
+            if (!staffAssignmentResponse.ok) {
+              console.warn(`Erreur lors de l'assignation du membre ${assignment.staffName}: ${staffAssignmentResponse.status}`);
+            } else {
+              console.log(`Membre ${assignment.staffName} assigné avec succès à l'étape ${newStage.name}`);
+            }
+          } catch (assignError) {
+            console.error(`Erreur critique lors de l'assignation de ${assignment.staffName}:`, assignError);
           }
         }
       }

@@ -51,12 +51,20 @@ interface ProjectDetails {
 }
 
 // ScheduleAssignment: inclut maintenant projet ET étape (optionnelle)
-interface ScheduleAssignment {
-  date: string;
-  startTime: string;
-  endTime: string;
-  project: ProjectDetails | { id: number; name: string }; // Détails du projet global
-  stage?: StageDetails | null; // Détails de l'étape spécifique (si event.stage_id existe)
+// Modifiée pour inclure le type et potentiellement un titre
+interface ScheduleItem {
+  type: 'event' | 'assignment'; // Différencie un événement ponctuel d'une période d'assignation
+  id: string; // ID unique préfixé (e.g., "event-123", "assign-456")
+  title: string; // Titre de l'événement ou description de l'assignation
+  startTime: string; // ISO string date/heure de début
+  endTime: string | null; // ISO string date/heure de fin (peut être null pour assignation sans fin)
+  allDay: boolean; // Indique si c'est un événement/assignation sur toute la journée
+  project?: Partial<ProjectDetails> | null; // Détails partiels du projet
+  stage?: Partial<StageDetails> | null; // Détails partiels de l'étape
+  // Champs spécifiques aux événements
+  eventType?: string | null;
+  // Champs spécifiques aux assignations
+  role?: string | null;
 }
 
 @Injectable()
@@ -86,12 +94,14 @@ export class StaffService implements OnModuleInit {
     }
   }
 
-  // Helper pour obtenir le début et la fin d'un jour
+  // Helper pour obtenir le début et la fin d'un jour UTC
   private getDateRange(date: Date): { startOfDay: Date; endOfDay: Date } {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setUTCHours(23, 59, 59, 999);
     return { startOfDay, endOfDay };
   }
 
@@ -102,142 +112,117 @@ export class StaffService implements OnModuleInit {
     }
 
     this.logger.log(
-      `Récupération du planning journalier pour l'employé ${staffId}`,
+      `Récupération du planning journalier (événements + étapes assignées) pour l'employé ${staffId}`,
     );
     const today = new Date();
     const { startOfDay, endOfDay } = this.getDateRange(today);
 
     try {
-      // 1. Trouver les événements (inclure stage_id maintenant)
-      const rawEvents = await this.prisma.events.findMany({
+      // 1. Trouver les événements spécifiques du jour
+      const events = await this.prisma.events.findMany({
         where: {
           staff_id: staffNumericId,
-          project_id: { not: null },
           OR: [
-            { start_date: { lte: endOfDay }, end_date: { gte: startOfDay } },
+            { start_date: { gte: startOfDay, lte: endOfDay } },
+            { end_date: { gte: startOfDay, lte: endOfDay } },
+            { start_date: { lt: startOfDay }, end_date: { gt: endOfDay } },
           ],
         },
-        // Sélectionner stage_id
         select: {
           id: true,
+          title: true,
           start_date: true,
           end_date: true,
           project_id: true,
-          stage_id: true, // Récupérer l'ID de l'étape
+          stage_id: true,
+          event_type: true,
+          all_day: true,
+          projects: { select: { id: true, name: true, reference: true } }, // Détails projet sélectionnés
+          project_stages: { select: { id: true, name: true, status: true } }, // Détails étape sélectionnés
         },
         orderBy: { start_date: 'asc' },
       });
+      this.logger.log(`Trouvé ${events.length} événement(s) pour aujourd'hui.`);
 
-      // 2. Filtrer les événements valides (project_id non null)
-      // On garde stage_id potentiellement null
-      const events = rawEvents.filter(
-        (event): event is typeof event & { project_id: number } =>
-          event.project_id !== null,
+      // 2. Trouver les assignations (project_staff) actives aujourd'hui
+      const assignments = await this.prisma.project_staff.findMany({
+        where: {
+          staff_id: staffNumericId,
+          start_date: { lte: endOfDay },
+          OR: [{ end_date: null }, { end_date: { gte: startOfDay } }],
+        },
+        select: {
+          id: true,
+          role_description: true,
+          start_date: true,
+          end_date: true,
+          projects: {
+            select: {
+              id: true,
+              name: true,
+              reference: true,
+              addresses: true,
+              clients: true,
+            },
+          },
+          project_stages: { select: { id: true, name: true, status: true } },
+          staff: { select: { firstname: true, lastname: true } },
+        },
+      });
+      const staffNameForLog = assignments[0]?.staff
+        ? `${assignments[0].staff.firstname} ${assignments[0].staff.lastname}`
+        : `Staff ID ${staffNumericId}`;
+      this.logger.log(
+        `Trouvé ${assignments.length} assignation(s) active(s) aujourd'hui pour ${staffNameForLog}.`,
       );
 
-      if (events.length === 0) {
-        return {
-          date: today.toISOString().split('T')[0],
-          staffId: staffId,
-          chantiers: [],
-        };
-      }
+      // 3. Combiner et formater les résultats
+      const formattedEvents: ScheduleItem[] = events.map((event) => ({
+        type: 'event',
+        id: `event-${event.id}`,
+        title: event.title ?? 'Événement sans titre',
+        startTime: event.start_date.toISOString(),
+        endTime: event.end_date.toISOString(),
+        allDay: event.all_day ?? false,
+        eventType: event.event_type,
+        // Utiliser les objets sélectionnés directement
+        project: event.projects,
+        stage: event.project_stages,
+      }));
 
-      // 3. Récupérer les IDs uniques des projets ET des étapes
-      const uniqueProjectIds = [...new Set(events.map((e) => e.project_id))];
-      const uniqueStageIds = [
-        ...new Set(
-          events
-            .map((e) => e.stage_id)
-            .filter((id): id is number => id !== null),
-        ),
-      ];
-
-      // 4. Obtenir les détails des projets ET des étapes
-      const [projectsDetailsList, stagesDetailsList] = await Promise.all([
-        // Appel pour les projets
-        Promise.all(
-          uniqueProjectIds.map(
-            (
-              id, // id est garanti number ici
-            ) =>
-              firstValueFrom(
-                this.projectsClient.send<ProjectDetails>(
-                  { cmd: 'get_project_by_id' },
-                  { id },
-                ),
-              ).catch((err) => {
-                this.logger.warn(
-                  `Could not fetch details for project ${id}: ${err instanceof Error ? err.message : err}`,
-                );
-                return null;
-              }),
-          ),
-        ),
-        // Appel pour les étapes
-        Promise.all(
-          uniqueStageIds.map((id) =>
-            firstValueFrom(
-              this.projectsClient.send<StageDetails>(
-                { cmd: 'get_stage_by_id' }, // Nouvelle commande
-                { id },
-              ),
-            ).catch((err) => {
-              this.logger.warn(
-                `Could not fetch details for stage ${id}: ${err instanceof Error ? err.message : err}`,
-              );
-              return null;
-            }),
-          ),
-        ),
-      ]);
-
-      const projectsDetailsMap = new Map<number, ProjectDetails>();
-      projectsDetailsList.forEach((project) => {
-        if (project) {
-          projectsDetailsMap.set(project.id, project);
+      const formattedAssignments: ScheduleItem[] = assignments.map((assign) => {
+        let title = 'Assignation Projet/Étape';
+        if (assign.projects) {
+          title = `Projet: ${assign.projects.name} (${assign.projects.reference})`;
+          if (assign.project_stages) {
+            title = `Étape: ${assign.project_stages.name} (${assign.projects.reference})`;
+          }
         }
-      });
-
-      const stagesDetailsMap = new Map<number, StageDetails>();
-      stagesDetailsList.forEach((stage) => {
-        if (stage) {
-          stagesDetailsMap.set(stage.id, stage);
-        }
-      });
-
-      // 5. Combiner les détails projet et étape
-      const schedule: ScheduleAssignment[] = events.map((event) => {
-        const projectDetails = projectsDetailsMap.get(event.project_id);
-        // Récupérer les détails de l'étape SEULEMENT si event.stage_id existe
-        const stageDetails = event.stage_id
-          ? stagesDetailsMap.get(event.stage_id)
-          : null;
-
         return {
-          date: event.start_date.toISOString().split('T')[0],
-          startTime: event.start_date.toISOString(),
-          endTime: event.end_date.toISOString(),
-          project: projectDetails
-            ? projectDetails
-            : { id: event.project_id, name: 'Projet introuvable' }, // Renommé le fallback
-          stage: stageDetails, // Ajouter les détails de l'étape (peut être null)
+          type: 'assignment',
+          id: `assign-${assign.id}`,
+          title,
+          startTime: startOfDay.toISOString(), // Pour vue journalière
+          endTime: endOfDay.toISOString(), // Pour vue journalière
+          allDay: true,
+          project: assign.projects,
+          stage: assign.project_stages,
+          role: assign.role_description,
         };
       });
+
+      const combinedSchedule = [...formattedEvents, ...formattedAssignments];
 
       return {
         date: today.toISOString().split('T')[0],
         staffId: staffId,
-        // Le nom de la clé reste 'chantiers' pour la cohérence avec l'API Gateway
-        // mais contient maintenant des ScheduleAssignment enrichis
-        chantiers: schedule,
+        schedule: combinedSchedule,
       };
     } catch (error) {
       this.logger.error(
         `Error fetching daily schedule for staff ${staffId}`,
         error instanceof Error ? error.message : error,
       );
-      // Renvoyer une erreur plus significative ou laisser NestJS gérer
       throw new Error(`Could not retrieve daily schedule for staff ${staffId}`);
     }
   }
@@ -249,158 +234,180 @@ export class StaffService implements OnModuleInit {
     }
 
     const targetDate = date ? new Date(date) : new Date();
-    const weekStartDate = new Date(targetDate);
-    const dayOfWeek = targetDate.getDay(); // 0 = Dimanche, 1 = Lundi, ...
-    const diff = targetDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    weekStartDate.setDate(diff);
-    weekStartDate.setHours(0, 0, 0, 0);
+    const dayOfWeek = targetDate.getUTCDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStartDate = new Date(
+      Date.UTC(
+        targetDate.getUTCFullYear(),
+        targetDate.getUTCMonth(),
+        targetDate.getUTCDate() + diffToMonday,
+      ),
+    );
+    weekStartDate.setUTCHours(0, 0, 0, 0);
 
     const weekEndDate = new Date(weekStartDate);
-    weekEndDate.setDate(weekStartDate.getDate() + 6);
-    weekEndDate.setHours(23, 59, 59, 999);
+    weekEndDate.setUTCDate(weekStartDate.getUTCDate() + 6);
+    weekEndDate.setUTCHours(23, 59, 59, 999);
 
     this.logger.log(
-      `Récupération du planning semaine du ${weekStartDate.toISOString().split('T')[0]} au ${weekEndDate.toISOString().split('T')[0]} pour l'employé ${staffId}`,
+      `Récupération du planning semaine (événements + étapes) du ${weekStartDate.toISOString().split('T')[0]} au ${weekEndDate.toISOString().split('T')[0]} pour l'employé ${staffId}`,
     );
 
     try {
-      // 1. Trouver les événements (inclure stage_id)
-      const rawEvents = await this.prisma.events.findMany({
+      // 1. Trouver les événements de la semaine
+      const events = await this.prisma.events.findMany({
         where: {
           staff_id: staffNumericId,
-          project_id: { not: null },
-          OR: [
-            {
-              start_date: { lte: weekEndDate },
-              end_date: { gte: weekStartDate },
-            },
-          ],
+          start_date: { lte: weekEndDate },
+          end_date: { gte: weekStartDate },
         },
         select: {
           id: true,
+          title: true,
           start_date: true,
           end_date: true,
           project_id: true,
           stage_id: true,
+          event_type: true,
+          all_day: true,
+          projects: { select: { id: true, name: true, reference: true } },
+          project_stages: { select: { id: true, name: true, status: true } },
         },
         orderBy: { start_date: 'asc' },
       });
+      this.logger.log(`Trouvé ${events.length} événement(s) pour la semaine.`);
 
-      // 2. Filtrer les événements valides
-      const events = rawEvents.filter(
-        (event): event is typeof event & { project_id: number } =>
-          event.project_id !== null,
+      // 2. Trouver les assignations actives pendant la semaine
+      const assignments = await this.prisma.project_staff.findMany({
+        where: {
+          staff_id: staffNumericId,
+          start_date: { lte: weekEndDate },
+          OR: [{ end_date: null }, { end_date: { gte: weekStartDate } }],
+        },
+        select: {
+          id: true,
+          role_description: true,
+          start_date: true,
+          end_date: true,
+          projects: {
+            select: {
+              id: true,
+              name: true,
+              reference: true,
+              addresses: true,
+              clients: true,
+            },
+          },
+          project_stages: { select: { id: true, name: true, status: true } },
+          staff: { select: { firstname: true, lastname: true } },
+        },
+      });
+      const staffNameForLog = assignments[0]?.staff
+        ? `${assignments[0].staff.firstname} ${assignments[0].staff.lastname}`
+        : `Staff ID ${staffNumericId}`;
+      this.logger.log(
+        `Trouvé ${assignments.length} assignation(s) active(s) pendant la semaine pour ${staffNameForLog}.`,
       );
 
-      if (events.length === 0) {
-        return {
-          weekOf: weekStartDate.toISOString().split('T')[0],
-          staffId: staffId,
-          planning: {},
-        };
-      }
-
-      // 3. Récupérer les IDs uniques projets ET étapes
-      const uniqueProjectIds = [...new Set(events.map((e) => e.project_id))];
-      const uniqueStageIds = [
-        ...new Set(
-          events
-            .map((e) => e.stage_id)
-            .filter((id): id is number => id !== null),
-        ),
-      ];
-
-      // 4. Obtenir les détails projets ET étapes (Promise.all)
-      const [projectsDetailsList, stagesDetailsList] = await Promise.all([
-        Promise.all(
-          uniqueProjectIds.map(
-            (
-              id, // id est garanti number ici
-            ) =>
-              firstValueFrom(
-                this.projectsClient.send<ProjectDetails>(
-                  { cmd: 'get_project_by_id' },
-                  { id },
-                ),
-              ).catch((err) => {
-                this.logger.warn(
-                  `Could not fetch details for project ${id}: ${err instanceof Error ? err.message : err}`,
-                );
-                return null;
-              }),
-          ),
-        ),
-        Promise.all(
-          uniqueStageIds.map((id) =>
-            firstValueFrom(
-              this.projectsClient.send<StageDetails>(
-                { cmd: 'get_stage_by_id' },
-                { id },
-              ),
-            ).catch((err) => {
-              this.logger.warn(
-                `Could not fetch details for stage ${id}: ${err instanceof Error ? err.message : err}`,
-              );
-              return null;
-            }),
-          ),
-        ),
-      ]);
-
-      const projectsDetailsMap = new Map<number, ProjectDetails>();
-      projectsDetailsList.forEach((project) => {
-        if (project) {
-          projectsDetailsMap.set(project.id, project);
-        }
-      });
-
-      const stagesDetailsMap = new Map<number, StageDetails>();
-      stagesDetailsList.forEach((stage) => {
-        if (stage) {
-          stagesDetailsMap.set(stage.id, stage);
-        }
-      });
-
-      // 5. Structurer le planning hebdomadaire
-      const weeklyPlanning: Record<string, ScheduleAssignment[]> = {};
+      // 3. Structurer le planning hebdomadaire
+      const weeklyPlanning: Record<string, ScheduleItem[]> = {};
 
       // Initialiser les jours de la semaine
       for (let i = 0; i < 7; i++) {
         const day = new Date(weekStartDate);
-        day.setDate(weekStartDate.getDate() + i);
+        day.setUTCDate(weekStartDate.getUTCDate() + i);
         weeklyPlanning[day.toISOString().split('T')[0]] = [];
       }
 
+      // Traiter les événements
       events.forEach((event) => {
-        const eventStartDate = new Date(event.start_date);
-        const eventEndDate = new Date(event.end_date);
+        const eventStart = new Date(event.start_date);
+        const eventEnd = new Date(event.end_date);
+        let loopSafety = 0;
 
-        // Gérer les événements sur plusieurs jours en les ajoutant à chaque jour concerné
-        const currentDate = new Date(eventStartDate);
-        currentDate.setHours(0, 0, 0, 0);
-        const lastDate = new Date(eventEndDate);
-        lastDate.setHours(0, 0, 0, 0);
-
-        while (currentDate <= lastDate) {
-          const currentDateStr = currentDate.toISOString().split('T')[0];
-          if (weeklyPlanning[currentDateStr] !== undefined) {
-            const projectDetails = projectsDetailsMap.get(event.project_id);
-            const stageDetails = event.stage_id
-              ? stagesDetailsMap.get(event.stage_id)
-              : null;
-
-            weeklyPlanning[currentDateStr].push({
-              date: currentDateStr,
-              startTime: event.start_date.toISOString(),
-              endTime: event.end_date.toISOString(),
-              project: projectDetails
-                ? projectDetails
-                : { id: event.project_id, name: 'Projet introuvable' },
-              stage: stageDetails,
-            });
+        for (
+          let d = new Date(eventStart);
+          d <= eventEnd;
+          d.setUTCDate(d.getUTCDate() + 1)
+        ) {
+          if (loopSafety++ > 366) break; // Safety break
+          if (d >= weekStartDate && d <= weekEndDate) {
+            const dayStr = d.toISOString().split('T')[0];
+            if (weeklyPlanning[dayStr]) {
+              weeklyPlanning[dayStr].push({
+                type: 'event',
+                id: `event-${event.id}`,
+                title: event.title ?? 'Événement sans titre',
+                startTime: event.start_date.toISOString(),
+                endTime: event.end_date.toISOString(),
+                allDay: event.all_day ?? false,
+                eventType: event.event_type,
+                project: event.projects,
+                stage: event.project_stages,
+              });
+            }
           }
-          // Passer au jour suivant
-          currentDate.setDate(currentDate.getDate() + 1);
+          if (
+            d.getUTCFullYear() === eventEnd.getUTCFullYear() &&
+            d.getUTCMonth() === eventEnd.getUTCMonth() &&
+            d.getUTCDate() === eventEnd.getUTCDate()
+          ) {
+            break;
+          }
+        }
+      });
+
+      // Traiter les assignations
+      assignments.forEach((assign) => {
+        const assignStart = new Date(assign.start_date);
+        const assignEnd = assign.end_date
+          ? new Date(assign.end_date)
+          : new Date('9999-12-31');
+        let loopSafety = 0;
+
+        for (
+          let d = new Date(assignStart);
+          d <= assignEnd;
+          d.setUTCDate(d.getUTCDate() + 1)
+        ) {
+          if (loopSafety++ > 365 * 20) break; // Safety break for long assignments
+          if (d >= weekStartDate && d <= weekEndDate) {
+            const dayStr = d.toISOString().split('T')[0];
+            if (weeklyPlanning[dayStr]) {
+              let title = 'Assignation Projet/Étape';
+              if (assign.projects) {
+                title = `Projet: ${assign.projects.name} (${assign.projects.reference})`;
+                if (assign.project_stages) {
+                  title = `Étape: ${assign.project_stages.name} (${assign.projects.reference})`;
+                }
+              }
+              weeklyPlanning[dayStr].push({
+                type: 'assignment',
+                id: `assign-${assign.id}`,
+                title,
+                // Pour la vue hebdo, on marque comme allDay pour le jour donné
+                startTime: d.toISOString().split('T')[0] + 'T00:00:00.000Z', // Début du jour
+                endTime: d.toISOString().split('T')[0] + 'T23:59:59.999Z', // Fin du jour
+                allDay: true,
+                project: assign.projects,
+                stage: assign.project_stages,
+                role: assign.role_description,
+              });
+            }
+          }
+          // Condition de sortie si l'assignation se termine ce jour-là (et a une date de fin)
+          if (
+            assign.end_date &&
+            d.getUTCFullYear() === assignEnd.getUTCFullYear() &&
+            d.getUTCMonth() === assignEnd.getUTCMonth() &&
+            d.getUTCDate() === assignEnd.getUTCDate()
+          ) {
+            break;
+          }
+          // Condition de sortie si on dépasse la date de fin de semaine (important pour assignations sans fin)
+          if (d > weekEndDate) {
+            break;
+          }
         }
       });
 
@@ -436,6 +443,7 @@ export class StaffService implements OnModuleInit {
         include: {
           // Inclure toutes les relations pertinentes
           projects: true, // Récupérer toutes les données du projet
+          project_stages: true, // Inclure aussi les détails de l'étape directement si possible
         },
         orderBy: {
           start_date: 'asc',
@@ -446,6 +454,11 @@ export class StaffService implements OnModuleInit {
         `Trouvé ${events.length} événements pour l'employé ${staffId}`,
       );
 
+      // Simplification : On retourne directement les événements avec les détails inclus par Prisma
+      // L'enrichissement via microservice devient moins nécessaire si Prisma inclut déjà ce qu'il faut
+      return events;
+
+      /* Code d'enrichissement précédent (commenté pour simplification)
       if (events.length === 0) {
         return [];
       }
@@ -459,12 +472,13 @@ export class StaffService implements OnModuleInit {
         .map((event) => event.stage_id)
         .filter((id): id is number => id !== null);
 
+
       this.logger.log(
         `Événements liés à ${projectIds.length} projets et ${stageIds.length} étapes`,
       );
 
       // Récupérer les détails des projets si nécessaire
-      const projectsMap = new Map();
+      const projectsMap = new Map<number, any>();
       if (projectIds.length > 0) {
         const uniqueProjectIds = [...new Set(projectIds)];
         this.logger.log(
@@ -501,7 +515,7 @@ export class StaffService implements OnModuleInit {
       }
 
       // Récupérer les détails des étapes
-      const stagesMap = new Map();
+      const stagesMap = new Map<number, any>();
 
       if (stageIds.length > 0) {
         const uniqueStageIds = [...new Set(stageIds)];
@@ -509,55 +523,53 @@ export class StaffService implements OnModuleInit {
           `Récupération des détails pour ${uniqueStageIds.length} étapes uniques: ${JSON.stringify(uniqueStageIds)}`,
         );
 
-        try {
-          // Récupérer directement depuis Prisma plutôt que via microservice
-          const stages = await this.prisma.project_stages.findMany({
-            where: {
-              id: {
-                in: uniqueStageIds,
-              },
-            },
-          });
+         try {
+           // Tenter de récupérer via microservice en premier
+           const stagesPromises = uniqueStageIds.map((id) =>
+             firstValueFrom(
+               this.projectsClient.send({ cmd: 'get_stage_by_id' }, { id }),
+             ).catch((err) => {
+               this.logger.warn(
+                 `Erreur lors de la récupération de l'étape ${id} via microservice: ${err}, fallback vers Prisma`,
+               );
+               return null; // Retourner null en cas d'échec pour essayer Prisma ensuite
+             }),
+           );
 
-          stages.forEach((stage) => {
-            stagesMap.set(stage.id, stage);
-          });
+           const stagesDetailsList = await Promise.all(stagesPromises);
+           let stagesFromMicroservice = 0;
+           const stagesToFetchFromPrisma: number[] = [];
 
-          this.logger.log(
-            `Récupéré ${stages.length} étapes depuis la base de données`,
-          );
+           stagesDetailsList.forEach((stage, index) => {
+             if (stage) {
+               stagesMap.set(stage.id, stage);
+               stagesFromMicroservice++;
+             } else {
+               // Si le microservice a échoué, ajouter l'ID pour le fetch Prisma
+               stagesToFetchFromPrisma.push(uniqueStageIds[index]);
+             }
+           });
+           this.logger.log(`Récupéré ${stagesFromMicroservice} étapes depuis le microservice`);
 
-          // Récupérer aussi via le microservice pour avoir des données complètes
-          const stagesPromises = uniqueStageIds.map((id) =>
-            firstValueFrom(
-              this.projectsClient.send({ cmd: 'get_stage_by_id' }, { id }),
-            ).catch((err) => {
-              this.logger.warn(
-                `Erreur lors de la récupération de l'étape ${id} via microservice: ${err}`,
-              );
-              return null;
-            }),
-          );
+           // Récupérer les étapes restantes directement depuis Prisma
+           if (stagesToFetchFromPrisma.length > 0) {
+               this.logger.log(`Tentative de récupération de ${stagesToFetchFromPrisma.length} étape(s) depuis Prisma`);
+               const stagesFromPrisma = await this.prisma.project_stages.findMany({
+                 where: { id: { in: stagesToFetchFromPrisma } },
+               });
+               stagesFromPrisma.forEach((stage) => {
+                 stagesMap.set(stage.id, stage);
+               });
+               this.logger.log(`Récupéré ${stagesFromPrisma.length} étape(s) supplémentaire(s) depuis Prisma`);
+           }
 
-          const stagesDetailsList = await Promise.all(stagesPromises);
-          let stagesFromMicroservice = 0;
-
-          stagesDetailsList.forEach((stage) => {
-            if (stage) {
-              stagesMap.set(stage.id, stage);
-              stagesFromMicroservice++;
-            }
-          });
-
-          this.logger.log(
-            `Récupéré ${stagesFromMicroservice} étapes depuis le microservice`,
-          );
-        } catch (err) {
-          this.logger.error(
-            `Erreur lors de la récupération des étapes: ${err}`,
-          );
-        }
+         } catch (err) {
+           this.logger.error(
+             `Erreur majeure lors de la récupération des étapes: ${err}`,
+           );
+         }
       }
+
 
       // Enrichir chaque événement avec les détails
       const enrichedEvents = events.map((event) => {
@@ -566,22 +578,29 @@ export class StaffService implements OnModuleInit {
         // Ajouter les détails du projet si disponibles
         if (event.project_id && projectsMap.has(event.project_id)) {
           enrichedEvent.project = projectsMap.get(event.project_id);
+        } else if (event.projects) { // Utiliser les données incluses par Prisma si dispo
+            enrichedEvent.project = event.projects;
         }
+
 
         // Ajouter les détails de l'étape si disponibles
         if (event.stage_id && stagesMap.has(event.stage_id)) {
           const stageDetails = stagesMap.get(event.stage_id);
-          this.logger.debug(
+           this.logger.debug(
             `Ajout des détails de l'étape ${event.stage_id} à l'événement ${event.id}`,
-          );
+           );
           enrichedEvent.stage = stageDetails;
+        } else if (event.project_stages) { // Utiliser les données incluses par Prisma si dispo
+             enrichedEvent.stage = event.project_stages;
         }
+
 
         return enrichedEvent;
       });
 
       this.logger.log(`Retour de ${enrichedEvents.length} événements enrichis`);
       return enrichedEvents;
+      */
     } catch (error) {
       this.logger.error(
         `Error fetching events for staff ${staffId}`,
@@ -641,7 +660,7 @@ export class StaffService implements OnModuleInit {
     hoursPlanned?: number;
   }): Promise<any> {
     this.logger.log(
-      `Assignation de l'employé ${assignmentData.staffId} au projet ${assignmentData.projectId}`,
+      `Assignation de l'employé ${assignmentData.staffId} au projet ${assignmentData.projectId}${assignmentData.stageId ? ` (Étape ${assignmentData.stageId})` : ''}`,
     );
 
     try {
@@ -686,6 +705,28 @@ export class StaffService implements OnModuleInit {
         }
       }
 
+      // Vérifier si une assignation similaire (même staff, même projet, même étape si fournie) existe déjà
+      const existingAssignment = await this.prisma.project_staff.findFirst({
+        where: {
+          staff_id: assignmentData.staffId,
+          project_id: assignmentData.projectId,
+          // Comparer stage_id seulement s'il est fourni, sinon comparer avec null
+          stage_id:
+            assignmentData.stageId === undefined
+              ? null
+              : assignmentData.stageId,
+        },
+      });
+
+      if (existingAssignment) {
+        this.logger.warn(
+          `Une assignation similaire existe déjà (ID: ${existingAssignment.id}) pour le staff ${assignmentData.staffId} sur le projet ${assignmentData.projectId}${assignmentData.stageId ? ` et l'étape ${assignmentData.stageId}` : ''}. Mise à jour envisagée ou doublon évité.`,
+        );
+        // Optionnel : Mettre à jour l'existant au lieu de créer ? Ou retourner une erreur ?
+        // Pour l'instant, on log un avertissement et on continue (crée un doublon potentiel si stageId est géré différemment)
+        // throw new Error(`Une assignation existe déjà pour cet employé sur ce projet/étape.`);
+      }
+
       // Créer l'assignation
       const newAssignment = await this.prisma.project_staff.create({
         data: {
@@ -694,19 +735,28 @@ export class StaffService implements OnModuleInit {
           stage_id: assignmentData.stageId || null,
           role_description: assignmentData.roleDescription || null,
           start_date: new Date(assignmentData.startDate),
-          end_date: assignmentData.endDate
-            ? new Date(assignmentData.endDate)
-            : null,
-          hours_planned: assignmentData.hoursPlanned || null,
+          // Gérer la date de fin : si vide/null, stocker null, sinon convertir en Date
+          end_date:
+            assignmentData.endDate && assignmentData.endDate.length > 0
+              ? new Date(assignmentData.endDate)
+              : null,
+          // Gérer les heures : si vide/null/0, stocker null, sinon convertir en nombre
+          hours_planned:
+            assignmentData.hoursPlanned &&
+            !isNaN(Number(assignmentData.hoursPlanned)) &&
+            Number(assignmentData.hoursPlanned) > 0
+              ? Number(assignmentData.hoursPlanned)
+              : null,
         },
         include: {
           projects: true,
           staff: true,
+          project_stages: true, // Inclure aussi l'étape
         },
       });
 
       this.logger.log(
-        `Employé ${assignmentData.staffId} assigné avec succès au projet ${assignmentData.projectId}`,
+        `Employé ${assignmentData.staffId} assigné avec succès (ID: ${newAssignment.id}) au projet ${assignmentData.projectId}${newAssignment.stage_id ? ` (Étape ${newAssignment.stage_id})` : ''}`,
       );
       return newAssignment;
     } catch (error) {
@@ -714,7 +764,8 @@ export class StaffService implements OnModuleInit {
         `Erreur lors de l'assignation de l'employé ${assignmentData.staffId} au projet ${assignmentData.projectId}`,
         error instanceof Error ? error.message : error,
       );
-      throw error;
+      // Renvoyer une erreur spécifique ou générique selon le besoin
+      throw error; // Laisser l'appelant gérer l'erreur (e.g., API Gateway)
     }
   }
 
@@ -722,10 +773,10 @@ export class StaffService implements OnModuleInit {
     id: number;
     roleDescription?: string;
     startDate?: string;
-    endDate?: string;
-    hoursPlanned?: number;
-    hoursWorked?: number;
-    stageId?: number;
+    endDate?: string | null; // Permettre null pour supprimer la date de fin
+    hoursPlanned?: number | null; // Permettre null
+    hoursWorked?: number | null; // Permettre null
+    stageId?: number | null; // Permettre null pour désassigner d'une étape spécifique
   }): Promise<any> {
     this.logger.log(`Mise à jour de l'assignation ${updateData.id}`);
 
@@ -733,6 +784,7 @@ export class StaffService implements OnModuleInit {
       // Vérifier que l'assignation existe
       const assignmentExists = await this.prisma.project_staff.findUnique({
         where: { id: updateData.id },
+        include: { projects: true }, // Inclure le projet pour vérifier l'appartenance de l'étape
       });
 
       if (!assignmentExists) {
@@ -741,11 +793,52 @@ export class StaffService implements OnModuleInit {
         );
       }
 
-      // Si une étape est spécifiée, vérifier qu'elle existe et appartient au projet
+      // Préparer l'objet de données pour la mise à jour
+      const dataToUpdate: Partial<{
+        role_description: string | null;
+        start_date: Date;
+        end_date: Date | null;
+        hours_planned: number | null;
+        hours_worked: number | null;
+        stage_id: number | null;
+      }> = {};
+
+      // Ajouter les champs seulement s'ils sont définis dans updateData
+      if (updateData.roleDescription !== undefined) {
+        dataToUpdate.role_description = updateData.roleDescription || null;
+      }
+      if (updateData.startDate !== undefined) {
+        dataToUpdate.start_date = new Date(updateData.startDate);
+      }
+      // Gérer la mise à jour de end_date (peut être une date ou null)
+      if (updateData.endDate !== undefined) {
+        dataToUpdate.end_date = updateData.endDate
+          ? new Date(updateData.endDate)
+          : null;
+      }
+      // Gérer la mise à jour des heures (peut être un nombre ou null)
+      if (updateData.hoursPlanned !== undefined) {
+        dataToUpdate.hours_planned =
+          updateData.hoursPlanned &&
+          !isNaN(Number(updateData.hoursPlanned)) &&
+          Number(updateData.hoursPlanned) > 0
+            ? Number(updateData.hoursPlanned)
+            : null;
+      }
+      if (updateData.hoursWorked !== undefined) {
+        dataToUpdate.hours_worked =
+          updateData.hoursWorked && !isNaN(Number(updateData.hoursWorked))
+            ? Number(updateData.hoursWorked)
+            : null;
+      }
+
+      // Gérer la mise à jour de stageId (peut être un ID ou null)
       if (updateData.stageId !== undefined) {
         if (updateData.stageId === null) {
-          // Pas de vérification nécessaire si on veut retirer l'assignation à une étape
+          // Si on met stageId à null, pas besoin de vérifier l'étape
+          dataToUpdate.stage_id = null;
         } else {
+          // Si on assigne à une nouvelle étape, vérifier qu'elle existe et appartient au bon projet
           const stageExists = await this.prisma.project_stages.findUnique({
             where: { id: updateData.stageId },
           });
@@ -755,46 +848,31 @@ export class StaffService implements OnModuleInit {
               `Étape avec ID ${updateData.stageId} non trouvée`,
             );
           }
-
+          // Utiliser assignmentExists.project_id qui vient de l'include
           if (stageExists.project_id !== assignmentExists.project_id) {
             throw new Error(
               `L'étape ${updateData.stageId} n'appartient pas au projet ${assignmentExists.project_id}`,
             );
           }
+          dataToUpdate.stage_id = updateData.stageId;
         }
       }
 
-      // Mettre à jour l'assignation
+      // Mettre à jour l'assignation si dataToUpdate n'est pas vide
+      if (Object.keys(dataToUpdate).length === 0) {
+        this.logger.warn(
+          `Aucune donnée à mettre à jour pour l'assignation ${updateData.id}.`,
+        );
+        return assignmentExists; // Retourner l'assignation existante sans modification
+      }
+
       const updatedAssignment = await this.prisma.project_staff.update({
         where: { id: updateData.id },
-        data: {
-          role_description:
-            updateData.roleDescription !== undefined
-              ? updateData.roleDescription
-              : undefined,
-          start_date: updateData.startDate
-            ? new Date(updateData.startDate)
-            : undefined,
-          end_date:
-            updateData.endDate === null
-              ? null
-              : updateData.endDate
-                ? new Date(updateData.endDate)
-                : undefined,
-          hours_planned:
-            updateData.hoursPlanned !== undefined
-              ? updateData.hoursPlanned
-              : undefined,
-          hours_worked:
-            updateData.hoursWorked !== undefined
-              ? updateData.hoursWorked
-              : undefined,
-          stage_id:
-            updateData.stageId !== undefined ? updateData.stageId : undefined,
-        },
+        data: dataToUpdate,
         include: {
           projects: true,
           staff: true,
+          project_stages: true,
         },
       });
 
@@ -819,9 +897,12 @@ export class StaffService implements OnModuleInit {
       });
 
       if (!assignmentExists) {
-        throw new NotFoundException(
-          `Assignation avec ID ${assignmentId} non trouvée`,
+        // Ne pas jeter d'erreur si elle n'existe pas, juste retourner false ou log
+        this.logger.warn(
+          `Tentative de suppression de l'assignation ${assignmentId} qui n'existe pas.`,
         );
+        // throw new NotFoundException(`Assignation avec ID ${assignmentId} non trouvée`);
+        return false; // Indiquer que la suppression n'a pas eu lieu
       }
 
       // Supprimer l'assignation
@@ -836,7 +917,7 @@ export class StaffService implements OnModuleInit {
         `Erreur lors de la suppression de l'assignation ${assignmentId}`,
         error instanceof Error ? error.message : error,
       );
-      throw error;
+      throw error; // Propager l'erreur pour gestion centralisée
     }
   }
 
@@ -845,40 +926,51 @@ export class StaffService implements OnModuleInit {
 
     try {
       // Vérification directe de la présence d'assignations
-      const rawCount = await this.prisma
-        .$queryRaw<[{ count: string }]>`SELECT COUNT(*) as count FROM project_staff WHERE staff_id = ${staffId}`;
-  
-      // Récupération des données brutes de project_staff
-      const rawAssignments = await this.prisma
-        .$queryRaw<any[]>`
-        SELECT 
-          ps.*, 
-          p.name as project_name, 
+      const rawResult = await this.prisma.$queryRaw<
+        [{ count: string }]
+      >`SELECT COUNT(*)::text as count FROM project_staff WHERE staff_id = ${staffId}`;
+      const count = parseInt(rawResult[0].count, 10);
+
+      // Récupération des données brutes de project_staff et conversion des nombres
+      const rawAssignments = await this.prisma.$queryRaw<any[]>`
+        SELECT
+          ps.id::text as id,
+          ps.project_id::text as project_id,
+          ps.staff_id::text as staff_id,
+          ps.stage_id::text as stage_id,
+          ps.role_description,
+          ps.start_date,
+          ps.end_date,
+          ps.hours_planned::text as hours_planned,
+          ps.hours_worked::text as hours_worked,
+          p.name as project_name,
           p.reference as project_reference,
           s.firstname || ' ' || s.lastname as staff_name,
           ps2.name as stage_name
-        FROM 
+        FROM
           project_staff ps
-        LEFT JOIN 
+        LEFT JOIN
           projects p ON ps.project_id = p.id
-        LEFT JOIN 
+        LEFT JOIN
           staff s ON ps.staff_id = s.id
-        LEFT JOIN 
+        LEFT JOIN
           project_stages ps2 ON ps.stage_id = ps2.id
-        WHERE 
+        WHERE
           ps.staff_id = ${staffId}
-        ORDER BY 
+        ORDER BY
           ps.start_date ASC
       `;
 
-      // État des tables impliquées
+      // État des tables impliquées avec conversion pour éviter BigInt
       const tableStats = {
-        project_staff: await this.prisma.project_staff.count(),
-        staff: await this.prisma.staff.count({
-          where: { id: staffId },
-        }),
-        projects: await this.prisma.projects.count(),
-        project_stages: await this.prisma.project_stages.count(),
+        project_staff: Number(await this.prisma.project_staff.count()),
+        staff: Number(
+          await this.prisma.staff.count({
+            where: { id: staffId },
+          }),
+        ),
+        projects: Number(await this.prisma.projects.count()),
+        project_stages: Number(await this.prisma.project_stages.count()),
       };
 
       // Vérifier si les assignations sont correctes
@@ -892,20 +984,30 @@ export class StaffService implements OnModuleInit {
         };
       });
 
+      // Récupérer les informations du staff de façon sécurisée
+      const staffInfo = await this.prisma.staff.findUnique({
+        where: { id: staffId },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          email: true,
+          role_id: true,
+        },
+      });
+
       // Retourner le diagnostic complet
       return {
-        count: rawCount[0].count,
+        count,
         rawAssignments,
         tableStats,
         assignmentValidation,
-        staff: await this.prisma.staff.findUnique({
-          where: { id: staffId },
-        }),
+        staff: staffInfo,
       };
     } catch (error) {
       this.logger.error(
         `Erreur lors du diagnostic des assignations pour le staff ${staffId}`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : String(error),
       );
       throw new Error(
         `Erreur de diagnostic pour le staff ${staffId}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
