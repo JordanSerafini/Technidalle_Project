@@ -43,7 +43,10 @@ export default class EBPDocuments {
   private queryService: QueryService;
   private clientSyncService: ClientSyncService;
 
-  constructor(queryService: QueryService, clientSyncService: ClientSyncService) {
+  constructor(
+    queryService: QueryService,
+    clientSyncService: ClientSyncService,
+  ) {
     this.ebpClient = new EBPclient();
     this.queryService = queryService;
     this.clientSyncService = clientSyncService;
@@ -76,6 +79,9 @@ export default class EBPDocuments {
         return null;
       }
 
+      this.logger.debug(
+        `[Doc ${ebpDoc.DocumentNumber}] Looking up project with EBP ID: ${ebpDoc.ConstructionSiteId}`,
+      );
       const project = await this.getProjectByEbpId(
         ebpDoc.ConstructionSiteId,
         destinationClient,
@@ -89,6 +95,9 @@ export default class EBPDocuments {
       }
 
       const projectId = Number(project.id);
+      this.logger.debug(
+        `[Doc ${ebpDoc.DocumentNumber}] Found project App ID: ${projectId}`,
+      );
       if (isNaN(projectId)) {
         this.logger.warn(
           `Skipping document ${ebpDoc.DocumentNumber}: Invalid project ID.`,
@@ -98,6 +107,9 @@ export default class EBPDocuments {
 
       let clientId: number | null = null;
       if (ebpDoc.CustomerId) {
+        this.logger.debug(
+          `[Doc ${ebpDoc.DocumentNumber}] Looking up client with EBP ID: ${ebpDoc.CustomerId}`,
+        );
         const client = await this.getClientByEbpId(
           ebpDoc.CustomerId,
           destinationClient,
@@ -106,6 +118,9 @@ export default class EBPDocuments {
           const parsedClientId = Number(client.id);
           if (!isNaN(parsedClientId)) {
             clientId = parsedClientId;
+            this.logger.debug(
+              `[Doc ${ebpDoc.DocumentNumber}] Found client App ID: ${clientId}`,
+            );
           }
         } else {
           this.logger.warn(
@@ -116,6 +131,9 @@ export default class EBPDocuments {
 
       let approvedByStaffId: number | null = null;
       if (ebpDoc.ColleagueId) {
+        this.logger.debug(
+          `[Doc ${ebpDoc.DocumentNumber}] Looking up staff with EBP ID: ${ebpDoc.ColleagueId}`,
+        );
         const staff = await this.getStaffByEbpId(
           ebpDoc.ColleagueId,
           destinationClient,
@@ -124,6 +142,9 @@ export default class EBPDocuments {
           const parsedStaffId = Number(staff.id);
           if (!isNaN(parsedStaffId)) {
             approvedByStaffId = parsedStaffId;
+            this.logger.debug(
+              `[Doc ${ebpDoc.DocumentNumber}] Found staff App ID: ${approvedByStaffId}`,
+            );
           }
         } else {
           this.logger.warn(
@@ -327,7 +348,7 @@ export default class EBPDocuments {
         return null;
       }
 
-      // Vérifier si le document existe déjà par documentId (qui devrait être unique)
+      // Vérifier si le document existe déjà par document_id (qui devrait être unique)
       const existingDocResult = await destinationClient.query<{ id: number }>(
         'SELECT id FROM documents WHERE "document_id" = $1',
         [documentData.documentId],
@@ -354,10 +375,15 @@ export default class EBPDocuments {
             documentData[typedKey] !== undefined
           ) {
             // S'assurer que la clé est bien une colonne de la table 'documents' pour éviter les erreurs SQL.
-            // Ceci est une simplification; une validation plus robuste pourrait être nécessaire.
+            // Conversion clé TS (camelCase) vers clé SQL (snake_case) si nécessaire pour la requête.
+            // Ici, on suppose que les autres clés correspondent déjà (ex: project_id -> "project_id")
+            // Mais si ce n'était pas le cas, il faudrait une fonction de mapping ici.
+            // Pour document_id, on l'exclut explicitement.
             if (true) {
               // Remplacez 'true' par une validation si nécessaire
-              updateFields.push(`"${typedKey}" = $${paramIndex}`);
+              // Assumant que les autres clés correspondent (ex: `reference` -> `"reference"`)
+              // Si besoin de mapper `someCamelCase` vers `"some_snake_case"`, il faudrait le faire ici.
+              updateFields.push(`"${key}" = $${paramIndex}`); // Utilise la clé telle quelle (devrait correspondre aux colonnes SQL sauf pour documentId)
               updateValues.push(documentData[typedKey]);
               paramIndex++;
             }
@@ -411,8 +437,9 @@ export default class EBPDocuments {
         Object.keys(documentData).forEach((key) => {
           const typedKey = key as keyof Document;
           if (documentData[typedKey] !== undefined) {
-            // Inclure toutes les clés définies
-            insertFields.push(`"${typedKey}"`);
+            // Mapper la clé camelCase (documentId) vers snake_case (document_id) pour la requête SQL
+            const sqlColumnName = key === 'documentId' ? 'document_id' : key;
+            insertFields.push(`"${sqlColumnName}"`);
             insertValues.push(documentData[typedKey]);
             paramPlaceholders.push(`$${paramIndex}`);
             paramIndex++;
@@ -562,10 +589,10 @@ export default class EBPDocuments {
    * Synchronise un document spécifique par son ID EBP
    */
   async syncDocumentByDocumentId(
-    documentId: string,
+    documentIdEBP: string,
   ): Promise<{ success: boolean; documentId?: number; error?: string }> {
     this.logger.log(
-      `Début de la synchronisation du document avec ID EBP ${documentId}`,
+      `Début de la synchronisation du document avec ID EBP ${documentIdEBP}`,
     );
     try {
       const sourceClient = await pgClientSource.pgClient.connect();
@@ -574,14 +601,14 @@ export default class EBPDocuments {
       const ebpDocResult =
         await sourceClient.query<ConstructionsitereferencedocumentInterface>(
           'SELECT * FROM "ConstructionSiteReferenceDocument" WHERE "Id" = $1',
-          [documentId],
+          [documentIdEBP],
         );
 
       if (ebpDocResult.rows.length === 0) {
-        this.logger.warn(`Document avec ID EBP ${documentId} non trouvé`);
+        this.logger.warn(`Document avec ID EBP ${documentIdEBP} non trouvé`);
         return {
           success: false,
-          error: `Document avec ID EBP ${documentId} non trouvé`,
+          error: `Document avec ID EBP ${documentIdEBP} non trouvé`,
         };
       }
 
@@ -591,7 +618,7 @@ export default class EBPDocuments {
       const ebpDocExResult =
         await sourceClient.query<ConstructionsitereferencedocumentexInterface>(
           'SELECT * FROM "ConstructionSiteReferenceDocumentEx" WHERE "Id" = $1',
-          [documentId],
+          [documentIdEBP],
         );
 
       const ebpDocEx =
@@ -602,11 +629,11 @@ export default class EBPDocuments {
 
       if (!convertedDoc) {
         this.logger.warn(
-          `Impossible de convertir le document avec ID EBP ${documentId}`,
+          `Impossible de convertir le document avec ID EBP ${documentIdEBP}`,
         );
         return {
           success: false,
-          error: `Impossible de convertir le document avec ID EBP ${documentId}`,
+          error: `Impossible de convertir le document avec ID EBP ${documentIdEBP}`,
         };
       }
 
@@ -615,21 +642,21 @@ export default class EBPDocuments {
 
       if (!result) {
         this.logger.warn(
-          `Impossible d'insérer le document avec ID EBP ${documentId}`,
+          `Impossible d'insérer le document avec ID EBP ${documentIdEBP}`,
         );
         return {
           success: false,
-          error: `Impossible d'insérer le document avec ID EBP ${documentId}`,
+          error: `Impossible d'insérer le document avec ID EBP ${documentIdEBP}`,
         };
       }
 
       this.logger.log(
-        `Document avec ID EBP ${documentId} synchronisé avec succès`,
+        `Document avec ID EBP ${documentIdEBP} synchronisé avec succès`,
       );
       return { success: true, documentId: result };
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la synchronisation du document avec ID EBP ${documentId}:`,
+        `Erreur lors de la synchronisation du document avec ID EBP ${documentIdEBP}:`,
         error instanceof Error ? error.message : 'Erreur inconnue',
       );
       return {
@@ -644,6 +671,7 @@ export default class EBPDocuments {
     ebpId: string,
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
+    this.logger.debug(`getClientByEbpId called with EBP ID: ${ebpId}`);
     try {
       const result = await destinationClient.query<{
         id: number;
@@ -651,7 +679,13 @@ export default class EBPDocuments {
       }>('SELECT id, "customer_id" FROM clients WHERE "customer_id" = $1', [
         ebpId,
       ]);
-      return result.rows.length > 0 ? result.rows[0] : null;
+      if (result.rows.length > 0) {
+        this.logger.debug(`getClientByEbpId: Found client App ID ${result.rows[0].id} for EBP ID ${ebpId}`);
+        return result.rows[0];
+      } else {
+        this.logger.warn(`getClientByEbpId: No client found for EBP ID ${ebpId}`);
+        return null;
+      }
     } catch (error) {
       const typedError = error as DatabaseError;
       this.logger.error(
@@ -667,6 +701,7 @@ export default class EBPDocuments {
     ebpId: string,
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
+    this.logger.debug(`getProjectByEbpId called with EBP ID: ${ebpId}`);
     try {
       this.logger.debug(`Recherche du projet avec l'ID EBP ${ebpId}`);
       const result = await destinationClient.query<{ id: number }>(
@@ -674,10 +709,8 @@ export default class EBPDocuments {
         [ebpId],
       );
 
-      if (result.rows.length > 0) {
-        this.logger.debug(
-          `Projet trouvé avec l'ID EBP ${ebpId}: ID destination = ${result.rows[0].id}`,
-        );
+      if (result.rows.length > 0 && result.rows[0].id) {
+        this.logger.debug(`getProjectByEbpId: Found project App ID ${result.rows[0].id} for EBP ID ${ebpId}`);
         return result.rows[0];
       } else {
         this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
@@ -698,12 +731,19 @@ export default class EBPDocuments {
     ebpId: string,
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
+    this.logger.debug(`getStaffByEbpId called with EBP ID: ${ebpId}`);
     try {
       const result = await destinationClient.query<{
         id: number;
         staff_id: string;
       }>('SELECT id, "staff_id" FROM staff WHERE "staff_id" = $1', [ebpId]);
-      return result.rows.length > 0 ? result.rows[0] : null;
+      if (result.rows.length > 0) {
+        this.logger.debug(`getStaffByEbpId: Found staff App ID ${result.rows[0].id} for EBP ID ${ebpId}`);
+        return result.rows[0];
+      } else {
+        this.logger.warn(`getStaffByEbpId: No staff found for EBP ID ${ebpId}`);
+        return null;
+      }
     } catch (error) {
       const typedError = error as DatabaseError;
       this.logger.error(
@@ -719,100 +759,154 @@ export default class EBPDocuments {
     addressData: AddressData,
     destinationClient: PoolClient,
   ): Promise<number | null> {
-    const streetParts = addressData.Address1?.trim().split(/\s+/) || [];
-    const streetNumber = streetParts[0] || '';
-    const streetName = streetParts.slice(1).join(' ') || '';
+    // 1. Normalisation et validation des données d'entrée
+    const address1 = addressData.Address1?.trim() || '';
+    const address2 = addressData.Address2?.trim() || '';
+    const address3 = addressData.Address3?.trim() || '';
+    const address4 = addressData.Address4?.trim() || '';
+
+    let streetNumber: string | null = null;
+    let streetName: string = address1; // Par défaut, address1 est le nom de rue
+
+    // 2. Extraction du numéro de rue (si présent au début de address1)
+    const streetParts = address1.match(/^(\d{1,9}[a-zA-Z]?)\s+(.*)/);
+    if (streetParts) {
+      const potentialNumber = streetParts[1];
+      if (potentialNumber.length <= 10) {
+        streetNumber = potentialNumber;
+        streetName = streetParts[2].trim();
+      }
+    }
+
+    // Default pour nom de rue vide
+    if (!streetName) {
+      streetName = 'Adresse non spécifiée';
+    }
+
+    const additionalAddress = [address2, address3, address4]
+      .filter((part) => part)
+      .join(', ')
+      .trim();
+
     const zipCode = addressData.ZipCode?.trim() || '';
     const city = addressData.City?.trim() || '';
-    const additionalAddress = addressData.Address2?.trim() || '';
     const country = addressData.CountryIsoCode?.trim() || 'France';
-    const longitude = addressData.Longitude || null;
-    const latitude = addressData.Latitude || null;
+    const longitude = addressData.Longitude;
+    const latitude = addressData.Latitude;
 
-    if (!streetName || !zipCode || !city) {
+    // 3. Validation des champs essentiels
+    if (!zipCode || !city) {
       this.logger.warn(
-        `Adresse incomplète ignorée car les champs clés sont manquants: Rue='${streetName}', CP='${zipCode}', Ville='${city}'`,
+        `Adresse incomplète ignorée (CP ou Ville manquant): Rue='${streetName}', CP='${zipCode}', Ville='${city}'`,
       );
       return null;
     }
+    // Ajout d'une vérification simple de la longueur pour éviter les erreurs de contrainte (peut être affiné)
+    if (zipCode.length > 10) { 
+      this.logger.warn(`Code Postal "${zipCode}" trop long pour l'adresse Rue='${streetName}', Ville='${city}'. Adresse ignorée.`);
+      return null;
+    }
+
+    this.logger.debug(
+      `Upsert Adresse: Num='${streetNumber}', Rue='${streetName}', Compl='${additionalAddress}', CP='${zipCode}', Ville='${city}', Pays='${country}'`,
+    );
+
+    // 4. Utilisation du pattern SELECT puis INSERT ON CONFLICT
+    const selectQuery = `
+      SELECT id FROM addresses WHERE
+        (street_number = $1 OR ($1 IS NULL AND street_number IS NULL)) AND
+        street_name = $2 AND
+        zip_code = $3 AND
+        city = $4 AND
+        (additional_address = $5 OR ($5 IS NULL AND additional_address IS NULL)) AND
+        country = $6
+      LIMIT 1
+    `;
+    const selectValues = [
+      streetNumber,
+      streetName,
+      zipCode,
+      city,
+      additionalAddress || null, // Utiliser NULL si vide
+      country,
+    ];
 
     try {
+      // Essayer de trouver l'adresse existante
+      const selectResult = await destinationClient.query<{ id: number }>(
+        selectQuery,
+        selectValues,
+      );
+
+      if (selectResult.rows.length > 0 && selectResult.rows[0].id) {
+        this.logger.debug(
+          `Adresse existante trouvée (SELECT): ID ${selectResult.rows[0].id}`,
+        );
+        return selectResult.rows[0].id;
+      }
+
+      // Si non trouvée, essayer d'insérer
+      this.logger.debug('Adresse non trouvée, tentative d\'insertion...');
       const insertQuery = `
-        INSERT INTO addresses (
-          street_number, street_name, additional_address, zip_code, city, country, longitude, latitude
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country, longitude, latitude)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (street_number, street_name, zip_code, city) DO NOTHING -- Gère la contrainte unique
         RETURNING id
       `;
+      const insertValues = [
+        streetNumber,
+        streetName,
+        additionalAddress || null,
+        zipCode,
+        city,
+        country,
+        longitude,
+        latitude,
+      ];
+
       const insertResult = await destinationClient.query<{ id: number }>(
         insertQuery,
-        [
-          streetNumber,
-          streetName,
-          additionalAddress,
-          zipCode,
-          city,
-          country,
-          longitude,
-          latitude,
-        ],
+        insertValues,
       );
-      this.logger.debug(
-        `Nouvelle adresse insérée avec ID: ${insertResult.rows[0].id}`,
-      );
-      return insertResult.rows[0].id;
-    } catch (error) {
-      const typedError = error as DatabaseError;
 
-      if (
-        typedError.code === '23505' &&
-        typedError.constraint === 'addresses_unique_constraint'
-      ) {
+      if (insertResult.rows.length > 0 && insertResult.rows[0].id) {
         this.logger.debug(
-          `Conflit d'adresse (code: ${typedError.code}) détecté pour: Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'. Recherche de l'ID existant.`,
+          `Nouvelle adresse insérée (INSERT): ID ${insertResult.rows[0].id}`,
         );
+        return insertResult.rows[0].id;
+      }
 
-        try {
-          const selectQuery = `
-            SELECT id FROM addresses
-            WHERE COALESCE(street_number, '') = $1
-              AND street_name = $2
-              AND zip_code = $3
-              AND city = $4
-            LIMIT 1
-          `;
-          const selectResult = await destinationClient.query<{ id: number }>(
-            selectQuery,
-            [streetNumber, streetName, zipCode, city],
-          );
+      // Si l'insertion n'a rien retourné (ON CONFLICT DO NOTHING a été activé par une race condition)
+      // Re-sélectionner pour obtenir l'ID
+      this.logger.debug(
+        'Insertion n\'a pas retourné d\'ID (conflit détecté), re-sélection...',
+      );
+      const reSelectResult = await destinationClient.query<{ id: number }>(
+        selectQuery,
+        selectValues,
+      );
 
-          if (selectResult.rows.length > 0) {
-            const existingId = selectResult.rows[0].id;
-            this.logger.debug(
-              `Adresse existante trouvée avec ID: ${existingId}`,
-            );
-            return existingId;
-          } else {
-            this.logger.error(
-              `Erreur incohérente après conflit d'adresse (code: ${typedError.code}): Impossible de retrouver l'adresse existante. Adresse: Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'`,
-              typedError.stack,
-            );
-            return null;
-          }
-        } catch (selectError) {
-          const typedSelectError = selectError as DatabaseError;
-          this.logger.error(
-            `Erreur lors de la recherche de l'adresse existante après conflit: ${typedSelectError.message}`,
-            typedSelectError.stack,
-          );
-          return null;
-        }
+      if (reSelectResult.rows.length > 0 && reSelectResult.rows[0].id) {
+        this.logger.debug(
+          `Adresse existante trouvée (re-SELECT): ID ${reSelectResult.rows[0].id}`,
+        );
+        return reSelectResult.rows[0].id;
       } else {
+        // Cas très improbable
         this.logger.error(
-          `Erreur inattendue lors de l'insertion de l'adresse (Num='${streetNumber}', Rue='${streetName}', CP='${zipCode}', Ville='${city}'): ${typedError.message} (Code: ${typedError.code})`,
-          typedError.stack,
+          'ERREUR CRITIQUE: Impossible de trouver ou d\'insérer l\'adresse après gestion de conflit.',
+          { selectValues },
         );
         return null;
       }
+    } catch (error) {
+      const typedError = error as DatabaseError;
+      this.logger.error(
+        `Erreur BDD inattendue lors de l'upsert adresse: ${typedError.message}`,
+        `Code: ${typedError.code}, Rue: ${streetName}, CP: ${zipCode}, Ville: ${city}`,
+        typedError.stack,
+      );
+      return null;
     }
   }
 

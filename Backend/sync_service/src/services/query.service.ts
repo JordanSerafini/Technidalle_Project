@@ -27,4 +27,4 @@ export class QueryService {
       throw error;
     }
   }
-} 
+}
