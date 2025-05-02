@@ -15757,7 +15757,9 @@ export namespace Prisma {
     project_id: number | null
     order_index: number | null
     estimated_duration: number | null
+    estimated_hours: number | null
     actual_duration: number | null
+    actual_hours: number | null
     completion_percentage: number | null
   }
 
@@ -15766,7 +15768,9 @@ export namespace Prisma {
     project_id: number | null
     order_index: number | null
     estimated_duration: number | null
+    estimated_hours: number | null
     actual_duration: number | null
+    actual_hours: number | null
     completion_percentage: number | null
   }
 
@@ -15780,7 +15784,9 @@ export namespace Prisma {
     status: string | null
     order_index: number | null
     estimated_duration: number | null
+    estimated_hours: number | null
     actual_duration: number | null
+    actual_hours: number | null
     completion_percentage: number | null
     notes: string | null
     created_at: Date | null
@@ -15799,7 +15805,9 @@ export namespace Prisma {
     status: string | null
     order_index: number | null
     estimated_duration: number | null
+    estimated_hours: number | null
     actual_duration: number | null
+    actual_hours: number | null
     completion_percentage: number | null
     notes: string | null
     created_at: Date | null
@@ -15818,7 +15826,9 @@ export namespace Prisma {
     status: number
     order_index: number
     estimated_duration: number
+    estimated_hours: number
     actual_duration: number
+    actual_hours: number
     completion_percentage: number
     notes: number
     created_at: number
@@ -15834,7 +15844,9 @@ export namespace Prisma {
     project_id?: true
     order_index?: true
     estimated_duration?: true
+    estimated_hours?: true
     actual_duration?: true
+    actual_hours?: true
     completion_percentage?: true
   }
 
@@ -15843,7 +15855,9 @@ export namespace Prisma {
     project_id?: true
     order_index?: true
     estimated_duration?: true
+    estimated_hours?: true
     actual_duration?: true
+    actual_hours?: true
     completion_percentage?: true
   }
 
@@ -15857,7 +15871,9 @@ export namespace Prisma {
     status?: true
     order_index?: true
     estimated_duration?: true
+    estimated_hours?: true
     actual_duration?: true
+    actual_hours?: true
     completion_percentage?: true
     notes?: true
     created_at?: true
@@ -15876,7 +15892,9 @@ export namespace Prisma {
     status?: true
     order_index?: true
     estimated_duration?: true
+    estimated_hours?: true
     actual_duration?: true
+    actual_hours?: true
     completion_percentage?: true
     notes?: true
     created_at?: true
@@ -15895,7 +15913,9 @@ export namespace Prisma {
     status?: true
     order_index?: true
     estimated_duration?: true
+    estimated_hours?: true
     actual_duration?: true
+    actual_hours?: true
     completion_percentage?: true
     notes?: true
     created_at?: true
@@ -16001,7 +16021,9 @@ export namespace Prisma {
     status: string | null
     order_index: number
     estimated_duration: number | null
+    estimated_hours: number | null
     actual_duration: number | null
+    actual_hours: number | null
     completion_percentage: number | null
     notes: string | null
     created_at: Date | null
@@ -16039,7 +16061,9 @@ export namespace Prisma {
     status?: boolean
     order_index?: boolean
     estimated_duration?: boolean
+    estimated_hours?: boolean
     actual_duration?: boolean
+    actual_hours?: boolean
     completion_percentage?: boolean
     notes?: boolean
     created_at?: boolean
@@ -16069,7 +16093,9 @@ export namespace Prisma {
     status?: boolean
     order_index?: boolean
     estimated_duration?: boolean
+    estimated_hours?: boolean
     actual_duration?: boolean
+    actual_hours?: boolean
     completion_percentage?: boolean
     notes?: boolean
     created_at?: boolean
@@ -16089,7 +16115,9 @@ export namespace Prisma {
     status?: boolean
     order_index?: boolean
     estimated_duration?: boolean
+    estimated_hours?: boolean
     actual_duration?: boolean
+    actual_hours?: boolean
     completion_percentage?: boolean
     notes?: boolean
     created_at?: boolean
@@ -16109,7 +16137,9 @@ export namespace Prisma {
     status?: boolean
     order_index?: boolean
     estimated_duration?: boolean
+    estimated_hours?: boolean
     actual_duration?: boolean
+    actual_hours?: boolean
     completion_percentage?: boolean
     notes?: boolean
     created_at?: boolean
@@ -16118,7 +16148,7 @@ export namespace Prisma {
     synced_by_device_id?: boolean
   }
 
-  export type project_stagesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "project_id" | "name" | "description" | "start_date" | "end_date" | "status" | "order_index" | "estimated_duration" | "actual_duration" | "completion_percentage" | "notes" | "created_at" | "updated_at" | "synced_at" | "synced_by_device_id", ExtArgs["result"]["project_stages"]>
+  export type project_stagesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "project_id" | "name" | "description" | "start_date" | "end_date" | "status" | "order_index" | "estimated_duration" | "estimated_hours" | "actual_duration" | "actual_hours" | "completion_percentage" | "notes" | "created_at" | "updated_at" | "synced_at" | "synced_by_device_id", ExtArgs["result"]["project_stages"]>
   export type project_stagesInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     events?: boolean | project_stages$eventsArgs<ExtArgs>
     project_materials?: boolean | project_stages$project_materialsArgs<ExtArgs>
@@ -16163,7 +16193,9 @@ export namespace Prisma {
       status: string | null
       order_index: number
       estimated_duration: number | null
+      estimated_hours: number | null
       actual_duration: number | null
+      actual_hours: number | null
       completion_percentage: number | null
       notes: string | null
       created_at: Date | null
@@ -16612,7 +16644,9 @@ export namespace Prisma {
     readonly status: FieldRef<"project_stages", 'String'>
     readonly order_index: FieldRef<"project_stages", 'Int'>
     readonly estimated_duration: FieldRef<"project_stages", 'Int'>
+    readonly estimated_hours: FieldRef<"project_stages", 'Int'>
     readonly actual_duration: FieldRef<"project_stages", 'Int'>
+    readonly actual_hours: FieldRef<"project_stages", 'Int'>
     readonly completion_percentage: FieldRef<"project_stages", 'Int'>
     readonly notes: FieldRef<"project_stages", 'String'>
     readonly created_at: FieldRef<"project_stages", 'DateTime'>
@@ -37752,7 +37786,9 @@ export namespace Prisma {
     status: 'status',
     order_index: 'order_index',
     estimated_duration: 'estimated_duration',
+    estimated_hours: 'estimated_hours',
     actual_duration: 'actual_duration',
+    actual_hours: 'actual_hours',
     completion_percentage: 'completion_percentage',
     notes: 'notes',
     created_at: 'created_at',
@@ -39255,7 +39291,9 @@ export namespace Prisma {
     status?: StringNullableFilter<"project_stages"> | string | null
     order_index?: IntFilter<"project_stages"> | number
     estimated_duration?: IntNullableFilter<"project_stages"> | number | null
+    estimated_hours?: IntNullableFilter<"project_stages"> | number | null
     actual_duration?: IntNullableFilter<"project_stages"> | number | null
+    actual_hours?: IntNullableFilter<"project_stages"> | number | null
     completion_percentage?: IntNullableFilter<"project_stages"> | number | null
     notes?: StringNullableFilter<"project_stages"> | string | null
     created_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
@@ -39284,7 +39322,9 @@ export namespace Prisma {
     status?: SortOrderInput | SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrderInput | SortOrder
+    estimated_hours?: SortOrderInput | SortOrder
     actual_duration?: SortOrderInput | SortOrder
+    actual_hours?: SortOrderInput | SortOrder
     completion_percentage?: SortOrderInput | SortOrder
     notes?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
@@ -39316,7 +39356,9 @@ export namespace Prisma {
     status?: StringNullableFilter<"project_stages"> | string | null
     order_index?: IntFilter<"project_stages"> | number
     estimated_duration?: IntNullableFilter<"project_stages"> | number | null
+    estimated_hours?: IntNullableFilter<"project_stages"> | number | null
     actual_duration?: IntNullableFilter<"project_stages"> | number | null
+    actual_hours?: IntNullableFilter<"project_stages"> | number | null
     completion_percentage?: IntNullableFilter<"project_stages"> | number | null
     notes?: StringNullableFilter<"project_stages"> | string | null
     created_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
@@ -39345,7 +39387,9 @@ export namespace Prisma {
     status?: SortOrderInput | SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrderInput | SortOrder
+    estimated_hours?: SortOrderInput | SortOrder
     actual_duration?: SortOrderInput | SortOrder
+    actual_hours?: SortOrderInput | SortOrder
     completion_percentage?: SortOrderInput | SortOrder
     notes?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
@@ -39372,7 +39416,9 @@ export namespace Prisma {
     status?: StringNullableWithAggregatesFilter<"project_stages"> | string | null
     order_index?: IntWithAggregatesFilter<"project_stages"> | number
     estimated_duration?: IntNullableWithAggregatesFilter<"project_stages"> | number | null
+    estimated_hours?: IntNullableWithAggregatesFilter<"project_stages"> | number | null
     actual_duration?: IntNullableWithAggregatesFilter<"project_stages"> | number | null
+    actual_hours?: IntNullableWithAggregatesFilter<"project_stages"> | number | null
     completion_percentage?: IntNullableWithAggregatesFilter<"project_stages"> | number | null
     notes?: StringNullableWithAggregatesFilter<"project_stages"> | string | null
     created_at?: DateTimeNullableWithAggregatesFilter<"project_stages"> | Date | string | null
@@ -42064,7 +42110,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -42093,7 +42141,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -42119,7 +42169,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -42148,7 +42200,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -42176,7 +42230,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -42193,7 +42249,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -42212,7 +42270,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -45074,7 +45134,9 @@ export namespace Prisma {
     status?: SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrder
+    estimated_hours?: SortOrder
     actual_duration?: SortOrder
+    actual_hours?: SortOrder
     completion_percentage?: SortOrder
     notes?: SortOrder
     created_at?: SortOrder
@@ -45088,7 +45150,9 @@ export namespace Prisma {
     project_id?: SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrder
+    estimated_hours?: SortOrder
     actual_duration?: SortOrder
+    actual_hours?: SortOrder
     completion_percentage?: SortOrder
   }
 
@@ -45102,7 +45166,9 @@ export namespace Prisma {
     status?: SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrder
+    estimated_hours?: SortOrder
     actual_duration?: SortOrder
+    actual_hours?: SortOrder
     completion_percentage?: SortOrder
     notes?: SortOrder
     created_at?: SortOrder
@@ -45121,7 +45187,9 @@ export namespace Prisma {
     status?: SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrder
+    estimated_hours?: SortOrder
     actual_duration?: SortOrder
+    actual_hours?: SortOrder
     completion_percentage?: SortOrder
     notes?: SortOrder
     created_at?: SortOrder
@@ -45135,7 +45203,9 @@ export namespace Prisma {
     project_id?: SortOrder
     order_index?: SortOrder
     estimated_duration?: SortOrder
+    estimated_hours?: SortOrder
     actual_duration?: SortOrder
+    actual_hours?: SortOrder
     completion_percentage?: SortOrder
   }
 
@@ -52005,7 +52075,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -52033,7 +52105,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -52254,7 +52328,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -52282,7 +52358,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -52531,7 +52609,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -52559,7 +52639,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -52714,7 +52796,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -52742,7 +52826,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -52889,7 +52975,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -52917,7 +53005,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -53092,7 +53182,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -53120,7 +53212,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -53267,7 +53361,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -53295,7 +53391,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -53470,7 +53568,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -53498,7 +53598,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -54671,7 +54773,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -54698,7 +54802,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -55093,7 +55199,9 @@ export namespace Prisma {
     status?: StringNullableFilter<"project_stages"> | string | null
     order_index?: IntFilter<"project_stages"> | number
     estimated_duration?: IntNullableFilter<"project_stages"> | number | null
+    estimated_hours?: IntNullableFilter<"project_stages"> | number | null
     actual_duration?: IntNullableFilter<"project_stages"> | number | null
+    actual_hours?: IntNullableFilter<"project_stages"> | number | null
     completion_percentage?: IntNullableFilter<"project_stages"> | number | null
     notes?: StringNullableFilter<"project_stages"> | string | null
     created_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
@@ -55530,7 +55638,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -55558,7 +55668,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -55733,7 +55845,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -55761,7 +55875,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -56652,7 +56768,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -56680,7 +56798,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -56783,7 +56903,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -56811,7 +56933,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -56836,7 +56960,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -56864,7 +56990,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -56929,7 +57057,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -56957,7 +57087,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -57188,7 +57320,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -57216,7 +57350,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -57319,7 +57455,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -57347,7 +57485,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -57494,7 +57634,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -57522,7 +57664,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -57697,7 +57841,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -57725,7 +57871,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -61201,7 +61349,9 @@ export namespace Prisma {
     status?: string | null
     order_index: number
     estimated_duration?: number | null
+    estimated_hours?: number | null
     actual_duration?: number | null
+    actual_hours?: number | null
     completion_percentage?: number | null
     notes?: string | null
     created_at?: Date | string | null
@@ -61573,7 +61723,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -61600,7 +61752,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -61627,7 +61781,9 @@ export namespace Prisma {
     status?: NullableStringFieldUpdateOperationsInput | string | null
     order_index?: IntFieldUpdateOperationsInput | number
     estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    estimated_hours?: NullableIntFieldUpdateOperationsInput | number | null
     actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_hours?: NullableIntFieldUpdateOperationsInput | number | null
     completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null

@@ -248,7 +248,9 @@ model project_stages {
   status                String?             @default("non_commencee") @db.VarChar(50)
   order_index           Int
   estimated_duration    Int?
+  estimated_hours       Int?
   actual_duration       Int?
+  actual_hours          Int?
   completion_percentage Int?                @default(0)
   notes                 String?
   created_at            DateTime?           @default(now()) @db.Timestamp(6)
