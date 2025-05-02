@@ -36,6 +36,7 @@ interface StaffAssignment {
   staffId: number;
   staffName: string;
   roleDescription?: string;
+  hoursPlanned?: number | undefined;
 }
 
 export default function ProjectDetailScreen() {
@@ -216,7 +217,7 @@ export default function ProjectDetailScreen() {
                 roleDescription: assignment.roleDescription || 'Membre d\'équipe',
                 startDate: stageDataForPrisma.start_date, // Utiliser la date de début de l'étape
                 endDate: stageDataForPrisma.end_date, // Utiliser la date de fin de l'étape
-                // hoursPlanned: ... // Non disponible ici, gérer séparément si nécessaire
+                hoursPlanned: assignment.hoursPlanned, // Ajouter les heures planifiées depuis l'assignation
               })
             });
             
