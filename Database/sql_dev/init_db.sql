@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS addresses (
     street_number VARCHAR(10),
     street_name VARCHAR(255) NOT NULL,
     additional_address VARCHAR(255),
-    zip_code VARCHAR(10) NOT NULL CHECK (zip_code ~ '^[0-9]{5}$'),
+    zip_code VARCHAR(10) NOT NULL CHECK (length(zip_code) <= 10),
     city VARCHAR(100) NOT NULL,
     country VARCHAR(100) DEFAULT 'France',
     latitude DECIMAL(9,6),

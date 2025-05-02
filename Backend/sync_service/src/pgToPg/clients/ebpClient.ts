@@ -4,7 +4,7 @@ import * as pgClientSource from '../../clients/PgClient';
 import pgClientDestination from '../../clients/pgClient_2';
 import { Item as ItemEBP } from '../../interfaces/items/itemEBP';
 import { ItemAPP } from '../../interfaces/items/itemAPP';
-import { QueryResult, DatabaseError, PoolClient } from 'pg';
+import { QueryResult, PoolClient } from 'pg';
 import { Logger } from '@nestjs/common';
 
 /**
@@ -266,6 +266,7 @@ export default class EBPclient {
       const parts = finalStreetName.match(/^(\d{1,9}[a-zA-Z]?)\s+(.*)/);
       if (parts) {
         const potentialNumber = parts[1];
+        // Vérifier la longueur pour éviter d'extraire un CP ou autre long nombre comme numéro
         if (potentialNumber.length <= 10) {
           finalStreetNumber = potentialNumber;
           finalStreetName = parts[2].trim();
@@ -273,19 +274,21 @@ export default class EBPclient {
       }
     }
 
-    // Default pour nom de rue vide
+    // Default pour nom de rue vide après extraction éventuelle
     if (!finalStreetName) {
       finalStreetName = 'Adresse non spécifiée';
     }
 
     // Tronquer numéro si > 10 (sécurité)
     if (finalStreetNumber && finalStreetNumber.length > 10) {
-      this.logger.warn(`Numéro de rue "${finalStreetNumber}" tronqué.`);
+      this.logger.warn(
+        `Numéro de rue "${finalStreetNumber}" trop long, tronqué à 10 caractères.`,
+      );
       finalStreetNumber = finalStreetNumber.substring(0, 10);
     }
 
     // Autres champs
-    const zipCode = addressData.zip_code?.trim().padStart(5, '0') || '';
+    const zipCode = addressData.zip_code?.trim() || '';
     const city = addressData.city?.trim() || '';
     const additionalAddress = addressData.additional_address?.trim() || '';
     const country = addressData.country?.trim() || 'France';
@@ -293,17 +296,19 @@ export default class EBPclient {
     // 3. Validation des champs essentiels
     if (!zipCode || !city) {
       this.logger.warn(
-        `Adresse incomplète ignorée (CP ou Ville manquant): CP='${zipCode}', Ville='${city}'`,
+        `Adresse incomplète ignorée (CP ou Ville manquant): Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}'`,
       );
       return null;
     }
     if (zipCode.length > 10) {
-       this.logger.warn(`Code Postal "${zipCode}" trop long. Adresse ignorée.`);
-       return null;
+      this.logger.warn(
+        `Code Postal "${zipCode}" trop long (max 10). Adresse ignorée. Rue='${finalStreetName}', Ville='${city}'`,
+      );
+      return null;
     }
 
     this.logger.debug(
-      `Recherche/Upsert pour adresse: Num='${finalStreetNumber}', Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}', Pays='${country}'`,
+      `Recherche/Upsert pour adresse: Num='${finalStreetNumber}', Rue='${finalStreetName}', Compl='${additionalAddress || ''}', CP='${zipCode}', Ville='${city}', Pays='${country}'`,
     );
 
     // 4. Essayer de SELECTIONNER d'abord
@@ -313,7 +318,7 @@ export default class EBPclient {
         street_name = $2 AND
         zip_code = $3 AND
         city = $4 AND
-        (additional_address = $5 OR ($5 IS NULL AND additional_address IS NULL)) AND
+        (additional_address = $5 OR ($5 = '' AND additional_address IS NULL)) AND -- Gère les compléments vides vs NULL
         country = $6
       LIMIT 1
     `;
@@ -322,75 +327,87 @@ export default class EBPclient {
       finalStreetName,
       zipCode,
       city,
-      additionalAddress || null, // Assurer null si vide
+      additionalAddress, // Passer la valeur telle quelle (vide ou non)
       country,
     ];
 
     try {
-      const selectResult = await dbClient.query<{ id: number }>(
+      const selectResult = (await dbClient.query(
         selectQuery,
         selectValues,
-      );
+      )) as QueryResult<{ id: number }>;
 
       if (selectResult.rows.length > 0 && selectResult.rows[0].id) {
-        this.logger.debug(`Adresse existante trouvée avec ID: ${selectResult.rows[0].id}`);
+        this.logger.debug(
+          `Adresse existante trouvée avec ID: ${selectResult.rows[0].id}`,
+        );
         return selectResult.rows[0].id;
       }
 
       // 5. Si non trouvée, INSERER
-      this.logger.debug('Adresse non trouvée, tentative d\'insertion.');
+      this.logger.debug("Adresse non trouvée, tentative d'insertion.");
       const insertQuery = `
         INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country)
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT DO NOTHING -- Gérer la race condition potentielle
+        ON CONFLICT (street_number, street_name, zip_code, city) DO NOTHING -- Gérer la race condition potentielle
         RETURNING id
       `;
-       const insertValues = [
-          finalStreetNumber,
-          finalStreetName,
-          additionalAddress || null,
-          zipCode,
-          city,
-          country,
-       ];
+      // Note: On n'insère pas lat/lon ici car elles ne font pas partie de la clé unique et pourraient différer légèrement
+      const insertValues = [
+        finalStreetNumber,
+        finalStreetName,
+        additionalAddress || null, // S'assurer d'insérer NULL si vide
+        zipCode,
+        city,
+        country,
+      ];
 
-      const insertResult = await dbClient.query<{ id: number }>(
-          insertQuery,
-          insertValues
-      );
+      const insertResult = (await dbClient.query(
+        insertQuery,
+        insertValues,
+      )) as QueryResult<{ id: number }>;
 
       if (insertResult.rows.length > 0 && insertResult.rows[0].id) {
-        this.logger.debug(`Nouvelle adresse insérée avec ID: ${insertResult.rows[0].id}`);
+        this.logger.debug(
+          `Nouvelle adresse insérée avec ID: ${insertResult.rows[0].id}`,
+        );
         return insertResult.rows[0].id;
       }
 
-       // 6. Si l'insertion (avec ON CONFLICT DO NOTHING) n'a rien retourné (à cause d'une race condition)
-       // Re-sélectionner pour obtenir l'ID inséré par l'autre processus.
-       this.logger.debug('Insertion n\'a pas retourné d\'ID (probablement race condition), re-sélection...');
-       const reSelectResult = await dbClient.query<{ id: number }>(
-           selectQuery,
-           selectValues,
-       );
-        if (reSelectResult.rows.length > 0 && reSelectResult.rows[0].id) {
-           this.logger.debug(`Adresse existante (après race condition) trouvée avec ID: ${reSelectResult.rows[0].id}`);
-           return reSelectResult.rows[0].id;
-        } else {
-           // Ceci ne devrait VRAIMENT pas arriver
-           this.logger.error("ERREUR CRITIQUE: Impossible de trouver ou d'insérer l'adresse après tentative de gestion de race condition.", { addressData });
-           return null;
-        }
-
+      // 6. Si l'insertion (avec ON CONFLICT DO NOTHING) n'a rien retourné (à cause d'une race condition)
+      // Re-sélectionner pour obtenir l'ID inséré par l'autre processus.
+      this.logger.debug(
+        "Insertion n'a pas retourné d'ID (probablement race condition), re-sélection...",
+      );
+      // Utiliser la même requête SELECT que précédemment
+      const reSelectResult = (await dbClient.query(
+        selectQuery,
+        selectValues,
+      )) as QueryResult<{ id: number }>;
+      if (reSelectResult.rows.length > 0 && reSelectResult.rows[0].id) {
+        this.logger.debug(
+          `Adresse existante (après race condition) trouvée avec ID: ${reSelectResult.rows[0].id}`,
+        );
+        return reSelectResult.rows[0].id;
+      } else {
+        // Ceci ne devrait VRAIMENT pas arriver si la contrainte unique est bien définie et gérée
+        this.logger.error(
+          "ERREUR CRITIQUE: Impossible de trouver ou d'insérer l'adresse après tentative de gestion de race condition.",
+          { addressData, selectValues }, // Log les données utilisées pour le SELECT
+        );
+        return null;
+      }
     } catch (error) {
-       // Gérer les erreurs inattendues
-       if (error instanceof Error) {
-             this.logger.error(
-                 `Erreur BDD inattendue lors de l'upsert adresse: ${error.message}`,
-                 error.stack,
-                 { addressData }
-             );
-       } else {
-           this.logger.error('Erreur BDD inconnue lors de l\'upsert adresse', error, { addressData });
-       }
+      // Gérer les erreurs inattendues
+      const typedError: any = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      const code = typedError.code || 'UNKNOWN';
+      this.logger.error(
+        `Erreur BDD inattendue lors de l'upsert adresse: ${message} (Code: ${code})`,
+        stack,
+        { addressData }, // Log les données d'origine
+      );
       return null;
     }
   }
@@ -426,14 +443,14 @@ export default class EBPclient {
             `Impossible de déterminer l'ID de l'adresse pour le client ${clientData.customer_id}, insertion du client avec address_id = NULL.`,
           );
         } else {
-           this.logger.debug(
+          this.logger.debug(
             `Adresse déterminée/créée pour le client ${clientData.customer_id} avec ID: ${addressId}`,
           );
         }
       } else {
-         this.logger.debug(
-            `Pas de données d'adresse fournies pour le client ${clientData.customer_id}. address_id sera NULL.`,
-          );
+        this.logger.debug(
+          `Pas de données d'adresse fournies pour le client ${clientData.customer_id}. address_id sera NULL.`,
+        );
       }
 
       // S'assurer que l'email est valide ou créer un email de secours
@@ -465,12 +482,12 @@ export default class EBPclient {
       // Vérifier si l'email existe déjà
       if (clientData.email) {
         try {
-          const emailExistsResult = await dbClient.query<{ exists: boolean }>(
+          const emailExistsResult = (await dbClient.query(
             `SELECT EXISTS(SELECT 1 FROM clients WHERE email = $1 AND customer_id != $2) as "exists"`,
             [emailToUse, clientData.customer_id],
-          );
+          )) as QueryResult<{ exists: boolean }>;
 
-          if (emailExistsResult?.rows?.[0]?.exists) {
+          if (emailExistsResult.rows[0]?.exists) {
             this.logger.warn(
               `Email ${emailToUse} existe déjà pour un autre client que ${clientData.customer_id}. Génération d'un email unique.`,
             );
@@ -547,10 +564,10 @@ export default class EBPclient {
           updated_at = NOW()
         RETURNING id`;
 
-      const clientResult = await dbClient.query<{ id: number }>(
+      const clientResult = (await dbClient.query(
         clientQuery,
         clientValues,
-      );
+      )) as QueryResult<{ id: number }>;
 
       if (!clientResult?.rows?.[0]?.id) {
         throw new Error(
@@ -565,15 +582,18 @@ export default class EBPclient {
       return clientId;
     } catch (error) {
       if (error instanceof Error) {
-             this.logger.error(
-                `Erreur lors de l'insertion/màj du client ${clientData.customer_id}: ${error.message}`,
-                error.stack ?? 'Pas de stack trace', { clientData, addressId }
-             );
-        } else {
-             this.logger.error(
-                `Erreur inconnue lors de l'insertion/màj du client ${clientData.customer_id}:`, error, { clientData, addressId }
-             );
-        }
+        this.logger.error(
+          `Erreur lors de l'insertion/màj du client ${clientData.customer_id}: ${error.message}`,
+          error.stack ?? 'Pas de stack trace',
+          { clientData, addressId },
+        );
+      } else {
+        this.logger.error(
+          `Erreur inconnue lors de l'insertion/màj du client ${clientData.customer_id}:`,
+          error,
+          { clientData, addressId },
+        );
+      }
 
       return null;
     } finally {
@@ -834,23 +854,31 @@ export default class EBPclient {
   async syncClientByCustomerId(customer_id: string): Promise<number | null> {
     try {
       const query = `SELECT * FROM "Customer" WHERE "Id" = $1`;
-      const result: any = await pgClientSource.executeQuery(query, [customer_id]);
+      const result: any = await pgClientSource.executeQuery(query, [
+        customer_id,
+      ]);
 
       if (!result || !Array.isArray(result.rows) || result.rows.length === 0) {
-         this.logger.warn(`Aucun client trouvé dans EBP avec l'ID: ${customer_id}`);
-         return null;
+        this.logger.warn(
+          `Aucun client trouvé dans EBP avec l'ID: ${customer_id}`,
+        );
+        return null;
       }
 
       const clientsEBP = result.rows as ClientEBP[];
 
       if (clientsEBP.length > 1) {
-         this.logger.warn(`Plusieurs clients trouvés dans EBP pour l'ID ${customer_id}. Utilisation du premier.`);
+        this.logger.warn(
+          `Plusieurs clients trouvés dans EBP pour l'ID ${customer_id}. Utilisation du premier.`,
+        );
       }
       const clientEBP = clientsEBP[0];
 
       if (!clientEBP) {
-         this.logger.error(`Client EBP est indéfini après la requête pour l'ID ${customer_id}.`);
-         return null;
+        this.logger.error(
+          `Client EBP est indéfini après la requête pour l'ID ${customer_id}.`,
+        );
+        return null;
       }
 
       const clientAppDto = this.convertToAppClient(clientEBP);
@@ -858,24 +886,28 @@ export default class EBPclient {
       const insertedClientId = await this.insertClientIntoApp(clientAppDto);
 
       if (insertedClientId !== null) {
-         this.logger.log(`Client ${customer_id} synchronisé avec succès (ID App: ${insertedClientId}).`);
+        this.logger.log(
+          `Client ${customer_id} synchronisé avec succès (ID App: ${insertedClientId}).`,
+        );
       } else {
-         this.logger.error(`Échec de la synchronisation pour le client ${customer_id}.`);
+        this.logger.error(
+          `Échec de la synchronisation pour le client ${customer_id}.`,
+        );
       }
 
       return insertedClientId;
-
     } catch (error) {
-       if (error instanceof Error) {
-           this.logger.error(
-                `Erreur lors de la synchronisation du client ${customer_id}: ${error.message}`,
-                error.stack ?? 'Pas de stack trace'
-           );
-       } else {
-            this.logger.error(
-                `Erreur inconnue lors de la synchronisation du client ${customer_id}:`, error
-            );
-       }
+      if (error instanceof Error) {
+        this.logger.error(
+          `Erreur lors de la synchronisation du client ${customer_id}: ${error.message}`,
+          error.stack ?? 'Pas de stack trace',
+        );
+      } else {
+        this.logger.error(
+          `Erreur inconnue lors de la synchronisation du client ${customer_id}:`,
+          error,
+        );
+      }
 
       return null;
     }

@@ -26,6 +26,9 @@ foreach ($SERVICE in $SERVICES) {
         
         # Aller dans le dossier du service
         Set-Location -Path $SERVICE_PATH
+
+        npm i --save-dev prisma@latest
+        npm i @prisma/client@latest
         
         # Exécuter les commandes Prisma
         Write-Host "Exécution de 'npx prisma db pull'..." -ForegroundColor Yellow
