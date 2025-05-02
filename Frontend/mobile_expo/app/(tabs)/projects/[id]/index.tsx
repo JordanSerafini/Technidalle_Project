@@ -145,17 +145,53 @@ export default function ProjectDetailScreen() {
       console.log('Données de l\'étape à soumettre:', stageData);
       console.log('Personnel à assigner:', staffAssignments);
       
-      // 1. Créer l'étape
-      const stageResponse = await fetch(`${url.local}/projects/${id}/stages`, {
+      // Conversion des noms de champs en snake_case pour correspondre au modèle Prisma
+      const stageDataForPrisma = {
+        name: stageData.name,
+        description: stageData.description,
+        // Supprimer project_id car il est géré par la relation projects
+        start_date: stageData.startDate,
+        end_date: stageData.endDate,
+        order_index: stageData.orderIndex,
+        status: stageData.status,
+        estimated_duration: stageData.estimatedDuration,
+        notes: stageData.notes,
+        completion_percentage: 0,
+        // Relation avec le projet
+        projects: {
+          connect: {
+            id: Number(id) // Assurez-vous que l'ID est un nombre
+          }
+        }
+      };
+      
+      console.log('Données formatées pour Prisma:', stageDataForPrisma);
+      
+      // 1. Créer l'étape - Utiliser un chemin explicite vers l'API Gateway
+      // Essayer avec l'URL complète de l'API Gateway pour déboguer
+      const stageResponse = await fetch(`${url.local}projects/${id}/stages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(stageData)
+        body: JSON.stringify(stageDataForPrisma)
       });
       
+      // Log la réponse complète pour débogage
+      console.log('Status code:', stageResponse.status);
+      console.log('Status text:', stageResponse.statusText);
+      
       if (!stageResponse.ok) {
+        // Essayer de lire le corps de la réponse pour plus de détails
+        let errorMessage;
+        try {
+          const errorData = await stageResponse.json();
+          errorMessage = JSON.stringify(errorData);
+        } catch (e) {
+          errorMessage = await stageResponse.text();
+        }
+        console.error('Détails de l\'erreur:', errorMessage);
         throw new Error('Erreur lors de la création de l\'étape');
       }
       
