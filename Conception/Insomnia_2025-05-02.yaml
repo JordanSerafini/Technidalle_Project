@@ -19,12 +19,12 @@ collection:
           modified: 1744209773293
           sortKey: -1744209773293
         children:
-          - url: http://localhost:3000/clients?limit=100
+          - url: http://localhost:3000/clients?limit=25
             name: GetAll
             meta:
               id: req_32218f233d104df0b159bbd5940e96c7
               created: 1744209775242
-              modified: 1744968649695
+              modified: 1745828220880
               isPrivate: false
               sortKey: -1744209775242
             method: GET
@@ -39,12 +39,12 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: http://localhost:3000/clients/4
+          - url: http://localhost:3000/clients/1038
             name: Get By ID
             meta:
               id: req_4498ddd422e24d1c8632d7e40eb04e14
               created: 1744211228432
-              modified: 1744620576274
+              modified: 1746173585390
               isPrivate: false
               sortKey: -1744157281346.5
             method: GET
@@ -86,12 +86,12 @@ collection:
           modified: 1744209924461
           sortKey: -1744209924461
         children:
-          - url: http://localhost:3000/projects?limit=5
+          - url: http://localhost:3000/projects?limit=500
             name: GetAll
             meta:
               id: req_9c57999da3c0448f9ad63e7ad631fce6
               created: 1744209931717
-              modified: 1744632664155
+              modified: 1746187650835
               isPrivate: false
               sortKey: -1744209927481
             method: GET
@@ -106,12 +106,12 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: http://localhost:3000/projects/2
+          - url: http://localhost:3000/projects/442
             name: Get By ID
             meta:
               id: req_cdfb4b977baf42a89083cc9316313165
               created: 1744211212036
-              modified: 1744640635111
+              modified: 1746187768487
               isPrivate: false
               sortKey: -1744209851361.5
             method: GET
@@ -187,14 +187,74 @@ collection:
               modified: 1744707014475
               sortKey: -1744707014475
             children:
-              - url: http://localhost:3000/resources/projects/4/staff
-                name: Get staff by project ID
+              - url: http://localhost:3000/resources/staff
+                name: GetAll staff
                 meta:
                   id: req_0d453dd2ef15453abf407c2b3cc1e414
                   created: 1744707020576
-                  modified: 1744707043591
+                  modified: 1746178729868
                   isPrivate: false
                   sortKey: -1744707023133
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/events/by-staff/1
+                name: Get evnt by staff id
+                meta:
+                  id: req_73f078a7e15a4739872d2e8883ff903c
+                  created: 1746186771945
+                  modified: 1746187534086
+                  isPrivate: false
+                  sortKey: -1744674525639
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/events/assignments/by-staff/1
+                name: Get stage by staff id
+                meta:
+                  id: req_429a381d227547a1aea1f5f9480532ae
+                  created: 1746187853593
+                  modified: 1746188310675
+                  isPrivate: false
+                  sortKey: -1744658276892
+                method: GET
+                headers:
+                  - name: User-Agent
+                    value: insomnia/11.0.2
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: http://localhost:3000/events/debug-staff-assignments/1
+                name: debug stage
+                meta:
+                  id: req_20a2b6e3a7dc48cc86fc6d3925624852
+                  created: 1746188423429
+                  modified: 1746188641234
+                  isPrivate: false
+                  sortKey: -1744690774386
                 method: GET
                 headers:
                   - name: User-Agent
@@ -305,7 +365,7 @@ collection:
             meta:
               id: req_59ce447d99804d44810887d170ae79df
               created: 1744617843024
-              modified: 1744620338829
+              modified: 1746170657476
               isPrivate: false
               sortKey: -1744617843024
             method: GET
@@ -387,14 +447,34 @@ collection:
           modified: 1744717184159
           sortKey: -1744717184159
         children:
-          - url: http://localhost:3000/events
-            name: GetAll Events
+          - url: http://localhost:3000/events/staff/1/schedule/today
+            name: Get daily Events by Staff Id
             meta:
               id: req_761dcb7d1f5a40e58fe325d902df6b9b
               created: 1744717186278
-              modified: 1744718043016
+              modified: 1746176419977
               isPrivate: false
               sortKey: -1744717186278
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3000/events/staff/1/schedule/week
+            name: Get week Events by Staff Id
+            meta:
+              id: req_0156f62ea4ee440aba565aa973b01690
+              created: 1746186719244
+              modified: 1746186959744
+              isPrivate: false
+              sortKey: -1744712104705.5
             method: GET
             headers:
               - name: User-Agent
@@ -418,7 +498,7 @@ collection:
         meta:
           id: fld_a34a4472847e426a848a0bc4d3bd91c3
           created: 1744967113521
-          modified: 1744967113521
+          modified: 1745920137262
           sortKey: -1744967113521
         children:
           - name: Drop / Truncate
@@ -693,12 +773,12 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: http://localhost:3355/truncate/clients
+          - url: http://localhost:3355/truncate/documents
             name: truncate col Local by Col name
             meta:
               id: req_c269349ff08044298e6b1125ff830383
               created: 1744969624551
-              modified: 1744970182919
+              modified: 1746177304720
               isPrivate: false
               sortKey: -1744964323575
             method: GET
@@ -713,6 +793,86 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
+          - url: http://localhost:3355/sync/sync-items
+            name: Sync Items
+            meta:
+              id: req_d1dc859bc821428d978a9f7edfba85ca
+              created: 1745823997551
+              modified: 1745824003550
+              isPrivate: false
+              sortKey: -1744965728007.5
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3355/sync/sync-projects
+            name: Sync Projects
+            meta:
+              id: req_25f10dde4ad046f589cb8b29474da04c
+              created: 1745915236710
+              modified: 1745915252266
+              isPrivate: false
+              sortKey: -1744966430223.75
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: http://localhost:3355/sync/sync-documents
+            name: Sync documents
+            meta:
+              id: req_5c5ec7a447e246bcb829e340c84292b5
+              created: 1745917943170
+              modified: 1745917982202
+              isPrivate: false
+              sortKey: -1744965025791.25
+            method: GET
+            headers:
+              - name: User-Agent
+                value: insomnia/11.0.2
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - url: http://localhost:3355/generate-interface/customer
+        name: Create interface from Pg table
+        meta:
+          id: req_c17ce10bfb5c4106a12ce44f5df1fb08
+          created: 1745832693093
+          modified: 1746179942101
+          isPrivate: false
+          sortKey: -1745832693093
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
 cookieJar:
   name: Default Jar
   meta:
