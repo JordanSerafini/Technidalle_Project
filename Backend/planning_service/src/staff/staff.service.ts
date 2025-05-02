@@ -56,9 +56,11 @@ interface ScheduleItem {
   type: 'event' | 'assignment'; // Différencie un événement ponctuel d'une période d'assignation
   id: string; // ID unique préfixé (e.g., "event-123", "assign-456")
   title: string; // Titre de l'événement ou description de l'assignation
-  startTime: string; // ISO string date/heure de début
-  endTime: string | null; // ISO string date/heure de fin (peut être null pour assignation sans fin)
-  allDay: boolean; // Indique si c'est un événement/assignation sur toute la journée
+  startTime: string; // ISO string date/heure de début (peut être l'heure réelle ou début/fin de journée selon contexte)
+  endTime: string | null; // ISO string date/heure de fin (peut être l'heure réelle ou début/fin de journée selon contexte)
+  actualStartTime?: string | null; // Ajouté: Heure de début réelle de l'assignation/événement
+  actualEndTime?: string | null; // Ajouté: Heure de fin réelle de l'assignation/événement
+  allDay: boolean; // Indique si c'est un événement/assignation sur toute la journée DANS LE CONTEXTE ACTUEL (jour/semaine)
   project?: Partial<ProjectDetails> | null; // Détails partiels du projet
   stage?: Partial<StageDetails> | null; // Détails partiels de l'étape
   // Champs spécifiques aux événements
@@ -67,6 +69,23 @@ interface ScheduleItem {
   role?: string | null;
   hoursPlanned?: number | null; // Ajouté pour 'assignment'
   hoursWorked?: number | null; // Ajouté pour 'assignment'
+}
+
+// Interface pour typer les résultats de la requête brute dans debugStaffAssignments
+interface RawAssignmentDebugInfo {
+  id: string;
+  project_id: string;
+  staff_id: string;
+  stage_id: string | null;
+  role_description: string | null;
+  start_date: Date;
+  end_date: Date | null;
+  hours_planned: string | null;
+  hours_worked: string | null;
+  project_name: string | null;
+  project_reference: string | null;
+  staff_name: string | null;
+  stage_name: string | null;
 }
 
 @Injectable()
@@ -202,18 +221,90 @@ export class StaffService implements OnModuleInit {
             title = `Étape: ${assign.project_stages.name} (${assign.projects.reference})`;
           }
         }
+
+        const assignStartDate = assign.start_date;
+        const assignEndDate = assign.end_date;
+        let effectiveStartTime = startOfDay;
+        let effectiveEndTime = endOfDay;
+        let isAllDay = true;
+
+        if (assignStartDate) {
+          const startDateObj = new Date(assignStartDate);
+          const endDateObj = assignEndDate ? new Date(assignEndDate) : null;
+
+          const startsToday =
+            startDateObj >= startOfDay && startDateObj <= endOfDay;
+          const endsToday =
+            endDateObj && endDateObj >= startOfDay && endDateObj <= endOfDay;
+
+          // Cas 1: Commence et finit aujourd'hui avec des heures spécifiques (ou au moins une heure spécifique)
+          if (startsToday && endsToday) {
+            const isFullDayExactly =
+              startDateObj.getTime() === startOfDay.getTime() &&
+              endDateObj.getTime() === endOfDay.getTime();
+
+            if (!isFullDayExactly) {
+              effectiveStartTime = startDateObj;
+              effectiveEndTime = endDateObj;
+              isAllDay = false;
+            }
+          }
+          // Cas 2: Commence aujourd'hui (heure spé?) mais finit plus tard (ou jamais)
+          else if (startsToday && (!endDateObj || endDateObj > endOfDay)) {
+            const specificStartTime =
+              startDateObj.getUTCHours() !== 0 ||
+              startDateObj.getUTCMinutes() !== 0 ||
+              startDateObj.getUTCSeconds() !== 0 ||
+              startDateObj.getUTCMilliseconds() !== 0;
+            if (specificStartTime) {
+              effectiveStartTime = startDateObj;
+              // effectiveEndTime reste endOfDay
+              isAllDay = false;
+            } // else: commence à minuit -> allDay true
+          }
+          // Cas 3: Finit aujourd'hui (heure spé?) mais a commencé avant
+          else if (endsToday && startDateObj < startOfDay) {
+            const specificEndTime = !(
+              endDateObj.getUTCHours() === 23 &&
+              endDateObj.getUTCMinutes() === 59 &&
+              endDateObj.getUTCSeconds() === 59 &&
+              endDateObj.getUTCMilliseconds() === 999
+            );
+            if (specificEndTime) {
+              // effectiveStartTime reste startOfDay
+              effectiveEndTime = endDateObj;
+              isAllDay = false;
+            } // else: finit à 23:59:59 -> allDay true
+          }
+          // Cas 4: S'étend sur toute la journée (commence avant, finit après/jamais)
+          // Couvert implicitement par le défaut (isAllDay = true)
+        }
+        // Si pas de startDate, ou si les conditions ci-dessus ne s'appliquent pas, on reste sur allDay: true
+
+        // Sanity check: If isAllDay ended up false, but times are identical, it's likely bad data or a zero-duration event.
+        // Treat as allDay to avoid confusion, but log it.
+        if (!isAllDay && effectiveStartTime.getTime() === effectiveEndTime.getTime()) {
+          this.logger.warn(
+            `Assignation ID ${assign.id} resulted in allDay=false but identical start/end times (${effectiveStartTime.toISOString()}). Reverting to allDay=true. Check data source.`,
+          );
+          isAllDay = true;
+          // Optionally reset times back to full day if reverting
+          effectiveStartTime = startOfDay;
+          effectiveEndTime = endOfDay;
+        }
+
         return {
           type: 'assignment',
           id: `assign-${assign.id}`,
           title,
-          startTime: startOfDay.toISOString(), // Pour vue journalière
-          endTime: endOfDay.toISOString(), // Pour vue journalière
-          allDay: true,
+          startTime: effectiveStartTime.toISOString(),
+          endTime: effectiveEndTime.toISOString(),
+          allDay: isAllDay,
           project: assign.projects,
           stage: assign.project_stages,
           role: assign.role_description,
-          hoursPlanned: assign.hours_planned, // Ajouter les heures planifiées
-          hoursWorked: assign.hours_worked, // Ajouter les heures travaillées
+          hoursPlanned: assign.hours_planned,
+          hoursWorked: assign.hours_worked,
         };
       });
 
@@ -387,14 +478,19 @@ export class StaffService implements OnModuleInit {
                   title = `Étape: ${assign.project_stages.name} (${assign.projects.reference})`;
                 }
               }
+              // Pour la vue hebdo, on continue d'afficher comme "allDay" pour le jour donné,
+              // mais on fournit les vraies dates start/end de l'assignation pour info.
               weeklyPlanning[dayStr].push({
                 type: 'assignment',
                 id: `assign-${assign.id}`,
                 title,
-                // Pour la vue hebdo, on marque comme allDay pour le jour donné
-                startTime: d.toISOString().split('T')[0] + 'T00:00:00.000Z', // Début du jour
-                endTime: d.toISOString().split('T')[0] + 'T23:59:59.999Z', // Fin du jour
+                // Heures affichées pour la journée dans la vue semaine
+                startTime: d.toISOString().split('T')[0] + 'T00:00:00.000Z',
+                endTime: d.toISOString().split('T')[0] + 'T23:59:59.999Z',
                 allDay: true,
+                // Vraies heures de début/fin de l'assignation complète
+                actualStartTime: assign.start_date.toISOString(),
+                actualEndTime: assign.end_date?.toISOString() ?? null,
                 project: assign.projects,
                 stage: assign.project_stages,
                 role: assign.role_description,
@@ -938,7 +1034,9 @@ export class StaffService implements OnModuleInit {
       const count = parseInt(rawResult[0].count, 10);
 
       // Récupération des données brutes de project_staff et conversion des nombres
-      const rawAssignments = await this.prisma.$queryRaw<any[]>`
+      const rawAssignments = await this.prisma.$queryRaw<
+        RawAssignmentDebugInfo[]
+      >`
         SELECT
           ps.id::text as id,
           ps.project_id::text as project_id,
@@ -980,7 +1078,7 @@ export class StaffService implements OnModuleInit {
       };
 
       // Vérifier si les assignations sont correctes
-      const assignmentValidation = rawAssignments.map((assignment: any) => {
+      const assignmentValidation = rawAssignments.map((assignment: RawAssignmentDebugInfo) => {
         return {
           id: assignment.id,
           isValid: !!assignment.project_name && !!assignment.staff_name,
