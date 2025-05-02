@@ -17,4 +17,56 @@ export class StaffController {
     // TODO: Valider l'ID et la date
     return this.staffService.getWeeklySchedule(data.id, data.date);
   }
+
+  @MessagePattern({ cmd: 'get_events_by_staff' })
+  getEventsByStaff(@Payload() data: { staffId: number }) {
+    return this.staffService.getEventsByStaff(data.staffId);
+  }
+
+  @MessagePattern({ cmd: 'get_assignments_by_staff' })
+  getAssignmentsByStaff(@Payload() data: { staffId: number }) {
+    return this.staffService.getAssignmentsByStaff(data.staffId);
+  }
+
+  @MessagePattern({ cmd: 'assign_staff_to_project' })
+  assignStaffToProject(
+    @Payload()
+    data: {
+      projectId: number;
+      staffId: number;
+      stageId?: number;
+      roleDescription?: string;
+      startDate: string;
+      endDate?: string;
+      hoursPlanned?: number;
+    },
+  ) {
+    return this.staffService.assignStaffToProject(data);
+  }
+
+  @MessagePattern({ cmd: 'update_staff_assignment' })
+  updateStaffAssignment(
+    @Payload()
+    data: {
+      id: number;
+      roleDescription?: string;
+      startDate?: string;
+      endDate?: string;
+      hoursPlanned?: number;
+      hoursWorked?: number;
+      stageId?: number;
+    },
+  ) {
+    return this.staffService.updateStaffAssignment(data);
+  }
+
+  @MessagePattern({ cmd: 'remove_staff_assignment' })
+  removeStaffAssignment(@Payload() data: { id: number }) {
+    return this.staffService.removeStaffAssignment(data.id);
+  }
+
+  @MessagePattern({ cmd: 'debug_staff_assignments' })
+  debugStaffAssignments(@Payload() data: { staffId: number }) {
+    return this.staffService.debugStaffAssignments(data.staffId);
+  }
 }
