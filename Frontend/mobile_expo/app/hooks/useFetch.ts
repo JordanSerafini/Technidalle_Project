@@ -18,6 +18,7 @@ interface FetchOptions {
   cityFilter?: string;
   statusFilter?: string;
   lastOrderFilter?: string;
+  refresh?: string | number;
 }
 
 export function useFetch<T>(endpoint: string | null, options: FetchOptions = {}) {
@@ -74,6 +75,11 @@ export function useFetch<T>(endpoint: string | null, options: FetchOptions = {})
         
         if (options.lastOrderFilter) {
           params.lastOrderFilter = options.lastOrderFilter;
+        }
+
+        // Ajouter le paramètre refresh s'il existe
+        if (options.refresh !== undefined) {
+          params.refresh = String(options.refresh);
         }
 
         // Conversion des paramètres en chaîne de requête
@@ -150,7 +156,8 @@ export function useFetch<T>(endpoint: string | null, options: FetchOptions = {})
     options.typeFilter,
     options.cityFilter,
     options.statusFilter,
-    options.lastOrderFilter
+    options.lastOrderFilter,
+    options.refresh
   ]);
 
   return state;

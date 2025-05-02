@@ -86,9 +86,10 @@ export default function ClientsScreen() {
   }
   
   // Récupération des clients avec searchQuery, limit et offset
-  const { data, loading, error } = useFetch<Client[]>(`clients?refresh=${refreshKey}`, {
+  const { data, loading, error } = useFetch<Client[]>(`clients`, {
     limit: PAGE_SIZE,
     offset: offset,
+    refresh: refreshKey,
     searchQuery: searchQuery.length > 0 ? searchQuery : undefined,
     typeFilter: selectedType || undefined,
     cityFilter: selectedCity || undefined,
