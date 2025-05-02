@@ -329,6 +329,7 @@ CREATE TABLE IF NOT EXISTS events (
     all_day BOOLEAN DEFAULT false,
     location VARCHAR(255),
     project_id INTEGER,
+    stage_id INTEGER,
     staff_id INTEGER,
     client_id INTEGER,
     status VARCHAR(50) DEFAULT 'planifié',
@@ -336,6 +337,7 @@ CREATE TABLE IF NOT EXISTS events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_event_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_event_stage FOREIGN KEY (stage_id) REFERENCES project_stages(id) ON DELETE SET NULL,
     CONSTRAINT fk_event_staff FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL,
     CONSTRAINT fk_event_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
     CONSTRAINT check_event_dates CHECK (end_date >= start_date)
@@ -680,6 +682,7 @@ CREATE INDEX idx_project_materials_material ON project_materials(material_id);
 CREATE INDEX idx_project_staff_project ON project_staff(project_id);
 CREATE INDEX idx_project_staff_staff ON project_staff(staff_id);
 CREATE INDEX idx_events_project ON events(project_id);
+CREATE INDEX idx_events_stage ON events(stage_id);
 CREATE INDEX idx_events_dates ON events(start_date, end_date);
 CREATE INDEX idx_project_media_project ON project_media(project_id);
 CREATE INDEX idx_project_media_stage ON project_media(stage_id);

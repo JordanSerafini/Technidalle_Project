@@ -208,6 +208,7 @@ exports.Prisma.EventsScalarFieldEnum = {
   all_day: 'all_day',
   location: 'location',
   project_id: 'project_id',
+  stage_id: 'stage_id',
   staff_id: 'staff_id',
   client_id: 'client_id',
   status: 'status',

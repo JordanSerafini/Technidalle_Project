@@ -317,9 +317,7 @@ export default class EBPclient {
         (street_number = $1 OR ($1 IS NULL AND street_number IS NULL)) AND
         street_name = $2 AND
         zip_code = $3 AND
-        city = $4 AND
-        (additional_address = $5 OR ($5 = '' AND additional_address IS NULL)) AND -- Gère les compléments vides vs NULL
-        country = $6
+        city = $4
       LIMIT 1
     `;
     const selectValues = [
@@ -327,8 +325,8 @@ export default class EBPclient {
       finalStreetName,
       zipCode,
       city,
-      additionalAddress, // Passer la valeur telle quelle (vide ou non)
-      country,
+      // additionalAddress, // Ne plus utiliser pour la recherche d'unicité
+      // country,         // Ne plus utiliser pour la recherche d'unicité
     ];
 
     try {

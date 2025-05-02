@@ -125,27 +125,30 @@ model documents {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model events {
-  id          Int        @id @default(autoincrement())
-  title       String     @db.VarChar(255)
-  description String?
-  event_type  event_type
-  start_date  DateTime   @db.Timestamp(6)
-  end_date    DateTime   @db.Timestamp(6)
-  all_day     Boolean?   @default(false)
-  location    String?    @db.VarChar(255)
-  project_id  Int?
-  staff_id    Int?
-  client_id   Int?
-  status      String?    @default("planifié") @db.VarChar(50)
-  color       String?    @db.VarChar(50)
-  created_at  DateTime?  @default(now()) @db.Timestamp(6)
-  updated_at  DateTime?  @default(now()) @db.Timestamp(6)
-  clients     clients?   @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "fk_event_client")
-  projects    projects?  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_event_project")
-  staff       staff?     @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_event_staff")
+  id             Int             @id @default(autoincrement())
+  title          String          @db.VarChar(255)
+  description    String?
+  event_type     event_type
+  start_date     DateTime        @db.Timestamp(6)
+  end_date       DateTime        @db.Timestamp(6)
+  all_day        Boolean?        @default(false)
+  location       String?         @db.VarChar(255)
+  project_id     Int?
+  stage_id       Int?
+  staff_id       Int?
+  client_id      Int?
+  status         String?         @default("planifié") @db.VarChar(50)
+  color          String?         @db.VarChar(50)
+  created_at     DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?       @default(now()) @db.Timestamp(6)
+  clients        clients?        @relation(fields: [client_id], references: [id], onUpdate: NoAction, map: "fk_event_client")
+  projects       projects?       @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_event_project")
+  staff          staff?          @relation(fields: [staff_id], references: [id], onUpdate: NoAction, map: "fk_event_staff")
+  project_stages project_stages? @relation(fields: [stage_id], references: [id], onUpdate: NoAction, map: "fk_event_stage")
 
   @@index([start_date, end_date], map: "idx_events_dates")
   @@index([project_id], map: "idx_events_project")
+  @@index([stage_id], map: "idx_events_stage")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -252,6 +255,7 @@ model project_stages {
   updated_at            DateTime?           @default(now()) @db.Timestamp(6)
   synced_at             DateTime?           @db.Timestamp(6)
   synced_by_device_id   String?             @db.VarChar(100)
+  events                events[]
   project_materials     project_materials[]
   project_media         project_media[]
   project_staff         project_staff[]

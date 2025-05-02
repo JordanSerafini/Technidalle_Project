@@ -3476,6 +3476,7 @@ export namespace Prisma {
    */
 
   export type Project_stagesCountOutputType = {
+    events: number
     project_materials: number
     project_media: number
     project_staff: number
@@ -3487,6 +3488,7 @@ export namespace Prisma {
   }
 
   export type Project_stagesCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    events?: boolean | Project_stagesCountOutputTypeCountEventsArgs
     project_materials?: boolean | Project_stagesCountOutputTypeCountProject_materialsArgs
     project_media?: boolean | Project_stagesCountOutputTypeCountProject_mediaArgs
     project_staff?: boolean | Project_stagesCountOutputTypeCountProject_staffArgs
@@ -3506,6 +3508,13 @@ export namespace Prisma {
      * Select specific fields to fetch from the Project_stagesCountOutputType
      */
     select?: Project_stagesCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * Project_stagesCountOutputType without action
+   */
+  export type Project_stagesCountOutputTypeCountEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: eventsWhereInput
   }
 
   /**
@@ -9464,6 +9473,7 @@ export namespace Prisma {
   export type EventsAvgAggregateOutputType = {
     id: number | null
     project_id: number | null
+    stage_id: number | null
     staff_id: number | null
     client_id: number | null
   }
@@ -9471,6 +9481,7 @@ export namespace Prisma {
   export type EventsSumAggregateOutputType = {
     id: number | null
     project_id: number | null
+    stage_id: number | null
     staff_id: number | null
     client_id: number | null
   }
@@ -9485,6 +9496,7 @@ export namespace Prisma {
     all_day: boolean | null
     location: string | null
     project_id: number | null
+    stage_id: number | null
     staff_id: number | null
     client_id: number | null
     status: string | null
@@ -9503,6 +9515,7 @@ export namespace Prisma {
     all_day: boolean | null
     location: string | null
     project_id: number | null
+    stage_id: number | null
     staff_id: number | null
     client_id: number | null
     status: string | null
@@ -9521,6 +9534,7 @@ export namespace Prisma {
     all_day: number
     location: number
     project_id: number
+    stage_id: number
     staff_id: number
     client_id: number
     status: number
@@ -9534,6 +9548,7 @@ export namespace Prisma {
   export type EventsAvgAggregateInputType = {
     id?: true
     project_id?: true
+    stage_id?: true
     staff_id?: true
     client_id?: true
   }
@@ -9541,6 +9556,7 @@ export namespace Prisma {
   export type EventsSumAggregateInputType = {
     id?: true
     project_id?: true
+    stage_id?: true
     staff_id?: true
     client_id?: true
   }
@@ -9555,6 +9571,7 @@ export namespace Prisma {
     all_day?: true
     location?: true
     project_id?: true
+    stage_id?: true
     staff_id?: true
     client_id?: true
     status?: true
@@ -9573,6 +9590,7 @@ export namespace Prisma {
     all_day?: true
     location?: true
     project_id?: true
+    stage_id?: true
     staff_id?: true
     client_id?: true
     status?: true
@@ -9591,6 +9609,7 @@ export namespace Prisma {
     all_day?: true
     location?: true
     project_id?: true
+    stage_id?: true
     staff_id?: true
     client_id?: true
     status?: true
@@ -9696,6 +9715,7 @@ export namespace Prisma {
     all_day: boolean | null
     location: string | null
     project_id: number | null
+    stage_id: number | null
     staff_id: number | null
     client_id: number | null
     status: string | null
@@ -9733,6 +9753,7 @@ export namespace Prisma {
     all_day?: boolean
     location?: boolean
     project_id?: boolean
+    stage_id?: boolean
     staff_id?: boolean
     client_id?: boolean
     status?: boolean
@@ -9742,6 +9763,7 @@ export namespace Prisma {
     clients?: boolean | events$clientsArgs<ExtArgs>
     projects?: boolean | events$projectsArgs<ExtArgs>
     staff?: boolean | events$staffArgs<ExtArgs>
+    project_stages?: boolean | events$project_stagesArgs<ExtArgs>
   }, ExtArgs["result"]["events"]>
 
   export type eventsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -9754,6 +9776,7 @@ export namespace Prisma {
     all_day?: boolean
     location?: boolean
     project_id?: boolean
+    stage_id?: boolean
     staff_id?: boolean
     client_id?: boolean
     status?: boolean
@@ -9763,6 +9786,7 @@ export namespace Prisma {
     clients?: boolean | events$clientsArgs<ExtArgs>
     projects?: boolean | events$projectsArgs<ExtArgs>
     staff?: boolean | events$staffArgs<ExtArgs>
+    project_stages?: boolean | events$project_stagesArgs<ExtArgs>
   }, ExtArgs["result"]["events"]>
 
   export type eventsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -9775,6 +9799,7 @@ export namespace Prisma {
     all_day?: boolean
     location?: boolean
     project_id?: boolean
+    stage_id?: boolean
     staff_id?: boolean
     client_id?: boolean
     status?: boolean
@@ -9784,6 +9809,7 @@ export namespace Prisma {
     clients?: boolean | events$clientsArgs<ExtArgs>
     projects?: boolean | events$projectsArgs<ExtArgs>
     staff?: boolean | events$staffArgs<ExtArgs>
+    project_stages?: boolean | events$project_stagesArgs<ExtArgs>
   }, ExtArgs["result"]["events"]>
 
   export type eventsSelectScalar = {
@@ -9796,6 +9822,7 @@ export namespace Prisma {
     all_day?: boolean
     location?: boolean
     project_id?: boolean
+    stage_id?: boolean
     staff_id?: boolean
     client_id?: boolean
     status?: boolean
@@ -9804,21 +9831,24 @@ export namespace Prisma {
     updated_at?: boolean
   }
 
-  export type eventsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "description" | "event_type" | "start_date" | "end_date" | "all_day" | "location" | "project_id" | "staff_id" | "client_id" | "status" | "color" | "created_at" | "updated_at", ExtArgs["result"]["events"]>
+  export type eventsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "description" | "event_type" | "start_date" | "end_date" | "all_day" | "location" | "project_id" | "stage_id" | "staff_id" | "client_id" | "status" | "color" | "created_at" | "updated_at", ExtArgs["result"]["events"]>
   export type eventsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     clients?: boolean | events$clientsArgs<ExtArgs>
     projects?: boolean | events$projectsArgs<ExtArgs>
     staff?: boolean | events$staffArgs<ExtArgs>
+    project_stages?: boolean | events$project_stagesArgs<ExtArgs>
   }
   export type eventsIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     clients?: boolean | events$clientsArgs<ExtArgs>
     projects?: boolean | events$projectsArgs<ExtArgs>
     staff?: boolean | events$staffArgs<ExtArgs>
+    project_stages?: boolean | events$project_stagesArgs<ExtArgs>
   }
   export type eventsIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     clients?: boolean | events$clientsArgs<ExtArgs>
     projects?: boolean | events$projectsArgs<ExtArgs>
     staff?: boolean | events$staffArgs<ExtArgs>
+    project_stages?: boolean | events$project_stagesArgs<ExtArgs>
   }
 
   export type $eventsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -9827,6 +9857,7 @@ export namespace Prisma {
       clients: Prisma.$clientsPayload<ExtArgs> | null
       projects: Prisma.$projectsPayload<ExtArgs> | null
       staff: Prisma.$staffPayload<ExtArgs> | null
+      project_stages: Prisma.$project_stagesPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -9838,6 +9869,7 @@ export namespace Prisma {
       all_day: boolean | null
       location: string | null
       project_id: number | null
+      stage_id: number | null
       staff_id: number | null
       client_id: number | null
       status: string | null
@@ -10241,6 +10273,7 @@ export namespace Prisma {
     clients<T extends events$clientsArgs<ExtArgs> = {}>(args?: Subset<T, events$clientsArgs<ExtArgs>>): Prisma__clientsClient<$Result.GetResult<Prisma.$clientsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     projects<T extends events$projectsArgs<ExtArgs> = {}>(args?: Subset<T, events$projectsArgs<ExtArgs>>): Prisma__projectsClient<$Result.GetResult<Prisma.$projectsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     staff<T extends events$staffArgs<ExtArgs> = {}>(args?: Subset<T, events$staffArgs<ExtArgs>>): Prisma__staffClient<$Result.GetResult<Prisma.$staffPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    project_stages<T extends events$project_stagesArgs<ExtArgs> = {}>(args?: Subset<T, events$project_stagesArgs<ExtArgs>>): Prisma__project_stagesClient<$Result.GetResult<Prisma.$project_stagesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -10279,6 +10312,7 @@ export namespace Prisma {
     readonly all_day: FieldRef<"events", 'Boolean'>
     readonly location: FieldRef<"events", 'String'>
     readonly project_id: FieldRef<"events", 'Int'>
+    readonly stage_id: FieldRef<"events", 'Int'>
     readonly staff_id: FieldRef<"events", 'Int'>
     readonly client_id: FieldRef<"events", 'Int'>
     readonly status: FieldRef<"events", 'String'>
@@ -10735,6 +10769,25 @@ export namespace Prisma {
      */
     include?: staffInclude<ExtArgs> | null
     where?: staffWhereInput
+  }
+
+  /**
+   * events.project_stages
+   */
+  export type events$project_stagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the project_stages
+     */
+    select?: project_stagesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the project_stages
+     */
+    omit?: project_stagesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: project_stagesInclude<ExtArgs> | null
+    where?: project_stagesWhereInput
   }
 
   /**
@@ -15993,6 +16046,7 @@ export namespace Prisma {
     updated_at?: boolean
     synced_at?: boolean
     synced_by_device_id?: boolean
+    events?: boolean | project_stages$eventsArgs<ExtArgs>
     project_materials?: boolean | project_stages$project_materialsArgs<ExtArgs>
     project_media?: boolean | project_stages$project_mediaArgs<ExtArgs>
     project_staff?: boolean | project_stages$project_staffArgs<ExtArgs>
@@ -16066,6 +16120,7 @@ export namespace Prisma {
 
   export type project_stagesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "project_id" | "name" | "description" | "start_date" | "end_date" | "status" | "order_index" | "estimated_duration" | "actual_duration" | "completion_percentage" | "notes" | "created_at" | "updated_at" | "synced_at" | "synced_by_device_id", ExtArgs["result"]["project_stages"]>
   export type project_stagesInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    events?: boolean | project_stages$eventsArgs<ExtArgs>
     project_materials?: boolean | project_stages$project_materialsArgs<ExtArgs>
     project_media?: boolean | project_stages$project_mediaArgs<ExtArgs>
     project_staff?: boolean | project_stages$project_staffArgs<ExtArgs>
@@ -16087,6 +16142,7 @@ export namespace Prisma {
   export type $project_stagesPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "project_stages"
     objects: {
+      events: Prisma.$eventsPayload<ExtArgs>[]
       project_materials: Prisma.$project_materialsPayload<ExtArgs>[]
       project_media: Prisma.$project_mediaPayload<ExtArgs>[]
       project_staff: Prisma.$project_staffPayload<ExtArgs>[]
@@ -16508,6 +16564,7 @@ export namespace Prisma {
    */
   export interface Prisma__project_stagesClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    events<T extends project_stages$eventsArgs<ExtArgs> = {}>(args?: Subset<T, project_stages$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$eventsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     project_materials<T extends project_stages$project_materialsArgs<ExtArgs> = {}>(args?: Subset<T, project_stages$project_materialsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$project_materialsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     project_media<T extends project_stages$project_mediaArgs<ExtArgs> = {}>(args?: Subset<T, project_stages$project_mediaArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$project_mediaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     project_staff<T extends project_stages$project_staffArgs<ExtArgs> = {}>(args?: Subset<T, project_stages$project_staffArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$project_staffPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -16955,6 +17012,30 @@ export namespace Prisma {
      * Limit how many project_stages to delete.
      */
     limit?: number
+  }
+
+  /**
+   * project_stages.events
+   */
+  export type project_stages$eventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the events
+     */
+    select?: eventsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the events
+     */
+    omit?: eventsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: eventsInclude<ExtArgs> | null
+    where?: eventsWhereInput
+    orderBy?: eventsOrderByWithRelationInput | eventsOrderByWithRelationInput[]
+    cursor?: eventsWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: EventsScalarFieldEnum | EventsScalarFieldEnum[]
   }
 
   /**
@@ -37581,6 +37662,7 @@ export namespace Prisma {
     all_day: 'all_day',
     location: 'location',
     project_id: 'project_id',
+    stage_id: 'stage_id',
     staff_id: 'staff_id',
     client_id: 'client_id',
     status: 'status',
@@ -38683,6 +38765,7 @@ export namespace Prisma {
     all_day?: BoolNullableFilter<"events"> | boolean | null
     location?: StringNullableFilter<"events"> | string | null
     project_id?: IntNullableFilter<"events"> | number | null
+    stage_id?: IntNullableFilter<"events"> | number | null
     staff_id?: IntNullableFilter<"events"> | number | null
     client_id?: IntNullableFilter<"events"> | number | null
     status?: StringNullableFilter<"events"> | string | null
@@ -38692,6 +38775,7 @@ export namespace Prisma {
     clients?: XOR<ClientsNullableScalarRelationFilter, clientsWhereInput> | null
     projects?: XOR<ProjectsNullableScalarRelationFilter, projectsWhereInput> | null
     staff?: XOR<StaffNullableScalarRelationFilter, staffWhereInput> | null
+    project_stages?: XOR<Project_stagesNullableScalarRelationFilter, project_stagesWhereInput> | null
   }
 
   export type eventsOrderByWithRelationInput = {
@@ -38704,6 +38788,7 @@ export namespace Prisma {
     all_day?: SortOrderInput | SortOrder
     location?: SortOrderInput | SortOrder
     project_id?: SortOrderInput | SortOrder
+    stage_id?: SortOrderInput | SortOrder
     staff_id?: SortOrderInput | SortOrder
     client_id?: SortOrderInput | SortOrder
     status?: SortOrderInput | SortOrder
@@ -38713,6 +38798,7 @@ export namespace Prisma {
     clients?: clientsOrderByWithRelationInput
     projects?: projectsOrderByWithRelationInput
     staff?: staffOrderByWithRelationInput
+    project_stages?: project_stagesOrderByWithRelationInput
   }
 
   export type eventsWhereUniqueInput = Prisma.AtLeast<{
@@ -38728,6 +38814,7 @@ export namespace Prisma {
     all_day?: BoolNullableFilter<"events"> | boolean | null
     location?: StringNullableFilter<"events"> | string | null
     project_id?: IntNullableFilter<"events"> | number | null
+    stage_id?: IntNullableFilter<"events"> | number | null
     staff_id?: IntNullableFilter<"events"> | number | null
     client_id?: IntNullableFilter<"events"> | number | null
     status?: StringNullableFilter<"events"> | string | null
@@ -38737,6 +38824,7 @@ export namespace Prisma {
     clients?: XOR<ClientsNullableScalarRelationFilter, clientsWhereInput> | null
     projects?: XOR<ProjectsNullableScalarRelationFilter, projectsWhereInput> | null
     staff?: XOR<StaffNullableScalarRelationFilter, staffWhereInput> | null
+    project_stages?: XOR<Project_stagesNullableScalarRelationFilter, project_stagesWhereInput> | null
   }, "id">
 
   export type eventsOrderByWithAggregationInput = {
@@ -38749,6 +38837,7 @@ export namespace Prisma {
     all_day?: SortOrderInput | SortOrder
     location?: SortOrderInput | SortOrder
     project_id?: SortOrderInput | SortOrder
+    stage_id?: SortOrderInput | SortOrder
     staff_id?: SortOrderInput | SortOrder
     client_id?: SortOrderInput | SortOrder
     status?: SortOrderInput | SortOrder
@@ -38775,6 +38864,7 @@ export namespace Prisma {
     all_day?: BoolNullableWithAggregatesFilter<"events"> | boolean | null
     location?: StringNullableWithAggregatesFilter<"events"> | string | null
     project_id?: IntNullableWithAggregatesFilter<"events"> | number | null
+    stage_id?: IntNullableWithAggregatesFilter<"events"> | number | null
     staff_id?: IntNullableWithAggregatesFilter<"events"> | number | null
     client_id?: IntNullableWithAggregatesFilter<"events"> | number | null
     status?: StringNullableWithAggregatesFilter<"events"> | string | null
@@ -39172,6 +39262,7 @@ export namespace Prisma {
     updated_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
     synced_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
     synced_by_device_id?: StringNullableFilter<"project_stages"> | string | null
+    events?: EventsListRelationFilter
     project_materials?: Project_materialsListRelationFilter
     project_media?: Project_mediaListRelationFilter
     project_staff?: Project_staffListRelationFilter
@@ -39200,6 +39291,7 @@ export namespace Prisma {
     updated_at?: SortOrderInput | SortOrder
     synced_at?: SortOrderInput | SortOrder
     synced_by_device_id?: SortOrderInput | SortOrder
+    events?: eventsOrderByRelationAggregateInput
     project_materials?: project_materialsOrderByRelationAggregateInput
     project_media?: project_mediaOrderByRelationAggregateInput
     project_staff?: project_staffOrderByRelationAggregateInput
@@ -39231,6 +39323,7 @@ export namespace Prisma {
     updated_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
     synced_at?: DateTimeNullableFilter<"project_stages"> | Date | string | null
     synced_by_device_id?: StringNullableFilter<"project_stages"> | string | null
+    events?: EventsListRelationFilter
     project_materials?: Project_materialsListRelationFilter
     project_media?: Project_mediaListRelationFilter
     project_staff?: Project_staffListRelationFilter
@@ -41473,6 +41566,7 @@ export namespace Prisma {
     clients?: clientsCreateNestedOneWithoutEventsInput
     projects?: projectsCreateNestedOneWithoutEventsInput
     staff?: staffCreateNestedOneWithoutEventsInput
+    project_stages?: project_stagesCreateNestedOneWithoutEventsInput
   }
 
   export type eventsUncheckedCreateInput = {
@@ -41485,6 +41579,7 @@ export namespace Prisma {
     all_day?: boolean | null
     location?: string | null
     project_id?: number | null
+    stage_id?: number | null
     staff_id?: number | null
     client_id?: number | null
     status?: string | null
@@ -41508,6 +41603,7 @@ export namespace Prisma {
     clients?: clientsUpdateOneWithoutEventsNestedInput
     projects?: projectsUpdateOneWithoutEventsNestedInput
     staff?: staffUpdateOneWithoutEventsNestedInput
+    project_stages?: project_stagesUpdateOneWithoutEventsNestedInput
   }
 
   export type eventsUncheckedUpdateInput = {
@@ -41520,6 +41616,7 @@ export namespace Prisma {
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     staff_id?: NullableIntFieldUpdateOperationsInput | number | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
@@ -41538,6 +41635,7 @@ export namespace Prisma {
     all_day?: boolean | null
     location?: string | null
     project_id?: number | null
+    stage_id?: number | null
     staff_id?: number | null
     client_id?: number | null
     status?: string | null
@@ -41570,6 +41668,7 @@ export namespace Prisma {
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     staff_id?: NullableIntFieldUpdateOperationsInput | number | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
@@ -41972,6 +42071,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -42000,6 +42100,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -42025,6 +42126,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -42053,6 +42155,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -44522,6 +44625,11 @@ export namespace Prisma {
     isNot?: projectsWhereInput | null
   }
 
+  export type Project_stagesNullableScalarRelationFilter = {
+    is?: project_stagesWhereInput | null
+    isNot?: project_stagesWhereInput | null
+  }
+
   export type eventsCountOrderByAggregateInput = {
     id?: SortOrder
     title?: SortOrder
@@ -44532,6 +44640,7 @@ export namespace Prisma {
     all_day?: SortOrder
     location?: SortOrder
     project_id?: SortOrder
+    stage_id?: SortOrder
     staff_id?: SortOrder
     client_id?: SortOrder
     status?: SortOrder
@@ -44543,6 +44652,7 @@ export namespace Prisma {
   export type eventsAvgOrderByAggregateInput = {
     id?: SortOrder
     project_id?: SortOrder
+    stage_id?: SortOrder
     staff_id?: SortOrder
     client_id?: SortOrder
   }
@@ -44557,6 +44667,7 @@ export namespace Prisma {
     all_day?: SortOrder
     location?: SortOrder
     project_id?: SortOrder
+    stage_id?: SortOrder
     staff_id?: SortOrder
     client_id?: SortOrder
     status?: SortOrder
@@ -44575,6 +44686,7 @@ export namespace Prisma {
     all_day?: SortOrder
     location?: SortOrder
     project_id?: SortOrder
+    stage_id?: SortOrder
     staff_id?: SortOrder
     client_id?: SortOrder
     status?: SortOrder
@@ -44586,6 +44698,7 @@ export namespace Prisma {
   export type eventsSumOrderByAggregateInput = {
     id?: SortOrder
     project_id?: SortOrder
+    stage_id?: SortOrder
     staff_id?: SortOrder
     client_id?: SortOrder
   }
@@ -44683,11 +44796,6 @@ export namespace Prisma {
   export type MaterialsScalarRelationFilter = {
     is?: materialsWhereInput
     isNot?: materialsWhereInput
-  }
-
-  export type Project_stagesNullableScalarRelationFilter = {
-    is?: project_stagesWhereInput | null
-    isNot?: project_stagesWhereInput | null
   }
 
   export type project_materialsCountOrderByAggregateInput = {
@@ -46808,6 +46916,12 @@ export namespace Prisma {
     connect?: staffWhereUniqueInput
   }
 
+  export type project_stagesCreateNestedOneWithoutEventsInput = {
+    create?: XOR<project_stagesCreateWithoutEventsInput, project_stagesUncheckedCreateWithoutEventsInput>
+    connectOrCreate?: project_stagesCreateOrConnectWithoutEventsInput
+    connect?: project_stagesWhereUniqueInput
+  }
+
   export type Enumevent_typeFieldUpdateOperationsInput = {
     set?: $Enums.event_type
   }
@@ -46840,6 +46954,16 @@ export namespace Prisma {
     delete?: staffWhereInput | boolean
     connect?: staffWhereUniqueInput
     update?: XOR<XOR<staffUpdateToOneWithWhereWithoutEventsInput, staffUpdateWithoutEventsInput>, staffUncheckedUpdateWithoutEventsInput>
+  }
+
+  export type project_stagesUpdateOneWithoutEventsNestedInput = {
+    create?: XOR<project_stagesCreateWithoutEventsInput, project_stagesUncheckedCreateWithoutEventsInput>
+    connectOrCreate?: project_stagesCreateOrConnectWithoutEventsInput
+    upsert?: project_stagesUpsertWithoutEventsInput
+    disconnect?: project_stagesWhereInput | boolean
+    delete?: project_stagesWhereInput | boolean
+    connect?: project_stagesWhereUniqueInput
+    update?: XOR<XOR<project_stagesUpdateToOneWithWhereWithoutEventsInput, project_stagesUpdateWithoutEventsInput>, project_stagesUncheckedUpdateWithoutEventsInput>
   }
 
   export type document_linesCreateNestedManyWithoutMaterialsInput = {
@@ -47070,6 +47194,13 @@ export namespace Prisma {
     update?: XOR<XOR<project_stagesUpdateToOneWithWhereWithoutProject_staffInput, project_stagesUpdateWithoutProject_staffInput>, project_stagesUncheckedUpdateWithoutProject_staffInput>
   }
 
+  export type eventsCreateNestedManyWithoutProject_stagesInput = {
+    create?: XOR<eventsCreateWithoutProject_stagesInput, eventsUncheckedCreateWithoutProject_stagesInput> | eventsCreateWithoutProject_stagesInput[] | eventsUncheckedCreateWithoutProject_stagesInput[]
+    connectOrCreate?: eventsCreateOrConnectWithoutProject_stagesInput | eventsCreateOrConnectWithoutProject_stagesInput[]
+    createMany?: eventsCreateManyProject_stagesInputEnvelope
+    connect?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+  }
+
   export type project_materialsCreateNestedManyWithoutProject_stagesInput = {
     create?: XOR<project_materialsCreateWithoutProject_stagesInput, project_materialsUncheckedCreateWithoutProject_stagesInput> | project_materialsCreateWithoutProject_stagesInput[] | project_materialsUncheckedCreateWithoutProject_stagesInput[]
     connectOrCreate?: project_materialsCreateOrConnectWithoutProject_stagesInput | project_materialsCreateOrConnectWithoutProject_stagesInput[]
@@ -47132,6 +47263,13 @@ export namespace Prisma {
     connect?: time_logsWhereUniqueInput | time_logsWhereUniqueInput[]
   }
 
+  export type eventsUncheckedCreateNestedManyWithoutProject_stagesInput = {
+    create?: XOR<eventsCreateWithoutProject_stagesInput, eventsUncheckedCreateWithoutProject_stagesInput> | eventsCreateWithoutProject_stagesInput[] | eventsUncheckedCreateWithoutProject_stagesInput[]
+    connectOrCreate?: eventsCreateOrConnectWithoutProject_stagesInput | eventsCreateOrConnectWithoutProject_stagesInput[]
+    createMany?: eventsCreateManyProject_stagesInputEnvelope
+    connect?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+  }
+
   export type project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput = {
     create?: XOR<project_materialsCreateWithoutProject_stagesInput, project_materialsUncheckedCreateWithoutProject_stagesInput> | project_materialsCreateWithoutProject_stagesInput[] | project_materialsUncheckedCreateWithoutProject_stagesInput[]
     connectOrCreate?: project_materialsCreateOrConnectWithoutProject_stagesInput | project_materialsCreateOrConnectWithoutProject_stagesInput[]
@@ -47186,6 +47324,20 @@ export namespace Prisma {
     connectOrCreate?: time_logsCreateOrConnectWithoutProject_stagesInput | time_logsCreateOrConnectWithoutProject_stagesInput[]
     createMany?: time_logsCreateManyProject_stagesInputEnvelope
     connect?: time_logsWhereUniqueInput | time_logsWhereUniqueInput[]
+  }
+
+  export type eventsUpdateManyWithoutProject_stagesNestedInput = {
+    create?: XOR<eventsCreateWithoutProject_stagesInput, eventsUncheckedCreateWithoutProject_stagesInput> | eventsCreateWithoutProject_stagesInput[] | eventsUncheckedCreateWithoutProject_stagesInput[]
+    connectOrCreate?: eventsCreateOrConnectWithoutProject_stagesInput | eventsCreateOrConnectWithoutProject_stagesInput[]
+    upsert?: eventsUpsertWithWhereUniqueWithoutProject_stagesInput | eventsUpsertWithWhereUniqueWithoutProject_stagesInput[]
+    createMany?: eventsCreateManyProject_stagesInputEnvelope
+    set?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    disconnect?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    delete?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    connect?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    update?: eventsUpdateWithWhereUniqueWithoutProject_stagesInput | eventsUpdateWithWhereUniqueWithoutProject_stagesInput[]
+    updateMany?: eventsUpdateManyWithWhereWithoutProject_stagesInput | eventsUpdateManyWithWhereWithoutProject_stagesInput[]
+    deleteMany?: eventsScalarWhereInput | eventsScalarWhereInput[]
   }
 
   export type project_materialsUpdateManyWithoutProject_stagesNestedInput = {
@@ -47306,6 +47458,20 @@ export namespace Prisma {
     update?: time_logsUpdateWithWhereUniqueWithoutProject_stagesInput | time_logsUpdateWithWhereUniqueWithoutProject_stagesInput[]
     updateMany?: time_logsUpdateManyWithWhereWithoutProject_stagesInput | time_logsUpdateManyWithWhereWithoutProject_stagesInput[]
     deleteMany?: time_logsScalarWhereInput | time_logsScalarWhereInput[]
+  }
+
+  export type eventsUncheckedUpdateManyWithoutProject_stagesNestedInput = {
+    create?: XOR<eventsCreateWithoutProject_stagesInput, eventsUncheckedCreateWithoutProject_stagesInput> | eventsCreateWithoutProject_stagesInput[] | eventsUncheckedCreateWithoutProject_stagesInput[]
+    connectOrCreate?: eventsCreateOrConnectWithoutProject_stagesInput | eventsCreateOrConnectWithoutProject_stagesInput[]
+    upsert?: eventsUpsertWithWhereUniqueWithoutProject_stagesInput | eventsUpsertWithWhereUniqueWithoutProject_stagesInput[]
+    createMany?: eventsCreateManyProject_stagesInputEnvelope
+    set?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    disconnect?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    delete?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    connect?: eventsWhereUniqueInput | eventsWhereUniqueInput[]
+    update?: eventsUpdateWithWhereUniqueWithoutProject_stagesInput | eventsUpdateWithWhereUniqueWithoutProject_stagesInput[]
+    updateMany?: eventsUpdateManyWithWhereWithoutProject_stagesInput | eventsUpdateManyWithWhereWithoutProject_stagesInput[]
+    deleteMany?: eventsScalarWhereInput | eventsScalarWhereInput[]
   }
 
   export type project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput = {
@@ -50067,6 +50233,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     projects?: projectsCreateNestedOneWithoutEventsInput
     staff?: staffCreateNestedOneWithoutEventsInput
+    project_stages?: project_stagesCreateNestedOneWithoutEventsInput
   }
 
   export type eventsUncheckedCreateWithoutClientsInput = {
@@ -50079,6 +50246,7 @@ export namespace Prisma {
     all_day?: boolean | null
     location?: string | null
     project_id?: number | null
+    stage_id?: number | null
     staff_id?: number | null
     status?: string | null
     color?: string | null
@@ -50256,6 +50424,7 @@ export namespace Prisma {
     all_day?: BoolNullableFilter<"events"> | boolean | null
     location?: StringNullableFilter<"events"> | string | null
     project_id?: IntNullableFilter<"events"> | number | null
+    stage_id?: IntNullableFilter<"events"> | number | null
     staff_id?: IntNullableFilter<"events"> | number | null
     client_id?: IntNullableFilter<"events"> | number | null
     status?: StringNullableFilter<"events"> | string | null
@@ -51828,6 +51997,64 @@ export namespace Prisma {
     create: XOR<staffCreateWithoutEventsInput, staffUncheckedCreateWithoutEventsInput>
   }
 
+  export type project_stagesCreateWithoutEventsInput = {
+    name: string
+    description?: string | null
+    start_date?: Date | string | null
+    end_date?: Date | string | null
+    status?: string | null
+    order_index: number
+    estimated_duration?: number | null
+    actual_duration?: number | null
+    completion_percentage?: number | null
+    notes?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    synced_at?: Date | string | null
+    synced_by_device_id?: string | null
+    project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
+    project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
+    project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
+    projects: projectsCreateNestedOneWithoutProject_stagesInput
+    site_reports?: site_reportsCreateNestedManyWithoutProject_stagesInput
+    stage_checklists?: stage_checklistsCreateNestedManyWithoutProject_stagesInput
+    stage_tags?: stage_tagsCreateNestedManyWithoutProject_stagesInput
+    tasks?: tasksCreateNestedManyWithoutProject_stagesInput
+    time_logs?: time_logsCreateNestedManyWithoutProject_stagesInput
+  }
+
+  export type project_stagesUncheckedCreateWithoutEventsInput = {
+    id?: number
+    project_id: number
+    name: string
+    description?: string | null
+    start_date?: Date | string | null
+    end_date?: Date | string | null
+    status?: string | null
+    order_index: number
+    estimated_duration?: number | null
+    actual_duration?: number | null
+    completion_percentage?: number | null
+    notes?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    synced_at?: Date | string | null
+    synced_by_device_id?: string | null
+    project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
+    project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
+    project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
+    site_reports?: site_reportsUncheckedCreateNestedManyWithoutProject_stagesInput
+    stage_checklists?: stage_checklistsUncheckedCreateNestedManyWithoutProject_stagesInput
+    stage_tags?: stage_tagsUncheckedCreateNestedManyWithoutProject_stagesInput
+    tasks?: tasksUncheckedCreateNestedManyWithoutProject_stagesInput
+    time_logs?: time_logsUncheckedCreateNestedManyWithoutProject_stagesInput
+  }
+
+  export type project_stagesCreateOrConnectWithoutEventsInput = {
+    where: project_stagesWhereUniqueInput
+    create: XOR<project_stagesCreateWithoutEventsInput, project_stagesUncheckedCreateWithoutEventsInput>
+  }
+
   export type clientsUpsertWithoutEventsInput = {
     update: XOR<clientsUpdateWithoutEventsInput, clientsUncheckedUpdateWithoutEventsInput>
     create: XOR<clientsCreateWithoutEventsInput, clientsUncheckedCreateWithoutEventsInput>
@@ -52006,6 +52233,70 @@ export namespace Prisma {
     vehicle_incidents?: vehicle_incidentsUncheckedUpdateManyWithoutStaffNestedInput
     vehicle_refueling?: vehicle_refuelingUncheckedUpdateManyWithoutStaffNestedInput
     vehicle_reservations?: vehicle_reservationsUncheckedUpdateManyWithoutStaffNestedInput
+  }
+
+  export type project_stagesUpsertWithoutEventsInput = {
+    update: XOR<project_stagesUpdateWithoutEventsInput, project_stagesUncheckedUpdateWithoutEventsInput>
+    create: XOR<project_stagesCreateWithoutEventsInput, project_stagesUncheckedCreateWithoutEventsInput>
+    where?: project_stagesWhereInput
+  }
+
+  export type project_stagesUpdateToOneWithWhereWithoutEventsInput = {
+    where?: project_stagesWhereInput
+    data: XOR<project_stagesUpdateWithoutEventsInput, project_stagesUncheckedUpdateWithoutEventsInput>
+  }
+
+  export type project_stagesUpdateWithoutEventsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    start_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    end_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    order_index?: IntFieldUpdateOperationsInput | number
+    estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
+    project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
+    project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
+    projects?: projectsUpdateOneRequiredWithoutProject_stagesNestedInput
+    site_reports?: site_reportsUpdateManyWithoutProject_stagesNestedInput
+    stage_checklists?: stage_checklistsUpdateManyWithoutProject_stagesNestedInput
+    stage_tags?: stage_tagsUpdateManyWithoutProject_stagesNestedInput
+    tasks?: tasksUpdateManyWithoutProject_stagesNestedInput
+    time_logs?: time_logsUpdateManyWithoutProject_stagesNestedInput
+  }
+
+  export type project_stagesUncheckedUpdateWithoutEventsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    project_id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    start_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    end_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    order_index?: IntFieldUpdateOperationsInput | number
+    estimated_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    actual_duration?: NullableIntFieldUpdateOperationsInput | number | null
+    completion_percentage?: NullableIntFieldUpdateOperationsInput | number | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
+    project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
+    project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
+    site_reports?: site_reportsUncheckedUpdateManyWithoutProject_stagesNestedInput
+    stage_checklists?: stage_checklistsUncheckedUpdateManyWithoutProject_stagesNestedInput
+    stage_tags?: stage_tagsUncheckedUpdateManyWithoutProject_stagesNestedInput
+    tasks?: tasksUncheckedUpdateManyWithoutProject_stagesNestedInput
+    time_logs?: time_logsUncheckedUpdateManyWithoutProject_stagesNestedInput
   }
 
   export type document_linesCreateWithoutMaterialsInput = {
@@ -52247,6 +52538,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
     projects: projectsCreateNestedOneWithoutProject_stagesInput
@@ -52274,6 +52566,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
     site_reports?: site_reportsUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -52428,6 +52721,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
     projects?: projectsUpdateOneRequiredWithoutProject_stagesNestedInput
@@ -52455,6 +52749,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
     site_reports?: site_reportsUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -52601,6 +52896,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
     projects: projectsCreateNestedOneWithoutProject_stagesInput
@@ -52628,6 +52924,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
     site_reports?: site_reportsUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -52802,6 +53099,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
     projects?: projectsUpdateOneRequiredWithoutProject_stagesNestedInput
@@ -52829,6 +53127,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
     site_reports?: site_reportsUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -52975,6 +53274,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     projects: projectsCreateNestedOneWithoutProject_stagesInput
@@ -53002,6 +53302,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     site_reports?: site_reportsUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -53176,6 +53477,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     projects?: projectsUpdateOneRequiredWithoutProject_stagesNestedInput
@@ -53203,6 +53505,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     site_reports?: site_reportsUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -53210,6 +53513,51 @@ export namespace Prisma {
     stage_tags?: stage_tagsUncheckedUpdateManyWithoutProject_stagesNestedInput
     tasks?: tasksUncheckedUpdateManyWithoutProject_stagesNestedInput
     time_logs?: time_logsUncheckedUpdateManyWithoutProject_stagesNestedInput
+  }
+
+  export type eventsCreateWithoutProject_stagesInput = {
+    title: string
+    description?: string | null
+    event_type: $Enums.event_type
+    start_date: Date | string
+    end_date: Date | string
+    all_day?: boolean | null
+    location?: string | null
+    status?: string | null
+    color?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    clients?: clientsCreateNestedOneWithoutEventsInput
+    projects?: projectsCreateNestedOneWithoutEventsInput
+    staff?: staffCreateNestedOneWithoutEventsInput
+  }
+
+  export type eventsUncheckedCreateWithoutProject_stagesInput = {
+    id?: number
+    title: string
+    description?: string | null
+    event_type: $Enums.event_type
+    start_date: Date | string
+    end_date: Date | string
+    all_day?: boolean | null
+    location?: string | null
+    project_id?: number | null
+    staff_id?: number | null
+    client_id?: number | null
+    status?: string | null
+    color?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type eventsCreateOrConnectWithoutProject_stagesInput = {
+    where: eventsWhereUniqueInput
+    create: XOR<eventsCreateWithoutProject_stagesInput, eventsUncheckedCreateWithoutProject_stagesInput>
+  }
+
+  export type eventsCreateManyProject_stagesInputEnvelope = {
+    data: eventsCreateManyProject_stagesInput | eventsCreateManyProject_stagesInput[]
+    skipDuplicates?: boolean
   }
 
   export type project_materialsCreateWithoutProject_stagesInput = {
@@ -53547,6 +53895,22 @@ export namespace Prisma {
   export type time_logsCreateManyProject_stagesInputEnvelope = {
     data: time_logsCreateManyProject_stagesInput | time_logsCreateManyProject_stagesInput[]
     skipDuplicates?: boolean
+  }
+
+  export type eventsUpsertWithWhereUniqueWithoutProject_stagesInput = {
+    where: eventsWhereUniqueInput
+    update: XOR<eventsUpdateWithoutProject_stagesInput, eventsUncheckedUpdateWithoutProject_stagesInput>
+    create: XOR<eventsCreateWithoutProject_stagesInput, eventsUncheckedCreateWithoutProject_stagesInput>
+  }
+
+  export type eventsUpdateWithWhereUniqueWithoutProject_stagesInput = {
+    where: eventsWhereUniqueInput
+    data: XOR<eventsUpdateWithoutProject_stagesInput, eventsUncheckedUpdateWithoutProject_stagesInput>
+  }
+
+  export type eventsUpdateManyWithWhereWithoutProject_stagesInput = {
+    where: eventsScalarWhereInput
+    data: XOR<eventsUpdateManyMutationInput, eventsUncheckedUpdateManyWithoutProject_stagesInput>
   }
 
   export type project_materialsUpsertWithWhereUniqueWithoutProject_stagesInput = {
@@ -54165,6 +54529,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     clients?: clientsCreateNestedOneWithoutEventsInput
     staff?: staffCreateNestedOneWithoutEventsInput
+    project_stages?: project_stagesCreateNestedOneWithoutEventsInput
   }
 
   export type eventsUncheckedCreateWithoutProjectsInput = {
@@ -54176,6 +54541,7 @@ export namespace Prisma {
     end_date: Date | string
     all_day?: boolean | null
     location?: string | null
+    stage_id?: number | null
     staff_id?: number | null
     client_id?: number | null
     status?: string | null
@@ -54312,6 +54678,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -54338,6 +54705,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -55169,6 +55537,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -55196,6 +55565,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -55370,6 +55740,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -55397,6 +55768,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -55515,6 +55887,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     clients?: clientsCreateNestedOneWithoutEventsInput
     projects?: projectsCreateNestedOneWithoutEventsInput
+    project_stages?: project_stagesCreateNestedOneWithoutEventsInput
   }
 
   export type eventsUncheckedCreateWithoutStaffInput = {
@@ -55527,6 +55900,7 @@ export namespace Prisma {
     all_day?: boolean | null
     location?: string | null
     project_id?: number | null
+    stage_id?: number | null
     client_id?: number | null
     status?: string | null
     color?: string | null
@@ -56285,6 +56659,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -56312,6 +56687,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -56414,6 +56790,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -56441,6 +56818,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -56465,6 +56843,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -56492,6 +56871,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -56556,6 +56936,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -56583,6 +56964,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -56813,6 +57195,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -56840,6 +57223,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -56942,6 +57326,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -56969,6 +57354,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -57115,6 +57501,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffCreateNestedManyWithoutProject_stagesInput
@@ -57142,6 +57529,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+    events?: eventsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_materials?: project_materialsUncheckedCreateNestedManyWithoutProject_stagesInput
     project_media?: project_mediaUncheckedCreateNestedManyWithoutProject_stagesInput
     project_staff?: project_staffUncheckedCreateNestedManyWithoutProject_stagesInput
@@ -57316,6 +57704,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -57343,6 +57732,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -59434,6 +59824,7 @@ export namespace Prisma {
     all_day?: boolean | null
     location?: string | null
     project_id?: number | null
+    stage_id?: number | null
     staff_id?: number | null
     status?: string | null
     color?: string | null
@@ -59599,6 +59990,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     projects?: projectsUpdateOneWithoutEventsNestedInput
     staff?: staffUpdateOneWithoutEventsNestedInput
+    project_stages?: project_stagesUpdateOneWithoutEventsNestedInput
   }
 
   export type eventsUncheckedUpdateWithoutClientsInput = {
@@ -59611,6 +60003,7 @@ export namespace Prisma {
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     staff_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     color?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59628,6 +60021,7 @@ export namespace Prisma {
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     staff_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     color?: NullableStringFieldUpdateOperationsInput | string | null
@@ -60243,6 +60637,24 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
+  export type eventsCreateManyProject_stagesInput = {
+    id?: number
+    title: string
+    description?: string | null
+    event_type: $Enums.event_type
+    start_date: Date | string
+    end_date: Date | string
+    all_day?: boolean | null
+    location?: string | null
+    project_id?: number | null
+    staff_id?: number | null
+    client_id?: number | null
+    status?: string | null
+    color?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
   export type project_materialsCreateManyProject_stagesInput = {
     id?: number
     project_id: number
@@ -60340,6 +60752,59 @@ export namespace Prisma {
     updated_at?: Date | string | null
     synced_at?: Date | string | null
     synced_by_device_id?: string | null
+  }
+
+  export type eventsUpdateWithoutProject_stagesInput = {
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    event_type?: Enumevent_typeFieldUpdateOperationsInput | $Enums.event_type
+    start_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    end_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    clients?: clientsUpdateOneWithoutEventsNestedInput
+    projects?: projectsUpdateOneWithoutEventsNestedInput
+    staff?: staffUpdateOneWithoutEventsNestedInput
+  }
+
+  export type eventsUncheckedUpdateWithoutProject_stagesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    event_type?: Enumevent_typeFieldUpdateOperationsInput | $Enums.event_type
+    start_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    end_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    staff_id?: NullableIntFieldUpdateOperationsInput | number | null
+    client_id?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type eventsUncheckedUpdateManyWithoutProject_stagesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    event_type?: Enumevent_typeFieldUpdateOperationsInput | $Enums.event_type
+    start_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    end_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    staff_id?: NullableIntFieldUpdateOperationsInput | number | null
+    client_id?: NullableIntFieldUpdateOperationsInput | number | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type project_materialsUpdateWithoutProject_stagesInput = {
@@ -60680,6 +61145,7 @@ export namespace Prisma {
     end_date: Date | string
     all_day?: boolean | null
     location?: string | null
+    stage_id?: number | null
     staff_id?: number | null
     client_id?: number | null
     status?: string | null
@@ -60949,6 +61415,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     clients?: clientsUpdateOneWithoutEventsNestedInput
     staff?: staffUpdateOneWithoutEventsNestedInput
+    project_stages?: project_stagesUpdateOneWithoutEventsNestedInput
   }
 
   export type eventsUncheckedUpdateWithoutProjectsInput = {
@@ -60960,6 +61427,7 @@ export namespace Prisma {
     end_date?: DateTimeFieldUpdateOperationsInput | Date | string
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     staff_id?: NullableIntFieldUpdateOperationsInput | number | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
@@ -60977,6 +61445,7 @@ export namespace Prisma {
     end_date?: DateTimeFieldUpdateOperationsInput | Date | string
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     staff_id?: NullableIntFieldUpdateOperationsInput | number | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
@@ -61111,6 +61580,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUpdateManyWithoutProject_stagesNestedInput
@@ -61137,6 +61607,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     synced_by_device_id?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: eventsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_materials?: project_materialsUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_media?: project_mediaUncheckedUpdateManyWithoutProject_stagesNestedInput
     project_staff?: project_staffUncheckedUpdateManyWithoutProject_stagesNestedInput
@@ -61492,6 +61963,7 @@ export namespace Prisma {
     all_day?: boolean | null
     location?: string | null
     project_id?: number | null
+    stage_id?: number | null
     client_id?: number | null
     status?: string | null
     color?: string | null
@@ -61768,6 +62240,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     clients?: clientsUpdateOneWithoutEventsNestedInput
     projects?: projectsUpdateOneWithoutEventsNestedInput
+    project_stages?: project_stagesUpdateOneWithoutEventsNestedInput
   }
 
   export type eventsUncheckedUpdateWithoutStaffInput = {
@@ -61780,6 +62253,7 @@ export namespace Prisma {
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     color?: NullableStringFieldUpdateOperationsInput | string | null
@@ -61797,6 +62271,7 @@ export namespace Prisma {
     all_day?: NullableBoolFieldUpdateOperationsInput | boolean | null
     location?: NullableStringFieldUpdateOperationsInput | string | null
     project_id?: NullableIntFieldUpdateOperationsInput | number | null
+    stage_id?: NullableIntFieldUpdateOperationsInput | number | null
     client_id?: NullableIntFieldUpdateOperationsInput | number | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     color?: NullableStringFieldUpdateOperationsInput | string | null

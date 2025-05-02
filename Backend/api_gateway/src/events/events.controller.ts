@@ -21,6 +21,14 @@ import {
   MoveEventParams,
 } from '../interfaces/event.interface';
 
+interface StaffSchedule {
+  date?: string;
+  weekOf?: string;
+  staffId: string;
+  chantiers?: any[];
+  planning?: any;
+}
+
 @Controller('events')
 export class EventsController {
   constructor(
@@ -197,6 +205,53 @@ export class EventsController {
       );
       throw new HttpException(
         'Erreur lors de la récupération des événements du client',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('staff/:staffId/schedule/today')
+  async getStaffDailySchedule(
+    @Param('staffId') staffId: string,
+  ): Promise<StaffSchedule> {
+    try {
+      return await firstValueFrom(
+        this.planningService.send<StaffSchedule>(
+          { cmd: 'get_staff_daily_schedule' },
+          { id: staffId },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        `Erreur lors de la récupération du planning journalier pour le personnel ${staffId}:`,
+        error,
+      );
+      throw new HttpException(
+        'Erreur lors de la récupération du planning journalier',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('staff/:staffId/schedule/week')
+  async getStaffWeeklySchedule(
+    @Param('staffId') staffId: string,
+    @Query('date') date?: string,
+  ): Promise<StaffSchedule> {
+    try {
+      return await firstValueFrom(
+        this.planningService.send<StaffSchedule>(
+          { cmd: 'get_staff_weekly_schedule' },
+          { id: staffId, date: date },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        `Erreur lors de la récupération du planning hebdomadaire pour le personnel ${staffId}:`,
+        error,
+      );
+      throw new HttpException(
+        'Erreur lors de la récupération du planning hebdomadaire',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

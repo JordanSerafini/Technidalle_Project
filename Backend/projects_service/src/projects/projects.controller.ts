@@ -61,6 +61,11 @@ export class ProjectsController {
     return this.projectsService.getStagesByProjectId(data.projectId);
   }
 
+  @MessagePattern({ cmd: 'get_stage_by_id' })
+  async getStageById(data: { id: number }) {
+    return this.projectsService.getStageById(data.id);
+  }
+
   @MessagePattern({ cmd: 'create_stage' })
   async createStage(data: {
     projectId: number;
