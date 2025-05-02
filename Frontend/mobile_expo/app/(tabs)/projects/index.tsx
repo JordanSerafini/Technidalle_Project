@@ -8,6 +8,15 @@ import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
 import AccordionItem from '../../components/documents/AccordionItem';
+import { FlashList } from '@shopify/flash-list';
+
+// Étendre l'interface FetchState pour inclure refetch
+interface FetchState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -38,14 +47,128 @@ const getProjectCountColor = (count: number): string => {
   return '#2196F3';                  
 };
 
+// Type pour les items de section
+type SectionHeaderProps = {
+  title: string;
+  count: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+};
+
+// Types pour la liste aplatie
+interface SectionHeaderItem {
+  type: 'header';
+  id: number;
+  sectionId: string;
+  title: string;
+  count: number;
+  isExpanded: boolean;
+}
+
+interface ProjectItem extends Project {
+  type: 'project';
+  sectionId: string;
+}
+
+// Type d'union pour les items de la liste
+type ProjectListItem = SectionHeaderItem | ProjectItem;
+
+// Type guard pour vérifier le type d'item
+function isHeaderItem(item: ProjectListItem): item is SectionHeaderItem {
+  return item.type === 'header';
+}
+
+// Optimisé avec memo pour éviter les rendus inutiles
+const SectionHeader = React.memo(({ title, count, isExpanded, onToggle }: SectionHeaderProps) => {
+  const badgeColor = '#3F51B5'; // Couleur fixe indigo
+  
+  return (
+    <TouchableOpacity 
+      className="flex-row items-center bg-white rounded-lg p-3 shadow-sm mb-2"
+      onPress={onToggle}
+    >
+      <View style={{ 
+        width: 40, 
+        height: 40, 
+        borderRadius: 20, 
+        backgroundColor: badgeColor,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 2,
+      }} className="items-center justify-center mr-3">
+        <Text className="font-bold text-white" style={{ fontSize: 16 }}>
+          {count}
+        </Text>
+      </View>
+      
+      <Text className="flex-1 text-lg font-medium text-gray-800">{title}</Text>
+      <Ionicons 
+        name={isExpanded ? "chevron-up" : "chevron-down"} 
+        size={20} 
+        color="#6b7280" 
+      />
+    </TouchableOpacity>
+  );
+});
+
+// Composant de projet optimisé avec memo
+const ProjectItemComponent = React.memo(({ project, onPress }: { project: Project, onPress: (id: number) => void }) => {
+  const handlePress = useCallback(() => {
+    onPress(project.id);
+  }, [project.id, onPress]);
+
+  return (
+    <TouchableOpacity 
+      className="bg-white p-4 rounded-xl shadow-md mb-2 active:opacity-70"
+      onPress={handlePress}
+    >
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1">
+          <Text className="font-bold text-lg">{project.name}</Text>
+          
+          {project.reference && (
+            <Text className="text-gray-500 text-sm">Ref: {project.reference}</Text>
+          )}
+        </View>
+        
+        {project.status && (
+          <View style={{backgroundColor: statusColors[project.status]}} className="py-1 px-3 rounded-full">
+            <Text className="text-white text-xs font-medium">{statusLabels[project.status]}</Text>
+          </View>
+        )}
+      </View>
+      
+      {project.description && (
+        <Text className="text-gray-600 mt-2" numberOfLines={2}>{project.description}</Text>
+      )}
+      
+      <View className="flex-row justify-between mt-3 border-t border-gray-100 pt-2">
+        <View className="flex-row items-center">
+          <Ionicons name="calendar-outline" size={16} color="#666" />
+          <Text className="text-gray-600 ml-1 text-xs">
+            {project.start_date ? new Date(project.start_date).toLocaleDateString('fr-FR') : 'Non défini'}
+            {project.end_date ? ` → ${new Date(project.end_date).toLocaleDateString('fr-FR')}` : ''}
+          </Text>
+        </View>
+        
+        <View className="flex-row items-center">
+          <Ionicons name="chevron-forward" size={16} color="#666" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function ProjetsScreen() {
   const router = useRouter();
   const [showFilter, setShowFilter] = useState(false);
   const slideAnim = useState(new Animated.Value(Dimensions.get('window').height))[0];
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
-  const [projectsByMonth, setProjectsByMonth] = useState<{ [key: string]: Project[] }>({});
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [flatListData, setFlatListData] = useState<ProjectListItem[]>([]);
   
   // Utiliser le projectStore
   const { 
@@ -59,16 +182,8 @@ export default function ProjetsScreen() {
   
   const handleCloseFilter = useCallback(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: Dimensions.get('window').height,
-        duration: 200,
-        useNativeDriver: true,
-      })
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: Dimensions.get('window').height, duration: 200, useNativeDriver: true })
     ]).start(() => {
       setShowFilter(false);
     });
@@ -76,18 +191,9 @@ export default function ProjetsScreen() {
   
   const handleOpenFilter = useCallback(() => {
     setShowFilter(true);
-    // Animations
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      })
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true })
     ]).start();
   }, [fadeAnim, slideAnim]);
   
@@ -104,19 +210,20 @@ export default function ProjetsScreen() {
     return () => backHandler.remove();
   }, [showFilter, handleCloseFilter]);
   
-  // Gestionnaires pour le FAB
-  const handleFilterPress = () => {
-    setShowFilter(!showFilter);
-  };
+  // Gestionnaire pour le FAB
+  const handleFilterPress = useCallback(() => {
+    if (showFilter) handleCloseFilter();
+    else handleOpenFilter();
+  }, [showFilter, handleOpenFilter, handleCloseFilter]);
   
   // Fetch des projets
-  const { data, loading, error } = useFetch<Project[]>('projects', {
+  const { data, loading, error, refetch } = useFetch<Project[]>('projects', {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
       'Cache-Control': 'no-cache',
     }
-  });
+  }) as FetchState<Project[]>;
 
   // Mettre à jour le store quand les données sont chargées
   useEffect(() => {
@@ -141,74 +248,41 @@ export default function ProjetsScreen() {
     };
   }, [handleCloseFilter, addApplyListener, removeApplyListener]);
 
-  const sortedProjectsByMonth = useMemo(() => {
-    if (!filteredProjects || filteredProjects.length === 0) return {};
-    
-    const grouped = filteredProjects.reduce((acc, project) => {
-      const dateReference = project.start_date ? new Date(project.start_date) : new Date();
-      const monthYear = `${dateReference.getMonth() + 1}/${dateReference.getFullYear()}`;
-      
-      if (!acc[monthYear]) {
-        acc[monthYear] = [];
-      }
-      
-      acc[monthYear].push(project);
-      return acc;
-    }, {} as { [key: string]: Project[] });
-    
-    return Object.keys(grouped)
-      .sort((a, b) => {
-        const [monthA, yearA] = a.split('/').map(Number);
-        const [monthB, yearB] = b.split('/').map(Number);
-        return (yearB - yearA) || (monthB - monthA);
-      })
-      .reduce((acc, key) => {
-        acc[key] = grouped[key];
-        return acc;
-      }, {} as { [key: string]: Project[] });
-  }, [filteredProjects]);
-  
-  useEffect(() => {
-    setProjectsByMonth(sortedProjectsByMonth);
-    
-    setExpandedSections(prevExpandedSections => {
-      const newExpandedSections = {} as { [key: string]: boolean };
-      
-      Object.keys(sortedProjectsByMonth).forEach(key => {
-        newExpandedSections[key] = prevExpandedSections[key] || false;
-      });
-      
-      return newExpandedSections;
-    });
-  }, [sortedProjectsByMonth]);
-
-  const formatMonthYear = (monthYear: string) => {
+  // Formatage du mois et de l'année pour affichage
+  const formatMonthYear = useCallback((monthYear: string) => {
     const [month, year] = monthYear.split('/');
     const monthNames = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
     ];
     return `${monthNames[parseInt(month) - 1]} ${year}`;
-  };
-  
-  const toggleSection = (monthYear: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [monthYear]: !prev[monthYear]
-    }));
-  };
+  }, []);
 
-  const navigateToProjectDetail = (projectId: number) => {
+  // Gestion du toggle des sections
+  const toggleSection = useCallback((sectionId: string) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId);
+      } else {
+        newSet.add(sectionId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Navigation vers détail du projet
+  const navigateToProjectDetail = useCallback((projectId: number) => {
     if (projectId) {
       router.navigate({
         pathname: "/projects/[id]",
         params: { id: projectId.toString() }
       });
     }
-  };
+  }, [router]);
 
-  const handleAddProject = () => {
-    // Action pour ajouter un projet
+  // Actions du FAB
+  const handleAddProject = useCallback(() => {
     Alert.alert(
       'Ajouter un projet',
       'Voulez-vous ajouter un nouveau projet?',
@@ -217,9 +291,9 @@ export default function ProjetsScreen() {
         { text: 'OK', onPress: () => {} }
       ]
     );
-  };
+  }, []);
 
-  const handleEditProject = () => {
+  const handleEditProject = useCallback(() => {
     Alert.alert(
       'Éditer un projet',
       'Voulez-vous éditer un projet?',
@@ -228,10 +302,9 @@ export default function ProjetsScreen() {
         { text: 'OK', onPress: () => {} }
       ]
     );
-  };
+  }, []);
 
-  const handleOtherOptions = () => {
-    // Autres actions
+  const handleOtherOptions = useCallback(() => {
     Alert.alert(
       'Autres options',
       'Voici les autres options disponibles',
@@ -239,222 +312,105 @@ export default function ProjetsScreen() {
         { text: 'OK', onPress: () => {} }
       ]
     );
-  };
+  }, []);
 
-  const clearSearch = () => {
+  // Effacer la recherche
+  const clearSearch = useCallback(() => {
     setSearchQuery('');
-  };
-  
-  const renderProjectItem = (projet: Project) => (
-    <TouchableOpacity 
-      key={projet.id} 
-      className="bg-white p-4 rounded-xl shadow-md mb-5 active:opacity-70"      onPress={() => navigateToProjectDetail(projet.id)}
-    >
-      <View className="flex-row justify-between items-start">
-        <View className="flex-1">
-          <Text className="font-bold text-lg">{projet.name}</Text>
-          
-          {projet.reference && (
-            <Text className="text-gray-500 text-sm">Ref: {projet.reference}</Text>
-          )}
-        </View>
-        
-        {projet.status && (
-          <View style={{backgroundColor: statusColors[projet.status]}} className="py-1 px-3 rounded-full">
-            <Text className="text-white text-xs font-medium">{statusLabels[projet.status]}</Text>
-          </View>
-        )}
-      </View>
+  }, []);
+
+  // Préparation des données pour FlashList - structure applatie avec sections
+  useEffect(() => {
+    if (!filteredProjects) {
+      setFlatListData([]);
+      return;
+    }
+
+    // Regrouper les projets par mois/année
+    const projectsByMonth: Record<string, Project[]> = {};
+    
+    for (const project of filteredProjects) {
+      const dateReference = project.start_date ? new Date(project.start_date) : new Date();
+      const monthYear = `${dateReference.getMonth() + 1}/${dateReference.getFullYear()}`;
       
-      {projet.description && (
-        <Text className="text-gray-600 mt-2" numberOfLines={2}>{projet.description}</Text>
-      )}
+      if (!projectsByMonth[monthYear]) {
+        projectsByMonth[monthYear] = [];
+      }
       
-      <View className="flex-row justify-between mt-3 border-t border-gray-100 pt-2">
-        <View className="flex-row items-center">
-          <Ionicons name="calendar-outline" size={16} color="#666" />
-          <Text className="text-gray-600 ml-1 text-xs">
-            {projet.start_date ? new Date(projet.start_date).toLocaleDateString('fr-FR') : 'Non défini'}
-            {projet.end_date ? ` → ${new Date(projet.end_date).toLocaleDateString('fr-FR')}` : ''}
-          </Text>
-        </View>
-        
-        <View className="flex-row items-center">
-          <Ionicons name="chevron-forward" size={16} color="#666" />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-  
-  const getWeekNumber = (date: Date): number => {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  };
-
-  // Fonction pour formater l'affichage de la semaine
-  const formatWeek = (weekNum: number, year: number, projectCount: number): string => {
-    // Calculer la date du premier jour de la semaine (lundi)
-    const firstDayOfYear = new Date(year, 0, 1);
-    const dayOffset = firstDayOfYear.getDay() === 0 ? 7 : firstDayOfYear.getDay();
-    const dayOfYear = (weekNum * 7) - (7 - (dayOffset - 1));
+      projectsByMonth[monthYear].push(project);
+    }
     
-    // Date de début (lundi de la semaine)
-    const startDate = new Date(year, 0, dayOfYear);
+    // Trier les mois par ordre chronologique décroissant
+    const sortedMonths = Object.keys(projectsByMonth).sort((a, b) => {
+      const [monthA, yearA] = a.split('/').map(Number);
+      const [monthB, yearB] = b.split('/').map(Number);
+      return (yearB - yearA) || (monthB - monthA);
+    });
     
-    // Date de fin (dimanche de la semaine)
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
+    // Générer la liste applatie pour FlashList avec séparateurs de section
+    const flattenedData: ProjectListItem[] = [];
     
-    // Formater les dates en DD/MM/YYYY
-    const formatDate = (date: Date): string => {
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
-    
-    return `du ${formatDate(startDate)} au ${formatDate(endDate)}`;
-  };
-
-  const groupProjectsByWeek = (projects: Project[]): { [key: string]: Project[] } => {
-    const grouped: { [key: string]: Project[] } = {};
-
-    if (projects.length > 5) {
-      projects.forEach(project => {
-        const date = project.start_date ? new Date(project.start_date) : new Date();
-        const weekNum = getWeekNumber(date);
-        const year = date.getFullYear();
-        const weekKey = `${weekNum}-${year}`;
-        
-        if (!grouped[weekKey]) {
-          grouped[weekKey] = [];
-        }
-        
-        grouped[weekKey].push(project);
+    sortedMonths.forEach(monthYear => {
+      // Ajouter l'en-tête de section
+      flattenedData.push({
+        type: 'header',
+        id: parseInt(monthYear.replace('/', '')), // Générer un ID unique basé sur mois/année
+        sectionId: monthYear,
+        title: formatMonthYear(monthYear),
+        count: projectsByMonth[monthYear].length,
+        isExpanded: expandedSections.has(monthYear)
       });
       
-      // Trier les semaines par ordre chronologique 
-      return Object.keys(grouped)
-        .sort((a, b) => {
-          const [weekA, yearA] = a.split('-').map(Number);
-          const [weekB, yearB] = b.split('-').map(Number);
-          return (yearB - yearA) || (weekA - weekB);
-        })
-        .reduce((acc, key) => {
-          acc[key] = grouped[key];
-          return acc;
-        }, {} as { [key: string]: Project[] });
-    } else {
-      grouped["all"] = projects;
-      return grouped;
-    }
-  };
-  
-  // État pour suivre les sous-sections développées
-  const [expandedWeeks, setExpandedWeeks] = useState<{ [key: string]: boolean }>({});
-  
-  // Toggle l'expansion d'une sous-section semaine
-  const toggleWeekSection = (weekKey: string) => {
-    setExpandedWeeks(prev => ({
-      ...prev,
-      [weekKey]: !prev[weekKey]
-    }));
-  };
-
-  // Rendu des sections mensuelles
-  const renderMonthSections = () => {
-    return Object.entries(projectsByMonth).map(([monthYear, projets]) => {
-      // Utiliser une couleur fixe pour tous les badges
-      const badgeColor = '#3F51B5'; // Couleur fixe (indigo)
-      
-      return (
-        <View key={monthYear} className="mb-4">
-          <TouchableOpacity 
-            className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
-            onPress={() => toggleSection(monthYear)}
-          >
-            {/* Badge stylisé pour le nombre de projets */}
-            <View style={{ 
-              width: 40, 
-              height: 40, 
-              borderRadius: 20, 
-              backgroundColor: badgeColor,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.2,
-              shadowRadius: 2,
-              elevation: 2,
-            }} className="items-center justify-center mr-3">
-              <Text className="font-bold text-white" style={{ fontSize: 16 }}>
-                {projets.length}
-              </Text>
-            </View>
-            
-            <Text className="flex-1 text-lg font-medium text-gray-800">{formatMonthYear(monthYear)}</Text>
-            <Ionicons 
-              name={expandedSections[monthYear] ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color="#6b7280" 
-            />
-          </TouchableOpacity>
-          
-          <AccordionItem isExpanded={expandedSections[monthYear]}>
-            <View className="mt-2">
-              {/* Regrouper par semaine si beaucoup de projets */}
-              {(() => {
-                const projectsByWeek = groupProjectsByWeek(projets);
-                
-                return Object.entries(projectsByWeek).map(([weekKey, weekProjects]) => {
-                  // Si c'est le groupe "all", on affiche directement les projets
-                  if (weekKey === "all") {
-                    return weekProjects.map(projet => renderProjectItem(projet));
-                  }
-                  
-                  // Sinon, on crée un sous-accordéon par semaine
-                  const [weekNum, year] = weekKey.split('-').map(Number);
-                  
-                  return (
-                    <View key={weekKey} className="mb-3">
-                      <TouchableOpacity 
-                        className="flex-row items-center bg-gray-100 rounded-lg p-2 mb-2"
-                        onPress={() => toggleWeekSection(weekKey)}
-                      >
-                        <Text className="flex-1 text-md font-medium text-gray-700">
-                          {formatWeek(weekNum, year, weekProjects.length)} <Text className="text-gray-500 text-sm">({weekProjects.length})</Text>
-                        </Text>
-                        <Ionicons 
-                          name={expandedWeeks[weekKey] ? "chevron-up" : "chevron-down"} 
-                          size={18} 
-                          color="#6b7280" 
-                        />
-                      </TouchableOpacity>
-                      
-                      <AccordionItem isExpanded={expandedWeeks[weekKey] ?? false}>
-                        <View>
-                          {weekProjects.map(projet => renderProjectItem(projet))}
-                        </View>
-                      </AccordionItem>
-                    </View>
-                  );
-                });
-              })()}
-            </View>
-          </AccordionItem>
-        </View>
-      );
+      // Si la section est développée, ajouter les projets
+      if (expandedSections.has(monthYear)) {
+        projectsByMonth[monthYear].forEach(project => {
+          flattenedData.push({
+            ...project,
+            type: 'project',
+            sectionId: monthYear
+          });
+        });
+      }
     });
-  };
+    
+    setFlatListData(flattenedData);
+  }, [filteredProjects, expandedSections, formatMonthYear]);
 
-  if (loading) {
+  // Rendu optimisé de chaque item (section ou projet)
+  const renderItem = useCallback(({ item }: { item: ProjectListItem }) => {
+    if (isHeaderItem(item)) {
+      return (
+        <SectionHeader
+          title={item.title}
+          count={item.count}
+          isExpanded={item.isExpanded}
+          onToggle={() => toggleSection(item.sectionId)}
+        />
+      );
+    }
+    
     return (
-      <View className="flex items-center justify-center h-full">
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text className="text-gray-600 mt-4">Chargement...</Text>
-      </View>
+      <ProjectItemComponent 
+        project={item}
+        onPress={navigateToProjectDetail}
+      />
     );
-  }
+  }, [toggleSection, navigateToProjectDetail]);
+  
+  // Optimisation: key extractor
+  const keyExtractor = useCallback((item: ProjectListItem) => {
+    if (isHeaderItem(item)) {
+      return `section-${item.sectionId}`;
+    }
+    return `project-${item.id}`;
+  }, []);
 
+  // Pour l'optimisation, calculer une taille estimée
+  const estimatedItemSize = useMemo(() => {
+    return 100; // Hauteur moyenne estimée en pixels
+  }, []);
+
+  // Gestion du chargement et des erreurs
   if (error) {
     return (
       <View className="flex items-center justify-center h-full">
@@ -474,26 +430,34 @@ export default function ProjetsScreen() {
         }}
       />
 
-      <ScrollView 
-        style={{ 
-          flex: 1, 
-          paddingHorizontal: 16, 
-          paddingTop: 8,
-          opacity: showFilter ? 0.1 : 1 
-        }}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
-        {filteredProjects && filteredProjects.length > 0 ? (
-          renderMonthSections()
+      <View style={{ 
+        flex: 1, 
+        opacity: showFilter ? 0.3 : 1 
+      }}>
+        {loading && !flatListData.length ? (
+          <View className="flex items-center justify-center h-full">
+            <ActivityIndicator size="large" color="#0000ff" />
+            <Text className="text-gray-600 mt-4">Chargement...</Text>
+          </View>
+        ) : flatListData.length > 0 ? (
+          <FlashList
+            data={flatListData}
+            renderItem={renderItem}
+            estimatedItemSize={estimatedItemSize}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+            refreshing={loading}
+            onRefresh={refetch}
+          />
         ) : (
           <View className="flex items-center justify-center p-8">
             <Ionicons name="construct-outline" size={48} color="#ccc" />
             <Text className="text-gray-500 mt-4 text-center">Aucun projet trouvé</Text>
           </View>
         )}
-      </ScrollView>
+      </View>
       
-      {/* Un seul FAB pour les projets */}
+      {/* FAB pour les projets */}
       <ProjectsFab 
         filtersVisible={showFilter}
         onAddPress={handleAddProject}
