@@ -269,7 +269,9 @@ CREATE TABLE IF NOT EXISTS project_stages (
     status VARCHAR(50) DEFAULT 'non_commencee',
     order_index INTEGER NOT NULL,
     estimated_duration INT, -- en jours
+    estimated_hours INT, -- en heures
     actual_duration INT, -- en jours
+    actual_hours INT, -- en heures
     completion_percentage INTEGER DEFAULT 0 CHECK (completion_percentage BETWEEN 0 AND 100),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
