@@ -2,13 +2,21 @@ import React from 'react';
 
 export interface Stage {
   id: number;
+  project_id: number;
   name: string;
   description?: string;
-  projectId: number;
-  startDate?: string;
-  endDate?: string;
-  createdAt: string;
-  updatedAt: string;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  order_index: number;
+  estimated_duration?: number; // en jours
+  actual_duration?: number; // en jours
+  completion_percentage?: number;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  synced_at?: string;
+  synced_by_device_id?: string;
 }
 
 export interface Tag {

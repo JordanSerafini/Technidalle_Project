@@ -34,13 +34,22 @@ export class ProjectsService {
   async getProjectById(id: number) {
     return await this.prisma.projects.findUnique({
       where: { id },
-      include: {
-        project_stages: true,
-        project_tags: {
-          include: {
-            tags: true,
+      select: {
+        id: true,
+        name: true,
+        reference: true,
+        status: true,
+        notes: true,
+        addresses: true,
+        clients: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            company_name: true,
           },
         },
+        project_stages: true,
       },
     });
   }
@@ -110,6 +119,20 @@ export class ProjectsService {
   async getStagesByProjectId(projectId: number) {
     return await this.prisma.project_stages.findMany({
       where: { project_id: projectId },
+      include: {
+        stage_tags: {
+          include: {
+            tags: true,
+          },
+        },
+      },
+    });
+  }
+
+  // NOUVELLE MÉTHODE: Récupérer une étape par son ID
+  async getStageById(id: number) {
+    return await this.prisma.project_stages.findUnique({
+      where: { id },
       include: {
         stage_tags: {
           include: {
