@@ -243,8 +243,8 @@ model project_stages {
   project_id            Int
   name                  String              @db.VarChar(255)
   description           String?
-  start_date            DateTime?           @db.Date
-  end_date              DateTime?           @db.Date
+  start_date            DateTime?           @db.Timestamp(6)
+  end_date              DateTime?           @db.Timestamp(6)
   status                String?             @default("non_commencee") @db.VarChar(50)
   order_index           Int
   estimated_duration    Int?

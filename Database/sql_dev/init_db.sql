@@ -264,8 +264,8 @@ CREATE TABLE IF NOT EXISTS project_stages (
     project_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    start_date DATE,
-    end_date DATE,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
     status VARCHAR(50) DEFAULT 'non_commencee',
     order_index INTEGER NOT NULL,
     estimated_duration INT, -- en jours
