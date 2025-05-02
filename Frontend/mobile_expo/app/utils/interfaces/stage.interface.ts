@@ -34,8 +34,8 @@ export class CreateStageDto {
   name!: string;
   description?: string;
   projectId!: number;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string; 
+  endDate?: string;   
   status?: StageStatus = StageStatus.NON_COMMENCEE;
   orderIndex!: number;
   estimatedDuration?: number;
@@ -49,8 +49,9 @@ export class UpdateStageDto {
   name?: string;
   description?: string;
   projectId?: number;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string; 
+  endDate?: string;   
+  // startTime et endTime sont implicitement dans startDate et endDate si format ISO complet
   status?: StageStatus;
   orderIndex?: number;
   estimatedDuration?: number;

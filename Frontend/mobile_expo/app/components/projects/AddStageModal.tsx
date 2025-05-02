@@ -34,13 +34,16 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startTime, setStartTime] = useState<Date | undefined>(undefined); // État pour l'heure de début
+  const [endTime, setEndTime] = useState<Date | undefined>(undefined);     // État pour l'heure de fin
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [assignedStaff, setAssignedStaff] = useState<StaffAssignment[]>([]);
-  const [defaultHoursPlanned, setDefaultHoursPlanned] = useState('');
 
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false); // Pour afficher le sélecteur d'heure début
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);   // Pour afficher le sélecteur d'heure fin
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,20 +67,51 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
       setIsSubmitting(false);
       setIsStaffSelectorVisible(false); // Fermer aussi le sélecteur de staff
       setTempSelectedStaffIds(new Set());
+      setStartTime(undefined); // Réinitialiser l'heure de début
+      setEndTime(undefined);   // Réinitialiser l'heure de fin
     }
   }, [isVisible]);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate: Date | undefined, type: 'start' | 'end') => {
+    const currentDate = selectedDate || (type === 'start' ? startDate : endDate);
     if (type === 'start') {
       setShowStartDatePicker(false);
-      if (selectedDate) {
-        setStartDate(selectedDate);
+      if (event.type === 'set' && currentDate) {
+          setStartDate(currentDate);
+          // Si l'heure de début n'est pas définie, on la met par défaut (ex: 00:00)
+          if (!startTime) {
+              const defaultStartTime = new Date(currentDate);
+              defaultStartTime.setHours(0, 0, 0, 0);
+              setStartTime(defaultStartTime);
+          }
       }
-    } else {
+    } else { // type === 'end'
       setShowEndDatePicker(false);
-      if (selectedDate) {
-        setEndDate(selectedDate);
+      if (event.type === 'set' && currentDate) {
+          setEndDate(currentDate);
+           // Si l'heure de fin n'est pas définie, on la met par défaut (ex: 00:00)
+          if (!endTime) {
+              const defaultEndTime = new Date(currentDate);
+              defaultEndTime.setHours(0, 0, 0, 0);
+              setEndTime(defaultEndTime);
+          }
       }
+    }
+  };
+
+  // Nouvelle fonction pour gérer le changement d'heure
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime: Date | undefined, type: 'start' | 'end') => {
+    const currentTime = selectedTime || (type === 'start' ? startTime : endTime);
+    if (type === 'start') {
+        setShowStartTimePicker(false);
+        if (event.type === 'set' && currentTime) {
+            setStartTime(currentTime);
+        }
+    } else { // type === 'end'
+        setShowEndTimePicker(false);
+        if (event.type === 'set' && currentTime) {
+            setEndTime(currentTime);
+        }
     }
   };
 
@@ -110,7 +144,6 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
   };
 
   const confirmStaffSelection = () => {
-    const plannedHours = defaultHoursPlanned ? parseInt(defaultHoursPlanned, 10) : undefined;
     const newAssignedStaff: StaffAssignment[] = [];
     tempSelectedStaffIds.forEach(id => {
       const staffMember = availableStaff.find(s => s.id === id);
@@ -120,10 +153,9 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
           staffId: id,
           staffName: `${staffMember.firstname} ${staffMember.lastname}`,
           roleDescription: existingAssignment?.roleDescription, // Conserver le role
-          hoursPlanned: plannedHours, // Appliquer les heures par défaut
+          hoursPlanned: existingAssignment?.hoursPlanned, 
         });
       } else {
-         // Staff plus disponible ? Ou erreur ? Log pour investigation
          console.warn(`Staff ID ${id} sélectionné mais non trouvé dans availableStaff.`);
       }
     });
@@ -137,6 +169,18 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
   };
   // --- Fin logique modal sélection --- 
 
+  // Fonction pour mettre à jour les heures planifiées pour un membre spécifique
+  const handleHoursChange = (staffId: number, text: string) => {
+    const hours = parseInt(text, 10);
+    setAssignedStaff(prevStaff =>
+      prevStaff.map(staff =>
+        staff.staffId === staffId
+          ? { ...staff, hoursPlanned: !isNaN(hours) ? hours : undefined } // Mettre undefined si non numérique
+          : staff
+      )
+    );
+  };
+
   const handleSubmit = async () => {
     if (!name.trim()) {
       setError('Le nom de l\'étape est requis.');
@@ -145,22 +189,39 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
     if (startDate && endDate && endDate < startDate) {
         setError('La date de fin ne peut pas être antérieure à la date de début.');
         return;
-      }
+    }
+    // Validation heure début/fin si les deux sont définies sur la même date
+    if (startDate && endDate && startTime && endTime && startDate.toDateString() === endDate.toDateString() && endTime < startTime) {
+        setError('L\'heure de fin ne peut pas être antérieure à l\'heure de début pour le même jour.');
+        return;
+    }
 
     setError(null);
     setIsSubmitting(true);
 
+    // Combinaison Date et Heure avant l'envoi
+    const combineDateTime = (date?: Date, time?: Date): string | undefined => {
+        if (!date) return undefined;
+        const combined = new Date(date);
+        if (time) {
+            combined.setHours(time.getHours());
+            combined.setMinutes(time.getMinutes());
+            combined.setSeconds(time.getSeconds());
+            combined.setMilliseconds(time.getMilliseconds());
+        }
+        return combined.toISOString();
+    };
+
     const stageData: CreateStageDto = {
       name: name.trim(),
       projectId,
-      orderIndex: existingStagesCount, // Calcul simple de l'ordre
+      orderIndex: existingStagesCount,
       description: description.trim() || undefined,
-      startDate: startDate?.toISOString(),
-      endDate: endDate?.toISOString(),
-      status: StageStatus.NON_COMMENCEE, // Statut par défaut
+      startDate: combineDateTime(startDate, startTime), // Combiner date et heure
+      endDate: combineDateTime(endDate, endTime),     // Combiner date et heure
+      status: StageStatus.NON_COMMENCEE,
       estimatedDuration: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
       notes: notes.trim() || undefined,
-      // completionPercentage est géré par le backend ou mis à jour plus tard
     };
 
     try {
@@ -260,32 +321,60 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
             textAlignVertical="top"
           />
 
+          {/* Sélecteurs Date/Heure Début */}
           <View className="flex-row justify-between mb-3">
-            <View className="flex-1 mr-2">
+            <View className="flex-1 mr-1">
               <Text className="font-semibold mb-1">Date de début</Text>
               <TouchableOpacity
                 onPress={() => setShowStartDatePicker(true)}
-                className="border border-gray-300 rounded p-2 bg-gray-50 flex-row justify-between items-center"
+                className="border border-gray-300 rounded p-2 bg-gray-50 flex-row justify-between items-center h-10"
               >
-                <Text>{startDate ? startDate.toLocaleDateString('fr-FR') : 'Sélectionner...'}</Text>
-                <Ionicons name="calendar-outline" size={20} color="gray" />
+                <Text className="text-sm">{startDate ? startDate.toLocaleDateString('fr-FR') : 'Sélec. Date'}</Text>
+                <Ionicons name="calendar-outline" size={18} color="gray" />
               </TouchableOpacity>
             </View>
-            <View className="flex-1 ml-2">
-              <Text className="font-semibold mb-1">Date de fin</Text>
-              <TouchableOpacity
-                onPress={() => setShowEndDatePicker(true)}
-                className="border border-gray-300 rounded p-2 bg-gray-50 flex-row justify-between items-center"
-               >
-                 <Text>{endDate ? endDate.toLocaleDateString('fr-FR') : 'Sélectionner...'}</Text>
-                 <Ionicons name="calendar-outline" size={20} color="gray" />
-               </TouchableOpacity>
+            <View className="flex-1 ml-1">
+                <Text className="font-semibold mb-1">Heure début</Text>
+                <TouchableOpacity
+                    onPress={() => setShowStartTimePicker(true)}
+                    className="border border-gray-300 rounded p-2 bg-gray-50 flex-row justify-between items-center h-10"
+                    disabled={!startDate} // Désactiver si pas de date de début
+                >
+                    <Text className="text-sm">{startTime ? startTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'Sélec. Heure'}</Text>
+                    <Ionicons name="time-outline" size={18} color={startDate ? "gray" : "#d1d5db"} />
+                </TouchableOpacity>
             </View>
           </View>
 
+           {/* Sélecteurs Date/Heure Fin */}
+           <View className="flex-row justify-between mb-3">
+            <View className="flex-1 mr-1">
+              <Text className="font-semibold mb-1">Date de fin</Text>
+              <TouchableOpacity
+                onPress={() => setShowEndDatePicker(true)}
+                className="border border-gray-300 rounded p-2 bg-gray-50 flex-row justify-between items-center h-10"
+               >
+                 <Text className="text-sm">{endDate ? endDate.toLocaleDateString('fr-FR') : 'Sélec. Date'}</Text>
+                 <Ionicons name="calendar-outline" size={18} color="gray" />
+               </TouchableOpacity>
+            </View>
+             <View className="flex-1 ml-1">
+                <Text className="font-semibold mb-1">Heure fin</Text>
+                <TouchableOpacity
+                    onPress={() => setShowEndTimePicker(true)}
+                    className="border border-gray-300 rounded p-2 bg-gray-50 flex-row justify-between items-center h-10"
+                    disabled={!endDate} // Désactiver si pas de date de fin
+                >
+                    <Text className="text-sm">{endTime ? endTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}) : 'Sélec. Heure'}</Text>
+                    <Ionicons name="time-outline" size={18} color={endDate ? "gray" : "#d1d5db"} />
+                </TouchableOpacity>
+            </View>
+          </View>
+
+           {/* Afficheurs DateTimePicker pour Date Début/Fin */}
            {showStartDatePicker && (
              <DateTimePicker
-               value={startDate || new Date()}
+               value={startDate || new Date()} // Fournir une valeur par défaut
                mode="date"
                display="default"
                onChange={(event, date) => handleDateChange(event, date, 'start')}
@@ -293,11 +382,31 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
            )}
            {showEndDatePicker && (
              <DateTimePicker
-               value={endDate || startDate || new Date()}
+               value={endDate || startDate || new Date()} // Fournir une valeur par défaut
                mode="date"
                display="default"
                minimumDate={startDate} // Empêche de sélectionner une date de fin avant le début
                onChange={(event, date) => handleDateChange(event, date, 'end')}
+             />
+           )}
+           {/* Nouveaux Afficheurs DateTimePicker pour Heure Début/Fin */}
+            {showStartTimePicker && (
+             <DateTimePicker
+               value={startTime || new Date(0, 0, 0, 0, 0, 0)} // Fournir une valeur par défaut (00:00)
+               mode="time"
+               display="default"
+               is24Hour={true}
+               onChange={(event, time) => handleTimeChange(event, time, 'start')}
+             />
+           )}
+           {showEndTimePicker && (
+             <DateTimePicker
+               value={endTime || new Date(0, 0, 0, 0, 0, 0)} // Fournir une valeur par défaut (00:00)
+               mode="time"
+               display="default"
+               // Ajout d'une logique simple pour minimumTime si même jour
+               minimumDate={startDate && endDate && startTime && startDate.toDateString() === endDate.toDateString() ? startTime : undefined}
+               onChange={(event, time) => handleTimeChange(event, time, 'end')}
              />
            )}
 
@@ -320,48 +429,36 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
              textAlignVertical="top"
            />
 
-          {/* Section Assignation Personnel */}
-          <View className="mt-4 border-t border-gray-200 pt-4">
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-lg font-semibold">Personnel assigné</Text>
-              {/* Bouton pour ouvrir le sélecteur de personnel */}
-              <TouchableOpacity
-                onPress={openStaffSelector} // Ouvre le modal de sélection
-                disabled={availableStaff.length === 0}
-                className={`py-1 px-3 rounded ${availableStaff.length === 0 ? 'bg-gray-300' : 'bg-blue-500'}`}
-              >
-                <Text className="text-white font-semibold">Sélectionner...</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Section Personnel Assigné */}
+          <Text className="font-semibold mb-2 mt-3">Personnel assigné</Text>
+          <TouchableOpacity
+            onPress={openStaffSelector}
+            className="bg-blue-100 p-3 rounded-lg mb-3 flex-row items-center justify-center"
+          >
+            <Ionicons name="people-outline" size={20} color="#2563eb" />
+            <Text className="text-blue-600 font-semibold ml-2">Sélectionner Personnel</Text>
+          </TouchableOpacity>
 
-            {/* Champ pour les heures planifiées par défaut */}
-            {assignedStaff.length > 0 && (
-              <View className="my-2">
-                 <Text className="font-semibold mb-1">Heures planifiées (pour tous les assignés via ce modal):</Text>
-                 <TextInput
-                   value={defaultHoursPlanned}
-                   onChangeText={setDefaultHoursPlanned}
-                   placeholder="Ex: 35" // Ou laisser vide si optionnel
-                   keyboardType="numeric"
-                   className="border border-gray-300 rounded p-2 bg-gray-50"
-                 />
-              </View>
-            )}
-
-            {assignedStaff.length === 0 ? (
-              <Text className="text-gray-500 italic">Aucun personnel assigné.</Text>
-            ) : (
-              assignedStaff.map((staff) => (
-                <View key={staff.staffId} className="flex-row justify-between items-center bg-gray-100 p-2 rounded mb-1">
-                  <Text>{staff.staffName} {staff.hoursPlanned ? `(${staff.hoursPlanned}h)` : ''}</Text>
-                  {/* Ici on pourrait ajouter des inputs pour roleDescription, etc. */}
-                  <TouchableOpacity onPress={() => handleRemoveStaff(staff.staffId)}>
-                    <Ionicons name="remove-circle-outline" size={22} color="red" />
+          {/* Liste du personnel assigné avec champ pour les heures */}
+          {assignedStaff.length > 0 && (
+            <View className="mb-3">
+              {assignedStaff.map(staff => (
+                <View key={staff.staffId} className="flex-row items-center justify-between bg-gray-100 p-2 rounded mb-1">
+                  <Text className="flex-1 mr-2">{staff.staffName}</Text>
+                  <TextInput
+                    placeholder="H Plan."
+                    keyboardType="numeric"
+                    value={staff.hoursPlanned !== undefined ? String(staff.hoursPlanned) : ''} // Afficher vide si undefined
+                    onChangeText={(text) => handleHoursChange(staff.staffId, text)}
+                    className="border border-gray-300 rounded p-1 w-20 text-center bg-white"
+                  />
+                  <TouchableOpacity onPress={() => handleRemoveStaff(staff.staffId)} className="ml-2">
+                    <Ionicons name="remove-circle" size={22} color="red" />
                   </TouchableOpacity>
                 </View>
-              ))
-            )}
-          </View>
+              ))}
+            </View>
+          )}
 
           <TouchableOpacity
             onPress={handleSubmit}
