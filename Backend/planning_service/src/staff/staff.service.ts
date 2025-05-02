@@ -65,6 +65,8 @@ interface ScheduleItem {
   eventType?: string | null;
   // Champs spécifiques aux assignations
   role?: string | null;
+  hoursPlanned?: number | null; // Ajouté pour 'assignment'
+  hoursWorked?: number | null; // Ajouté pour 'assignment'
 }
 
 @Injectable()
@@ -156,6 +158,8 @@ export class StaffService implements OnModuleInit {
           role_description: true,
           start_date: true,
           end_date: true,
+          hours_planned: true,
+          hours_worked: true,
           projects: {
             select: {
               id: true,
@@ -208,6 +212,8 @@ export class StaffService implements OnModuleInit {
           project: assign.projects,
           stage: assign.project_stages,
           role: assign.role_description,
+          hoursPlanned: assign.hours_planned, // Ajouter les heures planifiées
+          hoursWorked: assign.hours_worked, // Ajouter les heures travaillées
         };
       });
 

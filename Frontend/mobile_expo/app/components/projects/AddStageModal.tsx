@@ -10,7 +10,7 @@ interface StaffAssignment {
   staffId: number;
   staffName: string; // Pour affichage
   roleDescription?: string;
-  // Ajoutez d'autres champs si nécessaire (dates spécifiques, heures...)
+  hoursPlanned?: number; // Ajout des heures planifiées
 }
 
 interface AddStageModalProps {
@@ -37,6 +37,7 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [assignedStaff, setAssignedStaff] = useState<StaffAssignment[]>([]);
+  const [defaultHoursPlanned, setDefaultHoursPlanned] = useState('');
 
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -109,16 +110,17 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
   };
 
   const confirmStaffSelection = () => {
+    const plannedHours = defaultHoursPlanned ? parseInt(defaultHoursPlanned, 10) : undefined;
     const newAssignedStaff: StaffAssignment[] = [];
     tempSelectedStaffIds.forEach(id => {
       const staffMember = availableStaff.find(s => s.id === id);
       if (staffMember) {
-        // Garder les infos existantes si possible (ex: roleDescription), sinon ajouter nouveau
         const existingAssignment = assignedStaff.find(as => as.staffId === id);
         newAssignedStaff.push({
           staffId: id,
           staffName: `${staffMember.firstname} ${staffMember.lastname}`,
-          roleDescription: existingAssignment?.roleDescription, // Conserver le role si déjà défini
+          roleDescription: existingAssignment?.roleDescription, // Conserver le role
+          hoursPlanned: plannedHours, // Appliquer les heures par défaut
         });
       } else {
          // Staff plus disponible ? Ou erreur ? Log pour investigation
@@ -332,12 +334,26 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
               </TouchableOpacity>
             </View>
 
+            {/* Champ pour les heures planifiées par défaut */}
+            {assignedStaff.length > 0 && (
+              <View className="my-2">
+                 <Text className="font-semibold mb-1">Heures planifiées (pour tous les assignés via ce modal):</Text>
+                 <TextInput
+                   value={defaultHoursPlanned}
+                   onChangeText={setDefaultHoursPlanned}
+                   placeholder="Ex: 35" // Ou laisser vide si optionnel
+                   keyboardType="numeric"
+                   className="border border-gray-300 rounded p-2 bg-gray-50"
+                 />
+              </View>
+            )}
+
             {assignedStaff.length === 0 ? (
               <Text className="text-gray-500 italic">Aucun personnel assigné.</Text>
             ) : (
               assignedStaff.map((staff) => (
                 <View key={staff.staffId} className="flex-row justify-between items-center bg-gray-100 p-2 rounded mb-1">
-                  <Text>{staff.staffName}</Text>
+                  <Text>{staff.staffName} {staff.hoursPlanned ? `(${staff.hoursPlanned}h)` : ''}</Text>
                   {/* Ici on pourrait ajouter des inputs pour roleDescription, etc. */}
                   <TouchableOpacity onPress={() => handleRemoveStaff(staff.staffId)}>
                     <Ionicons name="remove-circle-outline" size={22} color="red" />
