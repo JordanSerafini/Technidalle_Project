@@ -33,6 +33,39 @@ export class ResourcesController {
     @Inject('RESOURCES_SERVICE') private readonly resourcesService: ClientProxy,
   ) {}
 
+  /* Staff Endpoints */
+  @Get('staff')
+  async getAllStaff(
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('searchQuery') searchQuery?: string,
+  ) {
+    if (!this.resourcesService) {
+      throw new HttpException(
+        'Service non disponible',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    try {
+      return await firstValueFrom(
+        this.resourcesService.send(
+          { cmd: 'get_all_staff' },
+          {
+            limit: limit ? Number(limit) : undefined,
+            offset: offset ? Number(offset) : undefined,
+            searchQuery,
+          },
+        ),
+      );
+    } catch (error) {
+      console.error('Erreur lors de la récupération du personnel:', error);
+      throw new HttpException(
+        'Erreur lors de la récupération du personnel',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   /* Materials Endpoints */
   @Get('materials')
   async getAllMaterials(

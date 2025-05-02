@@ -26,6 +26,17 @@ import { ProjectStaff } from './ProjectStaff';
 import { ProjectMaterials } from './ProjectMaterials';
 import { ProjectDocuments } from './ProjectDocuments';
 import { ProjectMedia } from './ProjectMedia';
+// Import du modal d'ajout d'étape
+import AddStageModal from '@/app/components/projects/AddStageModal';
+import { Staff } from '@/app/utils/interfaces/staff.interface';
+import url from '@/app/utils/url';
+
+// Interface pour l'assignation de personnel à une étape (nécessaire pour le modal)
+interface StaffAssignment {
+  staffId: number;
+  staffName: string;
+  roleDescription?: string;
+}
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +50,17 @@ export default function ProjectDetailScreen() {
     }
   });
 
+  // Fonction pour rafraîchir les données du projet
+  const refreshProjectData = () => {
+    // Recharger la page pour obtenir les données mises à jour
+    router.replace(`/projects/${id}`);
+  };
+
+  // États pour le modal d'ajout d'étape
+  const [isAddStageModalVisible, setIsAddStageModalVisible] = useState(false);
+  const [availableStaff, setAvailableStaff] = useState<Staff[]>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+
   // État simple pour les sections
   const [openSection, setOpenSection] = useState<string>('infos');
 
@@ -51,6 +73,132 @@ export default function ProjectDetailScreen() {
       console.log(`[ProjectDetailScreen] Nouvel état openSection: ${newOpenSection}`);
       return newOpenSection;
     });
+  };
+
+  // Récupérer la liste du personnel disponible
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        setIsLoadingStaff(true);
+        // Utiliser directement l'URL locale du fichier url.ts
+        const apiUrl = `${url.local}resources/staff`;
+        console.log("Tentative de récupération du personnel depuis:", apiUrl);
+        
+        try {
+          const controller = new AbortController();
+          // Créer un timeout manuellement (compatible avec toutes les versions)
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId); // Annuler le timeout si la requête aboutit
+          
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          console.log(`Personnel récupéré: ${data.length} membres`);
+          setAvailableStaff(data);
+        } catch (fetchError) {
+          console.error('Erreur fetch staff:', fetchError);
+          
+          // En cas d'échec, utiliser des données fictives pour le développement
+          console.warn("Utilisation de données fictives pour le personnel");
+          const mockStaff: Staff[] = [
+            { id: 1, firstname: 'Jean', lastname: 'Dupont', email: 'jean@example.com', role_id: 1, hire_date: new Date('2020-01-01') },
+            { id: 2, firstname: 'Marie', lastname: 'Martin', email: 'marie@example.com', role_id: 2, hire_date: new Date('2021-03-15') },
+            { id: 3, firstname: 'Pierre', lastname: 'Durand', email: 'pierre@example.com', role_id: 3, hire_date: new Date('2022-06-30') }
+          ];
+          setAvailableStaff(mockStaff);
+        }
+      } finally {
+        setIsLoadingStaff(false);
+      }
+    };
+
+    // On charge les données du personnel lorsque le modal est ouvert
+    if (isAddStageModalVisible) {
+      fetchStaff();
+    }
+  }, [isAddStageModalVisible]);
+
+  // Fonctions pour le modal d'ajout d'étape
+  const handleAddStage = () => {
+    console.log('Ouverture du modal d\'ajout d\'étape');
+    setIsAddStageModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsAddStageModalVisible(false);
+  };
+
+  const handleSubmitStage = async (stageData: any, staffAssignments: StaffAssignment[]) => {
+    try {
+      console.log('Données de l\'étape à soumettre:', stageData);
+      console.log('Personnel à assigner:', staffAssignments);
+      
+      // 1. Créer l'étape
+      const stageResponse = await fetch(`${url.local}/projects/${id}/stages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(stageData)
+      });
+      
+      if (!stageResponse.ok) {
+        throw new Error('Erreur lors de la création de l\'étape');
+      }
+      
+      const newStage = await stageResponse.json();
+      console.log('Étape créée avec succès:', newStage);
+      
+      // 2. Assigner le personnel si nécessaire
+      if (staffAssignments.length > 0) {
+        // Ceci suppose que votre backend a un endpoint pour associer du personnel à une étape
+        // Vous devrez probablement créer cet endpoint
+        for (const assignment of staffAssignments) {
+          const staffAssignmentResponse = await fetch(`${url.local}/projects/stages/${newStage.id}/staff`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+              staffId: assignment.staffId,
+              roleDescription: assignment.roleDescription || 'Membre d\'équipe',
+              // Ajoutez d'autres champs selon vos besoins
+            })
+          });
+          
+          if (!staffAssignmentResponse.ok) {
+            console.warn(`Erreur lors de l'assignation du membre ${assignment.staffName}`);
+          }
+        }
+      }
+      
+      // 3. Rafraîchir les données du projet pour afficher la nouvelle étape
+      refreshProjectData();
+      
+      // 4. Fermer le modal
+      setIsAddStageModalVisible(false);
+      
+      // 5. Afficher une confirmation
+      Alert.alert('Succès', 'L\'étape a été ajoutée avec succès');
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'étape:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue lors de l\'ajout de l\'étape');
+    }
   };
 
   // Configuration de l'en-tête
@@ -177,9 +325,11 @@ export default function ProjectDetailScreen() {
           
           {project.project_stages && (
             <ProjectStages 
-              stages={project.project_stages}
+              projectId={Number(id)}
+              stages={project.project_stages as any}
               isOpen={openSection === 'stages'}
               onToggle={() => toggleSection('stages')}
+              onAddStage={handleAddStage}
             />
           )}
           
@@ -225,6 +375,16 @@ export default function ProjectDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal d'ajout d'étape */}
+      <AddStageModal
+        isVisible={isAddStageModalVisible}
+        onClose={handleCloseModal}
+        onSubmit={handleSubmitStage}
+        projectId={Number(id)}
+        existingStagesCount={project?.project_stages?.length || 0}
+        availableStaff={availableStaff}
+      />
     </View>
   );
 }

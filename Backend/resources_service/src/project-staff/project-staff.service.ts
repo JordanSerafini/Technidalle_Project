@@ -7,6 +7,35 @@ import { UpdateProjectStaffDto } from './dto/update-project-staff.dto';
 export class ProjectStaffService {
   constructor(private prisma: PrismaService) {}
 
+  async findAll(limit?: number, offset?: number, searchQuery?: string) {
+    // Construire les conditions de recherche si searchQuery est fourni
+    let where = {};
+
+    if (searchQuery) {
+      // Utiliser une condition simplifiée compatible avec le schéma Prisma
+      where = {
+        OR: [
+          { firstname: { contains: searchQuery } },
+          { lastname: { contains: searchQuery } },
+          { email: { contains: searchQuery } },
+        ],
+      };
+    }
+
+    // Récupérer tous les membres du personnel
+    return await this.prisma.staff.findMany({
+      where: where as any, // Type assertion pour éviter l'erreur
+      include: {
+        roles: true, // Utiliser 'roles' au lieu de 'role' selon le message d'erreur
+      },
+      take: limit || undefined,
+      skip: offset || undefined,
+      orderBy: {
+        lastname: 'asc', // Tri par nom de famille
+      },
+    });
+  }
+
   async findAllByProjectId(projectId: string) {
     const projectIdNumber = parseInt(projectId);
     return await this.prisma.project_staff.findMany({

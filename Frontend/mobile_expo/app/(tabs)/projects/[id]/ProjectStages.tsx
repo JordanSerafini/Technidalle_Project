@@ -2,26 +2,22 @@ import React from 'react';
 import { View, Text, TouchableHighlight, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AccordionItem from '../../../components/AccordionItem';
-
-interface StageData {
-  id: number;
-  name: string;
-  description?: string;
-  start_date?: string;
-  end_date?: string;
-  completion_percentage?: number;
-}
+import { Stage } from '@/app/utils/interfaces/project.interface';
 
 interface ProjectStagesProps {
-  stages: StageData[];
+  projectId: number;
+  stages: Stage[];
   isOpen: boolean;
   onToggle: () => void;
+  onAddStage: () => void;
 }
 
 export const ProjectStages: React.FC<ProjectStagesProps> = ({
+  projectId,
   stages,
   isOpen,
-  onToggle
+  onToggle,
+  onAddStage
 }) => {
   return (
     <View className="bg-white m-4 p-4 rounded-lg shadow-sm">
@@ -40,11 +36,16 @@ export const ProjectStages: React.FC<ProjectStagesProps> = ({
             <MaterialIcons name="linear-scale" size={22} color="#1e40af" />
             <Text className="text-lg font-bold ml-2">Étapes du projet</Text>
           </View>
-          <Ionicons 
-            name={isOpen ? "chevron-up" : "chevron-down"} 
-            size={24} 
-            color="#2563eb" 
-          />
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={onAddStage} className="p-1 mr-2">
+              <Ionicons name="add-circle-outline" size={26} color="#16a34a" />
+            </TouchableOpacity>
+            <Ionicons 
+              name={isOpen ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#2563eb" 
+            />
+          </View>
         </View>
       </TouchableHighlight>
       
