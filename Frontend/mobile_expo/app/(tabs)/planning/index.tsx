@@ -52,7 +52,11 @@ export function PlanningScreen() {
                 <Text>Étape: {item.stage?.name ?? 'N/A'}</Text>
                 {item.role && <Text>Rôle: {item.role}</Text>}
                 {item.type === 'assignment' && item.stage && item.startTime && item.endTime && (
-                  <Text>Horaires: {new Date(item.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - {new Date(item.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  <Text>Horaires: {
+                    item.allDay
+                      ? 'Toute la journée'
+                      : `${new Date(item.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${new Date(item.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                  }</Text>
                 )}
               </View>
             ))

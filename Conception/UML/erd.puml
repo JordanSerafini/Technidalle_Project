@@ -1,0 +1,508 @@
+@startuml erd
+' hide the spot
+hide circle
+
+' increase spacing
+skinparam linetype ortho
+
+entity "addresses" as addresses {
+  *id : SERIAL <<PK>>
+  --
+  street_number : VARCHAR(10)
+  street_name : VARCHAR(255) NOT NULL
+  additional_address : VARCHAR(255)
+  zip_code : VARCHAR(10) NOT NULL
+  city : VARCHAR(100) NOT NULL
+  country : VARCHAR(100)
+  latitude : DECIMAL(9,6)
+  longitude : DECIMAL(9,6)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "clients" as clients {
+  *id : SERIAL <<PK>>
+  --
+  customer_id : VARCHAR(255) <<UNIQUE>>
+  company_name : VARCHAR(255)
+  firstname : VARCHAR(100) NOT NULL
+  lastname : VARCHAR(100) NOT NULL
+  email : VARCHAR(255) <<UNIQUE>> NOT NULL
+  phone : VARCHAR(20)
+  mobile : VARCHAR(20)
+  #address_id : INTEGER <<FK>>
+  siret : VARCHAR(14)
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "projects" as projects {
+  *id : SERIAL <<PK>>
+  --
+  project_id : VARCHAR(255)
+  reference : VARCHAR(50) <<UNIQUE>> NOT NULL
+  name : VARCHAR(255) NOT NULL
+  description : TEXT
+  #client_id : INTEGER <<FK>> NOT NULL
+  #address_id : INTEGER <<FK>>
+  status : project_status
+  start_date : DATE
+  end_date : DATE
+  estimated_duration : INT
+  budget : DECIMAL(12,2)
+  actual_cost : DECIMAL(12,2)
+  margin : DECIMAL(12,2)
+  priority : INTEGER
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "roles" as roles {
+  *id : SERIAL <<PK>>
+  --
+  name : VARCHAR(50) <<UNIQUE>> NOT NULL
+  description : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "staff" as staff {
+  *id : SERIAL <<PK>>
+  --
+  staff_id : VARCHAR(255)
+  firstname : VARCHAR(100) NOT NULL
+  lastname : VARCHAR(100) NOT NULL
+  email : VARCHAR(255) <<UNIQUE>> NOT NULL
+  #role_id : INTEGER <<FK>> NOT NULL
+  phone : VARCHAR(20)
+  mobile : VARCHAR(20)
+  #address_id : INTEGER <<FK>>
+  hire_date : DATE NOT NULL
+  is_available : BOOLEAN
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "documents" as documents {
+  *id : SERIAL <<PK>>
+  --
+  document_id : VARCHAR(255)
+  #project_id : INTEGER <<FK>> NOT NULL
+  #client_id : INTEGER <<FK>>
+  type : document_type NOT NULL
+  reference : VARCHAR(50) <<UNIQUE>> NOT NULL
+  status : document_status
+  amount : DECIMAL(12,2)
+  tva_rate : DECIMAL(5,2)
+  issue_date : DATE NOT NULL
+  due_date : DATE
+  payment_date : DATE
+  payment_method : VARCHAR(50)
+  payment_terms : VARCHAR(100)
+  discount_rate : DECIMAL(5,2)
+  discount_amount : DECIMAL(12,2)
+  payment_status : VARCHAR(50)
+  amount_paid : DECIMAL(12,2)
+  balance_due : DECIMAL(12,2)
+  legal_mentions : TEXT
+  validity_period : INTEGER
+  signed_by_client : BOOLEAN
+  signed_date : DATE
+  #approved_by_staff_id : INTEGER <<FK>>
+  electronic_signature_path : VARCHAR(255)
+  version : INTEGER
+  #parent_document_id : INTEGER <<FK>>
+  revision_reason : TEXT
+  #quotation_id : INTEGER <<FK>>
+  purchase_order_reference : VARCHAR(100)
+  #delivery_address_id : INTEGER <<FK>>
+  delivery_date : DATE
+  shipping_costs : DECIMAL(12,2)
+  notes : TEXT
+  file_path : VARCHAR(255)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "materials" as materials {
+  *id : SERIAL <<PK>>
+  --
+  name : VARCHAR(255) NOT NULL
+  description : TEXT
+  reference : VARCHAR(50) <<UNIQUE>>
+  unit : VARCHAR(50) NOT NULL
+  price : DECIMAL(10,2)
+  stock_quantity : INT
+  minimum_stock : INT
+  supplier : VARCHAR(255)
+  supplier_reference : VARCHAR(50)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "document_lines" as document_lines {
+  *id : SERIAL <<PK>>
+  --
+  #document_id : INTEGER <<FK>> NOT NULL
+  #material_id : INTEGER <<FK>>
+  description : TEXT NOT NULL
+  quantity : DECIMAL(10,3) NOT NULL
+  unit : VARCHAR(50) NOT NULL
+  unit_price : DECIMAL(10,2) NOT NULL
+  discount_percent : DECIMAL(5,2)
+  discount_amount : DECIMAL(10,2)
+  tax_rate : DECIMAL(5,2)
+  total_ht : DECIMAL(12,2) <<Generated>>
+  sort_order : INTEGER
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "project_stages" as project_stages {
+  *id : SERIAL <<PK>>
+  --
+  #project_id : INTEGER <<FK>> NOT NULL
+  name : VARCHAR(255) NOT NULL
+  description : TEXT
+  start_date : TIMESTAMP
+  end_date : TIMESTAMP
+  status : VARCHAR(50)
+  order_index : INTEGER NOT NULL
+  estimated_duration : INT
+  actual_duration : INT
+  completion_percentage : INTEGER
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "project_materials" as project_materials {
+  *id : SERIAL <<PK>>
+  --
+  #project_id : INTEGER <<FK>> NOT NULL
+  #material_id : INTEGER <<FK>> NOT NULL
+  #stage_id : INTEGER <<FK>>
+  quantity_planned : INT NOT NULL
+  quantity_used : INT
+  unit_price : DECIMAL(10,2) NOT NULL
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "project_staff" as project_staff {
+  *id : SERIAL <<PK>>
+  --
+  #project_id : INTEGER <<FK>> NOT NULL
+  #staff_id : INTEGER <<FK>> NOT NULL
+  #stage_id : INTEGER <<FK>>
+  role_description : VARCHAR(100)
+  start_date : DATE NOT NULL
+  end_date : DATE
+  hours_planned : INT
+  hours_worked : INT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "events" as events {
+  *id : SERIAL <<PK>>
+  --
+  title : VARCHAR(255) NOT NULL
+  description : TEXT
+  event_type : event_type NOT NULL
+  start_date : TIMESTAMP NOT NULL
+  end_date : TIMESTAMP NOT NULL
+  all_day : BOOLEAN
+  location : VARCHAR(255)
+  #project_id : INTEGER <<FK>>
+  #stage_id : INTEGER <<FK>>
+  #staff_id : INTEGER <<FK>>
+  #client_id : INTEGER <<FK>>
+  status : VARCHAR(50)
+  color : VARCHAR(50)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "project_media" as project_media {
+  *id : SERIAL <<PK>>
+  --
+  #project_id : INTEGER <<FK>>
+  #stage_id : INTEGER <<FK>>
+  #staff_id : INTEGER <<FK>>
+  media_type : VARCHAR(50)
+  file_path : TEXT NOT NULL
+  description : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "time_logs" as time_logs {
+  *id : SERIAL <<PK>>
+  --
+  #staff_id : INTEGER <<FK>> NOT NULL
+  #project_id : INTEGER <<FK>> NOT NULL
+  #stage_id : INTEGER <<FK>>
+  check_in : TIMESTAMP NOT NULL
+  check_out : TIMESTAMP
+  comment : TEXT
+  gps_lat : DECIMAL(9,6)
+  gps_long : DECIMAL(9,6)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "stage_checklists" as stage_checklists {
+  *id : SERIAL <<PK>>
+  --
+  #stage_id : INTEGER <<FK>> NOT NULL
+  label : TEXT NOT NULL
+  is_done : BOOLEAN
+  #staff_id : INTEGER <<FK>>
+  comment : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "site_reports" as site_reports {
+  *id : SERIAL <<PK>>
+  --
+  #project_id : INTEGER <<FK>> NOT NULL
+  #staff_id : INTEGER <<FK>>
+  #stage_id : INTEGER <<FK>>
+  report_type : VARCHAR(50)
+  description : TEXT NOT NULL
+  status : VARCHAR(50)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "tasks" as tasks {
+  *id : SERIAL <<PK>>
+  --
+  #stage_id : INTEGER <<FK>> NOT NULL
+  label : TEXT NOT NULL
+  description : TEXT
+  #assigned_to : INTEGER <<FK>>
+  due_date : DATE
+  status : VARCHAR(50)
+  priority : INTEGER
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "tags" as tags {
+  *id : SERIAL <<PK>>
+  --
+  label : VARCHAR(50) <<UNIQUE>> NOT NULL
+  color : VARCHAR(20)
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "project_tags" as project_tags {
+  #*project_id : INTEGER <<FK>> <<PK>>
+  #*tag_id : INTEGER <<FK>> <<PK>>
+  --
+  created_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "stage_tags" as stage_tags {
+  #*stage_id : INTEGER <<FK>> <<PK>>
+  #*tag_id : INTEGER <<FK>> <<PK>>
+  --
+  created_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "document_tags" as document_tags {
+  #*document_id : INTEGER <<FK>> <<PK>>
+  #*tag_id : INTEGER <<FK>> <<PK>>
+  --
+  created_at : TIMESTAMP
+  synced_at : TIMESTAMP
+  synced_by_device_id : VARCHAR(100)
+}
+
+entity "vehicles" as vehicles {
+  *id : SERIAL <<PK>>
+  --
+  name : VARCHAR(100) NOT NULL
+  type : vehicle_type NOT NULL
+  brand : VARCHAR(50) NOT NULL
+  model : VARCHAR(100) NOT NULL
+  registration_number : VARCHAR(20) <<UNIQUE>> NOT NULL
+  year_of_manufacture : INTEGER
+  purchase_date : DATE
+  purchase_price : DECIMAL(12,2)
+  status : vehicle_status
+  mileage : INTEGER
+  fuel_type : VARCHAR(20)
+  fuel_capacity : DECIMAL(6,2)
+  average_consumption : DECIMAL(4,2)
+  next_technical_control : DATE
+  insurance_number : VARCHAR(100)
+  insurance_expiry_date : DATE
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "vehicle_maintenance" as vehicle_maintenance {
+  *id : SERIAL <<PK>>
+  --
+  #vehicle_id : INTEGER <<FK>> NOT NULL
+  maintenance_type : VARCHAR(50) NOT NULL
+  maintenance_date : DATE NOT NULL
+  mileage_at_maintenance : INTEGER NOT NULL
+  description : TEXT
+  cost : DECIMAL(10,2) NOT NULL
+  performed_by : VARCHAR(100)
+  next_maintenance_date : DATE
+  next_maintenance_mileage : INTEGER
+  invoice_reference : VARCHAR(50)
+  document_path : VARCHAR(255)
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "vehicle_refueling" as vehicle_refueling {
+  *id : SERIAL <<PK>>
+  --
+  #vehicle_id : INTEGER <<FK>> NOT NULL
+  refuel_date : DATE NOT NULL
+  mileage : INTEGER NOT NULL
+  quantity : DECIMAL(8,2) NOT NULL
+  price_per_liter : DECIMAL(6,3) NOT NULL
+  total_cost : DECIMAL(10,2) NOT NULL
+  #staff_id : INTEGER <<FK>>
+  fuel_type : VARCHAR(20)
+  station : VARCHAR(100)
+  full_tank : BOOLEAN
+  #project_id : INTEGER <<FK>>
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "vehicle_reservations" as vehicle_reservations {
+  *id : SERIAL <<PK>>
+  --
+  #vehicle_id : INTEGER <<FK>> NOT NULL
+  #staff_id : INTEGER <<FK>> NOT NULL
+  #project_id : INTEGER <<FK>>
+  start_date : TIMESTAMP NOT NULL
+  end_date : TIMESTAMP NOT NULL
+  starting_mileage : INTEGER
+  ending_mileage : INTEGER
+  purpose : TEXT NOT NULL
+  status : VARCHAR(20)
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "vehicle_incidents" as vehicle_incidents {
+  *id : SERIAL <<PK>>
+  --
+  #vehicle_id : INTEGER <<FK>> NOT NULL
+  #staff_id : INTEGER <<FK>>
+  incident_date : TIMESTAMP NOT NULL
+  incident_type : VARCHAR(50) NOT NULL
+  location : VARCHAR(255)
+  description : TEXT NOT NULL
+  severity : VARCHAR(20)
+  mileage : INTEGER
+  cost_of_repairs : DECIMAL(10,2)
+  reported_to_insurance : BOOLEAN
+  insurance_claim_number : VARCHAR(50)
+  resolution_status : VARCHAR(50)
+  resolution_date : DATE
+  notes : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+' Relationships
+addresses						     ||..o{ clients                : "address_id"
+addresses            		 ||..o{ projects               : "address_id"
+addresses            		 ||..o{ staff                  : "address_id"
+addresses            		 ||..o{ documents              : "delivery_address_id"
+
+clients              		 ||--o{ projects               : "client_id"
+clients              		 ||..o{ documents              : "client_id"
+clients              		 ||..o{ events                 : "client_id"
+
+projects             		 ||--o{ documents              : "project_id"
+projects             		 ||--o{ project_stages         : "project_id"
+projects             		 ||--o{ project_materials      : "project_id"
+projects             		 ||--o{ project_staff          : "project_id"
+projects             		 ||..o{ events                 : "project_id"
+projects             		 ||..o{ project_media          : "project_id"
+projects             		 ||--o{ time_logs              : "project_id"
+projects             		 ||--o{ site_reports           : "project_id"
+projects             		 ||--|{ project_tags           : "project_id"
+projects             		 ||..o{ vehicle_refueling      : "project_id"
+projects             		 ||..o{ vehicle_reservations   : "project_id"
+
+roles                		 ||--o{ staff                  : "role_id"
+
+staff                		 ||..o{ documents              : "approved_by_staff_id"
+staff                		 ||--o{ project_staff          : "staff_id"
+staff                		 ||..o{ events                 : "staff_id"
+staff                		 ||..o{ project_media          : "staff_id"
+staff                		 ||--o{ time_logs              : "staff_id"
+staff                		 ||..o{ stage_checklists       : "staff_id"
+staff                		 ||..o{ site_reports           : "staff_id"
+staff                		 ||..o{ tasks                  : "assigned_to"
+staff                		 ||..o{ vehicle_refueling      : "staff_id"
+staff                		 ||--o{ vehicle_reservations   : "staff_id"
+staff                		 ||..o{ vehicle_incidents      : "staff_id"
+
+documents            		 ||--o{ document_lines         : "document_id"
+documents            		 ||--|{ document_tags          : "document_id"
+documents            		 ||..o{ documents              : "parent_document_id"
+documents            		 ||..o{ documents              : "quotation_id"
+
+materials            		 ||..o{ document_lines         : "material_id"
+materials            		 ||--o{ project_materials      : "material_id"
+
+project_stages       		 ||..o{ project_materials      : "stage_id"
+project_stages       		 ||..o{ project_staff          : "stage_id"
+project_stages       		 ||..o{ events                 : "stage_id"
+project_stages       		 ||..o{ project_media          : "stage_id"
+project_stages       		 ||..o{ time_logs              : "stage_id"
+project_stages       		 ||--o{ stage_checklists       : "stage_id"
+project_stages       		 ||..o{ site_reports           : "stage_id"
+project_stages       		 ||--o{ tasks                  : "stage_id"
+project_stages       		 ||--|{ stage_tags             : "stage_id"
+
+tags                 		 ||--|{ project_tags           : "tag_id"
+tags                 		 ||--|{ stage_tags             : "tag_id"
+tags                 		 ||--|{ document_tags          : "tag_id"
+
+vehicles             		 ||--o{ vehicle_maintenance    : "vehicle_id"
+vehicles             		 ||--o{ vehicle_refueling      : "vehicle_id"
+vehicles             		 ||--o{ vehicle_reservations   : "vehicle_id"
+vehicles             		 ||--o{ vehicle_incidents      : "vehicle_id"
+
+@enduml
