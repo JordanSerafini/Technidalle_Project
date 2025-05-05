@@ -8,7 +8,7 @@ import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
 import { FlashList } from '@shopify/flash-list';
-import AddProjectModal from '../../components/projects/addProjectsModal';
+import AddProjectModal from '../../components/projects/add_project/addProjectsModal';
 
 // Étendre l'interface FetchState pour inclure refetch
 interface FetchState<T> {
@@ -286,38 +286,82 @@ export default function ProjetsScreen() {
 
   // NOUVELLES FONCTIONS pour la modale
   const openAddModal = useCallback(() => {
-    console.log("Screen: openAddModal appelé");
     setAddModalVisible(true);
-    console.log("Screen: setAddModalVisible(true) appelé");
   }, []);
   
   const closeAddModal = useCallback(() => {
-    console.log("Screen: closeAddModal appelé");
     setAddModalVisible(false);
   }, []);
   
-  const handleCreateProject = useCallback((name: string, reference: string, description: string) => {
-    console.log("Screen: handleCreateProject appelé avec", {
-      name, reference, description
-    });
+  const handleCreateProject = useCallback((projectData: any) => {
+    console.log("Données reçues:", projectData);
     
-    // Validation basique
-    if (!name || !reference) {
-      Alert.alert("Champs requis", "Le nom et la référence du projet sont obligatoires.");
+    // Validation basique (compatible avec les deux formats)
+    if (!projectData.name || !(projectData.clientId || projectData.client_id)) {
+      Alert.alert("Champs requis", "Le nom et le client sont obligatoires.");
       return;
     }
     
-    // Appel API pour créer le projet (à implémenter)
-    Alert.alert(
-      "Création projet",
-      `Projet "${name}" créé avec succès!`,
-      [{ text: "OK", onPress: () => { 
-        closeAddModal();
-        // Recharger la liste après création
-        if (refetch) refetch();
-      }}]
-    );
-  }, [closeAddModal, refetch]);
+    // Afficher un indicateur de chargement
+    setState(prev => ({ ...prev, isSubmitting: true }));
+    
+    // Appel API pour créer le projet
+    fetch('http://192.168.20.225:3000/projects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(projectData)
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.text().then(text => {
+          console.error("Erreur API:", response.status, text);
+          throw new Error(`Erreur: ${response.status} - ${text}`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log("Projet créé avec succès:", data);
+      
+      // Ajouter le nouveau projet à la liste locale
+      if (data && setProjects && projects) {
+        setProjects([...projects, data]);
+      }
+      
+      // Masquer l'indicateur de chargement
+      setState(prev => ({ ...prev, isSubmitting: false }));
+      
+      Alert.alert(
+        "Création projet",
+        `Projet "${projectData.name}" créé avec succès!`,
+        [{ text: "OK", onPress: () => { 
+          closeAddModal();
+          // Recharger la liste après création
+          if (refetch) refetch();
+        }}]
+      );
+    })
+    .catch(error => {
+      console.error("Erreur de création:", error);
+      
+      // Masquer l'indicateur de chargement
+      setState(prev => ({ ...prev, isSubmitting: false }));
+      
+      Alert.alert(
+        "Erreur",
+        `Impossible de créer le projet: ${error.message}`,
+        [{ text: "OK" }]
+      );
+    });
+  }, [closeAddModal, refetch, setProjects, projects]);
+  
+  // État local pour la gestion des chargements et autres états d'UI
+  const [state, setState] = useState({
+    isSubmitting: false,
+  });
   
   // Mise à jour des fonctions du FAB
   const handleAddProject = useCallback(() => {

@@ -4,6 +4,40 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AccordionItem from '../../../components/AccordionItem';
 import { Stage } from '@/app/utils/interfaces/project.interface';
 
+// Fonction de formatage de date robuste (copie de ProjectInfo.tsx)
+const formatDate = (dateValue: any): string => {
+  if (!dateValue) {
+    return 'Non définie';
+  }
+  
+  try {
+    let dateObj: Date;
+    
+    if (typeof dateValue === 'string') {
+      if (/^\d+$/.test(dateValue)) {
+        dateObj = new Date(parseInt(dateValue));
+      } else {
+        dateObj = new Date(dateValue);
+      }
+    } else if (typeof dateValue === 'number') {
+      dateObj = new Date(dateValue);
+    } else if (dateValue instanceof Date) {
+      dateObj = dateValue;
+    } else {
+      return 'Format inconnu';
+    }
+    
+    if (isNaN(dateObj.getTime())) {
+      return 'Non définie';
+    }
+    
+    return dateObj.toLocaleDateString('fr-FR');
+    
+  } catch (error) {
+    return 'Non définie';
+  }
+};
+
 interface ProjectStagesProps {
   projectId: number;
   stages: Stage[];
@@ -67,8 +101,8 @@ export const ProjectStages: React.FC<ProjectStagesProps> = ({
                 
                 <View className="flex-row mt-2">
                   <Text className="text-gray-600 text-sm">
-                    {stage.start_date ? new Date(stage.start_date).toLocaleDateString('fr-FR') : 'Non défini'} 
-                    {stage.end_date ? ` - ${new Date(stage.end_date).toLocaleDateString('fr-FR')}` : ''}
+                    {formatDate(stage.start_date)}
+                    {stage.end_date ? ` - ${formatDate(stage.end_date)}` : ''}
                   </Text>
                 </View>
               </View>

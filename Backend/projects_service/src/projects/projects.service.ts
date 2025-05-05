@@ -39,6 +39,8 @@ export class ProjectsService {
         name: true,
         reference: true,
         status: true,
+        start_date: true,
+        end_date: true,
         notes: true,
         addresses: true,
         clients: {
@@ -75,6 +77,49 @@ export class ProjectsService {
   }
 
   async createProject(data: any) {
+    // Si la référence n'est pas fournie, nous devons créer le projet
+    // puis mettre à jour sa référence avec son ID
+    if (!data.reference) {
+      // Utilisation d'une transaction pour garantir l'atomicité de l'opération
+      return this.prisma.$transaction(async (prisma) => {
+        // Création du projet sans référence initialement
+        const createdProject = await prisma.projects.create({
+          data: {
+            name: data.name,
+            description: data.description,
+            clients: {
+              connect: { id: data.clientId },
+            },
+            ...(data.addressId && {
+              addresses: {
+                connect: { id: data.addressId },
+              },
+            }),
+            status: data.status,
+            start_date: data.startDate ? new Date(data.startDate) : undefined,
+            end_date: data.endDate ? new Date(data.endDate) : undefined,
+            estimated_duration: data.estimatedDuration,
+            budget: data.budget,
+            actual_cost: data.actualCost,
+            margin: data.margin,
+            priority: data.priority,
+            notes: data.notes,
+          },
+        });
+
+        // Mise à jour du projet avec la référence générée
+        const updatedProject = await prisma.projects.update({
+          where: { id: createdProject.id },
+          data: {
+            reference: `PRJ - ${createdProject.id}`,
+          },
+        });
+
+        return updatedProject;
+      });
+    }
+
+    // Cas standard où la référence est fournie
     const prismaData: Prisma.projectsCreateInput = {
       reference: data.reference,
       name: data.name,
