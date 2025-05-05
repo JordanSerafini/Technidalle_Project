@@ -1,4 +1,19 @@
 import React from 'react';
+import { AddressType } from './client.interface';
+
+export interface Address {
+  id: number;
+  street_number?: string;
+  street_name: string;
+  additional_address?: string;
+  zip_code: string;
+  city: string;
+  country?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  created_at?: Date;
+  updated_at?: Date;
+}
 
 export interface Stage {
   id: number;
@@ -28,6 +43,47 @@ export interface Tag {
   updatedAt: string;
 }
 
+export enum project_status {
+  prospect = 'prospect',
+  devis_en_cours = 'devis_en_cours',
+  devis_accepte = 'devis_accepte',
+  en_preparation = 'en_preparation',
+  en_cours = 'en_cours',
+  en_pause = 'en_pause',
+  termine = 'termine',
+  annule = 'annule'
+}
+
+export interface ProjectAddress {
+  id?: number;
+  project_id: number;
+  address_id: number;
+  address_type: AddressType;
+  is_default: boolean;
+  notes?: string;
+  address?: Address;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export interface CreateProjectAddressDto {
+  project_id?: number;
+  address_id?: number;
+  address?: {
+    street_number?: string;
+    street_name: string;
+    additional_address?: string;
+    zip_code: string;
+    city: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  address_type: AddressType;
+  is_default?: boolean;
+  notes?: string;
+}
+
 export interface Project {
   id: number;
   reference: string;
@@ -47,6 +103,7 @@ export interface Project {
   created_at?: string;
   updated_at?: string;
   addresses?: Address;
+  project_addresses?: ProjectAddress[];
   stages?: Stage[];
   tags?: Tag[];
   project_stages?: ProjectStage[];
@@ -71,17 +128,6 @@ export interface Project {
   events?: Event[];
 }
 
-export enum project_status {
-  prospect = 'prospect',
-  devis_en_cours = 'devis_en_cours',
-  devis_accepte = 'devis_accepte',
-  en_preparation = 'en_preparation',
-  en_cours = 'en_cours',
-  en_pause = 'en_pause',
-  termine = 'termine',
-  annule = 'annule'
-}
-
 export interface CreateProjectDto {
   name: string;
   description?: string;
@@ -96,19 +142,6 @@ export interface UpdateProjectDto {
   clientId?: number;
   startDate?: string;
   endDate?: string;
-}
-
-// Interface pour les adresses
-export interface Address {
-  id: number;
-  street_number?: string;
-  street_name: string;
-  additional_address?: string;
-  zip_code: string;
-  city: string;
-  country?: string;
-  latitude?: number;
-  longitude?: number;
 }
 
 // Interface pour les étapes de projet telles que retournées par l'API

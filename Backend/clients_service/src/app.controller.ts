@@ -10,6 +10,12 @@ import {
   Address,
   CreateAddressDto,
   UpdateAddressDto,
+  ClientAddress,
+  CreateClientAddressDto,
+  UpdateClientAddressDto,
+  ProjectAddress,
+  CreateProjectAddressDto,
+  UpdateProjectAddressDto,
 } from './interfaces/address.interface';
 import { GeocodingResponse } from './interfaces/geocoding.interface';
 import { MessagePattern } from '@nestjs/microservices';
@@ -92,6 +98,104 @@ export class AppController {
   @MessagePattern({ cmd: 'delete_address' })
   async deleteAddress(data: { id: number }): Promise<boolean> {
     return await this.appService.deleteAddress(data.id);
+  }
+
+  // Client Addresses (association) Endpoints
+  @MessagePattern({ cmd: 'get_client_addresses' })
+  async getClientAddresses(data: {
+    clientId: number;
+  }): Promise<ClientAddress[]> {
+    return await this.appService.getClientAddresses(data.clientId);
+  }
+
+  @MessagePattern({ cmd: 'get_client_address_by_id' })
+  async getClientAddressById(data: {
+    id: number;
+  }): Promise<ClientAddress | null> {
+    return await this.appService.getClientAddressById(data.id);
+  }
+
+  @MessagePattern({ cmd: 'create_client_address' })
+  async createClientAddress(
+    data: CreateClientAddressDto,
+  ): Promise<ClientAddress | null> {
+    return await this.appService.createClientAddress(data);
+  }
+
+  @MessagePattern({ cmd: 'update_client_address' })
+  async updateClientAddress(data: {
+    id: number;
+    clientAddressDto: UpdateClientAddressDto;
+  }): Promise<ClientAddress | null> {
+    return await this.appService.updateClientAddress(
+      data.id,
+      data.clientAddressDto,
+    );
+  }
+
+  @MessagePattern({ cmd: 'delete_client_address' })
+  async deleteClientAddress(data: { id: number }): Promise<boolean> {
+    return await this.appService.deleteClientAddress(data.id);
+  }
+
+  @MessagePattern({ cmd: 'set_default_client_address' })
+  async setDefaultClientAddress(data: {
+    clientId: number;
+    addressId: number;
+  }): Promise<boolean> {
+    return await this.appService.setDefaultClientAddress(
+      data.clientId,
+      data.addressId,
+    );
+  }
+
+  // Project Addresses (association) Endpoints
+  @MessagePattern({ cmd: 'get_project_addresses' })
+  async getProjectAddresses(data: {
+    projectId: number;
+  }): Promise<ProjectAddress[]> {
+    return await this.appService.getProjectAddresses(data.projectId);
+  }
+
+  @MessagePattern({ cmd: 'get_project_address_by_id' })
+  async getProjectAddressById(data: {
+    id: number;
+  }): Promise<ProjectAddress | null> {
+    return await this.appService.getProjectAddressById(data.id);
+  }
+
+  @MessagePattern({ cmd: 'create_project_address' })
+  async createProjectAddress(
+    data: CreateProjectAddressDto,
+  ): Promise<ProjectAddress | null> {
+    return await this.appService.createProjectAddress(data);
+  }
+
+  @MessagePattern({ cmd: 'update_project_address' })
+  async updateProjectAddress(data: {
+    id: number;
+    projectAddressDto: UpdateProjectAddressDto;
+  }): Promise<ProjectAddress | null> {
+    return await this.appService.updateProjectAddress(
+      data.id,
+      data.projectAddressDto,
+    );
+  }
+
+  @MessagePattern({ cmd: 'delete_project_address' })
+  async deleteProjectAddress(data: { id: number }): Promise<boolean> {
+    return await this.appService.deleteProjectAddress(data.id);
+  }
+
+  @MessagePattern({ cmd: 'set_default_project_address' })
+  async setDefaultProjectAddress(data: {
+    projectId: number;
+    addressId: number;
+  }): Promise<boolean> {
+    return await this.appService.setDefaultProjectAddress(
+      data.projectId,
+      data.addressId,
+    );
   }
 
   // Geocoding Endpoint

@@ -24,6 +24,12 @@ import {
   UpdateStageDto,
 } from '../interfaces/stage.interface';
 import { Tag } from '../interfaces/tag.interface';
+import {
+  Address,
+  ProjectAddress,
+  CreateProjectAddressDto,
+  UpdateProjectAddressDto,
+} from '../interfaces/address.interface';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -31,6 +37,7 @@ import { firstValueFrom } from 'rxjs';
 export class ProjectsController {
   constructor(
     @Inject('PROJECTS_SERVICE') private readonly projectsService: ClientProxy,
+    @Inject('CLIENTS_SERVICE') private readonly clientsService: ClientProxy,
   ) {}
 
   @Get()
@@ -243,6 +250,171 @@ export class ProjectsController {
       );
       throw new HttpException(
         'Erreur lors de la récupération des projets par client',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id/addresses')
+  async getProjectAddresses(@Param('id') id: number): Promise<Address[]> {
+    try {
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'get_project_addresses' },
+          { projectId: Number(id) },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        'Erreur lors de la récupération des adresses du projet:',
+        error,
+      );
+      throw new HttpException(
+        'Erreur lors de la récupération des adresses du projet',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id/project-addresses')
+  async getProjectAddressAssociations(
+    @Param('id') id: number,
+  ): Promise<ProjectAddress[]> {
+    try {
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'get_project_addresses' },
+          { projectId: Number(id) },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        'Erreur lors de la récupération des associations projet-adresse:',
+        error,
+      );
+      throw new HttpException(
+        'Erreur lors de la récupération des associations projet-adresse',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('project-addresses/:id')
+  async getProjectAddressById(
+    @Param('id') id: number,
+  ): Promise<ProjectAddress> {
+    try {
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'get_project_address_by_id' },
+          { id: Number(id) },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération de l'association projet-adresse:",
+        error,
+      );
+      throw new HttpException(
+        "Erreur lors de la récupération de l'association projet-adresse",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post(':id/project-addresses')
+  async createProjectAddress(
+    @Param('id') id: number,
+    @Body() createProjectAddressDto: CreateProjectAddressDto,
+  ): Promise<ProjectAddress> {
+    try {
+      const completeDto = {
+        ...createProjectAddressDto,
+        project_id: Number(id),
+      };
+
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'create_project_address' },
+          completeDto,
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Erreur lors de la création de l'association projet-adresse:",
+        error,
+      );
+      throw new HttpException(
+        "Erreur lors de la création de l'association projet-adresse",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Put('project-addresses/:id')
+  async updateProjectAddress(
+    @Param('id') id: number,
+    @Body() updateProjectAddressDto: UpdateProjectAddressDto,
+  ): Promise<ProjectAddress> {
+    try {
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'update_project_address' },
+          { id: Number(id), projectAddressDto: updateProjectAddressDto },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Erreur lors de la mise à jour de l'association projet-adresse:",
+        error,
+      );
+      throw new HttpException(
+        "Erreur lors de la mise à jour de l'association projet-adresse",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete('project-addresses/:id')
+  async deleteProjectAddress(@Param('id') id: number): Promise<boolean> {
+    try {
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'delete_project_address' },
+          { id: Number(id) },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Erreur lors de la suppression de l'association projet-adresse:",
+        error,
+      );
+      throw new HttpException(
+        "Erreur lors de la suppression de l'association projet-adresse",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Put(':projectId/project-addresses/:addressId/set-default')
+  async setDefaultProjectAddress(
+    @Param('projectId') projectId: number,
+    @Param('addressId') addressId: number,
+  ): Promise<boolean> {
+    try {
+      return await firstValueFrom(
+        this.clientsService.send(
+          { cmd: 'set_default_project_address' },
+          { projectId: Number(projectId), addressId: Number(addressId) },
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Erreur lors de la définition de l'adresse par défaut du projet:",
+        error,
+      );
+      throw new HttpException(
+        "Erreur lors de la définition de l'adresse par défaut du projet",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

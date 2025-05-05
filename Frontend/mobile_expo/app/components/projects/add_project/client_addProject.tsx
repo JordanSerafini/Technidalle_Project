@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Client } from '../../../utils/interfaces/client.interface';
@@ -73,6 +73,31 @@ const ClientAddProject: React.FC<ClientAddProjectProps> = ({
     city: '',
     country: 'France'
   });
+  
+  // État pour déclencher les appels API
+  const [clientToCreate, setClientToCreate] = useState<any>(null);
+  const [clientWithAddressToCreate, setClientWithAddressToCreate] = useState<any>(null);
+
+  // Hooks pour les appels API
+  const { data: createdClient, loading: creatingClientData, error: createClientError } = 
+    useFetch<ClientWithAddress>(
+      clientToCreate ? 'clients' : null, 
+      { 
+        method: 'POST', 
+        body: clientToCreate,
+        refresh: clientToCreate ? JSON.stringify(clientToCreate) : undefined 
+      }
+    );
+
+  const { data: createdClientWithAddress, loading: creatingClientWithAddressData, error: createClientWithAddressError } = 
+    useFetch<ClientWithAddress>(
+      clientWithAddressToCreate ? 'clients/with-address' : null, 
+      { 
+        method: 'POST', 
+        body: clientWithAddressToCreate,
+        refresh: clientWithAddressToCreate ? JSON.stringify(clientWithAddressToCreate) : undefined 
+      }
+    );
 
   // Filtrer les clients selon la recherche
   const filteredClients = clients?.filter(client => {
@@ -109,68 +134,57 @@ const ClientAddProject: React.FC<ClientAddProjectProps> = ({
       country: 'France'
     });
     setCreateWithAddress(false);
+    setClientToCreate(null);
+    setClientWithAddressToCreate(null);
   };
 
+  // Effet pour gérer les résultats des appels API
+  React.useEffect(() => {
+    // Traiter le résultat de la création de client
+    if (createdClient && !creatingClientData) {
+      setSelectedClient(createdClient);
+      setShowCreateClientForm(false);
+      resetForms();
+      Alert.alert('Succès', 'Client créé avec succès');
+    }
+    
+    if (createdClientWithAddress && !creatingClientWithAddressData) {
+      setSelectedClient(createdClientWithAddress);
+      setShowCreateClientForm(false);
+      resetForms();
+      Alert.alert('Succès', 'Client créé avec succès');
+    }
+    
+    if (createClientError || createClientWithAddressError) {
+      Alert.alert('Erreur', 'Impossible de créer le client. Veuillez réessayer.');
+      setClientToCreate(null);
+      setClientWithAddressToCreate(null);
+    }
+  }, [createdClient, createdClientWithAddress, creatingClientData, creatingClientWithAddressData, createClientError, createClientWithAddressError]);
+
   // Fonction pour créer un client
-  const handleCreateClient = async () => {
+  const handleCreateClient = () => {
     // Validation basique
     if (!newClient.firstname || !newClient.lastname || !newClient.email) {
       Alert.alert('Erreur', 'Veuillez remplir au moins le prénom, le nom et l\'email');
       return;
     }
 
-    setCreatingClient(true);
-
-    try {
-      let response;
-      
-      if (createWithAddress) {
-        // Valider l'adresse si nécessaire
-        if (!newAddress.street_name || !newAddress.zip_code || !newAddress.city) {
-          Alert.alert('Erreur', 'Veuillez remplir au moins la rue, le code postal et la ville');
-          setCreatingClient(false);
-          return;
-        }
-
-        // Créer client avec adresse
-        response = await fetch('http://localhost:3000/api/clients/with-address', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...newClient,
-            address: newAddress
-          }),
-        });
-      } else {
-        // Créer client sans adresse
-        response = await fetch('http://localhost:3000/api/clients', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(newClient),
-        });
+    if (createWithAddress) {
+      // Valider l'adresse si nécessaire
+      if (!newAddress.street_name || !newAddress.zip_code || !newAddress.city) {
+        Alert.alert('Erreur', 'Veuillez remplir au moins la rue, le code postal et la ville');
+        return;
       }
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const createdClient = await response.json();
-      
-      // Ajouter le client créé à la liste et le sélectionner
-      setSelectedClient(createdClient);
-      setShowCreateClientForm(false);
-      resetForms();
-      
-      Alert.alert('Succès', 'Client créé avec succès');
-    } catch (error) {
-      console.error('Erreur lors de la création du client:', error);
-      Alert.alert('Erreur', 'Impossible de créer le client. Veuillez réessayer.');
-    } finally {
-      setCreatingClient(false);
+      // Créer client avec adresse
+      setClientWithAddressToCreate({
+        ...newClient,
+        address: newAddress
+      });
+    } else {
+      // Créer client sans adresse
+      setClientToCreate(newClient);
     }
   };
 
@@ -442,17 +456,19 @@ const ClientAddProject: React.FC<ClientAddProjectProps> = ({
                   setShowCreateClientForm(false);
                   resetForms();
                 }}
-                disabled={creatingClient}
+                disabled={creatingClientData || creatingClientWithAddressData}
               >
                 <Text className="text-white font-bold">Annuler</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                className={`flex-1 py-3 ml-2 rounded-md items-center ${creatingClient ? 'bg-gray-400' : 'bg-green-500'}`}
+                className={`flex-1 py-3 ml-2 rounded-md items-center ${
+                  creatingClientData || creatingClientWithAddressData ? 'bg-gray-400' : 'bg-green-500'
+                }`}
                 onPress={handleCreateClient}
-                disabled={creatingClient}
+                disabled={creatingClientData || creatingClientWithAddressData}
               >
-                {creatingClient ? (
+                {creatingClientData || creatingClientWithAddressData ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
                   <Text className="text-white font-bold">Créer</Text>
