@@ -1,6 +1,6 @@
 import { useFetch } from "@/app/hooks/useFetch";
 import { ActivityIndicator, Text, View, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from "react-native";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { DailyPlanningResponse, WeeklyPlanningResponse, PlanningResponse } from "@/app/utils/interfaces/planning.interface";
 
 export function PlanningScreen() {
