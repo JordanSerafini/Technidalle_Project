@@ -14,6 +14,27 @@ export interface Address {
   updated_at?: Date;
 }
 
+export enum AddressType {
+  FACTURATION = 'facturation',
+  LIVRAISON = 'livraison',
+  SIEGE_SOCIAL = 'siège_social',
+  CHANTIER = 'chantier',
+  DOMICILE = 'domicile',
+  AUTRE = 'autre',
+}
+
+export interface ClientAddress {
+  id?: number;
+  client_id: number;
+  address_id: number;
+  address_type: AddressType;
+  is_default: boolean;
+  notes?: string;
+  address?: Address;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
 export interface Client {
   id: string | number;
   firstname?: string;
@@ -25,12 +46,9 @@ export interface Client {
   fax?: string;
   status?: string;
   notes?: string;
-  addresses?: {
-    street?: string;
-    zipcode?: string;
-    city?: string;
-    country?: string;
-  };
+  address_id?: number;
+  addresses?: Address;
+  client_addresses?: ClientAddress[];
   orders?: any[];
   last_order_date?: string;
   created_at?: string;
@@ -59,6 +77,26 @@ export interface UpdateClientDto {
   address_id?: number;
   siret?: string;
   notes?: string;
+}
+
+export interface CreateClientAddressDto {
+  client_id?: number;
+  address_id?: number;
+  address?: CreateAddressDto;
+  address_type: AddressType;
+  is_default?: boolean;
+  notes?: string;
+}
+
+export interface CreateAddressDto {
+  street_number?: string;
+  street_name: string;
+  additional_address?: string;
+  zip_code: string;
+  city: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 // Composant React pour résoudre l'erreur de routing Expo

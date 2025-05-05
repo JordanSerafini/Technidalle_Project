@@ -9,6 +9,13 @@ import {
   Address,
   CreateAddressDto,
   UpdateAddressDto,
+  ClientAddress,
+  CreateClientAddressDto,
+  UpdateClientAddressDto,
+  ProjectAddress,
+  CreateProjectAddressDto,
+  UpdateProjectAddressDto,
+  AddressType,
 } from './interfaces/address.interface';
 import { GeocodingResponse } from './interfaces/geocoding.interface';
 import { PrismaService } from './prisma/prisma.service';
@@ -21,6 +28,14 @@ interface NominatimResponse {
   class?: string;
   type?: string;
   importance?: number;
+}
+
+// Fonction utilitaire pour convertir AddressType en address_type de Prisma
+function convertAddressType(addressType: AddressType): any {
+  if (addressType === AddressType.SIEGE_SOCIAL) {
+    return 'si_ge_social'; // Conversion spéciale pour siège_social
+  }
+  return addressType.toLowerCase();
 }
 
 @Injectable()
@@ -39,7 +54,6 @@ export class AppService {
     statusFilter?: string;
     lastOrderFilter?: string;
   }): Promise<Client[]> {
-    // Définition d'un type pour les conditions de recherche Prisma
     type WhereCondition = {
       OR?: any[];
       AND?: any[];
@@ -216,20 +230,37 @@ export class AppService {
 
   // Addresses API
   async getAddressesByClientId(clientId: number): Promise<Address[]> {
-    const client = await this.prisma.clients.findUnique({
-      where: { id: clientId },
-      include: {
-        addresses: true,
-      },
-    });
+    try {
+      // Vérifier d'abord s'il existe des adresses dans la nouvelle table de liaison
+      const clientAddresses = await this.prisma.client_addresses.findMany({
+        where: { client_id: clientId },
+        include: { addresses: true },
+      });
 
-    if (!client || !client.address_id) return [];
+      if (clientAddresses && clientAddresses.length > 0) {
+        // Retourner les adresses de la nouvelle table de liaison
+        return clientAddresses.map(ca => ca.addresses) as Address[];
+      }
 
-    const address = await this.prisma.addresses.findUnique({
-      where: { id: client.address_id },
-    });
+      // Fallback: Vérifier l'adresse dans l'ancien champ address_id
+      const client = await this.prisma.clients.findUnique({
+        where: { id: clientId },
+      });
 
-    return address ? [address as Address] : [];
+      if (!client || !client.address_id) return [];
+
+      const address = await this.prisma.addresses.findUnique({
+        where: { id: client.address_id },
+      });
+
+      return address ? [address as Address] : [];
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération des adresses pour le client ${clientId}:`,
+        error,
+      );
+      return [];
+    }
   }
 
   async getAddressById(id: number): Promise<Address | null> {
@@ -327,6 +358,424 @@ export class AppService {
     } catch (error) {
       this.logger.error(
         `Erreur lors de la suppression de l'adresse ${id}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  // Client-Addresses API (nouvelles méthodes)
+  async getClientAddresses(clientId: number): Promise<ClientAddress[]> {
+    try {
+      const clientAddresses = await this.prisma.client_addresses.findMany({
+        where: { client_id: clientId },
+        include: { addresses: true },
+      });
+      return clientAddresses as ClientAddress[];
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération des associations client-adresse pour le client ${clientId}:`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  async getClientAddressById(id: number): Promise<ClientAddress | null> {
+    try {
+      const clientAddress = await this.prisma.client_addresses.findUnique({
+        where: { id },
+        include: { addresses: true },
+      });
+      return clientAddress as ClientAddress | null;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération de l'association client-adresse ${id}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async createClientAddress(data: CreateClientAddressDto): Promise<ClientAddress | null> {
+    try {
+      return this.prisma.$transaction(async (tx) => {
+        let addressId = data.address_id;
+
+        // Si une nouvelle adresse est fournie, la créer d'abord
+        if (!addressId && data.address) {
+          const newAddress = await tx.addresses.create({
+            data: data.address,
+          });
+          addressId = newAddress.id;
+        }
+
+        if (!addressId) {
+          throw new Error('Aucune adresse spécifiée');
+        }
+
+        // Vérifier si l'adresse est définie comme par défaut
+        if (data.is_default) {
+          // Mettre à jour toutes les autres adresses du client pour qu'elles ne soient plus par défaut
+          await tx.client_addresses.updateMany({
+            where: {
+              client_id: data.client_id,
+              is_default: true,
+            },
+            data: {
+              is_default: false,
+            },
+          });
+        }
+
+        // Créer l'association
+        const clientAddress = await tx.client_addresses.create({
+          data: {
+            client_id: data.client_id,
+            address_id: addressId,
+            address_type: convertAddressType(data.address_type),
+            is_default: data.is_default || false,
+            notes: data.notes,
+          },
+          include: {
+            addresses: true,
+          },
+        });
+
+        return clientAddress as ClientAddress;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la création de l'association client-adresse:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async updateClientAddress(id: number, data: UpdateClientAddressDto): Promise<ClientAddress | null> {
+    try {
+      return this.prisma.$transaction(async (tx) => {
+        // Récupérer d'abord l'association
+        const currentAssociation = await tx.client_addresses.findUnique({
+          where: { id },
+        });
+
+        if (!currentAssociation) {
+          throw new Error(`Association client-adresse ${id} non trouvée`);
+        }
+
+        // Vérifier si l'adresse est définie comme par défaut
+        if (data.is_default) {
+          // Mettre à jour toutes les autres adresses du client pour qu'elles ne soient plus par défaut
+          await tx.client_addresses.updateMany({
+            where: {
+              client_id: currentAssociation.client_id,
+              is_default: true,
+              id: { not: id },
+            },
+            data: {
+              is_default: false,
+            },
+          });
+        }
+
+        // Mettre à jour l'association
+        const updatedAssociation = await tx.client_addresses.update({
+          where: { id },
+          data: {
+            address_type: data.address_type ? convertAddressType(data.address_type) : undefined,
+            is_default: data.is_default,
+            notes: data.notes,
+          },
+          include: {
+            addresses: true,
+          },
+        });
+
+        return updatedAssociation as ClientAddress;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la mise à jour de l'association client-adresse ${id}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async deleteClientAddress(id: number): Promise<boolean> {
+    try {
+      await this.prisma.client_addresses.delete({
+        where: { id },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la suppression de l'association client-adresse ${id}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  async setDefaultClientAddress(clientId: number, addressAssociationId: number): Promise<boolean> {
+    try {
+      return this.prisma.$transaction(async (tx) => {
+        // Vérifier si l'association existe
+        const association = await tx.client_addresses.findFirst({
+          where: {
+            id: addressAssociationId,
+            client_id: clientId,
+          },
+        });
+
+        if (!association) {
+          throw new Error(`Association client-adresse ${addressAssociationId} non trouvée pour le client ${clientId}`);
+        }
+
+        // Mettre à jour toutes les adresses du client pour qu'elles ne soient plus par défaut
+        await tx.client_addresses.updateMany({
+          where: {
+            client_id: clientId,
+            is_default: true,
+          },
+          data: {
+            is_default: false,
+          },
+        });
+
+        // Définir l'adresse comme par défaut
+        await tx.client_addresses.update({
+          where: { id: addressAssociationId },
+          data: {
+            is_default: true,
+          },
+        });
+
+        // Mettre également à jour le champ address_id du client pour la rétrocompatibilité
+        const addressId = association.address_id;
+        await tx.clients.update({
+          where: { id: clientId },
+          data: {
+            address_id: addressId,
+          },
+        });
+
+        return true;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la définition de l'adresse par défaut pour le client ${clientId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  // Project-Addresses API
+  async getProjectAddresses(projectId: number): Promise<ProjectAddress[]> {
+    try {
+      const projectAddresses = await this.prisma.project_addresses.findMany({
+        where: { project_id: projectId },
+        include: { addresses: true },
+      });
+      return projectAddresses as ProjectAddress[];
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération des associations projet-adresse pour le projet ${projectId}:`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  async getProjectAddressById(id: number): Promise<ProjectAddress | null> {
+    try {
+      const projectAddress = await this.prisma.project_addresses.findUnique({
+        where: { id },
+        include: { addresses: true },
+      });
+      return projectAddress as ProjectAddress | null;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération de l'association projet-adresse ${id}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async createProjectAddress(data: CreateProjectAddressDto): Promise<ProjectAddress | null> {
+    try {
+      return this.prisma.$transaction(async (tx) => {
+        let addressId = data.address_id;
+
+        // Si une nouvelle adresse est fournie, la créer d'abord
+        if (!addressId && data.address) {
+          const newAddress = await tx.addresses.create({
+            data: data.address,
+          });
+          addressId = newAddress.id;
+        }
+
+        if (!addressId) {
+          throw new Error('Aucune adresse spécifiée');
+        }
+
+        // Vérifier si l'adresse est définie comme par défaut
+        if (data.is_default) {
+          // Mettre à jour toutes les autres adresses du projet pour qu'elles ne soient plus par défaut
+          await tx.project_addresses.updateMany({
+            where: {
+              project_id: data.project_id,
+              is_default: true,
+            },
+            data: {
+              is_default: false,
+            },
+          });
+        }
+
+        // Créer l'association
+        const projectAddress = await tx.project_addresses.create({
+          data: {
+            project_id: data.project_id,
+            address_id: addressId,
+            address_type: convertAddressType(data.address_type),
+            is_default: data.is_default || false,
+            notes: data.notes,
+          },
+          include: {
+            addresses: true,
+          },
+        });
+
+        return projectAddress as ProjectAddress;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la création de l'association projet-adresse:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async updateProjectAddress(id: number, data: UpdateProjectAddressDto): Promise<ProjectAddress | null> {
+    try {
+      return this.prisma.$transaction(async (tx) => {
+        // Récupérer d'abord l'association
+        const currentAssociation = await tx.project_addresses.findUnique({
+          where: { id },
+        });
+
+        if (!currentAssociation) {
+          throw new Error(`Association projet-adresse ${id} non trouvée`);
+        }
+
+        // Vérifier si l'adresse est définie comme par défaut
+        if (data.is_default) {
+          // Mettre à jour toutes les autres adresses du projet pour qu'elles ne soient plus par défaut
+          await tx.project_addresses.updateMany({
+            where: {
+              project_id: currentAssociation.project_id,
+              is_default: true,
+              id: { not: id },
+            },
+            data: {
+              is_default: false,
+            },
+          });
+        }
+
+        // Mettre à jour l'association
+        const updatedAssociation = await tx.project_addresses.update({
+          where: { id },
+          data: {
+            address_type: data.address_type ? convertAddressType(data.address_type) : undefined,
+            is_default: data.is_default,
+            notes: data.notes,
+          },
+          include: {
+            addresses: true,
+          },
+        });
+
+        return updatedAssociation as ProjectAddress;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la mise à jour de l'association projet-adresse ${id}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  async deleteProjectAddress(id: number): Promise<boolean> {
+    try {
+      await this.prisma.project_addresses.delete({
+        where: { id },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la suppression de l'association projet-adresse ${id}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  async setDefaultProjectAddress(projectId: number, addressAssociationId: number): Promise<boolean> {
+    try {
+      return this.prisma.$transaction(async (tx) => {
+        // Vérifier si l'association existe
+        const association = await tx.project_addresses.findFirst({
+          where: {
+            id: addressAssociationId,
+            project_id: projectId,
+          },
+        });
+
+        if (!association) {
+          throw new Error(`Association projet-adresse ${addressAssociationId} non trouvée pour le projet ${projectId}`);
+        }
+
+        // Mettre à jour toutes les adresses du projet pour qu'elles ne soient plus par défaut
+        await tx.project_addresses.updateMany({
+          where: {
+            project_id: projectId,
+            is_default: true,
+          },
+          data: {
+            is_default: false,
+          },
+        });
+
+        // Définir l'adresse comme par défaut
+        await tx.project_addresses.update({
+          where: { id: addressAssociationId },
+          data: {
+            is_default: true,
+          },
+        });
+
+        // Mettre également à jour le champ address_id du projet pour la rétrocompatibilité
+        const addressId = association.address_id;
+        await tx.projects.update({
+          where: { id: projectId },
+          data: {
+            address_id: addressId,
+          },
+        });
+
+        return true;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la définition de l'adresse par défaut pour le projet ${projectId}:`,
         error,
       );
       return false;

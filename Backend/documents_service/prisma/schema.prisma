@@ -9,19 +9,21 @@ datasource db {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model addresses {
-  id                 Int         @id @default(autoincrement())
-  street_number      String?     @db.VarChar(10)
-  street_name        String      @db.VarChar(255)
-  additional_address String?     @db.VarChar(255)
-  zip_code           String      @db.VarChar(10)
-  city               String      @db.VarChar(100)
-  country            String?     @default("France") @db.VarChar(100)
-  latitude           Decimal?    @db.Decimal(9, 6)
-  longitude          Decimal?    @db.Decimal(9, 6)
-  created_at         DateTime?   @default(now()) @db.Timestamp(6)
-  updated_at         DateTime?   @default(now()) @db.Timestamp(6)
+  id                 Int                 @id @default(autoincrement())
+  street_number      String?             @db.VarChar(10)
+  street_name        String              @db.VarChar(255)
+  additional_address String?             @db.VarChar(255)
+  zip_code           String              @db.VarChar(10)
+  city               String              @db.VarChar(100)
+  country            String?             @default("France") @db.VarChar(100)
+  latitude           Decimal?            @db.Decimal(9, 6)
+  longitude          Decimal?            @db.Decimal(9, 6)
+  created_at         DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?           @default(now()) @db.Timestamp(6)
+  client_addresses   client_addresses[]
   clients            clients[]
   documents          documents[]
+  project_addresses  project_addresses[]
   projects           projects[]
   staff              staff[]
 
@@ -30,23 +32,24 @@ model addresses {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model clients {
-  id           Int         @id @default(autoincrement())
-  customer_id  String?     @unique @db.VarChar(255)
-  company_name String?     @db.VarChar(255)
-  firstname    String      @db.VarChar(100)
-  lastname     String      @db.VarChar(100)
-  email        String      @unique @db.VarChar(255)
-  phone        String?     @db.VarChar(20)
-  mobile       String?     @db.VarChar(20)
-  address_id   Int?
-  siret        String?     @db.VarChar(14)
-  notes        String?
-  created_at   DateTime?   @default(now()) @db.Timestamp(6)
-  updated_at   DateTime?   @default(now()) @db.Timestamp(6)
-  addresses    addresses?  @relation(fields: [address_id], references: [id], onUpdate: NoAction, map: "fk_client_address")
-  documents    documents[]
-  events       events[]
-  projects     projects[]
+  id               Int                @id @default(autoincrement())
+  customer_id      String?            @unique @db.VarChar(255)
+  company_name     String?            @db.VarChar(255)
+  firstname        String             @db.VarChar(100)
+  lastname         String             @db.VarChar(100)
+  email            String             @unique @db.VarChar(255)
+  phone            String?            @db.VarChar(20)
+  mobile           String?            @db.VarChar(20)
+  address_id       Int?
+  siret            String?            @db.VarChar(14)
+  notes            String?
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
+  client_addresses client_addresses[]
+  addresses        addresses?         @relation(fields: [address_id], references: [id], onUpdate: NoAction, map: "fk_client_address")
+  documents        documents[]
+  events           events[]
+  projects         projects[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -309,6 +312,7 @@ model projects {
   updated_at           DateTime?              @default(now()) @db.Timestamp(6)
   documents            documents[]
   events               events[]
+  project_addresses    project_addresses[]
   project_materials    project_materials[]
   project_media        project_media[]
   project_staff        project_staff[]
@@ -645,6 +649,44 @@ model vehicles {
   @@index([status], map: "idx_vehicles_status")
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model client_addresses {
+  id           Int          @id @default(autoincrement())
+  client_id    Int
+  address_id   Int
+  address_type address_type @default(autre)
+  is_default   Boolean?     @default(false)
+  notes        String?
+  created_at   DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at   DateTime?    @default(now()) @db.Timestamp(6)
+  addresses    addresses    @relation(fields: [address_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_client_addresses_address")
+  clients      clients      @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_client_addresses_client")
+
+  @@unique([client_id, address_id, address_type], map: "client_addresses_unique_constraint")
+  @@index([address_id], map: "idx_client_addresses_address")
+  @@index([client_id], map: "idx_client_addresses_client")
+  @@index([address_type], map: "idx_client_addresses_type")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_addresses {
+  id           Int          @id @default(autoincrement())
+  project_id   Int
+  address_id   Int
+  address_type address_type @default(chantier)
+  is_default   Boolean?     @default(false)
+  notes        String?
+  created_at   DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at   DateTime?    @default(now()) @db.Timestamp(6)
+  addresses    addresses    @relation(fields: [address_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_addresses_address")
+  projects     projects     @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_addresses_project")
+
+  @@unique([project_id, address_id, address_type], map: "project_addresses_unique_constraint")
+  @@index([address_id], map: "idx_project_addresses_address")
+  @@index([project_id], map: "idx_project_addresses_project")
+  @@index([address_type], map: "idx_project_addresses_type")
+}
+
 enum document_status {
   brouillon
   en_attente
@@ -705,5 +747,14 @@ enum vehicle_type {
   camion
   engin_chantier
   remorque
+  autre
+}
+
+enum address_type {
+  facturation
+  livraison
+  si_ge_social @map("siège_social")
+  chantier
+  domicile
   autre
 }

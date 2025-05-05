@@ -5,6 +5,7 @@ import { Document } from '@/app/utils/interfaces/document';
 import useFetch from '@/app/hooks/useFetch';
 import { useClientsStore } from '@/app/store/clientsStore';
 import { Project } from '@/app/utils/interfaces/project.interface';
+import { AddressType, CreateAddressDto } from '@/app/utils/interfaces/client.interface';
 
 // Import des composants refactorisés
 import { ClientHeader } from '@/app/(tabs)/clients/[id]/ClientHeader';
@@ -13,6 +14,7 @@ import { ClientAddress } from '@/app/(tabs)/clients/[id]/ClientAddress';
 import { ClientProjects } from '@/app/(tabs)/clients/[id]/ClientProjects';
 import { ClientDocuments } from '@/app/(tabs)/clients/[id]/ClientDocuments';
 import { ClientNotes } from '@/app/(tabs)/clients/[id]/ClientNotes';
+import AddAddressModal from '@/app/components/modals/address/AddAddressModal';
 
 export default function ClientDetailScreen() {
   const router = useRouter();
@@ -139,8 +141,7 @@ export default function ClientDetailScreen() {
     }
   };
 
-  const handleLocation = () => {
-    const address = selectedClient.addresses;
+  const handleLocation = (address: any) => {
     if (address?.latitude && address?.longitude) {
       const url = `https://maps.google.com/?q=${address.latitude},${address.longitude}`;
       Linking.openURL(url);
@@ -167,6 +168,65 @@ export default function ClientDetailScreen() {
     });
   };
 
+  // État pour le modal d'ajout d'adresse
+  const [isAddAddressModalVisible, setIsAddAddressModalVisible] = useState(false);
+  
+  // Fonction pour gérer l'ajout d'une adresse
+  const handleAddAddress = () => {
+    setIsAddAddressModalVisible(true);
+  };
+  
+  // Fonction pour soumettre une nouvelle adresse
+  const handleSubmitNewAddress = async (addressData: { 
+    address: CreateAddressDto; 
+    address_type: AddressType;
+    is_default: boolean;
+  }) => {
+    if (!selectedClient || !selectedClient.id) {
+      Alert.alert("Erreur", "Client non identifié");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/clients/${selectedClient.id}/client-addresses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address: addressData.address,
+          address_type: addressData.address_type,
+          is_default: addressData.is_default,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'ajout de l'adresse");
+      }
+      
+      Alert.alert("Succès", "Adresse ajoutée avec succès");
+      
+      // Recharger les données du client
+      fetch(`${process.env.EXPO_PUBLIC_API_URL}/clients/${clientId}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Erreur lors du chargement du client');
+          }
+          return response.json();
+        })
+        .then(data => {
+          setSelectedClient(data);
+        })
+        .catch(err => {
+          setError(err.message);
+        });
+      
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible d'ajouter l'adresse");
+      console.error(error);
+    }
+  };
+
   return (
     <ScrollView className="flex-1 bg-gray-100">
       <View className="p-4">
@@ -189,13 +249,30 @@ export default function ClientDetailScreen() {
           onPhonePress={handleCall}
         />
 
-        {/* Adresse */}
-        {selectedClient.addresses && (
+        {/* Adresses */}
+        {selectedClient.client_addresses && selectedClient.client_addresses.length > 0 ? (
           <ClientAddress 
-            address={selectedClient.addresses}
+            addresses={selectedClient.client_addresses}
             isOpen={sections.adresse}
             onToggle={() => toggleSection('adresse')}
             onLocationPress={handleLocation}
+            onAddAddress={handleAddAddress}
+          />
+        ) : selectedClient.addresses ? (
+          <ClientAddress 
+            addresses={selectedClient.addresses}
+            isOpen={sections.adresse}
+            onToggle={() => toggleSection('adresse')}
+            onLocationPress={handleLocation}
+            onAddAddress={handleAddAddress}
+          />
+        ) : (
+          <ClientAddress 
+            addresses={[]}
+            isOpen={sections.adresse}
+            onToggle={() => toggleSection('adresse')}
+            onLocationPress={handleLocation}
+            onAddAddress={handleAddAddress}
           />
         )}
 
@@ -228,6 +305,15 @@ export default function ClientDetailScreen() {
           />
         )}
       </View>
+      
+      {/* Modal d'ajout d'adresse */}
+      <AddAddressModal 
+        isVisible={isAddAddressModalVisible}
+        onClose={() => setIsAddAddressModalVisible(false)}
+        onSubmit={handleSubmitNewAddress}
+        entityId={Number(selectedClient.id)}
+        isProject={false}
+      />
     </ScrollView>
   );
 }

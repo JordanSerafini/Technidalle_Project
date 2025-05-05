@@ -20,6 +20,9 @@ import {
   CreateAddressDto,
   UpdateAddressDto,
   Address,
+  ClientAddress,
+  CreateClientAddressDto,
+  UpdateClientAddressDto,
 } from '../interfaces/address.interface';
 import { firstValueFrom } from 'rxjs';
 
@@ -131,6 +134,77 @@ export class ClientsController {
   async deleteAddress(@Param('id') id: number): Promise<boolean> {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'delete_address' }, { id: Number(id) }),
+    );
+  }
+
+  @Get(':id/client-addresses')
+  async getClientAddresses(@Param('id') id: number): Promise<ClientAddress[]> {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'get_client_addresses' },
+        { clientId: Number(id) },
+      ),
+    );
+  }
+
+  @Get('client-addresses/:id')
+  async getClientAddressById(@Param('id') id: number): Promise<ClientAddress> {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'get_client_address_by_id' },
+        { id: Number(id) },
+      ),
+    );
+  }
+
+  @Post(':id/client-addresses')
+  async createClientAddress(
+    @Param('id') id: number,
+    @Body() createClientAddressDto: CreateClientAddressDto,
+  ): Promise<ClientAddress> {
+    const completeDto = {
+      ...createClientAddressDto,
+      client_id: Number(id),
+    };
+
+    return await firstValueFrom(
+      this.clientsService.send({ cmd: 'create_client_address' }, completeDto),
+    );
+  }
+
+  @Put('client-addresses/:id')
+  async updateClientAddress(
+    @Param('id') id: number,
+    @Body() updateClientAddressDto: UpdateClientAddressDto,
+  ): Promise<ClientAddress> {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'update_client_address' },
+        { id: Number(id), clientAddressDto: updateClientAddressDto },
+      ),
+    );
+  }
+
+  @Delete('client-addresses/:id')
+  async deleteClientAddress(@Param('id') id: number): Promise<boolean> {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'delete_client_address' },
+        { id: Number(id) },
+      ),
+    );
+  }
+
+  @Put(':clientId/client-addresses/:addressId/set-default')
+  async setDefaultClientAddress(
+    @Param('clientId') clientId: number,
+    @Param('addressId') addressId: number,
+  ): Promise<boolean> {
+    return await firstValueFrom(
+      this.clientsService.send(
+        { cmd: 'set_default_client_address' },
+        { clientId: Number(clientId), addressId: Number(addressId) },
+      ),
     );
   }
 

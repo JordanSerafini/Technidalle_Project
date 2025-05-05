@@ -13,6 +13,14 @@ import { ProjectsController } from './projects.controller';
           port: 3003,
         },
       },
+      {
+        name: 'CLIENTS_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: 'client',
+          port: 3002,
+        },
+      },
     ]),
   ],
   controllers: [ProjectsController],

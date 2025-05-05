@@ -11,9 +11,10 @@ import {
   Animated
 } from 'react-native';
 import { useFetch } from '../../../hooks/useFetch';
-import { Project, project_status } from '../../../utils/interfaces/project.interface';
+import { Project, project_status, CreateProjectAddressDto } from '../../../utils/interfaces/project.interface';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { AddressType } from '@/app/utils/interfaces/client.interface';
 
 // Import des composants refactorisés
 import { ProjectInfo } from './ProjectInfo';
@@ -28,6 +29,7 @@ import { ProjectDocuments } from './ProjectDocuments';
 import { ProjectMedia } from './ProjectMedia';
 // Import du modal d'ajout d'étape
 import AddStageModal from '@/app/components/projects/AddStageModal';
+import AddAddressModal from '@/app/components/modals/address/AddAddressModal';
 import { Staff } from '@/app/utils/interfaces/staff.interface';
 import url from '@/app/utils/url';
 
@@ -102,6 +104,9 @@ export default function ProjectDetailScreen() {
 
   // État simple pour les sections
   const [openSection, setOpenSection] = useState<string>('infos');
+
+  // État pour le modal d'ajout d'adresse
+  const [isAddAddressModalVisible, setIsAddAddressModalVisible] = useState(false);
 
   // Fonction pour l'ouverture des sections
   const toggleSection = (sectionName: string) => {
@@ -302,8 +307,7 @@ export default function ProjectDetailScreen() {
     });
   };
 
-  const handleLocationPress = () => {
-    const address = project?.addresses;
+  const handleLocationPress = (address: any) => {
     if (address?.latitude && address?.longitude) {
       const url = `https://maps.google.com/?q=${address.latitude},${address.longitude}`;
       Linking.openURL(url);
@@ -330,6 +334,50 @@ export default function ProjectDetailScreen() {
   const handleTestButtonPress = () => {
     console.log("--- BOUTON TEST CLIC --- Le clic DANS le ScrollView fonctionne ! ---");
     Alert.alert("Test Clic", "Le clic DANS le ScrollView fonctionne !");
+  };
+
+  // Fonction pour gérer l'ajout d'une adresse
+  const handleAddAddress = () => {
+    setIsAddAddressModalVisible(true);
+  };
+  
+  // Fonction pour soumettre une nouvelle adresse
+  const handleSubmitNewAddress = async (addressData: { 
+    address: CreateProjectAddressDto['address']; 
+    address_type: AddressType;
+    is_default: boolean;
+  }) => {
+    if (!project || !project.id) {
+      Alert.alert("Erreur", "Projet non identifié");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/projects/${project.id}/project-addresses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address: addressData.address,
+          address_type: addressData.address_type,
+          is_default: addressData.is_default,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'ajout de l'adresse");
+      }
+      
+      Alert.alert("Succès", "Adresse ajoutée avec succès");
+      
+      // Recharger les données du projet
+      refreshProjectData();
+      
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible d'ajouter l'adresse");
+      console.error(error);
+    }
   };
 
   if (loading) {
@@ -411,12 +459,30 @@ export default function ProjectDetailScreen() {
             />
           )}
           
-          {project.addresses && (
+          {/* Adresses */}
+          {project.project_addresses && project.project_addresses.length > 0 ? (
             <ProjectAddress 
-              address={project.addresses}
+              addresses={project.project_addresses}
               isOpen={openSection === 'address'}
               onToggle={() => toggleSection('address')}
               onLocationPress={handleLocationPress}
+              onAddAddress={handleAddAddress}
+            />
+          ) : project.addresses ? (
+            <ProjectAddress 
+              addresses={project.addresses}
+              isOpen={openSection === 'address'}
+              onToggle={() => toggleSection('address')}
+              onLocationPress={handleLocationPress}
+              onAddAddress={handleAddAddress}
+            />
+          ) : (
+            <ProjectAddress 
+              addresses={[]}
+              isOpen={openSection === 'address'}
+              onToggle={() => toggleSection('address')}
+              onLocationPress={handleLocationPress}
+              onAddAddress={handleAddAddress}
             />
           )}
           
@@ -481,6 +547,15 @@ export default function ProjectDetailScreen() {
         projectId={Number(id)}
         existingStagesCount={project?.project_stages?.length || 0}
         availableStaff={availableStaff}
+      />
+      
+      {/* Modal d'ajout d'adresse */}
+      <AddAddressModal 
+        isVisible={isAddAddressModalVisible}
+        onClose={() => setIsAddAddressModalVisible(false)}
+        onSubmit={handleSubmitNewAddress}
+        entityId={Number(project.id)}
+        isProject={true}
       />
     </View>
   );

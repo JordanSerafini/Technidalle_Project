@@ -83,6 +83,18 @@ BEGIN
             'reserve'
         );
     END IF;
+
+    -- Types d'adresses
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'address_type') THEN
+        CREATE TYPE address_type AS ENUM (
+            'facturation',
+            'livraison',
+            'siège_social',
+            'chantier',
+            'domicile',
+            'autre'
+        );
+    END IF;
 END $$;
 
 -- Table des adresses améliorée
@@ -101,7 +113,7 @@ CREATE TABLE IF NOT EXISTS addresses (
     CONSTRAINT addresses_unique_constraint UNIQUE (street_number, street_name, zip_code, city)
 );
 
--- Table des clients améliorée
+-- Table des clients améliorée (suppression de address_id pour relation multiple)
 CREATE TABLE IF NOT EXISTS clients (
     id SERIAL PRIMARY KEY,
     customer_id VARCHAR(255) UNIQUE,
@@ -111,7 +123,7 @@ CREATE TABLE IF NOT EXISTS clients (
     email VARCHAR(255) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
     phone VARCHAR(20) CHECK (phone ~ '^[0-9+\s]{10,15}$'),
     mobile VARCHAR(20) CHECK (mobile ~ '^[0-9+\s]{10,15}$'),
-    address_id INTEGER,
+    address_id INTEGER, -- Adresse principale (obsolète mais conservée pour rétrocompatibilité)
     siret VARCHAR(14) CHECK (siret ~ '^[0-9]{14}$'),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -119,7 +131,22 @@ CREATE TABLE IF NOT EXISTS clients (
     CONSTRAINT fk_client_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE SET NULL
 );
 
--- Table des projets (principale)
+-- Table de liaison client-adresses (nouvelle)
+CREATE TABLE IF NOT EXISTS client_addresses (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    address_id INTEGER NOT NULL,
+    address_type address_type NOT NULL DEFAULT 'autre',
+    is_default BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_client_addresses_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    CONSTRAINT fk_client_addresses_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE CASCADE,
+    CONSTRAINT client_addresses_unique_constraint UNIQUE (client_id, address_id, address_type)
+);
+
+-- Table des projets (principale) - suppression de address_id pour relation multiple
 CREATE TABLE IF NOT EXISTS projects (
     id SERIAL PRIMARY KEY,
     project_id VARCHAR(255),
@@ -127,7 +154,7 @@ CREATE TABLE IF NOT EXISTS projects (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     client_id INTEGER NOT NULL,
-    address_id INTEGER,
+    address_id INTEGER, -- Adresse principale (obsolète mais conservée pour rétrocompatibilité)
     status project_status DEFAULT 'prospect',
     start_date DATE,
     end_date DATE,
@@ -142,6 +169,21 @@ CREATE TABLE IF NOT EXISTS projects (
     CONSTRAINT fk_project_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     CONSTRAINT fk_project_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE SET NULL,
     CONSTRAINT check_project_dates CHECK (end_date IS NULL OR end_date >= start_date)
+);
+
+-- Table de liaison projet-adresses (nouvelle)
+CREATE TABLE IF NOT EXISTS project_addresses (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL,
+    address_id INTEGER NOT NULL,
+    address_type address_type NOT NULL DEFAULT 'chantier',
+    is_default BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_project_addresses_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    CONSTRAINT fk_project_addresses_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE CASCADE,
+    CONSTRAINT project_addresses_unique_constraint UNIQUE (project_id, address_id, address_type)
 );
 
 -- Table des rôles
@@ -281,8 +323,6 @@ CREATE TABLE IF NOT EXISTS project_stages (
     synced_at TIMESTAMP,
     synced_by_device_id VARCHAR(100)
 );
-
-
 
 -- Table de liaison projet-matériaux
 CREATE TABLE IF NOT EXISTS project_materials (
@@ -669,6 +709,12 @@ CREATE TRIGGER update_vehicle_reservations_timestamp BEFORE UPDATE ON vehicle_re
 CREATE TRIGGER update_vehicle_incidents_timestamp BEFORE UPDATE ON vehicle_incidents
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
+CREATE TRIGGER update_client_addresses_timestamp BEFORE UPDATE ON client_addresses
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_project_addresses_timestamp BEFORE UPDATE ON project_addresses
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
 -- Création des index
 CREATE INDEX idx_projects_client ON projects(client_id);
 CREATE INDEX idx_projects_status ON projects(status);
@@ -724,6 +770,12 @@ CREATE INDEX idx_vehicle_incidents_vehicle ON vehicle_incidents(vehicle_id);
 CREATE INDEX idx_vehicle_incidents_staff ON vehicle_incidents(staff_id);
 CREATE INDEX idx_vehicle_incidents_date ON vehicle_incidents(incident_date);
 CREATE INDEX idx_vehicle_incidents_status ON vehicle_incidents(resolution_status);
+CREATE INDEX idx_client_addresses_client ON client_addresses(client_id);
+CREATE INDEX idx_client_addresses_address ON client_addresses(address_id);
+CREATE INDEX idx_client_addresses_type ON client_addresses(address_type);
+CREATE INDEX idx_project_addresses_project ON project_addresses(project_id);
+CREATE INDEX idx_project_addresses_address ON project_addresses(address_id);
+CREATE INDEX idx_project_addresses_type ON project_addresses(address_type);
 
 -- Insertion des rôles par défaut
 INSERT INTO roles (name, description) VALUES 
@@ -758,5 +810,7 @@ COMMENT ON TABLE vehicle_maintenance IS 'Suivi des entretiens et réparations de
 COMMENT ON TABLE vehicle_refueling IS 'Suivi des pleins de carburant';
 COMMENT ON TABLE vehicle_reservations IS 'Réservations et utilisation des véhicules';
 COMMENT ON TABLE vehicle_incidents IS 'Incidents et accidents impliquant les véhicules';
+COMMENT ON TABLE client_addresses IS 'Association entre clients et leurs différentes adresses';
+COMMENT ON TABLE project_addresses IS 'Association entre projets et leurs différentes adresses';
 
 COMMIT; 
