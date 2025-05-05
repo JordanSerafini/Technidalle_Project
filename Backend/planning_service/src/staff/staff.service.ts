@@ -283,7 +283,10 @@ export class StaffService implements OnModuleInit {
 
         // Sanity check: If isAllDay ended up false, but times are identical, it's likely bad data or a zero-duration event.
         // Treat as allDay to avoid confusion, but log it.
-        if (!isAllDay && effectiveStartTime.getTime() === effectiveEndTime.getTime()) {
+        if (
+          !isAllDay &&
+          effectiveStartTime.getTime() === effectiveEndTime.getTime()
+        ) {
           this.logger.warn(
             `Assignation ID ${assign.id} resulted in allDay=false but identical start/end times (${effectiveStartTime.toISOString()}). Reverting to allDay=true. Check data source.`,
           );
@@ -305,6 +308,8 @@ export class StaffService implements OnModuleInit {
           role: assign.role_description,
           hoursPlanned: assign.hours_planned,
           hoursWorked: assign.hours_worked,
+          actualStartTime: assign.start_date?.toISOString(),
+          actualEndTime: assign.end_date?.toISOString() ?? null,
         };
       });
 
@@ -1078,15 +1083,17 @@ export class StaffService implements OnModuleInit {
       };
 
       // Vérifier si les assignations sont correctes
-      const assignmentValidation = rawAssignments.map((assignment: RawAssignmentDebugInfo) => {
-        return {
-          id: assignment.id,
-          isValid: !!assignment.project_name && !!assignment.staff_name,
-          hasStage: !!assignment.stage_name,
-          projectExists: !!assignment.project_name,
-          staffExists: !!assignment.staff_name,
-        };
-      });
+      const assignmentValidation = rawAssignments.map(
+        (assignment: RawAssignmentDebugInfo) => {
+          return {
+            id: assignment.id,
+            isValid: !!assignment.project_name && !!assignment.staff_name,
+            hasStage: !!assignment.stage_name,
+            projectExists: !!assignment.project_name,
+            staffExists: !!assignment.staff_name,
+          };
+        },
+      );
 
       // Récupérer les informations du staff de façon sécurisée
       const staffInfo = await this.prisma.staff.findUnique({

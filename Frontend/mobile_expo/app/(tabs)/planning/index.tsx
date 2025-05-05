@@ -51,11 +51,15 @@ export function PlanningScreen() {
                 <Text>Projet: {item.project?.name ?? 'N/A'}</Text>
                 <Text>Étape: {item.stage?.name ?? 'N/A'}</Text>
                 {item.role && <Text>Rôle: {item.role}</Text>}
-                {item.type === 'assignment' && item.stage && item.startTime && item.endTime && (
+                {item.type === 'assignment' && item.stage && (item.startTime || item.actualStartTime) && (item.endTime || item.actualEndTime) && (
                   <Text>Horaires: {
-                    item.allDay
-                      ? 'Toute la journée'
-                      : `${new Date(item.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${new Date(item.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                    (item.actualStartTime && item.actualEndTime)
+                      ? `${new Date(item.actualStartTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${new Date(item.actualEndTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                      : item.allDay
+                        ? 'Toute la journée'
+                        : (item.startTime && item.endTime)
+                          ? `${new Date(item.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${new Date(item.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                          : 'Horaires non spécifiés'
                   }</Text>
                 )}
               </View>
