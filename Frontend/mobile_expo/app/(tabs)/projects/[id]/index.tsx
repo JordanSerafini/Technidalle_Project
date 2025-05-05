@@ -51,6 +51,44 @@ export default function ProjectDetailScreen() {
     }
   });
 
+  // Fonction pour examiner et déboguer l'objet projet
+  const debugProject = (project: any) => {
+    if (!project) return;
+    
+    console.log("=== DÉBOGAGE DU PROJET ===");
+    console.log("ID:", project.id);
+    console.log("Nom:", project.name);
+    console.log("Référence:", project.reference);
+    
+    // Examinons les dates telles qu'elles sont reçues
+    console.log("Start date brute:", project.start_date);
+    console.log("End date brute:", project.end_date);
+    console.log("Type de start_date:", typeof project.start_date);
+    console.log("Type de end_date:", typeof project.end_date);
+    
+    // Essayons de parser les dates
+    if (project.start_date) {
+      const parsedStartDate = new Date(project.start_date);
+      console.log("Start date parsée:", parsedStartDate);
+      console.log("Start date est valide:", !isNaN(parsedStartDate.getTime()));
+    }
+    
+    if (project.end_date) {
+      const parsedEndDate = new Date(project.end_date);
+      console.log("End date parsée:", parsedEndDate);
+      console.log("End date est valide:", !isNaN(parsedEndDate.getTime()));
+    }
+    
+    // Voir si les dates sont dans une autre propriété
+    console.log("Toutes les clés de l'objet:", Object.keys(project));
+    
+    // Vérifions si les dates existent dans un format différent
+    if (project.startDate) console.log("startDate existe:", project.startDate);
+    if (project.endDate) console.log("endDate existe:", project.endDate);
+    
+    console.log("=== FIN DÉBOGAGE ===");
+  };
+
   // Fonction pour rafraîchir les données du projet
   const refreshProjectData = () => {
     // Recharger la page pour obtenir les données mises à jour
@@ -330,6 +368,19 @@ export default function ProjectDetailScreen() {
       </View>
     );
   }
+
+  // Débogage pour voir la structure des données brutes du projet
+  console.log("Données du projet:", {
+    id: project.id,
+    name: project.name,
+    start_date: project.start_date,
+    end_date: project.end_date,
+    data_type_start: project.start_date ? typeof project.start_date : 'undefined',
+    data_type_end: project.end_date ? typeof project.end_date : 'undefined'
+  });
+
+  // Appliquer la fonction de débogage complète
+  debugProject(project);
 
   return (
     <View style={styles.pageContainer}>

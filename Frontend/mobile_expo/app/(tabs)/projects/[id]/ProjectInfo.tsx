@@ -26,12 +26,57 @@ const statusColors: Record<project_status, string> = {
   annule: '#F44336'
 };
 
+// Fonction de formatage de date simplifiée et robuste
+const formatDate = (dateValue: any): string => {
+  // Si la valeur est null, undefined ou vide
+  if (!dateValue) {
+    return 'Non définie';
+  }
+  
+  try {
+    // Essayer de créer un objet Date à partir de la valeur
+    let dateObj: Date;
+    
+    if (typeof dateValue === 'string') {
+      // Si c'est une chaîne, essayer de la parser comme une date
+      // Vérifier si c'est un timestamp numérique sous forme de chaîne
+      if (/^\d+$/.test(dateValue)) {
+        dateObj = new Date(parseInt(dateValue));
+      } else {
+        dateObj = new Date(dateValue);
+      }
+    } else if (typeof dateValue === 'number') {
+      // Si c'est un nombre, c'est probablement un timestamp
+      dateObj = new Date(dateValue);
+    } else if (dateValue instanceof Date) {
+      // Si c'est déjà un objet Date
+      dateObj = dateValue;
+    } else {
+      // Type non reconnu
+      return 'Format inconnu';
+    }
+    
+    // Vérifier si la date est valide
+    if (isNaN(dateObj.getTime())) {
+      console.log('[formatDate] Date invalide après parsing:', dateValue);
+      return 'Non définie';
+    }
+    
+    // Formater la date en français
+    return dateObj.toLocaleDateString('fr-FR');
+    
+  } catch (error) {
+    console.error('[formatDate] Erreur:', error);
+    return 'Non définie';
+  }
+};
+
 interface ProjectInfoProps {
   reference: string;
   name?: string;
   status?: project_status;
-  start_date?: string;
-  end_date?: string;
+  start_date?: any; // Accepter n'importe quel type pour plus de flexibilité
+  end_date?: any;   // Accepter n'importe quel type pour plus de flexibilité
   budget?: number;
   description?: string;
   isOpen: boolean;
@@ -49,6 +94,13 @@ export const ProjectInfo = memo(({
   isOpen,
   onToggle
 }: ProjectInfoProps) => {
+  
+  console.log('[ProjectInfo] Dates reçues:', { 
+    start_date: start_date || 'non définie', 
+    end_date: end_date || 'non définie',
+    start_type: typeof start_date,
+    end_type: typeof end_date
+  });
   
   return (
     <View style={styles.container}>
@@ -85,12 +137,12 @@ export const ProjectInfo = memo(({
           
           <InfoRow 
             label="Date de début:" 
-            value={start_date ? new Date(start_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+            value={formatDate(start_date)} 
           />
           
           <InfoRow 
             label="Date de fin:" 
-            value={end_date ? new Date(end_date).toLocaleDateString('fr-FR') : 'Non définie'} 
+            value={formatDate(end_date)} 
           />
           
           {budget && (
