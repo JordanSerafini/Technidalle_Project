@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, Modal, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, BackHandler, Pressable, Platform, StyleSheet, SafeAreaView, Dimensions, Animated, TextInput, Alert, Button } from 'react-native';
 import { useFetch } from '../../hooks/useFetch';
 import { Project, project_status } from '../../utils/interfaces/project.interface';
 import { useRouter, Stack } from 'expo-router';
@@ -7,8 +7,8 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import ProjectFilter from '../../components/search/project_filter';
 import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
-import AccordionItem from '../../components/documents/AccordionItem';
 import { FlashList } from '@shopify/flash-list';
+import AddProjectModal from '../../components/projects/addProjectsModal';
 
 // Étendre l'interface FetchState pour inclure refetch
 interface FetchState<T> {
@@ -170,6 +170,9 @@ export default function ProjetsScreen() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [flatListData, setFlatListData] = useState<ProjectListItem[]>([]);
   
+  // SIMPLIFIÉ: État pour la modale de création de projet
+  const [isAddModalVisible, setAddModalVisible] = useState(false);
+  
   // Utiliser le projectStore
   const { 
     setProjects, 
@@ -281,17 +284,45 @@ export default function ProjetsScreen() {
     }
   }, [router]);
 
-  // Actions du FAB
-  const handleAddProject = useCallback(() => {
-    Alert.alert(
-      'Ajouter un projet',
-      'Voulez-vous ajouter un nouveau projet?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'OK', onPress: () => {} }
-      ]
-    );
+  // NOUVELLES FONCTIONS pour la modale
+  const openAddModal = useCallback(() => {
+    console.log("Screen: openAddModal appelé");
+    setAddModalVisible(true);
+    console.log("Screen: setAddModalVisible(true) appelé");
   }, []);
+  
+  const closeAddModal = useCallback(() => {
+    console.log("Screen: closeAddModal appelé");
+    setAddModalVisible(false);
+  }, []);
+  
+  const handleCreateProject = useCallback((name: string, reference: string, description: string) => {
+    console.log("Screen: handleCreateProject appelé avec", {
+      name, reference, description
+    });
+    
+    // Validation basique
+    if (!name || !reference) {
+      Alert.alert("Champs requis", "Le nom et la référence du projet sont obligatoires.");
+      return;
+    }
+    
+    // Appel API pour créer le projet (à implémenter)
+    Alert.alert(
+      "Création projet",
+      `Projet "${name}" créé avec succès!`,
+      [{ text: "OK", onPress: () => { 
+        closeAddModal();
+        // Recharger la liste après création
+        if (refetch) refetch();
+      }}]
+    );
+  }, [closeAddModal, refetch]);
+  
+  // Mise à jour des fonctions du FAB
+  const handleAddProject = useCallback(() => {
+    openAddModal();
+  }, [openAddModal]);
 
   const handleEditProject = useCallback(() => {
     Alert.alert(
@@ -460,7 +491,7 @@ export default function ProjetsScreen() {
       {/* FAB pour les projets */}
       <ProjectsFab 
         filtersVisible={showFilter}
-        onAddPress={handleAddProject}
+        onAddPress={openAddModal}
         onEditPress={handleEditProject}
         onOtherPress={handleOtherOptions}
       />
@@ -503,10 +534,19 @@ export default function ProjetsScreen() {
           </View>
         )}
       </View>
+      
+      {/* Utiliser le nouveau composant de modale */}
+      <AddProjectModal
+        visible={isAddModalVisible}
+        onClose={closeAddModal}
+        onCreateProject={handleCreateProject}
+      />
     </View>
   );
 }
 
+// Le StyleSheet peut être épuré car les styles de la modale sont maintenant dans le composant AddProjectModal
 const styles = StyleSheet.create({
-  // Nous n'avons plus besoin des styles pour le bouton de filtre et le panneau de filtre avec animation
+  // ... autres styles nécessaires ...
 });
+

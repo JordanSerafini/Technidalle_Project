@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Pressable, Text, View, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, Pressable, Text, View, TouchableOpacity, TouchableWithoutFeedback, Modal, TextInput, Button } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, usePathname } from 'expo-router';
 import Animated, {
@@ -181,13 +181,18 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
       callback();
     }, 100);
   };
-  
-  // Ne pas rendre le FAB si:
-  // 1. Les filtres sont visibles
-  if (filtersVisible) {
-    return null;
-  }
-  
+
+  // Gérer l'ouverture de la modale d'ajout
+  const handleAddPress = () => {
+    console.log("FAB: Bouton Ajouter cliqué");
+    
+    handleAction(() => {
+      console.log("FAB: Appel de onAddPress");
+      onAddPress();
+      console.log("FAB: onAddPress appelée avec succès");
+    });
+  };
+
   // Vérifier si nous sommes sur la page index des projets
   const isProjectsIndexPage = pathname === '/(tabs)/projects' || 
                              pathname === '/(tabs)/projects/index' || 
@@ -240,7 +245,7 @@ const ProjectsFab: React.FC<ProjectsFABProps> = ({
         index={1}
         icon={<MaterialIcons name="add" size={24} color="#fff" />}
         label="Ajouter"
-        onPress={() => handleAction(onAddPress)}
+        onPress={handleAddPress}
         visible={expanded}
       />
 
