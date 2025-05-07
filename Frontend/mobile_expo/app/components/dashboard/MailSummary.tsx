@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Switch, Alert } from "react-native";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
@@ -481,6 +481,17 @@ export default function MailSummary() {
         );
     };
 
+    const handleCloseReplyModal = useCallback(() => {
+        setIsReplyModalVisible(false);
+        setSelectedEmailForReply(null);
+        // Optionnel: rafraîchir la liste après envoi si un email doit disparaître
+        // Ceci est un point à affiner: si l'email est juste marqué comme "répondu"
+        // ou s'il doit vraiment disparaître de la liste `actionRequiredEmails`
+        // après l'envoi via la modale.
+        // Si un rafraîchissement est nécessaire:
+        // fetchMailSummary(fastMode, true); 
+    }, []);
+
     return (
         <View style={styles.container}>
             {/* En-tête avec bouton pour réafficher les options de recherche si nécessaire */}
@@ -508,16 +519,7 @@ export default function MailSummary() {
             {/* Affichage de la modale de réponse */}
             <EmailReplyModal
                 isVisible={isReplyModalVisible}
-                onClose={() => {
-                    setIsReplyModalVisible(false);
-                    setSelectedEmailForReply(null);
-                    // Optionnel: rafraîchir la liste après envoi si un email doit disparaître
-                    // Ceci est un point à affiner: si l'email est juste marqué comme "répondu"
-                    // ou s'il doit vraiment disparaître de la liste `actionRequiredEmails`
-                    // après l'envoi via la modale.
-                    // Si un rafraîchissement est nécessaire:
-                    // fetchMailSummary(fastMode, true); 
-                }}
+                onClose={handleCloseReplyModal}
                 emailId={selectedEmailForReply}
                 responseLength={responseLength} // On peut passer la longueur de réponse par défaut configurée dans MailSummary
             />
