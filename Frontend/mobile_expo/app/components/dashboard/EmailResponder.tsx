@@ -1,10 +1,26 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
 import mailFunctions from '../../utils/functions/mails.function';
 // Import du store
 import { useMailsStore } from '../../store/mailsStore';
+
+// Constantes pour l'API (locales)
+const API_URL = Platform.OS === 'web' 
+  ? 'http://localhost:4444' 
+  : 'http://192.168.20.225:4444';
+
+// Options fetch de base
+const fetchOptions = {
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Origin': Platform.OS === 'web' ? 'http://localhost:8081' : 'http://localhost'
+  },
+  mode: 'cors' as RequestMode,
+  credentials: 'include' as RequestCredentials
+};
 
 // Destructuring des fonctions depuis l'objet importé
 const { 
@@ -129,19 +145,85 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       
       console.log(`[API] Génération d'un brouillon pour l'email ${emailId} - forceRefresh:`, forceRefresh);
       
-      // Utiliser l'option forceRefresh si elle est activée
-      const result = await fetchDraftResponse(emailId, responseLength, forceRefresh);
+      // Important: activer uniquement le loading local, pas celui du store
+      setLoading(true);
       
-      if (result.originalEmail) {
+      // Créer un objet temporaire pour récupérer la réponse sans utiliser setIsLoading du store
+      let result;
+      
+      if (useMockData) {
+        // Utiliser la méthode mockée directement ici pour éviter l'appel au store global
+        console.log(`[MOCK] Génération directe du brouillon (emailId: ${emailId})`);
+        
+        // Simuler un délai
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Trouver l'email original dans les données du store
+        const originalEmail = store.actionRequiredEmails.find(email => email.id === emailId) || null;
+        
+        if (!originalEmail) {
+          throw new Error(`Email avec l'ID ${emailId} non trouvé`);
+        }
+        
+        // Générer un brouillon de réponse
+        let draftResponse = '';
+        const fromName = originalEmail.from.match(/"([^"]+)"/) 
+          ? originalEmail.from.match(/"([^"]+)"/)![1] 
+          : originalEmail.from.split('<')[0].trim();
+          
+        switch (responseLength) {
+          case 'court':
+            draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message. J'ai bien pris note de votre demande.\n\nCordialement,\nJordan`;
+            break;
+          case 'détaillé':
+            draftResponse = `Bonjour ${fromName},\n\nJe vous remercie pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de tous les éléments que vous avez partagés. Après analyse, je souhaite vous informer que nous allons traiter cette demande avec la plus grande attention.\n\nÀ propos des points que vous avez soulevés:\n1. Nous avons bien compris votre préoccupation principale\n2. Les actions suggérées seront mises en œuvre prochainement\n3. Un suivi sera effectué dans les meilleurs délais\n\nN'hésitez pas à me contacter si vous avez besoin d'informations supplémentaires.\n\nCordialement,\nJordan Serafini`;
+            break;
+          default: // 'normal'
+            draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
+        }
+        
+        result = {
+          originalEmail,
+          draftResponse
+        };
+        
+        // Stocker dans le cache
+        store.setDraftResponse(emailId, result, responseLength);
+      } else {
+        // Ne pas passer par fetchDraftResponse directement qui appelle setIsLoading
+        // Recréer la même logique ici mais sans appeler setIsLoading
+        const email = store.actionRequiredEmails.find(email => email.id === emailId);
+        const imapUID = email?.imapUID || emailId;
+        
+        const apiResponse = await fetch(
+          `${API_URL}/send-email/draft-response/${imapUID}?responseLength=${responseLength}`,
+          { ...fetchOptions, method: 'GET' }
+        );
+        
+        const data = await apiResponse.json();
+        
+        if (data.status === 'success') {
+          result = {
+            originalEmail: data.data.originalEmail || null,
+            draftResponse: data.data.draftResponse || ''
+          };
+          
+          // Stocker dans le cache
+          store.setDraftResponse(emailId, result, responseLength);
+        } else {
+          throw new Error(data.message);
+        }
+      }
+      
+      if (result && result.originalEmail) {
         setEmailData(result.originalEmail);
         setResponse(result.draftResponse);
         setActiveView('compose');
-        
-        // Stocker le résultat dans le cache
-        store.setDraftResponse(emailId, result, responseLength);
       }
     } catch (err) {
       console.error('Erreur lors de la génération du brouillon:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
