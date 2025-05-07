@@ -6,7 +6,7 @@ import { SafeAreaView, StyleSheet } from "react-native";
 export default function Dashboard() {
   return (
     <SafeAreaView style={styles.container}>
-      <MailSummary />
+      {/* <MailSummary /> */}
       <MailSender />
     </SafeAreaView>
   )
