@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 import { useMailSummary } from '../../hooks/useMailSummary';
@@ -26,6 +26,11 @@ export default function MailSummary() {
 
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
     const [filterType, setFilterType] = useState<'all' | 'high' | 'action'>('high');
+    
+    // États pour le pliage des sections
+    const [overviewExpanded, setOverviewExpanded] = useState(true);
+    const [dailySummaryExpanded, setDailySummaryExpanded] = useState(true);
+    const [emailListExpanded, setEmailListExpanded] = useState(false);
     
     // Utiliser une référence pour suivre si la requête initiale a déjà été effectuée
     const initialFetchDone = useRef(false);
@@ -80,20 +85,20 @@ export default function MailSummary() {
         if (!stats) return null;
         
         return (
-            <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.totalEmails}</Text>
-                    <Text style={styles.statLabel}>Emails</Text>
+            <View className="flex-row justify-around bg-blue-50 rounded-xl p-4 my-4 border border-blue-100">
+                <View className="items-center">
+                    <Text className="text-xl font-bold text-blue-800">{stats.totalEmails}</Text>
+                    <Text className="text-xs text-gray-500 mt-1">Emails</Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.highPriorityCount}</Text>
-                    <Text style={styles.statLabel}>Prioritaires</Text>
+                <View className="h-8 w-0.5 bg-blue-200" />
+                <View className="items-center">
+                    <Text className="text-xl font-bold text-blue-800">{stats.highPriorityCount}</Text>
+                    <Text className="text-xs text-gray-500 mt-1">Prioritaires</Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.actionRequiredCount}</Text>
-                    <Text style={styles.statLabel}>Actions</Text>
+                <View className="h-8 w-0.5 bg-blue-200" />
+                <View className="items-center">
+                    <Text className="text-xl font-bold text-blue-800">{stats.actionRequiredCount}</Text>
+                    <Text className="text-xs text-gray-500 mt-1">Actions</Text>
                 </View>
             </View>
         );
@@ -101,9 +106,9 @@ export default function MailSummary() {
 
     const renderFilterButtons = () => {
         return (
-            <View style={styles.filterContainer}>
+            <View className="flex-row justify-between mb-4">
                 <TouchableOpacity 
-                    style={[styles.filterButton, filterType === 'high' && styles.activeFilterButton]}
+                    className={`flex-row items-center justify-center py-2 px-3 rounded-lg flex-1 mx-1 ${filterType === 'high' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onPress={() => setFilterType('high')}
                 >
                     <MaterialIcons 
@@ -111,13 +116,13 @@ export default function MailSummary() {
                         size={16} 
                         color={filterType === 'high' ? '#ffffff' : '#6b7280'} 
                     />
-                    <Text style={[styles.filterText, filterType === 'high' && styles.activeFilterText]}>
+                    <Text className={`text-xs font-medium ml-1 ${filterType === 'high' ? 'text-white' : 'text-gray-500'}`}>
                         Prioritaires
                     </Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                    style={[styles.filterButton, filterType === 'action' && styles.activeFilterButton]}
+                    className={`flex-row items-center justify-center py-2 px-3 rounded-lg flex-1 mx-1 ${filterType === 'action' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onPress={() => setFilterType('action')}
                 >
                     <Ionicons 
@@ -125,13 +130,13 @@ export default function MailSummary() {
                         size={16} 
                         color={filterType === 'action' ? '#ffffff' : '#6b7280'} 
                     />
-                    <Text style={[styles.filterText, filterType === 'action' && styles.activeFilterText]}>
+                    <Text className={`text-xs font-medium ml-1 ${filterType === 'action' ? 'text-white' : 'text-gray-500'}`}>
                         Actions
                     </Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                    style={[styles.filterButton, filterType === 'all' && styles.activeFilterButton]}
+                    className={`flex-row items-center justify-center py-2 px-3 rounded-lg flex-1 mx-1 ${filterType === 'all' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onPress={() => setFilterType('all')}
                 >
                     <Ionicons 
@@ -139,10 +144,22 @@ export default function MailSummary() {
                         size={16} 
                         color={filterType === 'all' ? '#ffffff' : '#6b7280'} 
                     />
-                    <Text style={[styles.filterText, filterType === 'all' && styles.activeFilterText]}>
+                    <Text className={`text-xs font-medium ml-1 ${filterType === 'all' ? 'text-white' : 'text-gray-500'}`}>
                         Tous
                     </Text>
                 </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const renderDailySummary = () => {
+        if (!overview) return null;
+        
+        return (
+            <View className="p-4 bg-blue-50 rounded-lg my-2 border border-blue-100">
+                <Text className="text-sm text-gray-700">
+                    {overview}
+                </Text>
             </View>
         );
     };
@@ -151,15 +168,11 @@ export default function MailSummary() {
     const emailsToShow = filteredEmails();
 
     return (
-        <View style={styles.container}>
-            <View style={styles.headerContainer}>
-                <Ionicons name="mail-outline" size={24} color="#1e40af" style={styles.headerIcon} />
-                <Text style={styles.headerTitle}>Résumé des Emails</Text>
-            </View>
-            
+        <View className="flex-1 w-full bg-white">
+                       
             <ScrollView 
-                style={styles.scrollContainer}
-                contentContainerStyle={styles.contentContainer}
+                className="flex-1 w-full"
+                contentContainerStyle={{ padding: 16, width: '100%' }}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -177,161 +190,104 @@ export default function MailSummary() {
 
                 {!loading && !error && overview && (
                     <>
-                        <OverviewCard overview={overview} />
-                        {renderSummaryStats()}
-                        {renderFilterButtons()}
+                        <TouchableOpacity 
+                            className="flex-row justify-between items-center py-2 mb-2 border-b border-gray-200"
+                            onPress={() => setOverviewExpanded(!overviewExpanded)}
+                        >
+                            <Text className="text-lg font-bold text-blue-800">Aperçu général</Text>
+                            <Ionicons 
+                                name={overviewExpanded ? "chevron-down" : "chevron-forward"} 
+                                size={20} 
+                                color="#3b82f6"
+                            />
+                        </TouchableOpacity>
+                        
+                        {overviewExpanded && (
+                            <>
+                                <TouchableOpacity 
+                                    className="flex-row justify-between items-center py-2 px-2 mb-2 bg-gray-50 rounded-lg"
+                                    onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Ionicons name="document-text-outline" size={18} color="#3b82f6" />
+                                        <Text className="ml-2 font-semibold text-blue-700">Résumé journalier</Text>
+                                    </View>
+                                    <Ionicons 
+                                        name={dailySummaryExpanded ? "chevron-down" : "chevron-forward"} 
+                                        size={18} 
+                                        color="#3b82f6"
+                                    />
+                                </TouchableOpacity>
+                                
+                                {dailySummaryExpanded && renderDailySummary()}
+                                
+                                <TouchableOpacity 
+                                    className="flex-row justify-between items-center py-2 px-2 mt-4 mb-2 bg-gray-50 rounded-lg"
+                                    onPress={() => setEmailListExpanded(!emailListExpanded)}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Ionicons name="mail-outline" size={18} color="#3b82f6" />
+                                        <Text className="ml-2 font-semibold text-blue-700">Liste des emails</Text>
+                                    </View>
+                                    <Ionicons 
+                                        name={emailListExpanded ? "chevron-down" : "chevron-forward"} 
+                                        size={18} 
+                                        color="#3b82f6"
+                                    />
+                                </TouchableOpacity>
+                                
+                                {emailListExpanded && (
+                                    <>
+                                        {renderSummaryStats()}
+                                        {renderFilterButtons()}
+                                        
+                                        {!loading && !error && emailsToShow.length === 0 && (
+                                            <EmptyState />
+                                        )}
+                                        
+                                        {!loading && !error && emailsToShow.length > 0 && (
+                                            <View className="mt-2 w-full">
+                                                {Object.entries(emailGroups).map(([category, categoryEmails]) => (
+                                                    <View key={category} className="mb-5">
+                                                        <View className="flex-row items-center mb-3">
+                                                            <Ionicons 
+                                                                name={
+                                                                    category === 'professionnel' ? 'briefcase-outline' :
+                                                                    category === 'sécurité' ? 'shield-checkmark-outline' :
+                                                                    category === 'administratif' ? 'document-text-outline' :
+                                                                    category === 'facture' ? 'cash-outline' :
+                                                                    category === 'marketing' ? 'megaphone-outline' :
+                                                                    category === 'personnel' ? 'person-outline' :
+                                                                    'mail-outline'
+                                                                } 
+                                                                size={20} 
+                                                                color="#1e40af" 
+                                                            />
+                                                            <Text className="text-base font-semibold text-blue-800 ml-2">
+                                                                {category.charAt(0).toUpperCase() + category.slice(1)} ({categoryEmails.length})
+                                                            </Text>
+                                                        </View>
+                                                        
+                                                        {categoryEmails.map((email, index) => (
+                                                            <EmailCard
+                                                                key={email.id || `email-${category}-${index}`}
+                                                                email={email}
+                                                                expanded={!!expandedItems[email.id || `email-${category}-${index}`]}
+                                                                onToggleExpand={() => toggleExpand(email.id || `email-${category}-${index}`)}
+                                                            />
+                                                        ))}
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        )}
                     </>
                 )}
                 
-                {!loading && !error && emailsToShow.length === 0 && (
-                    <EmptyState />
-                )}
-                
-                {!loading && !error && emailsToShow.length > 0 && (
-                    <View style={styles.emailsSection}>
-                        {Object.entries(emailGroups).map(([category, categoryEmails]) => (
-                            <View key={category} style={styles.categorySection}>
-                                <View style={styles.sectionHeader}>
-                                    <Ionicons 
-                                        name={
-                                            category === 'professionnel' ? 'briefcase-outline' :
-                                            category === 'sécurité' ? 'shield-checkmark-outline' :
-                                            category === 'administratif' ? 'document-text-outline' :
-                                            category === 'facture' ? 'cash-outline' :
-                                            category === 'marketing' ? 'megaphone-outline' :
-                                            category === 'personnel' ? 'person-outline' :
-                                            'mail-outline'
-                                        } 
-                                        size={20} 
-                                        color="#1e40af" 
-                                    />
-                                    <Text style={styles.sectionTitle}>
-                                        {category.charAt(0).toUpperCase() + category.slice(1)} ({categoryEmails.length})
-                                    </Text>
-                                </View>
-                                
-                                {categoryEmails.map((email, index) => (
-                                    <EmailCard
-                                        key={email.id || `email-${category}-${index}`}
-                                        email={email}
-                                        expanded={!!expandedItems[email.id || `email-${category}-${index}`]}
-                                        onToggleExpand={() => toggleExpand(email.id || `email-${category}-${index}`)}
-                                    />
-                                ))}
-                            </View>
-                        ))}
-                    </View>
-                )}
             </ScrollView>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        width: '100%',
-        borderRadius: 0,
-        overflow: 'hidden',
-        backgroundColor: 'white',
-    },
-    headerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        width: '100%',
-        backgroundColor: '#d1fae5',
-        borderBottomWidth: 1,
-        borderBottomColor: '#a7f3d0',
-    },
-    headerIcon: {
-        marginRight: 10,
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#064e3b',
-    },
-    scrollContainer: {
-        flex: 1,
-        width: '100%',
-    },
-    contentContainer: {
-        padding: 16,
-        width: '100%',
-    },
-    emailsSection: {
-        marginTop: 8,
-        width: '100%',
-    },
-    categorySection: {
-        marginBottom: 20,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1e40af',
-        marginLeft: 8,
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        backgroundColor: '#f0f9ff',
-        borderRadius: 12,
-        padding: 16,
-        marginVertical: 16,
-        borderWidth: 1,
-        borderColor: '#e0f2fe',
-    },
-    statItem: {
-        alignItems: 'center',
-    },
-    statNumber: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#1e40af',
-    },
-    statLabel: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 4,
-    },
-    statDivider: {
-        height: 30,
-        width: 1,
-        backgroundColor: '#bfdbfe',
-    },
-    filterContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    filterButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        backgroundColor: '#f3f4f6',
-        flex: 1,
-        marginHorizontal: 4,
-    },
-    activeFilterButton: {
-        backgroundColor: '#3b82f6',
-    },
-    filterText: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: '#6b7280',
-        marginLeft: 4,
-    },
-    activeFilterText: {
-        color: '#ffffff',
-    },
-});

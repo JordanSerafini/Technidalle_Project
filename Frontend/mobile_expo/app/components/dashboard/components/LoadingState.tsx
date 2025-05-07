@@ -1,48 +1,18 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export const LoadingState = () => {
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#3b82f6" style={styles.spinner} />
-      <Text style={styles.text}>Chargement des résumés d'emails...</Text>
-      <View style={styles.infoContainer}>
+    <View className="items-center justify-center p-6 bg-gray-50 rounded-xl my-4">
+      <ActivityIndicator size="large" color="#3b82f6" className="mb-3" />
+      <Text className="text-base font-medium text-gray-700 mb-2">Chargement des résumés d'emails...</Text>
+      <View className="flex-row items-center mt-2">
         <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
-        <Text style={styles.infoText}>Analyse en cours des messages importants</Text>
+        <Text className="text-sm text-gray-500 ml-1.5">Analyse en cours des messages importants</Text>
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    marginVertical: 16,
-  },
-  spinner: {
-    marginBottom: 12,
-  },
-  text: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginLeft: 6,
-  }
-});
 
 export default LoadingState; 
