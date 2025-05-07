@@ -83,6 +83,7 @@ export class AnalyzeEmailService {
   private readonly logger = new Logger(AnalyzeEmailService.name);
   private imap: TypedImap;
   private openai: OpenAI;
+  private analysisCache = new Map<string, EmailContent['analysis']>();
 
   constructor(private configService: ConfigService) {
     this.openai = new OpenAI({
@@ -389,7 +390,7 @@ export class AnalyzeEmailService {
             `Recherche de tous les emails dans le dossier: ${folder}`,
           );
 
-          await new Promise<void>((resolve, reject) => {
+          await new Promise<void>((resolve) => {
             this.imap.openBox(folder, true, (err: Error | null) => {
               if (err) {
                 this.logger.warn(
@@ -623,9 +624,6 @@ export class AnalyzeEmailService {
 
     const analyzedEmails: EmailContent[] = [];
 
-    // Cache simple pour éviter de réanalyser des emails très similaires
-    const analysisCache = new Map<string, any>();
-
     // Diviser les emails en lots
     const batches: EmailContent[][] = [];
     for (let i = 0; i < emails.length; i += BATCH_SIZE) {
@@ -654,13 +652,13 @@ export class AnalyzeEmailService {
                 const cacheKey = `${email.from}:${email.subject}`;
 
                 // Vérifier si un email similaire a déjà été analysé
-                if (analysisCache.has(cacheKey)) {
+                if (this.analysisCache.has(cacheKey)) {
                   this.logger.debug(
                     `Utilisation du cache pour l'email ${email.id}: ${email.subject}`,
                   );
                   return {
                     ...email,
-                    analysis: analysisCache.get(cacheKey),
+                    analysis: this.analysisCache.get(cacheKey),
                   };
                 }
 
@@ -670,7 +668,7 @@ export class AnalyzeEmailService {
                 );
 
                 // Stocker le résultat dans le cache
-                analysisCache.set(cacheKey, analysisResult);
+                this.analysisCache.set(cacheKey, analysisResult);
 
                 return {
                   ...email,
