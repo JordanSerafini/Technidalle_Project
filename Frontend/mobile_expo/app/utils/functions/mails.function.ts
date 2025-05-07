@@ -59,100 +59,73 @@ export const fetchEmailsRequiringResponse = async (
       // En mode mock, vérifier d'abord si le cache peut être utilisé malgré forceRefresh
       if (!forceRefresh && !store.shouldRefetch() && store.actionRequiredEmails.length > 0) {
         console.log('[STORE-MOCK] Utilisation des données en cache pour fetchEmailsRequiringResponse');
-        return store.actionRequiredEmails;
+        return store.actionRequiredEmails; // Retourne directement les emails du store
       }
       
       console.log(`[MOCK] Utilisation des données mock pour fetchEmailsRequiringResponse (fastMode: ${fastMode})`);
-      
-      // Indiquer que le chargement est en cours
       store.setIsLoading(true);
-      
-      // Simuler un délai pour imiter un appel réseau
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Filtrer les emails qui nécessitent une réponse (actionRequired: true)
       const actionRequiredEmails = mockData.data.filter(email => 
         email.analysis && email.analysis.actionRequired === true
       );
-      
-      // Vérifier que chaque email possède bien un imapUID
       actionRequiredEmails.forEach(email => {
         if (!email.imapUID) {
           console.warn(`[ATTENTION] L'email avec l'ID ${email.id} n'a pas d'imapUID défini`);
         }
       });
-      
-      // Stocker les données dans le store
       store.setActionRequiredEmails(actionRequiredEmails);
       store.setIsLoading(false);
-      
       return actionRequiredEmails;
-    } 
+    }
     // Si on utilise l'API réelle
     else {
-      // Pour l'API réelle, vérifier le cache en premier
       if (!forceRefresh && !store.shouldRefetch() && store.actionRequiredEmails.length > 0) {
         console.log('[STORE-API] Utilisation des données en cache pour fetchEmailsRequiringResponse');
-        return store.actionRequiredEmails;
+        return store.actionRequiredEmails; // Retourne directement les emails du store
       }
       
-      // Indiquer que le chargement est en cours
       store.setIsLoading(true);
-      
-      // Fetch avec l'API réelle
       console.log(`[API] Récupération des emails nécessitant une réponse (fastMode: ${fastMode})`);
       
-      // Utiliser les options fetch pour éviter les problèmes CORS
       const apiResponse = await fetch(
         `${API_URL}/analyze-email/today?fastMode=${fastMode}`,
         { ...fetchOptions, method: 'GET' }
       );
       
-      const data = await apiResponse.json();
+      const responseData = await apiResponse.json();
       
-      if (data.status === 'success') {
-        // Stocker les données dans le store
-        store.setActionRequiredEmails(data.data);
+      if (responseData.status === 'success' && responseData.data) {
+        store.setActionRequiredEmails(responseData.data);
         store.setIsLoading(false);
-        return data.data;
+        return responseData.data; // Retourne uniquement les emails
       } else {
-        // Si l'API répond mais avec une erreur
-        console.warn(`[API] Erreur API: ${data.message}`);
+        console.warn(`[API] Erreur API ou données manquantes: ${responseData.message}`);
         store.setIsLoading(false);
-        throw new Error(data.message);
+        throw new Error(responseData.message || 'Erreur API ou données emails manquantes');
       }
     }
   } catch (err) {
     console.error('Erreur lors du chargement des emails:', err);
-    
-    // S'assurer que l'indicateur de chargement est réinitialisé
     useMailsStore.getState().setIsLoading(false);
     
-    // Solution de secours : utiliser les mock data en cas d'échec de l'API
     if (!USE_MOCK_DATA) {
       console.log(`[FALLBACK] Utilisation des données mock pour fetchEmailsRequiringResponse`);
-      
-      // Filtrer les emails qui nécessitent une réponse (actionRequired: true)
       const actionRequiredEmails = mockData.data.filter(email => 
         email.analysis && email.analysis.actionRequired === true
       );
-      
-      // Vérifier que chaque email possède bien un imapUID
       actionRequiredEmails.forEach(email => {
         if (!email.imapUID) {
           console.warn(`[ATTENTION] L'email avec l'ID ${email.id} n'a pas d'imapUID défini`);
         }
       });
-      
-      // Stocker les données dans le store même en mode fallback
       useMailsStore.getState().setActionRequiredEmails(actionRequiredEmails);
-      
       Alert.alert('Mode hors ligne', 'Utilisation des données locales (l\'API est indisponible)');
       return actionRequiredEmails;
     }
     
     Alert.alert('Erreur', 'Impossible de charger les emails');
-    return [];
+    return []; // Retourne un tableau vide en cas d'erreur finale
   }
 };
 
