@@ -340,24 +340,7 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
   const renderEmailList = () => {
     return (
       <View className="flex-1">
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-bold text-blue-800">Technidalle Mail</Text>
-          
-          <View className="flex-row">
-            <TouchableOpacity 
-              onPress={() => setShowSearchOptions(!showSearchOptions)}
-              className="p-2 mr-2"
-            >
-              <Ionicons name="search" size={24} color="#3b82f6" />
-            </TouchableOpacity>
-            
-            {onClose && (
-              <TouchableOpacity onPress={onClose} className="p-2">
-                <Ionicons name="close" size={24} color="#3b82f6" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+
         
         <ScrollView className="flex-1">
           {/* Section Options de recherche - seulement visible si showSearchOptions est true */}
@@ -372,18 +355,7 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
           {renderSectionHeader("Aperçu général", showGeneralOverview, () => setShowGeneralOverview(!showGeneralOverview))}
           {renderGeneralOverview()}
           
-          {/* Section Résumé de la journée */}
-          {renderSectionHeader("Résumé de la journée", showDailySummary, () => setShowDailySummary(!showDailySummary))}
-          {showDailySummary && (
-            <View className="mb-4 bg-white rounded-lg p-4 shadow-sm">
-              <Text className="text-gray-800">
-                Bonjour, voici votre résumé d'emails du jour.
-              </Text>
-              <Text className="text-gray-800 mt-2">
-                J'ai analysé un total de {emailsList.length} emails. Parmi eux, {emailsList.filter(email => email.analysis?.priority === 'high').length} sont prioritaires.
-              </Text>
-            </View>
-          )}
+         
           
           {/* Section Emails */}
           {renderSectionHeader("Emails", showEmailsSection, () => setShowEmailsSection(!showEmailsSection))}
