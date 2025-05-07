@@ -13,7 +13,6 @@ import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import EmptyState from './components/EmptyState';
 import MailSender from './MailSender';
-import OverviewCard from './components/OverviewCard';
 
 export default function MailSummary() {
     const {
@@ -177,7 +176,7 @@ export default function MailSummary() {
         
         return (
             <View style={styles.summaryContainer}>
-                <OverviewCard overview={overview} />
+                <Text style={styles.summaryText}>{overview}</Text>
             </View>
         );
     };
