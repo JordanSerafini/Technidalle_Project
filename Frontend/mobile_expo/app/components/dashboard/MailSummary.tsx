@@ -60,7 +60,7 @@ export default function MailSummary() {
     // Fonction pour lancer la recherche avec les paramètres configurés
     const handleSearch = () => {
         // Toujours forcer la recherche quand on clique sur le bouton
-        fetchMailSummary(fastMode, responseLength, forceRefresh);
+        fetchMailSummary(fastMode, forceRefresh);
         setHasSearched(true);
         // Garder les options de recherche visibles
         setShowSearchOptions(true);

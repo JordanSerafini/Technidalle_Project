@@ -60,13 +60,14 @@ export default function Dashboard() {
       
       {/* Content based on active tab */}
       <View style={styles.content}>
-        {activeTab === 'summary' ? (
+        <View style={{ display: activeTab === 'summary' ? 'flex' : 'none', flex: 1 }}>
           <MailSummary />
-        ) : (
+        </View>
+        <View style={{ display: activeTab === 'sender' ? 'flex' : 'none', flex: 1 }}>
           <Suspense fallback={<LazyFallback />}>
             <EmailResponder />
           </Suspense>
-        )}
+        </View>
       </View>
     </SafeAreaView>
   )
