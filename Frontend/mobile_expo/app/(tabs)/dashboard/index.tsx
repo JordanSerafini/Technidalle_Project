@@ -1,12 +1,13 @@
 import MailSummary from '@/app/components/dashboard/MailSummary';
 import React from 'react';
-import { SafeAreaView, StyleSheet } from "react-native";
+import { SafeAreaView, StyleSheet, Text } from "react-native";
 
 export default function Dashboard() {
   return (
     <SafeAreaView style={styles.container}>
-      <MailSummary />
-    </SafeAreaView>
+
+      <Text>Dashboard</Text>
+     </SafeAreaView>
   )
 }
 
