@@ -342,12 +342,14 @@ export default function MailSummary() {
             return <LoadingState />;
         }
 
-        if (error) {
+        // Only show error if not currently loading
+        if (!loading && error) {
             return <ErrorState error={error} onRetry={handleSearch} />;
         }
 
         // Si les données sont vides et qu'on a déjà fait une recherche
-        if (hasSearched && (!emails || emails.length === 0)) {
+        // Only show empty state if not currently loading
+        if (!loading && hasSearched && (!emails || emails.length === 0)) {
             return <EmptyState onRetry={handleSearch} />;
         }
 
