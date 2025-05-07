@@ -78,7 +78,7 @@ export default function ClientsScreen() {
   
   // Hook de debounce pour gérer plus efficacement les recherches
   function debounce(func: Function, wait: number) {
-    let timeout: NodeJS.Timeout;
+    let timeout: NodeJS.Timeout | number;
     return function(...args: any[]) {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
