@@ -204,8 +204,7 @@ export const fetchDraftResponse = async (
     } else {
       // Fetch avec l'API réelle
       // Utilisation de imapUID au lieu de emailId
-      const email = mockData.data.find(email => email.id === emailId);
-      const imapUID = email?.imapUID || emailId;
+      const imapUID = emailId;
       
       console.log(`[API] Récupération du brouillon de réponse pour l'email imapUID: ${imapUID}`);
       
