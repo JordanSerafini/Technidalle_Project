@@ -26,8 +26,8 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
     
     return actionRequiredEmails;
     
-    /*
-    // Fetch original (commenté pendant le développement)
+    /* Commenté pour utiliser les mock data
+    // Fetch avec l'API réelle
     const apiResponse = await fetch(`${API_URL}/analyze-email/today?fastMode=${fastMode}`);
     const data = await apiResponse.json();
     
@@ -56,6 +56,7 @@ export const fetchDraftResponse = async (
   draftResponse: string;
 }> => {
   try {
+    /* Commenté pour utiliser l'API réelle
     // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
     console.log(`[DEV] Utilisation des données mock pour fetchDraftResponse (emailId: ${emailId}, responseLength: ${responseLength})`);
     
@@ -91,9 +92,9 @@ export const fetchDraftResponse = async (
       originalEmail,
       draftResponse
     };
+    */
     
-    /*
-    // Fetch original (commenté pendant le développement)
+    // Fetch avec l'API réelle
     const apiResponse = await fetch(`${API_URL}/email/draft-response/${emailId}?responseLength=${responseLength}`);
     const data = await apiResponse.json();
     
@@ -109,7 +110,6 @@ export const fetchDraftResponse = async (
         draftResponse: ''
       };
     }
-    */
   } catch (err) {
     console.error('Erreur lors de la génération du brouillon:', err);
     Alert.alert('Erreur', 'Impossible de générer un brouillon de réponse');
@@ -130,6 +130,7 @@ export const fetchRewrittenResponse = async (
   responseLength: ResponseLength = 'normal'
 ): Promise<string> => {
   try {
+    /* Commenté pour utiliser l'API réelle
     // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
     console.log(`[DEV] Utilisation des données mock pour fetchRewrittenResponse (emailId: ${emailId}, instructions: ${instructions})`);
     
@@ -158,9 +159,9 @@ export const fetchRewrittenResponse = async (
     }
     
     return rewrittenResponse;
+    */
     
-    /*
-    // Fetch original (commenté pendant le développement)
+    // Fetch avec l'API réelle
     const apiResponse = await fetch(`${API_URL}/email/rewrite-response/${emailId}`, {
       method: 'POST',
       headers: {
@@ -173,7 +174,7 @@ export const fetchRewrittenResponse = async (
         responseLength
       })
     });
-    
+  
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
@@ -182,7 +183,6 @@ export const fetchRewrittenResponse = async (
       Alert.alert('Erreur', data.message);
       return draftResponse;
     }
-    */
   } catch (err) {
     console.error('Erreur lors de la reformulation:', err);
     Alert.alert('Erreur', 'Impossible de reformuler la réponse');
@@ -199,6 +199,7 @@ export const sendEmailResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
+    /* Commenté pour utiliser l'API réelle
     // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
     console.log(`[DEV] Simulation d'envoi de réponse (emailId: ${emailId})`);
     
@@ -208,9 +209,9 @@ export const sendEmailResponse = async (
     // Simuler une réponse réussie
     Alert.alert('Succès', 'Votre réponse a été envoyée avec succès (simulation)');
     return true;
+    */
     
-    /*
-    // Fetch original (commenté pendant le développement)
+    // Fetch avec l'API réelle
     const apiResponse = await fetch(`${API_URL}/email/send-response/${emailId}`, {
       method: 'POST',
       headers: {
@@ -232,7 +233,6 @@ export const sendEmailResponse = async (
       Alert.alert('Erreur', data.message);
       return false;
     }
-    */
   } catch (err) {
     console.error('Erreur lors de l\'envoi de la réponse:', err);
     Alert.alert('Erreur', 'Impossible d\'envoyer la réponse');
@@ -250,6 +250,7 @@ export const sendAutoResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
+    /* Commenté pour utiliser l'API réelle
     // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
     console.log(`[DEV] Simulation d'envoi de réponse automatique (emailId: ${emailId}, responseLength: ${responseLength})`);
     
@@ -259,9 +260,9 @@ export const sendAutoResponse = async (
     // Simuler une réponse réussie
     Alert.alert('Succès', 'Votre réponse automatique a été envoyée avec succès (simulation)');
     return true;
+    */
     
-    /*
-    // Fetch original (commenté pendant le développement)
+    // Fetch avec l'API réelle
     const apiResponse = await fetch(`${API_URL}/email/auto-response/${emailId}`, {
       method: 'POST',
       headers: {
@@ -284,7 +285,6 @@ export const sendAutoResponse = async (
       Alert.alert('Erreur', data.message);
       return false;
     }
-    */
   } catch (err) {
     console.error('Erreur lors de l\'envoi de la réponse automatique:', err);
     Alert.alert('Erreur', 'Impossible d\'envoyer la réponse automatique');

@@ -33,9 +33,11 @@ export default function MailSummary() {
     // États pour le pliage des sections - toujours à true par défaut
     const [overviewExpanded, setOverviewExpanded] = useState(true);
     const [dailySummaryExpanded, setDailySummaryExpanded] = useState(true);
-    const [emailListExpanded, setEmailListExpanded] = useState(true);
+    const [emailListExpanded, setEmailListExpanded] = useState(false);
     const [searchOptionsExpanded, setSearchOptionsExpanded] = useState(true);
     const [mailSenderExpanded, setMailSenderExpanded] = useState(false);
+    // État pour contrôler la visibilité complète des options de recherche
+    const [showSearchOptions, setShowSearchOptions] = useState(true);
 
     const toggleExpand = (id: string) => {
         setExpandedItems(prev => ({
@@ -48,6 +50,8 @@ export default function MailSummary() {
     const handleSearch = () => {
         fetchMailSummary(fastMode, responseLength);
         setHasSearched(true);
+        // Cacher complètement les options de recherche
+        setShowSearchOptions(false);
     };
 
     // Filtrer les emails selon le critère sélectionné
@@ -261,7 +265,7 @@ export default function MailSummary() {
 
         return (
             <>
-                {renderSearchOptions()}
+                {showSearchOptions && renderSearchOptions()}
                 
                 {hasSearched && (
                     <>
@@ -368,7 +372,11 @@ export default function MailSummary() {
                                     color="#3b82f6"
                                 />
                             </TouchableOpacity>
-                            {mailSenderExpanded && <MailSender />}
+                            {mailSenderExpanded && (
+                                <MailSender
+                                    responseLength={responseLength}
+                                />
+                            )}
                         </View>
                     </>
                 )}
@@ -386,6 +394,17 @@ export default function MailSummary() {
 
     return (
         <View style={styles.container}>
+            {/* En-tête avec bouton pour réafficher les options de recherche si nécessaire */}
+            {hasSearched && !showSearchOptions && (
+                <TouchableOpacity
+                    style={styles.showSearchButton}
+                    onPress={() => setShowSearchOptions(true)}
+                >
+                    <Ionicons name="search-outline" size={18} color="#ffffff" />
+                    <Text style={styles.showSearchButtonText}>Rechercher à nouveau</Text>
+                </TouchableOpacity>
+            )}
+            
             {/* On utilise une FlatList comme conteneur principal pour tout le contenu */}
             <FlatList
                 style={styles.flatList}
@@ -659,5 +678,21 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 12,
         fontWeight: '500',
+    },
+    showSearchButton: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        backgroundColor: '#3b82f6',
+        borderRadius: 8,
+        padding: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    showSearchButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#ffffff',
+        marginLeft: 8,
     },
 });
