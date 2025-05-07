@@ -77,3 +77,8 @@ export interface ExtendedDevisRow {
   unit?: string;
   discount?: number;
 }
+
+// Ajouter un export par défaut pour résoudre l'erreur d'Expo Router
+export default function DevisInterfaceExport() {
+  return null;
+}

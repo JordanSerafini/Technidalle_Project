@@ -1,3 +1,5 @@
+import React from 'react';
+
 export type document_type = 'facture' | 'devis' | 'contrat' | 'photo' | 'autre';
 
 export interface Document {
@@ -33,6 +35,8 @@ export interface UpdateDocumentDto {
   file_path?: string;
   client_id?: number;
   project_id?: number;
-} 
+}
 
-export default Document;
+export default function DocumentInterfaceExport() {
+  return null;
+}

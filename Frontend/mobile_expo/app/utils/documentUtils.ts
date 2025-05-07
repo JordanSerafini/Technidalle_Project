@@ -42,3 +42,8 @@ export const formatMonthYear = (monthYear: string) => {
   ];
   return `${monthNames[parseInt(month) - 1]} ${year}`;
 };
+
+// Ajouter un export par défaut pour résoudre l'erreur d'Expo Router
+export default function DocumentUtilsExport() {
+  return null;
+}

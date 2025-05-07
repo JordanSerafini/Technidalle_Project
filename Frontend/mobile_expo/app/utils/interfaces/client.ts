@@ -35,4 +35,9 @@ export interface UpdateClientDto {
   address_id?: number;
   siret?: string;
   notes?: string;
+}
+
+// Ajouter un export par défaut pour résoudre l'erreur d'Expo Router
+export default function ClientInterfaceExport() {
+  return null;
 } 
