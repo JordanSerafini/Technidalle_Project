@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
 import mailFunctions from '../../utils/functions/mails.function';
+import { useMailsStore } from '../../store/mailsStore';
 
 // Destructuring des fonctions depuis l'objet importé
 const { 
@@ -10,7 +11,8 @@ const {
   fetchDraftResponse, 
   fetchRewrittenResponse,
   sendEmailResponse,
-  sendAutoResponse
+  sendAutoResponse,
+  getDataMode
 } = mailFunctions;
 
 interface MailSenderProps {
@@ -38,20 +40,48 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
   const [showGeneralOverview, setShowGeneralOverview] = useState(true);
   const [showDailySummary, setShowDailySummary] = useState(false);
   const [fastMode, setFastMode] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(false);
+
+  // Récupérer les emails du store
+  const { actionRequiredEmails, isLoading } = useMailsStore();
 
   useEffect(() => {
     if (selectedEmailId) {
       setSelectedEmail(selectedEmailId);
       generateDraft(selectedEmailId);
     } else {
-      loadEmailsRequiringResponse();
+      // Initialiser la liste d'emails depuis le store sans faire de fetch
+      const store = useMailsStore.getState();
+      if (store.actionRequiredEmails.length > 0) {
+        console.log('[STORE] Utilisation initiale des emails en cache dans MailSender');
+        setEmailsList(store.actionRequiredEmails);
+      }
+      // Ne pas appeler loadEmailsRequiringResponse() ici pour éviter le fetch automatique
     }
   }, [selectedEmailId]);
 
+  // Effet pour utiliser les emails du store
+  useEffect(() => {
+    if (actionRequiredEmails.length > 0) {
+      setEmailsList(actionRequiredEmails);
+    }
+  }, [actionRequiredEmails]);
+
   const loadEmailsRequiringResponse = async () => {
     try {
+      // Vérifier d'abord si les emails sont déjà dans le store
+      const store = useMailsStore.getState();
+      
+      // Ne charger que si le store est vide OU si forceRefresh est activé
+      if (store.actionRequiredEmails.length > 0 && !forceRefresh) {
+        console.log('[STORE] Utilisation des emails déjà en cache dans MailSender');
+        setEmailsList(store.actionRequiredEmails);
+        return;
+      }
+      
+      console.log('[API] Chargement des emails depuis l\'API - forceRefresh:', forceRefresh);
       setLoading(true);
-      const emails = await fetchEmailsRequiringResponse(fastMode);
+      const emails = await fetchEmailsRequiringResponse(fastMode, forceRefresh);
       setEmailsList(emails);
       // Réinitialiser tous les emails ouverts
       setExpandedEmails({});
@@ -64,8 +94,67 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
 
   const generateDraft = async (emailId: string) => {
     try {
+      // Vérifier d'abord dans le store si un brouillon existe déjà
+      const store = useMailsStore.getState();
+      const cachedDraft = store.getDraftResponse(emailId, responseLength);
+      
+      if (cachedDraft && !store.shouldRefetchDraft(emailId, responseLength)) {
+        console.log('[STORE] Utilisation du brouillon en cache');
+        setEmailData(cachedDraft.originalEmail);
+        setResponse(cachedDraft.draftResponse);
+        setActiveView('compose');
+        return;
+      }
+      
+      // Important: activer uniquement le loading local, pas celui du store
       setLoading(true);
-      const result = await fetchDraftResponse(emailId, responseLength);
+      
+      // Créer un objet temporaire pour récupérer la réponse sans utiliser setIsLoading du store
+      const useMockData = getDataMode();
+      let result;
+      
+      if (useMockData) {
+        // Utiliser la méthode mockée directement ici pour éviter l'appel au store global
+        console.log(`[MOCK] Génération directe du brouillon (emailId: ${emailId})`);
+        
+        // Simuler un délai
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Trouver l'email original dans les données du store
+        const originalEmail = store.actionRequiredEmails.find(email => email.id === emailId) || null;
+        
+        if (!originalEmail) {
+          throw new Error(`Email avec l'ID ${emailId} non trouvé`);
+        }
+        
+        // Générer un brouillon de réponse
+        let draftResponse = '';
+        const fromName = originalEmail.from.match(/"([^"]+)"/) 
+          ? originalEmail.from.match(/"([^"]+)"/)![1] 
+          : originalEmail.from.split('<')[0].trim();
+          
+        switch (responseLength) {
+          case 'court':
+            draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message. J'ai bien pris note de votre demande.\n\nCordialement,\nJordan`;
+            break;
+          case 'détaillé':
+            draftResponse = `Bonjour ${fromName},\n\nJe vous remercie pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de tous les éléments que vous avez partagés. Après analyse, je souhaite vous informer que nous allons traiter cette demande avec la plus grande attention.\n\nÀ propos des points que vous avez soulevés:\n1. Nous avons bien compris votre préoccupation principale\n2. Les actions suggérées seront mises en œuvre prochainement\n3. Un suivi sera effectué dans les meilleurs délais\n\nN'hésitez pas à me contacter si vous avez besoin d'informations supplémentaires.\n\nCordialement,\nJordan Serafini`;
+            break;
+          default: // 'normal'
+            draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
+        }
+        
+        result = {
+          originalEmail,
+          draftResponse
+        };
+        
+        // Stocker dans le cache
+        store.setDraftResponse(emailId, result, responseLength);
+      } else {
+        // Si on n'est pas en mode mock, utiliser fetchDraftResponse mais sans mettre à jour isLoading
+        result = await fetchDraftResponse(emailId, responseLength);
+      }
       
       if (result.originalEmail) {
         setEmailData(result.originalEmail);
@@ -83,12 +172,29 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
     if (!instructions.trim() || !selectedEmail) return;
 
     try {
+      // Vérifier si une réponse réécrite existe déjà dans le cache
+      const store = useMailsStore.getState();
+      const cachedResponse = store.getRewrittenResponse(selectedEmail, response, instructions);
+      
+      if (cachedResponse) {
+        console.log('[STORE] Utilisation de la réponse réécrite depuis le cache');
+        setResponse(cachedResponse);
+        setInstructions('');
+        setEditMode(false);
+        return;
+      }
+      
       setLoading(true);
       const newResponse = await fetchRewrittenResponse(
         selectedEmail,
         response,
         instructions
       );
+      
+      // Stocker dans le cache
+      if (typeof newResponse === 'string') {
+        store.setRewrittenResponse(selectedEmail, response, instructions, newResponse);
+      }
       
       setResponse(newResponse);
       setInstructions('');
@@ -112,9 +218,16 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
       );
       
       if (success) {
+        // Mettre à jour le store directement au lieu de recharger les emails
+        const store = useMailsStore.getState();
+        const updatedEmails = store.actionRequiredEmails.filter(
+          email => email.id !== selectedEmail && email.imapUID !== selectedEmail
+        );
+        store.setActionRequiredEmails(updatedEmails);
+        
         resetForm();
-        loadEmailsRequiringResponse();
         setActiveView('list');
+        // Ne plus appeler loadEmailsRequiringResponse ici
       }
     } catch (err) {
       console.error('Erreur lors de l\'envoi:', err);
@@ -136,9 +249,16 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
       );
       
       if (success) {
+        // Mettre à jour le store directement au lieu de recharger les emails
+        const store = useMailsStore.getState();
+        const updatedEmails = store.actionRequiredEmails.filter(
+          email => email.id !== selectedEmail && email.imapUID !== selectedEmail
+        );
+        store.setActionRequiredEmails(updatedEmails);
+        
         resetForm();
-        loadEmailsRequiringResponse();
         setActiveView('list');
+        // Ne plus appeler loadEmailsRequiringResponse ici
       }
     } catch (err) {
       console.error('Erreur lors de la réponse automatique:', err);
@@ -293,6 +413,30 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
         </View>
         
         <View className="mb-4">
+          <Text className="text-sm font-medium text-gray-700 mb-2">Forcer le rafraîchissement</Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => setForceRefresh(!forceRefresh)}
+              className={`w-12 h-6 rounded-full ${forceRefresh ? 'bg-blue-500' : 'bg-gray-300'} flex-row items-center px-1`}
+            >
+              <View className={`w-4 h-4 rounded-full bg-white ${forceRefresh ? 'ml-auto' : ''}`} />
+            </TouchableOpacity>
+            <Text className="ml-2 text-sm text-gray-600">
+              {forceRefresh ? 'Activé (ignore le cache)' : 'Désactivé (utilise le cache)'}
+            </Text>
+            <TouchableOpacity 
+              className="ml-2"
+              onPress={() => Alert.alert(
+                "Forcer le rafraîchissement", 
+                "Si activé, les emails seront toujours rechargés depuis l'API. Sinon, les données en cache seront utilisées si disponibles."
+              )}
+            >
+              <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View className="mb-4">
           <Text className="text-sm font-medium text-gray-700 mb-2">Longueur des réponses</Text>
           <View className="flex-row justify-between">
             <TouchableOpacity
@@ -331,8 +475,16 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
             setShowSearchOptions(false);
           }}
         >
-          <Text className="text-white font-medium">Rechercher les emails</Text>
+          <Text className="text-white font-medium">
+            {isLoading ? "Chargement..." : forceRefresh ? "Recharger les emails" : "Rechercher les emails"}
+          </Text>
         </TouchableOpacity>
+        
+        {actionRequiredEmails.length > 0 && !forceRefresh && (
+          <Text className="text-center text-xs text-gray-500 mt-2">
+            {actionRequiredEmails.length} emails déjà en cache. Activez "Forcer le rafraîchissement" pour recharger.
+          </Text>
+        )}
       </View>
     );
   };

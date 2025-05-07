@@ -1,6 +1,8 @@
-export const dailyMailsMock ={
+export const dailyMailsMock =
+
+{
 	"status": "success",
-	"message": "Résumé généré pour 14/14 emails (limite: aucune)",
+	"message": "Résumé généré pour 15/15 emails (limite: aucune)",
 	"data": [
 		{
 			"id": "3",
@@ -12,17 +14,17 @@ export const dailyMailsMock ={
 			"date": "2025-05-07T06:36:11.000Z",
 			"body": "========================================\nRestaurer l’application\nhttps://developers.facebook.com/appeal/4048481272037371/\n\n========================================\n\nBonjour Jordan,\n\nEmail_Chatbot a été supprimé de Facebook for Developers\n\nUn admin de l’application peut restaurer Email_Chatbot en cliquant sur Restaurer l’application.\n\nMerci,\nL’équipe Facebook\n\n\n\n========================================\nCe message a été envoyé à jordanserafini.74@gmail.com sur votre demande.\nMeta Platforms, Inc., Attention: Community Support, 1 Meta Way, Menlo Park, CA 94025\n\n",
 			"analysis": {
-				"summary": "L'application Email_Chatbot a été supprimée de Facebook for Developers et peut être restaurée par un admin de l'application en cliquant sur le lien fourni.",
+				"summary": "L'application Email_Chatbot a été supprimée de Facebook for Developers et peut être restaurée par un administrateur.",
 				"priority": "medium",
 				"category": "professionnel",
 				"actionRequired": true,
 				"actionItems": [
-					"Demander à un admin de l'application de restaurer Email_Chatbot en utilisant le lien fourni."
+					"Cliquer sur le lien Restaurer l’application pour restaurer Email_Chatbot."
 				],
 				"tokensUsed": {
 					"input": 307,
-					"output": 97,
-					"total": 404
+					"output": 81,
+					"total": 388
 				}
 			}
 		},
@@ -38,7 +40,7 @@ export const dailyMailsMock ={
 			"analysis": {
 				"summary": "Votre compte business est restreint, vous ne pouvez plus promouvoir ni vendre de produits via votre compte SolutionLogique.",
 				"priority": "high",
-				"category": "sécurité",
+				"category": "marketing",
 				"actionRequired": true,
 				"actionItems": [
 					"Vérifier les raisons de la restriction du compte",
@@ -46,8 +48,8 @@ export const dailyMailsMock ={
 				],
 				"tokensUsed": {
 					"input": 605,
-					"output": 99,
-					"total": 704
+					"output": 96,
+					"total": 701
 				}
 			}
 		},
@@ -61,18 +63,18 @@ export const dailyMailsMock ={
 			"body": "Il se peut que vous ne puissiez plus promouvoir ni vendre de produits depuis\nvotre compte business.  ‌\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/280475574_1857876887745445_6470974999292770004_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=szrk-8otLqcQ7kNvwH9Sw0R&_nc_oc=Adma0DWaQbk5KyR3GcdJQuR2SID2HfH0-sEuAHiRNBMTdGMfRsoKQyY6ku0Z6OgF0IY&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfKzJXkBrzd2Vo5XurwANGFwYduE19YuSfsphKzIAe1NDA&oe=68355097]\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/326176500_708098454042810_6679550825613370363_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=uPKN8fNs4OMQ7kNvwFOq7W1&_nc_oc=AdkZHcbDjLX_8Bj8oUJdZseD-liCpjhWNLtxaIuZYdzw6v5dCfsrc7cZ-ObhqswoTQ8&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfJw00ArZuuIC_lGrFNzJ55jR2Sax4a7euiMTplKFkf2HQ&oe=68353883]\n\nBonjour Jordan,\n\nAprès examen de votre compte business SolutionLogique, nous avons déterminé\nqu’il ne respectait pas nos conditions générales, y compris nos critères\nd’éligibilité commerciale\n[https://www.facebook.com/n/?aymt%2Foffsite%2F&c=9576961342399293&t=9834680216622131&p=link_0&n=1746600249817459&m=ARyH_fYU7cOwxdHYhoY&b=aHR0cHM6Ly93d3cuZmFjZWJvb2suY29tL2J1c2luZXNzL2hlbHAvMjM0NzAwMjY2MjI2NzUzNw%3D%3D&aref=1746600249817459&medium=email&mid=63485c5de76a1G3800c972a0c5G634860f747973G7e47&n_m=jordanserafini.74%40gmail.com&n_sg=Q6bPBAH2Rnz75ly7bpY1goDP9DuU6mP-g_PbudbbEsAkm7HNWQ&rms=v2&irms=1].\nIl se peut donc que vous ne puissiez plus promouvoir vos produits depuis votre\ncompte business et que vous ne puissiez plus vendre vos produits depuis vos\ncomptes marchands pendant 30 jours à compter du 2025-05-06. Si vos comptes\nmarchands font l’objet de restrictions, vos boutiques seront désactivées.\n\nSi vous pensez que votre compte business ne devrait pas faire l’objet de\nrestrictions, vous pouvez demander un examen dans l’Accueil assistance business.\n\nAccéder à l’Accueil assistance business\n[https://www.facebook.com/n/?aymt%2Foffsite%2F&c=9576961342399293&t=9834680216622131&p=commerce_banhammer_email&n=1746600249817459&m=ARx3rasrHtVajTYxDcY&b=aHR0cHM6Ly9mYWNlYm9vay5jb20vYnVzaW5lc3Mtc3VwcG9ydC1ob21lLzY1OTIzMzE5MzU0NDg1Ni8%2Fc291cmNlPWNvbW1lcmNlX2JhbmhhbW1lcl9lbWFpbA%3D%3D&aref=1746600249817459&medium=email&mid=63485c5de76a1G3800c972a0c5G634860f747973G7e47&n_m=jordanserafini.74%40gmail.com&n_sg=Q6bPBAH2Rnz75ly7bpY1goDP9DuU6mP-g_PbudbbEsAkm7HNWQ&rms=v2&irms=1]\n\n\n\nCe message a été envoyé à jordanserafini.74@gmail.com. Si vous ne voulez plus\nrecevoir ces e-mails de Meta à l’avenir, veuillez vous désabonner ici\n[https://facebook.com/aymt/unsubscribe/?c=9576961342399293&n=1746600249817459&t=9834680216622131].\n\n\n\n© 2025 Meta. Meta Platforms Ireland Limited, Merrion Road, Dublin 4, D04 X2K5,\nIreland\n\n[https://facebook.com/aymt/aa/?e=%7B%22c%22%3A%22hhcvohcecgidez%22%2C%22t%22%3A%22hhdu-vdi55ww-_%22%2C%22n%22%3A%22vmpwv5pjdvk1_%22%7D]",
 			"imapUID": "3875",
 			"analysis": {
-				"summary": "Alerte concernant la limitation des activités de promotion et de vente depuis le compte business sur Facebook.",
+				"summary": "Alerte concernant la suspension de la promotion et de la vente de produits depuis le compte business.",
 				"priority": "high",
-				"category": "marketing",
+				"category": "professionnel",
 				"actionRequired": true,
 				"actionItems": [
-					"Vérifier les raisons de la limitation des activités",
+					"Vérifier les raisons de la suspension",
 					"Prendre contact avec le support de Facebook pour résoudre le problème"
 				],
 				"tokensUsed": {
 					"input": 603,
-					"output": 86,
-					"total": 689
+					"output": 83,
+					"total": 686
 				}
 			}
 		},
@@ -86,18 +88,18 @@ export const dailyMailsMock ={
 			"date": "2025-05-07T06:45:14.000Z",
 			"body": "SolutionLogique est restreint. Découvrez comment y remédier.  ‌\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/280475574_1857876887745445_6470974999292770004_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=szrk-8otLqcQ7kNvwH9Sw0R&_nc_oc=Adma0DWaQbk5KyR3GcdJQuR2SID2HfH0-sEuAHiRNBMTdGMfRsoKQyY6ku0Z6OgF0IY&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfKzJXkBrzd2Vo5XurwANGFwYduE19YuSfsphKzIAe1NDA&oe=68355097]\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/326176500_708098454042810_6679550825613370363_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=uPKN8fNs4OMQ7kNvwFOq7W1&_nc_oc=AdkZHcbDjLX_8Bj8oUJdZseD-liCpjhWNLtxaIuZYdzw6v5dCfsrc7cZ-ObhqswoTQ8&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfJw00ArZuuIC_lGrFNzJ55jR2Sax4a7euiMTplKFkf2HQ&oe=68353883]\n\nNous avons restreint votre entreprise\nSolutionLogique\nID de l’entreprise 659233193544856\n\n\nCE QUE CELA SIGNIFIE\n\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/stop_filled_24_negative.png]\nImpossible de créer ou de diffuser des publicités\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/stop_filled_24_negative.png]\nImpossible d’utiliser ou de partager des audiences\n\nPourquoi cela est arrivé\n\nCe compte semble avoir été créé ou utilisé à l’aide d’une automatisation qui ne\nrespecte pas nos règles.Cela enfreint nos Standards publicitaires en matière\nd’intégrité des comptes.\n\nRésoudre le problème\n[https://www.facebook.com/n/?aymt%2Foffsite%2F&c=9576961342399293&t=9931181383605234&p=FIX_ISSUE&n=1746600313419972&m=ARyxJC2izWJhSDC8hUY&b=aHR0cHM6Ly93d3cuZmFjZWJvb2suY29tL2J1c2luZXNzLXN1cHBvcnQtaG9tZS82NTkyMzMxOTM1NDQ4NTYvP3NvdXJjZT1hY3Rvcl9lbmZvcmNlbWVudF9lbWFpbA%3D%3D&aref=1746600313419972&medium=email&mid=63485c9a8f5f2G3800c972a0c5G63486133ef8c4G45b7&n_m=jordanserafini.74%40gmail.com&n_sg=Q6bPBAGotq-yMCN0hkMKB-Noi3zL8XZy-rXzrP8sGrjtgJDrkw&rms=v2&irms=1]\n\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/viewfinder-magnifying-glass_outline_16_primary-icon.png]\nNos solutions techniques ont conclu que votre entreprise ne respecte pas nos\nRègles publicitaires. Des mesures ont donc été prises.\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/gavel_outline_16_primary-icon.png]\nVous avez peut-être le droit de contester notre décision auprès d’un tribunal de\nvotre pays. Vous pouvez peut-être soumettre notre décision à un organisme agréé\nde règlement des litiges.\n\nMerci,L’équipe Meta Business\n\nCe message a été envoyé à jordanserafini.74@gmail.com. Si vous ne voulez plus\nrecevoir ces e-mails de Meta à l’avenir, veuillez vous désabonner ici\n[https://facebook.com/aymt/unsubscribe/?c=9576961342399293&n=1746600313419972&t=9931181383605234].\n\n\n\n© 2025 Meta. Meta Platforms Ireland Limited, Merrion Road, Dublin 4, D04 X2K5,\nIreland\n\n[https://facebook.com/aymt/aa/?e=%7B%22c%22%3A%22hhcvohcecgidez%22%2C%22t%22%3A%22amywkby5yrg2kr%22%2C%22n%22%3A%22toy6tc6%3Dz%3Dyt9%22%7D]",
 			"analysis": {
-				"summary": "Votre compte business SolutionLogique a été restreint, des mesures doivent être prises pour le rétablir.",
+				"summary": "Le compte business SolutionLogique a été restreint, des mesures doivent être prises pour remédier à la situation.",
 				"priority": "high",
 				"category": "sécurité",
 				"actionRequired": true,
 				"actionItems": [
-					"Vérifier les raisons de la restriction",
-					"Suivre les instructions pour remédier à la restriction"
+					"Vérifier les raisons de la restriction du compte",
+					"Suivre les instructions pour remédier à la situation"
 				],
 				"tokensUsed": {
 					"input": 618,
-					"output": 86,
-					"total": 704
+					"output": 90,
+					"total": 708
 				}
 			}
 		},
@@ -111,18 +113,19 @@ export const dailyMailsMock ={
 			"body": " Nouvel appareil ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌  Nouvel appareil Félicitations !\n\nVous avez associé l'appareil suivant à votre compte Dashlane :\n\nChrome - Windows\n\nCet ajout a été effectué avec l'adresse IP 185.81.55.218 (FR)\n\nSi vous n'avez pas ajouté cet appareil, consultez notre aide en ligne [https://support.dashlane.com/hc/articles/202699071-How-to-manage-my-authorized-devices?utm_source=email&utm_campaign=newdevice&utm_medium=name&].\n\n[https://www.facebook.com/GetDashlane] [https://x.com/dashlane] [https://www.youtube.com/user/Dashlane] [https://www.instagram.com/dashlane] [https://www.reddit.com/r/Dashlane/] Dashlane.com [https://www.dashlane.com/?utm_source=email&utm_medium=sendgrid&utm_term=fr]\nAide en ligne [https://support.dashlane.com/hc/fr?utm_source=email&utm_medium=sendgrid&utm_term=fr]\nConfidentialité [https://www.dashlane.com/privacy?utm_source=email&utm_medium=sendgrid&utm_term=fr]\nConditions d'utilisation [https://www.dashlane.com/terms?utm_source=email&utm_medium=sendgrid&utm_term=fr] [https://app.adjust.com/8n9sd4] [https://app.adjust.com/jq0xdf] Dashlane, Inc, 44 West 18th St, 4th Floor, New York, NY 10011 USA\nCopyright © Dashlane Inc. ",
 			"imapUID": "3877",
 			"analysis": {
-				"summary": "Un nouvel appareil a été ajouté à votre compte Dashlane. Vérifiez si vous ne l'avez pas autorisé.",
+				"summary": "Un nouvel appareil a été ajouté à votre compte Dashlane depuis l'adresse IP 185.81.55.218 en France.",
 				"priority": "high",
 				"category": "sécurité",
 				"actionRequired": true,
 				"actionItems": [
-					"Vérifier l'ajout du nouvel appareil à votre compte Dashlane",
-					"Si non autorisé, suivre le lien pour gérer les appareils autorisés"
+					"Vérifier l'activité récente sur votre compte Dashlane",
+					"Modifier le mot de passe de votre compte Dashlane si nécessaire",
+					"Consulter l'aide en ligne pour gérer les appareils autorisés"
 				],
 				"tokensUsed": {
 					"input": 449,
-					"output": 108,
-					"total": 557
+					"output": 121,
+					"total": 570
 				}
 			}
 		},
@@ -142,12 +145,12 @@ export const dailyMailsMock ={
 				"actionRequired": true,
 				"actionItems": [
 					"Vérifier l'activité récente de votre compte Google",
-					"Sécuriser votre compte si cette connexion n'était pas autorisée"
+					"Si la connexion n'était pas autorisée, sécuriser immédiatement votre compte en suivant les instructions fournies par Google"
 				],
 				"tokensUsed": {
 					"input": 400,
-					"output": 89,
-					"total": 489
+					"output": 101,
+					"total": 501
 				}
 			}
 		},
@@ -186,12 +189,15 @@ export const dailyMailsMock ={
 				"summary": "Your API usage limits have been increased from Tier 1 to Tier 2 based on your usage history.",
 				"priority": "medium",
 				"category": "professionnel",
-				"actionRequired": false,
-				"actionItems": [],
+				"actionRequired": true,
+				"actionItems": [
+					"Review the new rate limits in your account settings",
+					"Refer to the documentation for a complete overview of how limits and usage tiers work"
+				],
 				"tokensUsed": {
 					"input": 361,
-					"output": 57,
-					"total": 418
+					"output": 89,
+					"total": 450
 				}
 			}
 		},
@@ -205,18 +211,18 @@ export const dailyMailsMock ={
 			"body": "Google\n\nValidez votre adresse e-mail de récupération\n\n\nGoogle a reçu une demande lui indiquant d'utiliser jordanserafini.74@gmail.com comme adresse e-mail de récupération du compte Google jordanserafini74370@gmail.com.\n\nUtilisez ce code pour terminer la configuration de l'adresse e-mail de récupération suivante :\n\n866979\n\nLe code expirera dans 24 heures.\n\nSi vous ne reconnaissez pas l'adresse e-mail jordanserafini74370@gmail.com, vous pouvez ignorer ce message.\n\n\nCet e-mail vous a été envoyé pour vous informer de modifications importantes apportées à votre compte et aux services Google que vous utilisez.\n\n© 2025 Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland\n\n\n\n",
 			"imapUID": "3881",
 			"analysis": {
-				"summary": "Code de validation de l'adresse e-mail pour le compte Google jordanserafini74370@gmail.com.",
+				"summary": "Code de validation de l'adresse e-mail pour compte Google.",
 				"priority": "high",
 				"category": "sécurité",
 				"actionRequired": true,
 				"actionItems": [
-					"Utiliser le code de validation 866979 pour configurer l'adresse e-mail de récupération.",
-					"Vérifier l'activité récente du compte Google pour détecter toute activité suspecte."
+					"Utiliser le code de validation pour configurer l'adresse e-mail de récupération.",
+					"Vérifier l'adresse e-mail de récupération associée au compte Google."
 				],
 				"tokensUsed": {
 					"input": 358,
-					"output": 106,
-					"total": 464
+					"output": 87,
+					"total": 445
 				}
 			}
 		},
@@ -248,25 +254,25 @@ export const dailyMailsMock ={
 		{
 			"id": "13",
 			"folderPath": "INBOX",
+			"imapUID": "3883",
 			"from": "\"Google\" <no-reply@accounts.google.com>",
 			"to": "jordanserafini.74@gmail.com",
 			"subject": "Alerte de sécurité pour jordanserafini74370@gmail.com",
 			"date": "2025-05-07T07:23:25.000Z",
 			"body": "Ceci est une copie d'une alerte de sécurité envoyée à\njordanserafini74370@gmail.com. jordanserafini.74@gmail.com est l'adresse\ne-mail de récupération de ce compte. Si vous ne reconnaissez pas ce compte,\nsupprimez-la\n<https://accounts.google.com/AccountDisavow?adt=AOX8kiq_ILPDi_CbH5cdDuGcS9r2xVNV9HcwKB2g07PTZpKpExaCGxsX572E48i-fKjqcPVT_ho&rfn=269>\n.\n[image: Google]\nLe mot de passe d'appli utilisé pour vous connecter a été supprimé\n\n\njordanserafini74370@gmail.com\nSi vous n'avez pas supprimé ce mot de passe, quelqu'un utilise peut-être\nvotre compte. Vérifiez et sécurisez votre compte dès maintenant.\nConsulter l'activité\n<https://accounts.google.com/AccountChooser?Email=jordanserafini74370@gmail.com&continue=https://myaccount.google.com/alert/nt/1746602605015?rfn%3D269%26rfnc%3D1%26eid%3D-6999767187274078445%26et%3D1>\nVous pouvez aussi voir l'activité liée à la sécurité de votre compte ici :\nhttps://myaccount.google.com/notifications\nCet e-mail vous a été envoyé pour vous informer de modifications\nimportantes apportées à votre compte et aux services Google que vous\nutilisez.\n© 2025 Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland\n",
-			"imapUID": "3883",
 			"analysis": {
-				"summary": "Alerte de sécurité concernant le compte jordanserafini74370@gmail.com, avec suppression du mot de passe d'application et recommandation de vérifier l'activité du compte.",
+				"summary": "Alerte de sécurité : Mot de passe d'application supprimé pour jordanserafini74370@gmail.com",
 				"priority": "high",
 				"category": "sécurité",
 				"actionRequired": true,
 				"actionItems": [
-					"Vérifier l'activité du compte",
-					"Sécuriser le compte en mettant en place des mesures de sécurité supplémentaires"
+					"Vérifier l'activité récente du compte",
+					"Sécuriser le compte en réinitialisant le mot de passe"
 				],
 				"tokensUsed": {
 					"input": 468,
-					"output": 115,
-					"total": 583
+					"output": 98,
+					"total": 566
 				}
 			}
 		},
@@ -280,7 +286,7 @@ export const dailyMailsMock ={
 			"body": "Ceci est une copie d'une alerte de sécurité envoyée à\njordanserafini74370@gmail.com. jordanserafini.74@gmail.com est l'adresse\ne-mail de récupération de ce compte. Si vous ne reconnaissez pas ce compte,\nsupprimez-la\n<https://accounts.google.com/AccountDisavow?adt=AOX8kirjl4q5--XcZTKK1Spsm2StsRqGowMrI-Xit8d1Tzi4yV-IOZFZsfXzhva1A3MKHCpCJOo&rfn=20>\n.\n[image: Google]\nMot de passe d'appli créé pour vous connecter à votre compte\n\n\njordanserafini74370@gmail.com\nSi vous n'avez pas généré ce mot de passe pour Email_SLI, quelqu'un utilise\npeut-être votre compte. Vérifiez et sécurisez votre compte dès maintenant.\nConsulter l'activité\n<https://accounts.google.com/AccountChooser?Email=jordanserafini74370@gmail.com&continue=https://myaccount.google.com/alert/nt/1746602613754?rfn%3D20%26rfnc%3D1%26eid%3D8058533628994123564%26et%3D1>\nVous pouvez aussi voir l'activité liée à la sécurité de votre compte ici :\nhttps://myaccount.google.com/notifications\nCet e-mail vous a été envoyé pour vous informer de modifications\nimportantes apportées à votre compte et aux services Google que vous\nutilisez.\n© 2025 Google Ireland Ltd., Gordon House, Barrow Street, Dublin 4, Ireland\n",
 			"imapUID": "3884",
 			"analysis": {
-				"summary": "Alerte de sécurité concernant le compte jordanserafini74370@gmail.com, avec un avertissement concernant la création d'un mot de passe d'application.",
+				"summary": "Alerte de sécurité concernant un mot de passe d'application généré pour jordanserafini74370@gmail.com.",
 				"priority": "high",
 				"category": "sécurité",
 				"actionRequired": true,
@@ -291,8 +297,8 @@ export const dailyMailsMock ={
 				],
 				"tokensUsed": {
 					"input": 467,
-					"output": 117,
-					"total": 584
+					"output": 106,
+					"total": 573
 				}
 			}
 		},
@@ -309,12 +315,36 @@ export const dailyMailsMock ={
 				"summary": "Email de test sans contenu important",
 				"priority": "low",
 				"category": "autre",
-				"actionRequired": true,
+				"actionRequired": false,
 				"actionItems": [],
 				"tokensUsed": {
 					"input": 185,
 					"output": 43,
 					"total": 228
+				}
+			}
+		},
+		{
+			"id": "16",
+			"folderPath": "INBOX",
+			"imapUID": "3886",
+			"from": "jordanserafini.74@gmail.com",
+			"to": "jordanserafini.74@gmail.com",
+			"subject": "Re: test reponse api",
+			"date": "2025-05-07T12:57:45.000Z",
+			"body": "Merci pour votre email. Pourriez-vous fournir plus de détails concernant le test de réponse à l'API que vous souhaitez effectuer ? Avez-vous des spécifications ou des attentes particulières à partager ? Je reste à votre disposition pour toute information complémentaire.\n",
+			"analysis": {
+				"summary": "Demande de détails sur le test de réponse à l'API",
+				"priority": "medium",
+				"category": "professionnel",
+				"actionRequired": true,
+				"actionItems": [
+					"Fournir des spécifications ou attentes particulières concernant le test de réponse à l'API"
+				],
+				"tokensUsed": {
+					"input": 236,
+					"output": 74,
+					"total": 310
 				}
 			}
 		},
@@ -342,14 +372,14 @@ export const dailyMailsMock ={
 		}
 	],
 	"summary": {
-		"overview": "Bonjour, voici votre résumé d'emails du 07/05/2025.\n\nJ'ai analysé un total de 14 emails. Parmi eux, 9 sont prioritaires et 8 requièrent une action de votre part.\n\nLes emails les plus importants concernent la sécurité de vos comptes Google et Facebook, ainsi que des alertes sur des restrictions et des activités inhabituelles.\n\nPour résumer, voici les actions recommandées :\n1. Vérifiez les raisons des restrictions sur votre compte business SolutionLogique sur Facebook et prenez contact avec le support pour résoudre le problème.\n2. Contrôlez l'ajout du nouvel appareil à votre compte Dashlane et gérez les autorisations si nécessaire.\n3. Utilisez le code de validation pour configurer l'adresse e-mail de récupération de votre compte Google et vérifiez toute activité suspecte.\n4. Vérifiez l'activité du compte jordanserafini74370@gmail.com suite aux alertes de sécurité de Google et prenez les mesures nécessaires pour sécuriser le compte.\n\nD'autres informations notables incluent des mises à jour sur des comptes professionnels comme OpenAI, des alertes de sécurité de Google, et des actualités technologiques de sources externes.\n\nN'hésitez pas à me faire savoir si vous avez besoin de plus de détails sur un email en particulier.",
-		"totalEmails": 14,
+		"overview": "Bonjour, voici votre résumé d'emails du 07/05/2025 !\n\nJ'ai analysé un total de 15 emails. Parmi eux, 10 sont considérés comme prioritaires et 12 nécessitent une action de votre part.\n\nPour les emails importants :\n- Vous avez reçu plusieurs alertes de sécurité de la part de Google concernant des activités suspectes sur vos comptes.\n- Votre compte business sur Facebook a été restreint et nécessite une action immédiate.\n- Une nouvelle connexion à votre compte Dashlane depuis une adresse IP en France a été détectée, vous devriez vérifier cette activité.\n- Votre adresse email a été validée comme adresse de récupération pour un compte inconnu, assurez-vous de vérifier cette situation.\n- Votre application Email_Chatbot a été supprimée de Facebook for Developers, mais peut être restaurée par un administrateur.\n\nLes principales actions recommandées sont :\n1. Vérifier et sécuriser vos comptes Google et Facebook en cas d'activités suspectes.\n2. Examiner l'activité récente sur votre compte Dashlane et modifier le mot de passe si nécessaire.\n3. Vérifier les raisons des restrictions sur votre compte business Facebook et contacter le support pour résoudre le problème.\n4. Vérifier l'adresse email de récupération associée à votre compte Google et supprimer toute adresse non reconnue.\n5. Restaurer l'application Email_Chatbot sur Facebook for Developers si nécessaire.\n\nEn outre, vous avez reçu des informations professionnelles sur les activités d'IBM, Databricks et OpenAI, ainsi qu'une demande de détails sur un test de réponse à l'API.\n\nN'hésitez pas à me faire part de toute question ou assistance supplémentaire nécessaire !",
+		"totalEmails": 15,
 		"highPriorityCount": 9,
-		"actionRequiredCount": 10,
+		"actionRequiredCount": 12,
 		"categoryCounts": {
-			"professionnel": 3,
-			"sécurité": 8,
+			"professionnel": 5,
 			"marketing": 1,
+			"sécurité": 7,
 			"facture": 1,
 			"autre": 1
 		},
@@ -366,7 +396,7 @@ export const dailyMailsMock ={
 				"analysis": {
 					"summary": "Votre compte business est restreint, vous ne pouvez plus promouvoir ni vendre de produits via votre compte SolutionLogique.",
 					"priority": "high",
-					"category": "sécurité",
+					"category": "marketing",
 					"actionRequired": true,
 					"actionItems": [
 						"Vérifier les raisons de la restriction du compte",
@@ -374,8 +404,8 @@ export const dailyMailsMock ={
 					],
 					"tokensUsed": {
 						"input": 605,
-						"output": 99,
-						"total": 704
+						"output": 96,
+						"total": 701
 					}
 				}
 			},
@@ -389,18 +419,18 @@ export const dailyMailsMock ={
 				"body": "Il se peut que vous ne puissiez plus promouvoir ni vendre de produits depuis\nvotre compte business.  ‌\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/280475574_1857876887745445_6470974999292770004_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=szrk-8otLqcQ7kNvwH9Sw0R&_nc_oc=Adma0DWaQbk5KyR3GcdJQuR2SID2HfH0-sEuAHiRNBMTdGMfRsoKQyY6ku0Z6OgF0IY&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfKzJXkBrzd2Vo5XurwANGFwYduE19YuSfsphKzIAe1NDA&oe=68355097]\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/326176500_708098454042810_6679550825613370363_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=uPKN8fNs4OMQ7kNvwFOq7W1&_nc_oc=AdkZHcbDjLX_8Bj8oUJdZseD-liCpjhWNLtxaIuZYdzw6v5dCfsrc7cZ-ObhqswoTQ8&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfJw00ArZuuIC_lGrFNzJ55jR2Sax4a7euiMTplKFkf2HQ&oe=68353883]\n\nBonjour Jordan,\n\nAprès examen de votre compte business SolutionLogique, nous avons déterminé\nqu’il ne respectait pas nos conditions générales, y compris nos critères\nd’éligibilité commerciale\n[https://www.facebook.com/n/?aymt%2Foffsite%2F&c=9576961342399293&t=9834680216622131&p=link_0&n=1746600249817459&m=ARyH_fYU7cOwxdHYhoY&b=aHR0cHM6Ly93d3cuZmFjZWJvb2suY29tL2J1c2luZXNzL2hlbHAvMjM0NzAwMjY2MjI2NzUzNw%3D%3D&aref=1746600249817459&medium=email&mid=63485c5de76a1G3800c972a0c5G634860f747973G7e47&n_m=jordanserafini.74%40gmail.com&n_sg=Q6bPBAH2Rnz75ly7bpY1goDP9DuU6mP-g_PbudbbEsAkm7HNWQ&rms=v2&irms=1].\nIl se peut donc que vous ne puissiez plus promouvoir vos produits depuis votre\ncompte business et que vous ne puissiez plus vendre vos produits depuis vos\ncomptes marchands pendant 30 jours à compter du 2025-05-06. Si vos comptes\nmarchands font l’objet de restrictions, vos boutiques seront désactivées.\n\nSi vous pensez que votre compte business ne devrait pas faire l’objet de\nrestrictions, vous pouvez demander un examen dans l’Accueil assistance business.\n\nAccéder à l’Accueil assistance business\n[https://www.facebook.com/n/?aymt%2Foffsite%2F&c=9576961342399293&t=9834680216622131&p=commerce_banhammer_email&n=1746600249817459&m=ARx3rasrHtVajTYxDcY&b=aHR0cHM6Ly9mYWNlYm9vay5jb20vYnVzaW5lc3Mtc3VwcG9ydC1ob21lLzY1OTIzMzE5MzU0NDg1Ni8%2Fc291cmNlPWNvbW1lcmNlX2JhbmhhbW1lcl9lbWFpbA%3D%3D&aref=1746600249817459&medium=email&mid=63485c5de76a1G3800c972a0c5G634860f747973G7e47&n_m=jordanserafini.74%40gmail.com&n_sg=Q6bPBAH2Rnz75ly7bpY1goDP9DuU6mP-g_PbudbbEsAkm7HNWQ&rms=v2&irms=1]\n\n\n\nCe message a été envoyé à jordanserafini.74@gmail.com. Si vous ne voulez plus\nrecevoir ces e-mails de Meta à l’avenir, veuillez vous désabonner ici\n[https://facebook.com/aymt/unsubscribe/?c=9576961342399293&n=1746600249817459&t=9834680216622131].\n\n\n\n© 2025 Meta. Meta Platforms Ireland Limited, Merrion Road, Dublin 4, D04 X2K5,\nIreland\n\n[https://facebook.com/aymt/aa/?e=%7B%22c%22%3A%22hhcvohcecgidez%22%2C%22t%22%3A%22hhdu-vdi55ww-_%22%2C%22n%22%3A%22vmpwv5pjdvk1_%22%7D]",
 				"imapUID": "3875",
 				"analysis": {
-					"summary": "Alerte concernant la limitation des activités de promotion et de vente depuis le compte business sur Facebook.",
+					"summary": "Alerte concernant la suspension de la promotion et de la vente de produits depuis le compte business.",
 					"priority": "high",
-					"category": "marketing",
+					"category": "professionnel",
 					"actionRequired": true,
 					"actionItems": [
-						"Vérifier les raisons de la limitation des activités",
+						"Vérifier les raisons de la suspension",
 						"Prendre contact avec le support de Facebook pour résoudre le problème"
 					],
 					"tokensUsed": {
 						"input": 603,
-						"output": 86,
-						"total": 689
+						"output": 83,
+						"total": 686
 					}
 				}
 			},
@@ -414,39 +444,41 @@ export const dailyMailsMock ={
 				"date": "2025-05-07T06:45:14.000Z",
 				"body": "SolutionLogique est restreint. Découvrez comment y remédier.  ‌\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/280475574_1857876887745445_6470974999292770004_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=szrk-8otLqcQ7kNvwH9Sw0R&_nc_oc=Adma0DWaQbk5KyR3GcdJQuR2SID2HfH0-sEuAHiRNBMTdGMfRsoKQyY6ku0Z6OgF0IY&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfKzJXkBrzd2Vo5XurwANGFwYduE19YuSfsphKzIAe1NDA&oe=68355097]\n\nHeader\n[https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/326176500_708098454042810_6679550825613370363_n.png?_nc_cat=1&ccb=1-7&_nc_sid=e280be&_nc_ohc=uPKN8fNs4OMQ7kNvwFOq7W1&_nc_oc=AdkZHcbDjLX_8Bj8oUJdZseD-liCpjhWNLtxaIuZYdzw6v5dCfsrc7cZ-ObhqswoTQ8&_nc_ad=z-m&_nc_cid=0&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=ybx-vSpMtUIc_32byM7cUg&oh=00_AfJw00ArZuuIC_lGrFNzJ55jR2Sax4a7euiMTplKFkf2HQ&oe=68353883]\n\nNous avons restreint votre entreprise\nSolutionLogique\nID de l’entreprise 659233193544856\n\n\nCE QUE CELA SIGNIFIE\n\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/stop_filled_24_negative.png]\nImpossible de créer ou de diffuser des publicités\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/stop_filled_24_negative.png]\nImpossible d’utiliser ou de partager des audiences\n\nPourquoi cela est arrivé\n\nCe compte semble avoir été créé ou utilisé à l’aide d’une automatisation qui ne\nrespecte pas nos règles.Cela enfreint nos Standards publicitaires en matière\nd’intégrité des comptes.\n\nRésoudre le problème\n[https://www.facebook.com/n/?aymt%2Foffsite%2F&c=9576961342399293&t=9931181383605234&p=FIX_ISSUE&n=1746600313419972&m=ARyxJC2izWJhSDC8hUY&b=aHR0cHM6Ly93d3cuZmFjZWJvb2suY29tL2J1c2luZXNzLXN1cHBvcnQtaG9tZS82NTkyMzMxOTM1NDQ4NTYvP3NvdXJjZT1hY3Rvcl9lbmZvcmNlbWVudF9lbWFpbA%3D%3D&aref=1746600313419972&medium=email&mid=63485c9a8f5f2G3800c972a0c5G63486133ef8c4G45b7&n_m=jordanserafini.74%40gmail.com&n_sg=Q6bPBAGotq-yMCN0hkMKB-Noi3zL8XZy-rXzrP8sGrjtgJDrkw&rms=v2&irms=1]\n\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/viewfinder-magnifying-glass_outline_16_primary-icon.png]\nNos solutions techniques ont conclu que votre entreprise ne respecte pas nos\nRègles publicitaires. Des mesures ont donc été prises.\n[https://www.facebook.com/images/assets_DO_NOT_HARDCODE/facebook_icons/gavel_outline_16_primary-icon.png]\nVous avez peut-être le droit de contester notre décision auprès d’un tribunal de\nvotre pays. Vous pouvez peut-être soumettre notre décision à un organisme agréé\nde règlement des litiges.\n\nMerci,L’équipe Meta Business\n\nCe message a été envoyé à jordanserafini.74@gmail.com. Si vous ne voulez plus\nrecevoir ces e-mails de Meta à l’avenir, veuillez vous désabonner ici\n[https://facebook.com/aymt/unsubscribe/?c=9576961342399293&n=1746600313419972&t=9931181383605234].\n\n\n\n© 2025 Meta. Meta Platforms Ireland Limited, Merrion Road, Dublin 4, D04 X2K5,\nIreland\n\n[https://facebook.com/aymt/aa/?e=%7B%22c%22%3A%22hhcvohcecgidez%22%2C%22t%22%3A%22amywkby5yrg2kr%22%2C%22n%22%3A%22toy6tc6%3Dz%3Dyt9%22%7D]",
 				"analysis": {
-					"summary": "Votre compte business SolutionLogique a été restreint, des mesures doivent être prises pour le rétablir.",
+					"summary": "Le compte business SolutionLogique a été restreint, des mesures doivent être prises pour remédier à la situation.",
 					"priority": "high",
 					"category": "sécurité",
 					"actionRequired": true,
 					"actionItems": [
-						"Vérifier les raisons de la restriction",
-						"Suivre les instructions pour remédier à la restriction"
+						"Vérifier les raisons de la restriction du compte",
+						"Suivre les instructions pour remédier à la situation"
 					],
 					"tokensUsed": {
 						"input": 618,
-						"output": 86,
-						"total": 704
+						"output": 90,
+						"total": 708
 					}
 				}
 			}
 		],
 		"actionItems": [
-			"Nouvelle alerte de développeur pour Email_Chatbot: Demander à un admin de l'application de restaurer Email_Chatbot en utilisant le lien fourni.",
+			"Nouvelle alerte de développeur pour Email_Chatbot: Cliquer sur le lien Restaurer l’application pour restaurer Email_Chatbot.",
 			"Votre compte business est restreint.: Vérifier les raisons de la restriction du compte",
 			"Votre compte business est restreint.: Prendre contact avec le support de Facebook pour résoudre le problème",
-			"Alerte concernant votre compte business.: Vérifier les raisons de la limitation des activités",
+			"Alerte concernant votre compte business.: Vérifier les raisons de la suspension",
 			"Alerte concernant votre compte business.: Prendre contact avec le support de Facebook pour résoudre le problème"
 		],
 		"tokensUsed": {
-			"input": 1867,
-			"output": 299,
-			"total": 2166
+			"input": 1944,
+			"output": 386,
+			"total": 2330
 		}
 	},
 	"performanceMetrics": {
-		"totalDuration": 18407,
-		"emailFetchDuration": 12602,
-		"analysisDuration": 1953,
-		"summaryDuration": 3850
+		"totalDuration": 29361,
+		"emailFetchDuration": 23057,
+		"analysisDuration": 2270,
+		"summaryDuration": 4034
 	}
 }
+// Ajout d'un export default pour éviter l'avertissement
+export default dailyMailsMock;

@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
 import mailFunctions from '../../utils/functions/mails.function';
+// Import du store
+import { useMailsStore } from '../../store/mailsStore';
 
 // Destructuring des fonctions depuis l'objet importé
 const { 
@@ -21,6 +23,9 @@ interface EmailResponderProps {
 }
 
 export default function EmailResponder({ onClose, selectedEmailId }: EmailResponderProps) {
+  // Utilisation du store pour le chargement
+  const { isLoading, actionRequiredEmails } = useMailsStore();
+  
   const [loading, setLoading] = useState(false);
   const [emailData, setEmailData] = useState<EmailData | null>(null);
   const [emailsList, setEmailsList] = useState<EmailData[]>([]);
@@ -37,7 +42,16 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
   const [hasSearched, setHasSearched] = useState(false);
   const [showSearchOptions, setShowSearchOptions] = useState(true);
   const [useMockData, setUseMockData] = useState(getDataMode()); // Nouvel état pour le mode de données
+  const [forceRefresh, setForceRefresh] = useState(false); // Nouvel état pour forcer le rafraîchissement
   const initialRenderDone = useRef(false);
+
+  // Effet pour suivre les emails depuis le store
+  useEffect(() => {
+    if (actionRequiredEmails.length > 0) {
+      setEmailsList(actionRequiredEmails);
+      setHasSearched(true);
+    }
+  }, [actionRequiredEmails]);
 
   // Fonction pour basculer entre les modes de données (mock/API)
   const toggleDataMode = useCallback(() => {
@@ -45,6 +59,11 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     setUseMockData(newMode);
     setDataMode(newMode);
   }, [useMockData]);
+
+  // Fonction pour basculer le forceRefresh
+  const toggleForceRefresh = useCallback(() => {
+    setForceRefresh(prev => !prev);
+  }, []);
 
   const processSelectedEmail = useCallback((emailId: string) => {
     if (emailId) {
@@ -68,31 +87,61 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
 
   const loadEmailsRequiringResponse = async () => {
     try {
-      setLoading(true);
-      const emails = await fetchEmailsRequiringResponse(fastMode);
-      setEmailsList(emails);
+      // Récupérer le store
+      const store = useMailsStore.getState();
+      
+      // Vérifier si des emails sont déjà dans le store
+      if (store.actionRequiredEmails.length > 0 && !forceRefresh) {
+        console.log('[STORE] Utilisation des emails déjà en cache');
+        setEmailsList(store.actionRequiredEmails);
+        setHasSearched(true);
+        return;
+      }
+      
+      // Si on arrive ici, c'est qu'on doit charger les emails (première fois ou forceRefresh)
+      // Plus besoin de gérer le loading manuellement, le store le fait
+      const emails = await fetchEmailsRequiringResponse(fastMode, forceRefresh);
+      
+      // Si le store ne met pas à jour automatiquement
+      if (!emails || emails.length === 0) {
+        setEmailsList([]);
+      }
+      
       setHasSearched(true);
     } catch (err) {
       console.error('Erreur lors du chargement des emails:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const generateDraft = async (emailId: string) => {
     try {
-      setLoading(true);
-      const result = await fetchDraftResponse(emailId, responseLength);
+      // Vérifier d'abord si un brouillon existe déjà dans le cache
+      const store = useMailsStore.getState();
+      const cachedDraft = store.getDraftResponse(emailId, responseLength);
+      
+      if (cachedDraft && !forceRefresh) {
+        console.log('[STORE] Utilisation du brouillon depuis le cache');
+        setEmailData(cachedDraft.originalEmail);
+        setResponse(cachedDraft.draftResponse);
+        setActiveView('compose');
+        return; // Important: sortir de la fonction pour éviter le fetch
+      }
+      
+      console.log(`[API] Génération d'un brouillon pour l'email ${emailId} - forceRefresh:`, forceRefresh);
+      
+      // Utiliser l'option forceRefresh si elle est activée
+      const result = await fetchDraftResponse(emailId, responseLength, forceRefresh);
       
       if (result.originalEmail) {
         setEmailData(result.originalEmail);
         setResponse(result.draftResponse);
         setActiveView('compose');
+        
+        // Stocker le résultat dans le cache
+        store.setDraftResponse(emailId, result, responseLength);
       }
     } catch (err) {
       console.error('Erreur lors de la génération du brouillon:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -100,12 +149,13 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     if (!instructions.trim() || !selectedEmail) return;
 
     try {
-      setLoading(true);
+      // Utiliser le forceRefresh
       const newResponse = await fetchRewrittenResponse(
         selectedEmail,
         response,
         instructions,
-        responseLength
+        responseLength,
+        forceRefresh
       );
       
       setResponse(newResponse);
@@ -113,8 +163,6 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       setEditMode(false);
     } catch (err) {
       console.error('Erreur lors de la reformulation:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -122,7 +170,7 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     if (!response.trim() || !selectedEmail) return;
 
     try {
-      setLoading(true);
+      // Le loading est géré par le store
       const success = await sendEmailResponse(
         selectedEmail,
         response,
@@ -130,13 +178,23 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       );
       
       if (success) {
+        // Après un envoi réussi, supprimer l'email du store local
+        const store = useMailsStore.getState();
+        const updatedEmails = store.actionRequiredEmails.filter(
+          email => email.id !== selectedEmail && email.imapUID !== selectedEmail
+        );
+        store.setActionRequiredEmails(updatedEmails);
+        
+        // Mise à jour de la liste locale sans appel API
+        setEmailsList(updatedEmails);
+        
         resetForm();
         setActiveView('list');
+        // Ne pas rafraîchir la liste après envoi - utiliser le store à la place
+        // loadEmailsRequiringResponse(); 
       }
     } catch (err) {
       console.error('Erreur lors de l\'envoi:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -144,7 +202,7 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     if (!selectedEmail) return;
 
     try {
-      setLoading(true);
+      // Le loading est géré par le store
       const success = await sendAutoResponse(
         selectedEmail,
         responseLength,
@@ -153,13 +211,23 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       );
       
       if (success) {
+        // Après un envoi réussi, supprimer l'email du store local
+        const store = useMailsStore.getState();
+        const updatedEmails = store.actionRequiredEmails.filter(
+          email => email.id !== selectedEmail && email.imapUID !== selectedEmail
+        );
+        store.setActionRequiredEmails(updatedEmails);
+        
+        // Mise à jour de la liste locale sans appel API
+        setEmailsList(updatedEmails);
+        
         resetForm();
         setActiveView('list');
+        // Ne pas rafraîchir la liste après envoi - utiliser le store à la place
+        // loadEmailsRequiringResponse();
       }
     } catch (err) {
       console.error('Erreur lors de la réponse automatique:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -256,36 +324,28 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
 
   const renderSearchOptions = () => {
     return (
-      <View className="mb-4">
-        <TouchableOpacity
-          className="flex-row justify-between items-center mb-2 p-2 bg-gray-50 rounded-lg"
-          onPress={() => setShowSearchOptions(!showSearchOptions)}
-        >
-          <Text className="text-lg font-medium text-gray-800">Options de recherche</Text>
-          <Ionicons 
-            name={showSearchOptions ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#4b5563" 
-          />
-        </TouchableOpacity>
-
+      <View className="mb-6 bg-white rounded-lg p-4 shadow-sm">
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-lg font-semibold text-gray-800">Options de recherche</Text>
+          
+          <TouchableOpacity 
+            className="p-2" 
+            onPress={() => setShowSearchOptions(!showSearchOptions)}
+          >
+            <Ionicons 
+              name={showSearchOptions ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color="#4b5563" 
+            />
+          </TouchableOpacity>
+        </View>
+        
         {showSearchOptions && (
-          <View className="p-3 bg-gray-50 rounded-lg">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-base text-gray-800">Mode rapide</Text>
-              <Switch
-                value={fastMode}
-                onValueChange={toggleFastMode}
-                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
-                thumbColor={fastMode ? '#3b82f6' : '#f3f4f6'}
-              />
-            </View>
-
-            <View className="flex-row justify-between items-center mb-4">
+          <>
+            <View className="flex-row justify-between items-center mb-3">
               <View className="flex-row items-center">
-                <Text className="text-base text-gray-800">Utiliser les données mockées</Text>
+                <Text className="text-gray-700 mr-2">Utiliser les données mockées</Text>
                 <TouchableOpacity 
-                  className="ml-2 p-1 rounded-full bg-gray-200"
                   onPress={() => Alert.alert(
                     "Mode de données",
                     "Choisissez entre les données mockées (mode hors ligne) ou l'API réelle (mode en ligne)."
@@ -297,14 +357,60 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
               <Switch
                 value={useMockData}
                 onValueChange={toggleDataMode}
-                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
-                thumbColor={useMockData ? '#3b82f6' : '#f3f4f6'}
+                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                thumbColor={useMockData ? "#3b82f6" : "#f4f4f5"}
+              />
+            </View>
+            
+            <View className="flex-row justify-between items-center mb-3">
+              <Text className="text-gray-700">Mode rapide</Text>
+              <Switch
+                value={fastMode}
+                onValueChange={toggleFastMode}
+                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
               />
             </View>
 
-            <Text className="text-base text-gray-800 mb-2">Longueur des réponses</Text>
+            <View className="flex-row justify-between items-center mb-3">
+              <View className="flex-row items-center">
+                <Text className="text-gray-700 mr-2">Forcer rafraîchissement</Text>
+                <TouchableOpacity 
+                  onPress={() => Alert.alert(
+                    "Forcer le rafraîchissement",
+                    "Si activé, les emails seront toujours rechargés depuis l'API. Sinon, les données en cache seront utilisées si disponibles."
+                  )}
+                >
+                  <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
+                </TouchableOpacity>
+              </View>
+              <Switch
+                value={forceRefresh}
+                onValueChange={toggleForceRefresh}
+                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                thumbColor={forceRefresh ? "#3b82f6" : "#f4f4f5"}
+              />
+            </View>
+            
+            <Text className="text-gray-700 mb-2">Longueur des réponses</Text>
             {renderResponseLengthSelector()}
-          </View>
+            
+            <TouchableOpacity
+              className="mt-2 bg-blue-500 rounded-lg p-3 w-full"
+              onPress={loadEmailsRequiringResponse}
+              disabled={isLoading}
+            >
+              <Text className="text-white text-center font-medium">
+                {isLoading ? "Chargement..." : forceRefresh ? "Recharger les emails" : "Rechercher les emails"}
+              </Text>
+            </TouchableOpacity>
+            
+            {actionRequiredEmails.length > 0 && !forceRefresh && (
+              <Text className="text-center text-xs text-gray-500 mt-2">
+                {actionRequiredEmails.length} emails déjà en cache. Activez "Forcer le rafraîchissement" pour recharger.
+              </Text>
+            )}
+          </>
         )}
       </View>
     );
@@ -313,45 +419,31 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
   const renderEmailList = () => {
     return (
       <View className="flex-1">
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-bold text-blue-800">Emails à traiter</Text>
-          {onClose && (
-            <TouchableOpacity onPress={onClose} className="p-2">
-              <Ionicons name="close" size={24} color="#3b82f6" />
-            </TouchableOpacity>
-          )}
-        </View>
-        
         {renderSearchOptions()}
-
-        <TouchableOpacity
-          className="mt-2 py-3 bg-blue-500 rounded-lg items-center"
-          onPress={loadEmailsRequiringResponse}
-          disabled={loading}
-        >
-          <Text className="text-white font-medium">
-            {loading ? 'Recherche...' : 'Rechercher des emails'}
-          </Text>
-        </TouchableOpacity>
-
-        {loading ? (
+        
+        {isLoading ? (
           <View className="flex-1 justify-center items-center">
             <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
-        ) : !hasSearched ? (
-          <View className="p-4 bg-blue-50 rounded-lg items-center">
-            <Text className="text-center text-blue-800">Utilisez le bouton "Rechercher des emails" pour charger les emails à traiter</Text>
+            <Text className="text-gray-600 mt-4">Chargement des emails...</Text>
           </View>
         ) : (
-          <ScrollView className="flex-1">
-            {emailsList.length === 0 ? (
-              <View className="p-4 bg-blue-50 rounded-lg items-center">
-                <Text className="text-center text-blue-800">Aucun email nécessitant une réponse</Text>
+          <>
+            {hasSearched && (
+              <View className="mb-4">
+                {emailsList.length > 0 ? (
+                  <Text className="text-gray-700 mb-2">
+                    {emailsList.length} {emailsList.length === 1 ? 'email nécessite' : 'emails nécessitent'} une réponse
+                  </Text>
+                ) : (
+                  <View className="p-4 bg-gray-100 rounded-lg">
+                    <Text className="text-gray-600 text-center">Aucun email nécessitant une réponse</Text>
+                  </View>
+                )}
               </View>
-            ) : (
-              emailsList.map(email => renderEmailItem(email))
             )}
-          </ScrollView>
+            
+            {emailsList.map(renderEmailItem)}
+          </>
         )}
       </View>
     );
@@ -360,166 +452,124 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
   const renderComposeView = () => {
     return (
       <View className="flex-1">
-        <View className="flex-row justify-between items-center mb-4">
-          <TouchableOpacity 
-            onPress={() => {
-              resetForm();
-              setActiveView('list');
-            }}
-            className="flex-row items-center"
-          >
-            <Ionicons name="arrow-back" size={20} color="#3b82f6" />
-            <Text className="ml-1 text-blue-600">Retour</Text>
-          </TouchableOpacity>
+        {emailData ? (
+          <View className="bg-white rounded-lg p-4 shadow-sm mb-4">
+            <Text className="text-lg font-semibold text-blue-800 mb-1">{emailData.subject}</Text>
+            <Text className="text-sm text-gray-600 mb-1">De: {emailData.from}</Text>
+            <Text className="text-sm text-gray-500 mb-2">{emailData.analysis?.summary}</Text>
+          </View>
+        ) : null}
+        
+        <View className="bg-white rounded-lg p-4 shadow-sm mb-4">
+          <TextInput
+            className="p-2 bg-gray-50 rounded-lg mb-4"
+            placeholder="Sujet (optionnel)"
+            value={subject}
+            onChangeText={setSubject}
+          />
           
-          {onClose && (
-            <TouchableOpacity onPress={onClose} className="p-2">
-              <Ionicons name="close" size={24} color="#3b82f6" />
+          <TextInput
+            className="p-3 bg-gray-50 rounded-lg mb-4 min-h-[150px]"
+            placeholder="Votre réponse..."
+            multiline
+            textAlignVertical="top"
+            value={response}
+            onChangeText={setResponse}
+            editable={!isLoading}
+          />
+          
+          {editMode ? (
+            <>
+              <TextInput
+                className="p-3 bg-gray-50 rounded-lg mb-4"
+                placeholder="Instructions pour reformuler (ex: plus formel, plus concis...)"
+                value={instructions}
+                onChangeText={setInstructions}
+                editable={!isLoading}
+              />
+              
+              <View className="flex-row justify-end mb-2">
+                <TouchableOpacity
+                  className="mr-3 p-2"
+                  onPress={() => setEditMode(false)}
+                  disabled={isLoading}
+                >
+                  <Text className="text-gray-600">Annuler</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  className="bg-blue-500 px-4 py-2 rounded-lg"
+                  onPress={rewriteResponse}
+                  disabled={isLoading || !instructions.trim()}
+                >
+                  <Text className="text-white">Reformuler</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <TouchableOpacity
+              className="flex-row items-center justify-center bg-gray-100 p-2 rounded-lg mb-4"
+              onPress={() => setEditMode(true)}
+              disabled={isLoading}
+            >
+              <Ionicons name="create-outline" size={18} color="#4b5563" />
+              <Text className="ml-2 text-gray-700">Reformuler cette réponse</Text>
             </TouchableOpacity>
           )}
+          
+          <View className="flex-row">
+            <TouchableOpacity
+              className="flex-1 mr-2 bg-green-500 p-3 rounded-lg flex-row justify-center items-center"
+              onPress={handleSendResponse}
+              disabled={isLoading || !response.trim()}
+            >
+              <Ionicons name="send" size={18} color="white" />
+              <Text className="text-white ml-2">Envoyer</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              className="flex-1 bg-blue-500 p-3 rounded-lg flex-row justify-center items-center"
+              onPress={handleAutoRespond}
+              disabled={isLoading}
+            >
+              <Ionicons name="flash" size={18} color="white" />
+              <Text className="text-white ml-2">Auto-répondre</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         
-        {loading ? (
-          <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
-        ) : !emailData ? (
-          <TouchableOpacity 
-            className="p-4 bg-blue-500 rounded-lg items-center"
-            onPress={() => selectedEmail && generateDraft(selectedEmail)}
-          >
-            <Text className="text-white font-semibold">Générer un brouillon</Text>
-          </TouchableOpacity>
-        ) : (
-          <ScrollView className="flex-1">
-            <View className="p-4 bg-blue-50 rounded-lg mb-4">
-              <Text className="text-lg font-semibold text-blue-800">{emailData.subject}</Text>
-              <Text className="text-sm text-gray-600 mb-2">De: {emailData.from}</Text>
-              <Text className="text-sm text-gray-700">{emailData.body}</Text>
-            </View>
-            
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1">Longueur de réponse</Text>
-              {renderResponseLengthSelector()}
-            </View>
-            
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1">Sujet (optionnel)</Text>
-              <TextInput
-                className="p-3 bg-white border border-gray-200 rounded-lg"
-                placeholder="Laissez vide pour utiliser Re: sujet original"
-                value={subject}
-                onChangeText={setSubject}
-              />
-            </View>
-            
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1">Réponse</Text>
-              <TextInput
-                className="p-3 bg-white border border-gray-200 rounded-lg"
-                multiline
-                numberOfLines={8}
-                textAlignVertical="top"
-                value={response}
-                onChangeText={setResponse}
-                style={{ minHeight: 150 }}
-              />
-            </View>
-            
-            {editMode ? (
-              <>
-                <View className="mb-4">
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Instructions pour reformuler</Text>
-                  <TextInput
-                    className="p-3 bg-white border border-gray-200 rounded-lg"
-                    placeholder="Ex: Plus formel, plus concis, ton amical..."
-                    value={instructions}
-                    onChangeText={setInstructions}
-                  />
-                </View>
-                
-                <View className="flex-row justify-between mb-4">
-                  <TouchableOpacity 
-                    className="py-3 px-4 bg-gray-200 rounded-lg"
-                    onPress={() => setEditMode(false)}
-                  >
-                    <Text className="text-gray-800">Annuler</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    className="py-3 px-4 bg-blue-500 rounded-lg"
-                    onPress={rewriteResponse}
-                    disabled={!instructions.trim() || loading}
-                  >
-                    <Text className="text-white font-semibold">
-                      {loading ? 'Reformulation...' : 'Reformuler'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <View className="flex-row justify-between mb-4">
-                <TouchableOpacity 
-                  className="py-3 px-4 bg-gray-200 rounded-lg"
-                  onPress={() => {
-                    selectedEmail && generateDraft(selectedEmail);
-                  }}
-                >
-                  <Text className="text-gray-800">Régénérer</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  className="py-3 px-4 bg-gray-200 rounded-lg"
-                  onPress={() => setEditMode(true)}
-                >
-                  <Text className="text-gray-800">Modifier</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  className="py-3 px-4 bg-green-500 rounded-lg"
-                  onPress={handleSendResponse}
-                  disabled={!response.trim() || loading}
-                >
-                  <Text className="text-white font-semibold">
-                    {loading ? 'Envoi...' : 'Envoyer'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1">ou réponse automatique</Text>
-              <TouchableOpacity 
-                className="py-3 px-4 bg-blue-500 rounded-lg w-full items-center"
-                onPress={handleAutoRespond}
-                disabled={loading}
-              >
-                <Text className="text-white font-semibold">
-                  {loading ? 'Traitement...' : 'Répondre automatiquement'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {emailData.analysis.performanceMetrics && (
-              <View className="p-3 bg-gray-50 rounded-lg mb-4">
-                <Text className="text-sm font-medium text-gray-700 mb-1">Métriques de performance</Text>
-                <Text className="text-xs text-gray-600">
-                  Temps de traitement: {Math.round(emailData.analysis.performanceMetrics.processingTimeMs) / 1000}s
-                </Text>
-                <Text className="text-xs text-gray-600">
-                  Latence totale: {Math.round(emailData.analysis.performanceMetrics.totalLatencyMs) / 1000}s
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-        )}
+        <TouchableOpacity
+          className="bg-gray-200 p-3 rounded-lg flex-row justify-center items-center"
+          onPress={() => {
+            resetForm();
+            setActiveView('list');
+          }}
+          disabled={isLoading}
+        >
+          <Ionicons name="arrow-back" size={18} color="#4b5563" />
+          <Text className="text-gray-700 ml-2">Retour à la liste</Text>
+        </TouchableOpacity>
       </View>
     );
   };
 
   return (
-    <View className="flex-1 bg-white border-t-2 border-blue-200 p-4">
-      {activeView === 'list' ? renderEmailList() : renderComposeView()}
+    <View className="flex-1 p-4 bg-gray-50">
+      <View className="flex-row justify-between items-center mb-6">
+        <Text className="text-2xl font-bold text-gray-800">
+          {activeView === 'list' ? 'Emails à traiter' : 'Composer une réponse'}
+        </Text>
+        
+        {onClose && (
+          <TouchableOpacity className="p-2" onPress={onClose}>
+            <Ionicons name="close" size={24} color="#4b5563" />
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {activeView === 'list' ? renderEmailList() : renderComposeView()}
+      </ScrollView>
     </View>
   );
 } 

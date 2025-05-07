@@ -2,6 +2,8 @@ import { Platform, Alert } from 'react-native';
 import { EmailData, ResponseLength } from '../types/mailTypes';
 // Import des données mock
 import { dailyMailsMock as mockData } from '../data/dailyMails.mock';
+// Import du store
+import { useMailsStore } from '../../store/mailsStore';
 
 // API URL
 const API_URL = Platform.OS === 'web' 
@@ -40,12 +42,30 @@ export const getDataMode = (): boolean => {
 
 /**
  * Récupère la liste des emails nécessitant une réponse
+ * @param fastMode Mode rapide (skip certaines analyses)
+ * @param forceRefresh Force le rechargement des données même si elles sont en cache
+ * @returns Liste des emails nécessitant une réponse
  */
-export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): Promise<EmailData[]> => {
+export const fetchEmailsRequiringResponse = async (
+  fastMode: boolean = false,
+  forceRefresh: boolean = false
+): Promise<EmailData[]> => {
   try {
-    // Choisir entre les données mockées ou l'API réelle en fonction du mode défini
+    // Récupérer le store
+    const store = useMailsStore.getState();
+    
+    // Si on utilise les données mockées
     if (USE_MOCK_DATA) {
+      // En mode mock, vérifier d'abord si le cache peut être utilisé malgré forceRefresh
+      if (!forceRefresh && !store.shouldRefetch() && store.actionRequiredEmails.length > 0) {
+        console.log('[STORE-MOCK] Utilisation des données en cache pour fetchEmailsRequiringResponse');
+        return store.actionRequiredEmails;
+      }
+      
       console.log(`[MOCK] Utilisation des données mock pour fetchEmailsRequiringResponse (fastMode: ${fastMode})`);
+      
+      // Indiquer que le chargement est en cours
+      store.setIsLoading(true);
       
       // Simuler un délai pour imiter un appel réseau
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -62,8 +82,23 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
         }
       });
       
+      // Stocker les données dans le store
+      store.setActionRequiredEmails(actionRequiredEmails);
+      store.setIsLoading(false);
+      
       return actionRequiredEmails;
-    } else {
+    } 
+    // Si on utilise l'API réelle
+    else {
+      // Pour l'API réelle, vérifier le cache en premier
+      if (!forceRefresh && !store.shouldRefetch() && store.actionRequiredEmails.length > 0) {
+        console.log('[STORE-API] Utilisation des données en cache pour fetchEmailsRequiringResponse');
+        return store.actionRequiredEmails;
+      }
+      
+      // Indiquer que le chargement est en cours
+      store.setIsLoading(true);
+      
       // Fetch avec l'API réelle
       console.log(`[API] Récupération des emails nécessitant une réponse (fastMode: ${fastMode})`);
       
@@ -76,15 +111,22 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
       const data = await apiResponse.json();
       
       if (data.status === 'success') {
+        // Stocker les données dans le store
+        store.setActionRequiredEmails(data.data);
+        store.setIsLoading(false);
         return data.data;
       } else {
         // Si l'API répond mais avec une erreur
         console.warn(`[API] Erreur API: ${data.message}`);
+        store.setIsLoading(false);
         throw new Error(data.message);
       }
     }
   } catch (err) {
     console.error('Erreur lors du chargement des emails:', err);
+    
+    // S'assurer que l'indicateur de chargement est réinitialisé
+    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours : utiliser les mock data en cas d'échec de l'API
     if (!USE_MOCK_DATA) {
@@ -102,6 +144,9 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
         }
       });
       
+      // Stocker les données dans le store même en mode fallback
+      useMailsStore.getState().setActionRequiredEmails(actionRequiredEmails);
+      
       Alert.alert('Mode hors ligne', 'Utilisation des données locales (l\'API est indisponible)');
       return actionRequiredEmails;
     }
@@ -113,15 +158,34 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
 
 /**
  * Récupère un brouillon de réponse pour un email
+ * @param emailId ID de l'email
+ * @param responseLength Longueur souhaitée pour la réponse
+ * @param forceRefresh Force le rechargement du brouillon même s'il est en cache
  */
 export const fetchDraftResponse = async (
   emailId: string, 
-  responseLength: ResponseLength = 'normal'
+  responseLength: ResponseLength = 'normal',
+  forceRefresh: boolean = false
 ): Promise<{
   originalEmail: EmailData | null;
   draftResponse: string;
 }> => {
   try {
+    // Récupérer le store
+    const store = useMailsStore.getState();
+    
+    // Vérifier si on peut utiliser un brouillon en cache
+    if (!forceRefresh && !store.shouldRefetchDraft(emailId, responseLength)) {
+      const cachedDraft = store.getDraftResponse(emailId, responseLength);
+      if (cachedDraft) {
+        console.log(`[STORE] Utilisation du brouillon en cache pour l'email ID: ${emailId}`);
+        return cachedDraft;
+      }
+    }
+    
+    // Indiquer que le chargement est en cours
+    store.setIsLoading(true);
+    
     // Choisir entre les données mockées ou l'API réelle en fonction du mode défini
     if (USE_MOCK_DATA) {
       console.log(`[MOCK] Utilisation des données mock pour fetchDraftResponse (emailId: ${emailId}, responseLength: ${responseLength})`);
@@ -154,10 +218,16 @@ export const fetchDraftResponse = async (
           draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
       }
       
-      return {
+      const result = {
         originalEmail,
         draftResponse
       };
+      
+      // Stocker dans le cache
+      store.setDraftResponse(emailId, result, responseLength);
+      store.setIsLoading(false);
+      
+      return result;
     } else {
       // Fetch avec l'API réelle
       // Utilisation de imapUID au lieu de emailId
@@ -175,17 +245,27 @@ export const fetchDraftResponse = async (
       const data = await apiResponse.json();
       
       if (data.status === 'success') {
-        return {
+        const result = {
           originalEmail: data.data.originalEmail || null,
           draftResponse: data.data.draftResponse || ''
         };
+        
+        // Stocker dans le cache
+        store.setDraftResponse(emailId, result, responseLength);
+        store.setIsLoading(false);
+        
+        return result;
       } else {
+        store.setIsLoading(false);
         Alert.alert('Erreur', data.message);
         throw new Error(data.message);
       }
     }
   } catch (err) {
     console.error('Erreur lors de la génération du brouillon:', err);
+    
+    // S'assurer que l'indicateur de chargement est réinitialisé
+    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours : utiliser les données mockées en cas d'erreur
     if (!USE_MOCK_DATA) {
@@ -217,12 +297,17 @@ export const fetchDraftResponse = async (
             draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
         }
         
-        Alert.alert('Mode hors ligne', 'Utilisation des données locales (l\'API est indisponible)');
-        
-        return {
+        const result = {
           originalEmail,
           draftResponse
         };
+        
+        // Stocker dans le cache même en mode fallback
+        useMailsStore.getState().setDraftResponse(emailId, result, responseLength);
+        
+        Alert.alert('Mode hors ligne', 'Utilisation des données locales (l\'API est indisponible)');
+        
+        return result;
       } catch (fallbackErr) {
         console.error('Erreur avec le fallback:', fallbackErr);
       }
@@ -238,44 +323,34 @@ export const fetchDraftResponse = async (
 
 /**
  * Récupère une réponse reformulée
+ * @param emailId ID de l'email
+ * @param draftResponse Brouillon de réponse à reformuler
+ * @param instructions Instructions de reformulation
+ * @param responseLength Longueur souhaitée pour la réponse
+ * @param forceRefresh Force le rechargement de la réponse même si elle est en cache
  */
 export const fetchRewrittenResponse = async (
   emailId: string,
   draftResponse: string,
   instructions: string,
-  responseLength: ResponseLength = 'normal'
+  responseLength: ResponseLength = 'normal',
+  forceRefresh: boolean = false
 ): Promise<string> => {
   try {
-    /* Commenté pour utiliser l'API réelle
-    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
-    console.log(`[DEV] Utilisation des données mock pour fetchRewrittenResponse (emailId: ${emailId}, instructions: ${instructions})`);
+    // Récupérer le store
+    const store = useMailsStore.getState();
     
-    // Simuler un délai pour imiter un appel réseau
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Trouver l'email dans les données mock
-    const email = mockData.data.find(email => email.id === emailId);
-    
-    if (!email) {
-      throw new Error(`Email avec l'ID ${emailId} non trouvé dans les données mockées`);
+    // Vérifier si on peut utiliser une réponse en cache
+    if (!forceRefresh) {
+      const cachedResponse = store.getRewrittenResponse(emailId, draftResponse, instructions);
+      if (cachedResponse) {
+        console.log(`[STORE] Utilisation de la réponse reformulée en cache pour l'email ID: ${emailId}`);
+        return cachedResponse;
+      }
     }
     
-    // Simuler une reformulation basée sur les instructions
-    let rewrittenResponse = draftResponse;
-    
-    if (instructions.toLowerCase().includes('formel')) {
-      rewrittenResponse = rewrittenResponse.replace('Bonjour', 'Madame, Monsieur,');
-      rewrittenResponse = rewrittenResponse.replace('Merci pour', 'Je vous remercie pour');
-      rewrittenResponse = rewrittenResponse.replace('Cordialement', 'Je vous prie d\'agréer, Madame, Monsieur, l\'expression de mes salutations distinguées');
-    } else if (instructions.toLowerCase().includes('amical') || instructions.toLowerCase().includes('chaleureux')) {
-      rewrittenResponse = rewrittenResponse.replace('Bonjour', 'Salut');
-      rewrittenResponse = rewrittenResponse.replace('Cordialement', 'Bien à toi');
-    } else if (instructions.toLowerCase().includes('concis') || instructions.toLowerCase().includes('court')) {
-      rewrittenResponse = `Bonjour,\n\nMerci pour votre message. J'ai pris note de votre demande et vous répondrai dans les plus brefs délais.\n\nCordialement,\nJordan`;
-    }
-    
-    return rewrittenResponse;
-    */
+    // Indiquer que le chargement est en cours
+    store.setIsLoading(true);
     
     // Fetch avec l'API réelle
     // Utilisation de imapUID au lieu de emailId
@@ -298,13 +373,23 @@ export const fetchRewrittenResponse = async (
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
-      return data.data.rewrittenResponse || draftResponse;
+      const rewrittenResponse = data.data.rewrittenResponse || draftResponse;
+      
+      // Stocker dans le cache
+      store.setRewrittenResponse(emailId, draftResponse, instructions, rewrittenResponse);
+      store.setIsLoading(false);
+      
+      return rewrittenResponse;
     } else {
+      store.setIsLoading(false);
       Alert.alert('Erreur', data.message);
       return draftResponse;
     }
   } catch (err) {
     console.error('Erreur lors de la reformulation:', err);
+    
+    // S'assurer que l'indicateur de chargement est réinitialisé
+    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours : simuler une reformulation basée sur les instructions
     console.log(`[FALLBACK] Utilisation des données mock pour fetchRewrittenResponse après échec de l'API`);
@@ -323,6 +408,9 @@ export const fetchRewrittenResponse = async (
         rewrittenResponse = `Bonjour,\n\nMerci pour votre message. J'ai pris note de votre demande et vous répondrai dans les plus brefs délais.\n\nCordialement,\nJordan`;
       }
       
+      // Stocker dans le cache même en mode fallback
+      useMailsStore.getState().setRewrittenResponse(emailId, draftResponse, instructions, rewrittenResponse);
+      
       Alert.alert('Mode hors ligne', 'Utilisation des données locales (l\'API est indisponible)');
       
       return rewrittenResponse;
@@ -336,6 +424,9 @@ export const fetchRewrittenResponse = async (
 
 /**
  * Envoie une réponse à un email
+ * @param emailId ID de l'email
+ * @param responseText Texte de réponse
+ * @param customSubject Sujet personnalisé (optionnel)
  */
 export const sendEmailResponse = async (
   emailId: string,
@@ -343,17 +434,8 @@ export const sendEmailResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    /* Commenté pour utiliser l'API réelle
-    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
-    console.log(`[DEV] Simulation d'envoi de réponse (emailId: ${emailId})`);
-    
-    // Simuler un délai pour imiter un appel réseau
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    
-    // Simuler une réponse réussie
-    Alert.alert('Succès', 'Votre réponse a été envoyée avec succès (simulation)');
-    return true;
-    */
+    // Indiquer que le chargement est en cours
+    useMailsStore.getState().setIsLoading(true);
     
     // Fetch avec l'API réelle
     // Utilisation de imapUID au lieu de emailId
@@ -375,14 +457,23 @@ export const sendEmailResponse = async (
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
+      // Réinitialiser l'indicateur de chargement
+      useMailsStore.getState().setIsLoading(false);
+      
       Alert.alert('Succès', 'Votre réponse a été envoyée avec succès');
       return true;
     } else {
+      // Réinitialiser l'indicateur de chargement
+      useMailsStore.getState().setIsLoading(false);
+      
       Alert.alert('Erreur', data.message);
       return false;
     }
   } catch (err) {
     console.error('Erreur lors de l\'envoi de la réponse:', err);
+    
+    // Réinitialiser l'indicateur de chargement
+    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours
     console.log(`[FALLBACK] Simulation d'envoi de réponse (emailId: ${emailId})`);
@@ -393,6 +484,10 @@ export const sendEmailResponse = async (
 
 /**
  * Envoie une réponse automatique à un email
+ * @param emailId ID de l'email
+ * @param responseLength Longueur souhaitée pour la réponse
+ * @param customInstructions Instructions personnalisées pour la génération (optionnel)
+ * @param customSubject Sujet personnalisé (optionnel)
  */
 export const sendAutoResponse = async (
   emailId: string,
@@ -401,17 +496,8 @@ export const sendAutoResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    /* Commenté pour utiliser l'API réelle
-    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
-    console.log(`[DEV] Simulation d'envoi de réponse automatique (emailId: ${emailId}, responseLength: ${responseLength})`);
-    
-    // Simuler un délai pour imiter un appel réseau
-    await new Promise(resolve => setTimeout(resolve, 1800));
-    
-    // Simuler une réponse réussie
-    Alert.alert('Succès', 'Votre réponse automatique a été envoyée avec succès (simulation)');
-    return true;
-    */
+    // Indiquer que le chargement est en cours
+    useMailsStore.getState().setIsLoading(true);
     
     // Fetch avec l'API réelle
     // Utilisation de imapUID au lieu de emailId
@@ -421,7 +507,7 @@ export const sendAutoResponse = async (
     console.log(`[API] Envoi de la réponse automatique pour l'email imapUID: ${imapUID}`);
     
     // Utiliser les options fetch pour éviter les problèmes CORS
-    const apiResponse = await fetch(`${API_URL}/send-email/auto-response/${imapUID}`, {
+    const apiResponse = await fetch(`${API_URL}/send-email/auto-respond/${imapUID}`, {
       ...fetchOptions,
       method: 'POST',
       body: JSON.stringify({
@@ -434,14 +520,34 @@ export const sendAutoResponse = async (
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
+      // Mettre à jour le store
+      // Si l'email est marqué comme traité côté API, on peut le supprimer du store
+      // pour éviter de l'afficher à nouveau dans la liste des emails à traiter
+      if (data.data?.emailMarkedAsProcessed) {
+        const store = useMailsStore.getState();
+        const updatedEmails = store.actionRequiredEmails.filter(
+          email => email.id !== emailId && email.imapUID !== imapUID
+        );
+        store.setActionRequiredEmails(updatedEmails);
+      }
+      
+      // Réinitialiser l'indicateur de chargement
+      useMailsStore.getState().setIsLoading(false);
+      
       Alert.alert('Succès', 'Votre réponse automatique a été envoyée avec succès');
       return true;
     } else {
+      // Réinitialiser l'indicateur de chargement
+      useMailsStore.getState().setIsLoading(false);
+      
       Alert.alert('Erreur', data.message);
       return false;
     }
   } catch (err) {
     console.error('Erreur lors de l\'envoi de la réponse automatique:', err);
+    
+    // Réinitialiser l'indicateur de chargement
+    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours
     console.log(`[FALLBACK] Simulation d'envoi de réponse automatique (emailId: ${emailId})`);

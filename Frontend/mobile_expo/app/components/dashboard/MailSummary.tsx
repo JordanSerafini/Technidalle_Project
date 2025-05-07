@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Switch } from "react-native";
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Switch, Alert } from "react-native";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 import { useMailSummary } from '../../hooks/useMailSummary';
 import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
+import { getDataMode, setDataMode } from '../../utils/functions/mails.function';
+import { useMailsStore } from '../../store/mailsStore';
 
 // Components importés au besoin
 import EmailCard from './components/EmailCard';
@@ -11,6 +13,7 @@ import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import EmptyState from './components/EmptyState';
 import MailSender from './MailSender';
+import OverviewCard from './components/OverviewCard';
 
 export default function MailSummary() {
     const {
@@ -29,6 +32,8 @@ export default function MailSummary() {
     const [hasSearched, setHasSearched] = useState(false);
     const [fastMode, setFastMode] = useState(false);
     const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
+    const [useMockData, setUseMockData] = useState(getDataMode());
+    const [forceRefresh, setForceRefresh] = useState(false);
     
     // États pour le pliage des sections - toujours à true par défaut
     const [overviewExpanded, setOverviewExpanded] = useState(true);
@@ -46,12 +51,22 @@ export default function MailSummary() {
         }));
     };
     
+    // Fonction pour basculer entre les modes de données (mock/API)
+    const toggleDataMode = () => {
+        const newMode = !useMockData;
+        setUseMockData(newMode);
+        setDataMode(newMode);
+    };
+
     // Fonction pour lancer la recherche avec les paramètres configurés
     const handleSearch = () => {
-        fetchMailSummary(fastMode, responseLength);
+        // Toujours forcer la recherche quand on clique sur le bouton
+        fetchMailSummary(fastMode, responseLength, forceRefresh);
         setHasSearched(true);
-        // Cacher complètement les options de recherche
-        setShowSearchOptions(false);
+        // Garder les options de recherche visibles
+        setShowSearchOptions(true);
+        // Replier les options après la recherche
+        setSearchOptionsExpanded(false);
     };
 
     // Filtrer les emails selon le critère sélectionné
@@ -162,14 +177,12 @@ export default function MailSummary() {
         
         return (
             <View style={styles.summaryContainer}>
-                <Text style={styles.summaryText}>
-                    {overview}
-                </Text>
+                <OverviewCard overview={overview} />
             </View>
         );
     };
     
-    // Nouveau composant pour les options de recherche
+    // Composant modifié pour les options de recherche avec bouton de recherche
     const renderSearchOptions = () => {
         return (
             <View style={styles.searchOptionsContainer}>
@@ -188,6 +201,27 @@ export default function MailSummary() {
                 {searchOptionsExpanded && (
                     <>
                         <View style={styles.optionRow}>
+                            <View style={styles.optionLabelContainer}>
+                                <Text style={styles.optionLabel}>Utiliser les données mockées</Text>
+                                <TouchableOpacity 
+                                    style={styles.infoButton}
+                                    onPress={() => Alert.alert(
+                                        "Mode de données",
+                                        "Choisissez entre les données mockées (mode hors ligne) ou l'API réelle (mode en ligne)."
+                                    )}
+                                >
+                                    <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
+                                </TouchableOpacity>
+                            </View>
+                            <Switch
+                                value={useMockData}
+                                onValueChange={toggleDataMode}
+                                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                                thumbColor={useMockData ? "#3b82f6" : "#f4f4f5"}
+                            />
+                        </View>
+
+                        <View style={styles.optionRow}>
                             <Text style={styles.optionLabel}>Mode rapide</Text>
                             <Switch
                                 value={fastMode}
@@ -197,46 +231,92 @@ export default function MailSummary() {
                             />
                         </View>
                         
-                        <View style={styles.lengthSelector}>
+                        <View style={styles.optionRow}>
+                            <View style={styles.optionLabelContainer}>
+                                <Text style={styles.optionLabel}>Forcer le rafraîchissement</Text>
+                                <TouchableOpacity 
+                                    style={styles.infoButton}
+                                    onPress={() => Alert.alert(
+                                        "Forcer le rafraîchissement",
+                                        "Ignore le cache et recharge toutes les données depuis l'API."
+                                    )}
+                                >
+                                    <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
+                                </TouchableOpacity>
+                            </View>
+                            <Switch
+                                value={forceRefresh}
+                                onValueChange={setForceRefresh}
+                                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                                thumbColor={forceRefresh ? "#3b82f6" : "#f4f4f5"}
+                            />
+                        </View>
+                        
+                        <View style={styles.optionRow}>
                             <Text style={styles.optionLabel}>Longueur des réponses</Text>
-                            <View style={styles.lengthOptions}>
-                                <TouchableOpacity
-                                    style={[styles.lengthOption, responseLength === 'court' && styles.lengthOptionActive]}
+                            <View style={styles.radioGroup}>
+                                <TouchableOpacity 
+                                    style={[
+                                        styles.radioOption,
+                                        responseLength === 'court' && styles.radioOptionActive
+                                    ]}
                                     onPress={() => setResponseLength('court')}
                                 >
-                                    <Text style={[styles.lengthOptionText, responseLength === 'court' && styles.lengthOptionTextActive]}>
+                                    <Text 
+                                        style={[
+                                            styles.radioText,
+                                            responseLength === 'court' && styles.radioTextActive
+                                        ]}
+                                    >
                                         Court
                                     </Text>
                                 </TouchableOpacity>
                                 
-                                <TouchableOpacity
-                                    style={[styles.lengthOption, responseLength === 'normal' && styles.lengthOptionActive]}
+                                <TouchableOpacity 
+                                    style={[
+                                        styles.radioOption,
+                                        responseLength === 'normal' && styles.radioOptionActive
+                                    ]}
                                     onPress={() => setResponseLength('normal')}
                                 >
-                                    <Text style={[styles.lengthOptionText, responseLength === 'normal' && styles.lengthOptionTextActive]}>
+                                    <Text 
+                                        style={[
+                                            styles.radioText,
+                                            responseLength === 'normal' && styles.radioTextActive
+                                        ]}
+                                    >
                                         Normal
                                     </Text>
                                 </TouchableOpacity>
                                 
-                                <TouchableOpacity
-                                    style={[styles.lengthOption, responseLength === 'détaillé' && styles.lengthOptionActive]}
+                                <TouchableOpacity 
+                                    style={[
+                                        styles.radioOption,
+                                        responseLength === 'détaillé' && styles.radioOptionActive
+                                    ]}
                                     onPress={() => setResponseLength('détaillé')}
                                 >
-                                    <Text style={[styles.lengthOptionText, responseLength === 'détaillé' && styles.lengthOptionTextActive]}>
+                                    <Text 
+                                        style={[
+                                            styles.radioText,
+                                            responseLength === 'détaillé' && styles.radioTextActive
+                                        ]}
+                                    >
                                         Détaillé
                                     </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                         
-                        <TouchableOpacity
+                        {/* Nouveau bouton de recherche */}
+                        <TouchableOpacity 
                             style={styles.searchButton}
                             onPress={handleSearch}
                             disabled={loading}
                         >
-                            <Ionicons name="search-outline" size={20} color="#ffffff" />
+                            <Ionicons name="search" size={18} color="#ffffff" />
                             <Text style={styles.searchButtonText}>
-                                {loading ? 'Recherche en cours...' : 'Rechercher les emails'}
+                                {loading ? "Chargement..." : "Rechercher les emails"}
                             </Text>
                         </TouchableOpacity>
                     </>
@@ -599,17 +679,20 @@ const styles = StyleSheet.create({
     },
     searchButton: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
         backgroundColor: '#3b82f6',
-        borderRadius: 8,
         paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginTop: 16,
+        marginHorizontal: 16,
+        marginBottom: 8,
     },
     searchButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
         color: '#ffffff',
+        fontWeight: '600',
+        fontSize: 16,
         marginLeft: 8,
     },
     emptyStateContainer: {
@@ -694,5 +777,39 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#ffffff',
         marginLeft: 8,
+    },
+    optionLabelContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    infoButton: {
+        marginLeft: 8,
+        padding: 2,
+        borderRadius: 12,
+        backgroundColor: '#f3f4f6',
+    },
+    radioGroup: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    radioOption: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 8,
+        marginHorizontal: 4,
+        backgroundColor: '#f3f4f6',
+        borderRadius: 6,
+    },
+    radioOptionActive: {
+        backgroundColor: '#3b82f6',
+    },
+    radioText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#6b7280',
+    },
+    radioTextActive: {
+        color: '#ffffff',
     },
 });
