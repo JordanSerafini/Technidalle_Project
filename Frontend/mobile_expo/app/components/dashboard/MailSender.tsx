@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { EmailData } from '../../utils/types/mailTypes';
+import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
 import mailFunctions from '../../utils/functions/mails.function';
 
 // Destructuring des fonctions depuis l'objet importé
@@ -28,6 +28,7 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   const [editMode, setEditMode] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(selectedEmailId || null);
   const [activeView, setActiveView] = useState<'list' | 'compose'>(selectedEmailId ? 'compose' : 'list');
+  const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
 
   useEffect(() => {
     if (selectedEmailId) {
@@ -53,7 +54,7 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   const generateDraft = async (emailId: string) => {
     try {
       setLoading(true);
-      const result = await fetchDraftResponse(emailId);
+      const result = await fetchDraftResponse(emailId, responseLength);
       
       if (result.originalEmail) {
         setEmailData(result.originalEmail);
@@ -118,6 +119,7 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
       setLoading(true);
       const success = await sendAutoResponse(
         selectedEmail,
+        responseLength,
         instructions.trim() || undefined,
         subject || undefined
       );
@@ -258,6 +260,38 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
                 value={subject}
                 onChangeText={setSubject}
               />
+            </View>
+            
+            <View className="mb-4">
+              <Text className="text-sm font-medium text-gray-700 mb-1">Longueur de réponse</Text>
+              <View className="flex-row justify-between mb-2 p-2 bg-gray-50 rounded-lg">
+                <TouchableOpacity
+                  className={`flex-1 p-2 rounded-lg mr-2 ${responseLength === 'court' ? 'bg-blue-500' : 'bg-gray-200'}`}
+                  onPress={() => setResponseLength('court')}
+                >
+                  <Text className={`text-center font-medium ${responseLength === 'court' ? 'text-white' : 'text-gray-800'}`}>
+                    Court
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  className={`flex-1 p-2 rounded-lg mr-2 ${responseLength === 'normal' ? 'bg-blue-500' : 'bg-gray-200'}`}
+                  onPress={() => setResponseLength('normal')}
+                >
+                  <Text className={`text-center font-medium ${responseLength === 'normal' ? 'text-white' : 'text-gray-800'}`}>
+                    Normal
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  className={`flex-1 p-2 rounded-lg ${responseLength === 'détaillé' ? 'bg-blue-500' : 'bg-gray-200'}`}
+                  onPress={() => setResponseLength('détaillé')}
+                >
+                  <Text className={`text-center font-medium ${responseLength === 'détaillé' ? 'text-white' : 'text-gray-800'}`}>
+                    Détaillé
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             
             <View className="mb-4">

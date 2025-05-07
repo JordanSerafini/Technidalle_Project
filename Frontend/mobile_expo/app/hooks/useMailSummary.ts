@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import { EmailData, MailSummaryResponse, EmailSummaryStats, ResponseLength } from '../utils/types/mailTypes';
+// Import des données mock
+import {dailyMailsMock as mockData} from '../utils/data/dailyMails.mock';
 
 // Constante pour l'URL de l'API
 const getApiBaseUrl = () => {
@@ -49,7 +51,17 @@ export const useMailSummary = () => {
       
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      // Construction de l'URL avec des paramètres de requête
+      // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
+      console.log(`[DEV] Utilisation des données mock au lieu du fetch réel`);
+      
+      // Simuler un délai pour imiter un appel réseau
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Récupération des données mock
+      const data = mockData;
+      
+      /*
+      // Version avec fetch réel (commentée pendant le développement)
       const queryParams = new URLSearchParams();
       queryParams.append('fastMode', fastMode ? 'true' : 'false');
       queryParams.append('responseLength', responseLength);
@@ -76,7 +88,9 @@ export const useMailSummary = () => {
       }
       
       const data = await response.json();
-      console.log(`Réponse API reçue:`, JSON.stringify(data).substring(0, 200) + '...');
+      */
+      
+      console.log(`Réponse API (mock) reçue:`, JSON.stringify(data).substring(0, 200) + '...');
       
       // Extraction de données de la structure API spécifique
       if (data && data.status === "success") {
@@ -95,7 +109,7 @@ export const useMailSummary = () => {
           refreshing: false
         }));
 
-        console.log(`${data.data?.length || 0} emails chargés`);
+        console.log(`${data.data?.length || 0} emails chargés (depuis mock)`);
       } else {
         throw new Error("Format de réponse API inattendu");
       }

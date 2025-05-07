@@ -33,6 +33,7 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
   const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
   const [fastMode, setFastMode] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showSearchOptions, setShowSearchOptions] = useState(true);
   const initialRenderDone = useRef(false);
 
   const processSelectedEmail = useCallback((emailId: string) => {
@@ -256,25 +257,46 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
         </View>
         
         <View className="mb-4 px-2 py-2 bg-gray-50 rounded-lg">
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-sm font-medium text-gray-800">Mode rapide</Text>
-            <Switch
-              value={fastMode}
-              onValueChange={toggleFastMode}
-              trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-              thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
-            />
-          </View>
-          
-          <TouchableOpacity
-            className="mt-2 py-2 bg-blue-500 rounded-lg items-center"
-            onPress={loadEmailsRequiringResponse}
-            disabled={loading}
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }}
+            onPress={() => setShowSearchOptions(!showSearchOptions)}
           >
-            <Text className="text-white font-medium">
-              {loading ? 'Recherche...' : 'Rechercher des emails'}
-            </Text>
+            <Text className="text-lg font-semibold text-blue-800">Options de recherche</Text>
+            <Ionicons 
+              name={showSearchOptions ? "chevron-down" : "chevron-forward"} 
+              size={20} 
+              color="#3b82f6"
+            />
           </TouchableOpacity>
+          
+          {showSearchOptions && (
+            <>
+              <View className="flex-row justify-between items-center py-3 border-t border-gray-200">
+                <Text className="text-sm font-medium text-gray-800">Mode rapide</Text>
+                <Switch
+                  value={fastMode}
+                  onValueChange={toggleFastMode}
+                  trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                  thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
+                />
+              </View>
+              
+              <View className="py-3 border-t border-gray-200">
+                <Text className="text-sm font-medium text-gray-800 mb-2">Longueur des réponses</Text>
+                {renderResponseLengthSelector()}
+              </View>
+              
+              <TouchableOpacity
+                className="mt-2 py-3 bg-blue-500 rounded-lg items-center"
+                onPress={loadEmailsRequiringResponse}
+                disabled={loading}
+              >
+                <Text className="text-white font-medium">
+                  {loading ? 'Recherche...' : 'Rechercher des emails'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {loading ? (
@@ -341,7 +363,10 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
               <Text className="text-sm text-gray-700">{emailData.body}</Text>
             </View>
             
-            {renderResponseLengthSelector()}
+            <View className="mb-4">
+              <Text className="text-sm font-medium text-gray-700 mb-1">Longueur de réponse</Text>
+              {renderResponseLengthSelector()}
+            </View>
             
             <View className="mb-4">
               <Text className="text-sm font-medium text-gray-700 mb-1">Sujet (optionnel)</Text>
@@ -402,7 +427,6 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
                 <TouchableOpacity 
                   className="py-3 px-4 bg-gray-200 rounded-lg"
                   onPress={() => {
-                    setResponseLength(responseLength);
                     selectedEmail && generateDraft(selectedEmail);
                   }}
                 >
