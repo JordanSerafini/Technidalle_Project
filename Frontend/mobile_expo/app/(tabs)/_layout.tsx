@@ -32,6 +32,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="emails"
+        options={{
+          title: 'Emails',
+          tabBarIcon: ({ color }) => <Ionicons name="mail-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="clients"
         options={{
           title: 'Clients',
