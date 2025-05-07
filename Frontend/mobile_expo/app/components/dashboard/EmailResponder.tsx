@@ -10,7 +10,9 @@ const {
   fetchDraftResponse, 
   fetchRewrittenResponse,
   sendEmailResponse,
-  sendAutoResponse
+  sendAutoResponse,
+  setDataMode,
+  getDataMode
 } = mailFunctions;
 
 interface EmailResponderProps {
@@ -34,7 +36,15 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
   const [fastMode, setFastMode] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showSearchOptions, setShowSearchOptions] = useState(true);
+  const [useMockData, setUseMockData] = useState(getDataMode()); // Nouvel état pour le mode de données
   const initialRenderDone = useRef(false);
+
+  // Fonction pour basculer entre les modes de données (mock/API)
+  const toggleDataMode = useCallback(() => {
+    const newMode = !useMockData;
+    setUseMockData(newMode);
+    setDataMode(newMode);
+  }, [useMockData]);
 
   const processSelectedEmail = useCallback((emailId: string) => {
     if (emailId) {
@@ -244,6 +254,62 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     );
   };
 
+  const renderSearchOptions = () => {
+    return (
+      <View className="mb-4">
+        <TouchableOpacity
+          className="flex-row justify-between items-center mb-2 p-2 bg-gray-50 rounded-lg"
+          onPress={() => setShowSearchOptions(!showSearchOptions)}
+        >
+          <Text className="text-lg font-medium text-gray-800">Options de recherche</Text>
+          <Ionicons 
+            name={showSearchOptions ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color="#4b5563" 
+          />
+        </TouchableOpacity>
+
+        {showSearchOptions && (
+          <View className="p-3 bg-gray-50 rounded-lg">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-base text-gray-800">Mode rapide</Text>
+              <Switch
+                value={fastMode}
+                onValueChange={toggleFastMode}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={fastMode ? '#3b82f6' : '#f3f4f6'}
+              />
+            </View>
+
+            <View className="flex-row justify-between items-center mb-4">
+              <View className="flex-row items-center">
+                <Text className="text-base text-gray-800">Utiliser les données mockées</Text>
+                <TouchableOpacity 
+                  className="ml-2 p-1 rounded-full bg-gray-200"
+                  onPress={() => Alert.alert(
+                    "Mode de données",
+                    "Choisissez entre les données mockées (mode hors ligne) ou l'API réelle (mode en ligne)."
+                  )}
+                >
+                  <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
+                </TouchableOpacity>
+              </View>
+              <Switch
+                value={useMockData}
+                onValueChange={toggleDataMode}
+                trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                thumbColor={useMockData ? '#3b82f6' : '#f3f4f6'}
+              />
+            </View>
+
+            <Text className="text-base text-gray-800 mb-2">Longueur des réponses</Text>
+            {renderResponseLengthSelector()}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderEmailList = () => {
     return (
       <View className="flex-1">
@@ -256,48 +322,17 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
           )}
         </View>
         
-        <View className="mb-4 px-2 py-2 bg-gray-50 rounded-lg">
-          <TouchableOpacity 
-            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }}
-            onPress={() => setShowSearchOptions(!showSearchOptions)}
-          >
-            <Text className="text-lg font-semibold text-blue-800">Options de recherche</Text>
-            <Ionicons 
-              name={showSearchOptions ? "chevron-down" : "chevron-forward"} 
-              size={20} 
-              color="#3b82f6"
-            />
-          </TouchableOpacity>
-          
-          {showSearchOptions && (
-            <>
-              <View className="flex-row justify-between items-center py-3 border-t border-gray-200">
-                <Text className="text-sm font-medium text-gray-800">Mode rapide</Text>
-                <Switch
-                  value={fastMode}
-                  onValueChange={toggleFastMode}
-                  trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-                  thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
-                />
-              </View>
-              
-              <View className="py-3 border-t border-gray-200">
-                <Text className="text-sm font-medium text-gray-800 mb-2">Longueur des réponses</Text>
-                {renderResponseLengthSelector()}
-              </View>
-              
-              <TouchableOpacity
-                className="mt-2 py-3 bg-blue-500 rounded-lg items-center"
-                onPress={loadEmailsRequiringResponse}
-                disabled={loading}
-              >
-                <Text className="text-white font-medium">
-                  {loading ? 'Recherche...' : 'Rechercher des emails'}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+        {renderSearchOptions()}
+
+        <TouchableOpacity
+          className="mt-2 py-3 bg-blue-500 rounded-lg items-center"
+          onPress={loadEmailsRequiringResponse}
+          disabled={loading}
+        >
+          <Text className="text-white font-medium">
+            {loading ? 'Recherche...' : 'Rechercher des emails'}
+          </Text>
+        </TouchableOpacity>
 
         {loading ? (
           <View className="flex-1 justify-center items-center">
