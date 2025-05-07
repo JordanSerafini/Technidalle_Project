@@ -3,7 +3,12 @@ export type EmailAnalysis = {
   priority: string;
   category: string;
   actionRequired: boolean;
-  actionItems: string[];
+  actionItems?: string[];
+  tokensUsed?: {
+    input: number;
+    output: number;
+    total: number;
+  };
 };
 
 export type EmailData = {
@@ -14,6 +19,7 @@ export type EmailData = {
   subject: string;
   date: string;
   body: string;
+  imapUID?: string;
   analysis: EmailAnalysis;
 };
 
@@ -35,6 +41,12 @@ export type MailSummaryResponse = {
     actionRequiredCount: number;
     categoryCounts: Record<string, number>;
     actionItems: string[];
+    topPriorityEmails?: EmailData[];
+    tokensUsed?: {
+      input: number;
+      output: number;
+      total: number;
+    };
   };
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { EmailData } from '../../../utils/types/mailTypes';
 import { truncateText, extractSenderName } from '../../../utils/functions/mailUtils';
 import { formatDateTime } from '../../../utils/dateFormatter';
@@ -13,60 +13,57 @@ type EmailCardProps = {
 
 export const EmailCard = ({ email, expanded, onToggleExpand }: EmailCardProps) => {
   const isHighPriority = email.analysis.priority === 'high';
-  const hasActions = email.analysis.actionRequired && email.analysis.actionItems.length > 0;
+  const hasActions = email.analysis.actionRequired && email.analysis.actionItems && email.analysis.actionItems.length > 0;
   
   return (
     <TouchableOpacity 
-      style={[
-        styles.container, 
-        isHighPriority ? styles.highPriorityContainer : styles.normalContainer
-      ]}
+      className={`mb-4 rounded-xl overflow-hidden shadow-sm ${isHighPriority ? 'bg-red-50 border-l-4 border-l-red-500' : 'bg-white'}`}
       onPress={onToggleExpand}
       activeOpacity={0.7}
     >
       {/* En-tête avec icône de priorité */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.subjectContainer}>
+      <View className="p-4 border-b border-gray-100">
+        <View className="flex-row justify-between items-center mb-2">
+          <View className="flex-row items-center flex-1">
             {isHighPriority && (
-              <MaterialIcons name="priority-high" size={18} color="#ef4444" style={styles.priorityIcon} />
+              <MaterialIcons name="priority-high" size={18} color="#ef4444" className="mr-1.5" />
             )}
-            <Text style={styles.subjectText} numberOfLines={1}>
+            <Text className="font-bold text-base text-gray-900 flex-1" numberOfLines={1}>
               {email.subject || 'Sans objet'}
             </Text>
           </View>
-          <View style={styles.dateContainer}>
-            <Ionicons name="time-outline" size={14} color="#6b7280" style={styles.timeIcon} />
-            <Text style={styles.dateText}>{formatDateTime(email.date)}</Text>
+          <View className="flex-row items-center ml-2">
+            <Ionicons name="time-outline" size={14} color="#6b7280" className="mr-1" />
+            <Text className="text-xs text-gray-500">{formatDateTime(email.date)}</Text>
           </View>
         </View>
         
-        <View style={styles.senderContainer}>
-          <Ionicons name="person-outline" size={14} color="#6b7280" style={styles.senderIcon} />
-          <Text style={styles.senderText}>
+        <View className="flex-row items-center">
+          <Ionicons name="person-outline" size={14} color="#6b7280" className="mr-1.5" />
+          <Text className="text-sm text-gray-600 flex-1">
             {extractSenderName(email.from)}
           </Text>
           
           {isHighPriority && (
-            <View style={styles.priorityBadge}>
-              <Text style={styles.priorityText}>Prioritaire</Text>
+            <View className="bg-red-100 px-2 py-0.5 rounded-full ml-2">
+              <Text className="text-red-700 text-xs font-medium">Prioritaire</Text>
             </View>
           )}
         </View>
       </View>
       
       {/* Contenu du mail */}
-      <View style={styles.content}>
-        <Text style={styles.summaryText}>
+      <View className="p-4">
+        <Text className="text-sm leading-5 text-gray-700">
           {truncateText(email.analysis.summary, expanded, 150)}
         </Text>
         
         {email.analysis.summary && email.analysis.summary.length > 150 && (
           <TouchableOpacity 
             onPress={onToggleExpand} 
-            style={styles.expandButton}
+            className="flex-row items-center mt-2"
           >
-            <Text style={styles.expandButtonText}>
+            <Text className="text-blue-500 text-sm mr-1">
               {expanded ? 'Voir moins' : 'Voir plus'}
             </Text>
             <Ionicons 
@@ -79,16 +76,16 @@ export const EmailCard = ({ email, expanded, onToggleExpand }: EmailCardProps) =
         
         {/* Actions requises */}
         {hasActions && expanded && (
-          <View style={styles.actionsContainer}>
-            <View style={styles.actionsHeader}>
+          <View className="mt-3 pt-3 border-t border-gray-200">
+            <View className="flex-row items-center mb-2">
               <MaterialIcons name="assignment" size={16} color="#4b5563" />
-              <Text style={styles.actionsTitle}>Actions requises:</Text>
+              <Text className="text-sm font-semibold text-gray-600 ml-1.5">Actions requises:</Text>
             </View>
             
-            {email.analysis.actionItems.map((action, actionIndex) => (
-              <View key={actionIndex} style={styles.actionItem}>
-                <Text style={styles.actionBullet}>•</Text>
-                <Text style={styles.actionText}>{action}</Text>
+            {email.analysis.actionItems?.map((action, actionIndex) => (
+              <View key={actionIndex} className="flex-row mb-1.5 pl-2">
+                <Text className="text-sm text-gray-500 mr-2">•</Text>
+                <Text className="text-sm text-gray-600 flex-1">{action}</Text>
               </View>
             ))}
           </View>
@@ -97,9 +94,9 @@ export const EmailCard = ({ email, expanded, onToggleExpand }: EmailCardProps) =
       
       {/* Indicateur visuel en bas si actions requises mais non affichées */}
       {hasActions && !expanded && (
-        <View style={styles.actionIndicator}>
+        <View className="flex-row items-center bg-amber-50 p-2 border-t border-amber-100">
           <Ionicons name="alert-circle-outline" size={16} color="#f59e0b" />
-          <Text style={styles.actionIndicatorText}>
+          <Text className="text-xs text-amber-800 font-medium ml-1.5">
             Actions requises
           </Text>
         </View>
@@ -108,150 +105,4 @@ export const EmailCard = ({ email, expanded, onToggleExpand }: EmailCardProps) =
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  normalContainer: {
-    backgroundColor: 'white',
-  },
-  highPriorityContainer: {
-    backgroundColor: '#fef2f2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-  },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  subjectContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  priorityIcon: {
-    marginRight: 6,
-  },
-  subjectText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#111827',
-    flex: 1,
-  },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  timeIcon: {
-    marginRight: 4,
-  },
-  dateText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  senderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  senderIcon: {
-    marginRight: 6,
-  },
-  senderText: {
-    fontSize: 14,
-    color: '#4b5563',
-    flex: 1,
-  },
-  priorityBadge: {
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  priorityText: {
-    color: '#b91c1c',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  content: {
-    padding: 16,
-  },
-  summaryText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#374151',
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  expandButtonText: {
-    color: '#3b82f6',
-    fontSize: 14,
-    marginRight: 4,
-  },
-  actionsContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  actionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4b5563',
-    marginLeft: 6,
-  },
-  actionItem: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    paddingLeft: 8,
-  },
-  actionBullet: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginRight: 8,
-  },
-  actionText: {
-    fontSize: 14,
-    color: '#4b5563',
-    flex: 1,
-  },
-  actionIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fffbeb',
-    padding: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#fef3c7',
-  },
-  actionIndicatorText: {
-    fontSize: 12,
-    color: '#92400e',
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-});
-
-export default EmailCard; 
+export default EmailCard;
