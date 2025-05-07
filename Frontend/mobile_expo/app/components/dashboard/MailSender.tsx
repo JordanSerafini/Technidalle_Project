@@ -16,9 +16,10 @@ const {
 interface MailSenderProps {
   onClose?: () => void;
   selectedEmailId?: string;
+  responseLength?: ResponseLength;
 }
 
-export default function MailSender({ onClose, selectedEmailId }: MailSenderProps) {
+export default function MailSender({ onClose, selectedEmailId, responseLength: initialResponseLength }: MailSenderProps) {
   const [loading, setLoading] = useState(false);
   const [emailData, setEmailData] = useState<EmailData | null>(null);
   const [emailsList, setEmailsList] = useState<EmailData[]>([]);
@@ -28,7 +29,15 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   const [editMode, setEditMode] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(selectedEmailId || null);
   const [activeView, setActiveView] = useState<'list' | 'compose'>(selectedEmailId ? 'compose' : 'list');
-  const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
+  const [responseLength, setResponseLength] = useState<ResponseLength>(initialResponseLength || 'normal');
+  // Nouvel état pour suivre les emails ouverts
+  const [expandedEmails, setExpandedEmails] = useState<Record<string, boolean>>({});
+  // États pour contrôler l'affichage des sections
+  const [showSearchOptions, setShowSearchOptions] = useState(false);
+  const [showEmailsSection, setShowEmailsSection] = useState(false);
+  const [showGeneralOverview, setShowGeneralOverview] = useState(true);
+  const [showDailySummary, setShowDailySummary] = useState(false);
+  const [fastMode, setFastMode] = useState(false);
 
   useEffect(() => {
     if (selectedEmailId) {
@@ -42,8 +51,10 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   const loadEmailsRequiringResponse = async () => {
     try {
       setLoading(true);
-      const emails = await fetchEmailsRequiringResponse();
+      const emails = await fetchEmailsRequiringResponse(fastMode);
       setEmailsList(emails);
+      // Réinitialiser tous les emails ouverts
+      setExpandedEmails({});
     } catch (err) {
       console.error('Erreur lors du chargement des emails:', err);
     } finally {
@@ -145,39 +156,184 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
     setEditMode(false);
   };
 
-  const renderEmailItem = (email: EmailData) => {
+  // Fonction pour basculer l'état d'expansion d'un email
+  const toggleEmailExpand = (emailId: string) => {
+    setExpandedEmails(prev => ({
+      ...prev,
+      [emailId]: !prev[emailId]
+    }));
+  };
+
+  // Rendu d'un header de section repliable
+  const renderSectionHeader = (title: string, isExpanded: boolean, onToggle: () => void) => {
     return (
       <TouchableOpacity 
-        key={email.id} 
-        className="mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-100"
-        onPress={() => {
-          setSelectedEmail(email.id);
-          generateDraft(email.id);
-        }}
+        className="flex-row justify-between items-center p-3 bg-blue-100 rounded-lg mb-3"
+        onPress={onToggle}
       >
-        <Text className="text-lg font-semibold text-blue-800 mb-1">{email.subject}</Text>
-        <Text className="text-sm text-gray-600 mb-1">De: {email.from}</Text>
-        <Text className="text-sm text-gray-500 mb-2" numberOfLines={2}>{email.analysis?.summary}</Text>
-        
-        <View className="flex-row mt-1">
-          <View className={`px-2 py-1 rounded-full mr-2 ${
-            email.analysis?.priority === 'high' ? 'bg-red-100' : 
-            email.analysis?.priority === 'medium' ? 'bg-yellow-100' : 'bg-green-100'
-          }`}>
-            <Text className={`text-xs ${
-              email.analysis?.priority === 'high' ? 'text-red-800' : 
-              email.analysis?.priority === 'medium' ? 'text-yellow-800' : 'text-green-800'
-            }`}>
-              {email.analysis?.priority === 'high' ? 'Prioritaire' : 
-               email.analysis?.priority === 'medium' ? 'Moyen' : 'Faible'}
-            </Text>
+        <Text className="text-lg font-bold text-blue-800">{title}</Text>
+        <Ionicons 
+          name={isExpanded ? "chevron-up" : "chevron-down"} 
+          size={24} 
+          color="#3b82f6" 
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmailItem = (email: EmailData) => {
+    // Vérifie si l'email est étendu ou non
+    const isExpanded = expandedEmails[email.id] || false;
+    
+    return (
+      <View key={email.id} className="mb-4 bg-white rounded-lg shadow-sm border border-gray-100">
+        {/* En-tête de l'email (toujours visible) */}
+        <TouchableOpacity 
+          className="p-4"
+          onPress={() => toggleEmailExpand(email.id)}
+        >
+          <View className="flex-row justify-between items-center">
+            <Text className="text-lg font-semibold text-blue-800" numberOfLines={1}>{email.subject}</Text>
+            <Ionicons 
+              name={isExpanded ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color="#3b82f6" 
+            />
           </View>
           
-          <View className="px-2 py-1 rounded-full bg-blue-100">
-            <Text className="text-xs text-blue-800">{email.analysis?.category}</Text>
+          <Text className="text-sm text-gray-600">De: {email.from}</Text>
+          
+          <View className="flex-row mt-1">
+            <View className={`px-2 py-1 rounded-full mr-2 ${
+              email.analysis?.priority === 'high' ? 'bg-red-100' : 
+              email.analysis?.priority === 'medium' ? 'bg-yellow-100' : 'bg-green-100'
+            }`}>
+              <Text className={`text-xs ${
+                email.analysis?.priority === 'high' ? 'text-red-800' : 
+                email.analysis?.priority === 'medium' ? 'text-yellow-800' : 'text-green-800'
+              }`}>
+                {email.analysis?.priority === 'high' ? 'Prioritaire' : 
+                 email.analysis?.priority === 'medium' ? 'Moyen' : 'Faible'}
+              </Text>
+            </View>
+            
+            <View className="px-2 py-1 rounded-full bg-blue-100">
+              <Text className="text-xs text-blue-800">{email.analysis?.category}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Contenu détaillé de l'email (visible seulement si étendu) */}
+        {isExpanded && (
+          <View className="p-4 pt-0 border-t border-gray-100">
+            <Text className="text-sm text-gray-500 mb-3">{email.analysis?.summary}</Text>
+            
+            <TouchableOpacity 
+              className="bg-blue-500 py-2 px-4 rounded-lg items-center"
+              onPress={() => {
+                setSelectedEmail(email.id);
+                generateDraft(email.id);
+              }}
+            >
+              <Text className="text-white font-medium">Répondre</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderGeneralOverview = () => {
+    if (!showGeneralOverview) return null;
+    
+    return (
+      <View className="mb-4 bg-white rounded-lg p-4 shadow-sm">
+        <View className="flex-row justify-between">
+          <View className="items-center flex-1 border-r border-gray-200">
+            <Text className="text-2xl font-bold text-blue-800">{emailsList.length}</Text>
+            <Text className="text-sm text-gray-600">Emails</Text>
+          </View>
+          
+          <View className="items-center flex-1 border-r border-gray-200">
+            <Text className="text-2xl font-bold text-yellow-600">
+              {emailsList.filter(email => email.analysis?.priority === 'high').length}
+            </Text>
+            <Text className="text-sm text-gray-600">Prioritaires</Text>
+          </View>
+          
+          <View className="items-center flex-1">
+            <Text className="text-2xl font-bold text-green-600">
+              {emailsList.filter(email => email.analysis?.actionRequired).length}
+            </Text>
+            <Text className="text-sm text-gray-600">Actions</Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderSearchOptions = () => {
+    if (!showSearchOptions) return null;
+    
+    return (
+      <View className="mb-4 bg-white rounded-lg p-4 shadow-sm">
+        <View className="mb-4">
+          <Text className="text-sm font-medium text-gray-700 mb-2">Mode rapide</Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => setFastMode(!fastMode)}
+              className={`w-12 h-6 rounded-full ${fastMode ? 'bg-blue-500' : 'bg-gray-300'} flex-row items-center px-1`}
+            >
+              <View className={`w-4 h-4 rounded-full bg-white ${fastMode ? 'ml-auto' : ''}`} />
+            </TouchableOpacity>
+            <Text className="ml-2 text-sm text-gray-600">
+              {fastMode ? 'Activé' : 'Désactivé'}
+            </Text>
+          </View>
+        </View>
+        
+        <View className="mb-4">
+          <Text className="text-sm font-medium text-gray-700 mb-2">Longueur des réponses</Text>
+          <View className="flex-row justify-between">
+            <TouchableOpacity
+              className={`flex-1 p-2 rounded-lg mr-2 ${responseLength === 'court' ? 'bg-blue-500' : 'bg-gray-200'}`}
+              onPress={() => setResponseLength('court')}
+            >
+              <Text className={`text-center font-medium ${responseLength === 'court' ? 'text-white' : 'text-gray-800'}`}>
+                Court
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              className={`flex-1 p-2 rounded-lg mr-2 ${responseLength === 'normal' ? 'bg-blue-500' : 'bg-gray-200'}`}
+              onPress={() => setResponseLength('normal')}
+            >
+              <Text className={`text-center font-medium ${responseLength === 'normal' ? 'text-white' : 'text-gray-800'}`}>
+                Normal
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              className={`flex-1 p-2 rounded-lg ${responseLength === 'détaillé' ? 'bg-blue-500' : 'bg-gray-200'}`}
+              onPress={() => setResponseLength('détaillé')}
+            >
+              <Text className={`text-center font-medium ${responseLength === 'détaillé' ? 'text-white' : 'text-gray-800'}`}>
+                Détaillé
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <TouchableOpacity 
+          className="bg-blue-500 py-3 rounded-lg items-center"
+          onPress={() => {
+            loadEmailsRequiringResponse();
+            setShowSearchOptions(false);
+          }}
+        >
+          <Text className="text-white font-medium">Rechercher les emails</Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -185,29 +341,73 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
     return (
       <View className="flex-1">
         <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-bold text-blue-800">Emails à traiter</Text>
-          {onClose && (
-            <TouchableOpacity onPress={onClose} className="p-2">
-              <Ionicons name="close" size={24} color="#3b82f6" />
+          <Text className="text-xl font-bold text-blue-800">Technidalle Mail</Text>
+          
+          <View className="flex-row">
+            <TouchableOpacity 
+              onPress={() => setShowSearchOptions(!showSearchOptions)}
+              className="p-2 mr-2"
+            >
+              <Ionicons name="search" size={24} color="#3b82f6" />
             </TouchableOpacity>
-          )}
+            
+            {onClose && (
+              <TouchableOpacity onPress={onClose} className="p-2">
+                <Ionicons name="close" size={24} color="#3b82f6" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         
-        {loading ? (
-          <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
-        ) : (
-          <ScrollView className="flex-1">
-            {emailsList.length === 0 ? (
-              <View className="p-4 bg-blue-50 rounded-lg items-center">
-                <Text className="text-center text-blue-800">Aucun email nécessitant une réponse</Text>
-              </View>
-            ) : (
-              emailsList.map(email => renderEmailItem(email))
-            )}
-          </ScrollView>
-        )}
+        <ScrollView className="flex-1">
+          {/* Section Options de recherche - seulement visible si showSearchOptions est true */}
+          {showSearchOptions && (
+            <>
+              {renderSectionHeader("Options de recherche", true, () => {})}
+              {renderSearchOptions()}
+            </>
+          )}
+          
+          {/* Section Aperçu général */}
+          {renderSectionHeader("Aperçu général", showGeneralOverview, () => setShowGeneralOverview(!showGeneralOverview))}
+          {renderGeneralOverview()}
+          
+          {/* Section Résumé de la journée */}
+          {renderSectionHeader("Résumé de la journée", showDailySummary, () => setShowDailySummary(!showDailySummary))}
+          {showDailySummary && (
+            <View className="mb-4 bg-white rounded-lg p-4 shadow-sm">
+              <Text className="text-gray-800">
+                Bonjour, voici votre résumé d'emails du jour.
+              </Text>
+              <Text className="text-gray-800 mt-2">
+                J'ai analysé un total de {emailsList.length} emails. Parmi eux, {emailsList.filter(email => email.analysis?.priority === 'high').length} sont prioritaires.
+              </Text>
+            </View>
+          )}
+          
+          {/* Section Emails */}
+          {renderSectionHeader("Emails", showEmailsSection, () => setShowEmailsSection(!showEmailsSection))}
+          
+          {showEmailsSection && (
+            <>
+              {loading ? (
+                <View className="py-8 justify-center items-center">
+                  <ActivityIndicator size="large" color="#3b82f6" />
+                </View>
+              ) : (
+                <>
+                  {emailsList.length === 0 ? (
+                    <View className="p-4 bg-blue-50 rounded-lg items-center">
+                      <Text className="text-center text-blue-800">Aucun email nécessitant une réponse</Text>
+                    </View>
+                  ) : (
+                    emailsList.map(email => renderEmailItem(email))
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </ScrollView>
       </View>
     );
   };
@@ -378,7 +578,7 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   };
 
   return (
-    <View className="flex-1 bg-green-100 border-t-2 border-blue-200">
+    <View className="flex-1 bg-gray-50 border-t-2 border-blue-200">
       {activeView === 'list' ? renderEmailList() : renderComposeView()}
     </View>
   );
