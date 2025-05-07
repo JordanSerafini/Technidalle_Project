@@ -82,4 +82,9 @@ export const useDevisStore = create<DevisStore>((set, get) => ({
         const state = get();
         return state.rows.some(row => row.material?.id === materialId);
     }
-})); 
+}));
+
+// Ajouter un export par défaut d'un composant vide pour résoudre l'erreur d'Expo Router
+export default function DevisStoreExport() {
+  return null;
+} 

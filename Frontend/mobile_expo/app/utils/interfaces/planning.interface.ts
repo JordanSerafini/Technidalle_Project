@@ -124,3 +124,8 @@ export interface ProjectSummary {
   }
 
   export type PlanningResponse = DailyPlanningResponse | WeeklyPlanningResponse;
+
+  // Ajouter un export par défaut pour résoudre l'erreur d'Expo Router
+  export default function PlanningInterfaceExport() {
+    return null;
+  }

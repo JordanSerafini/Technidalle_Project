@@ -15,4 +15,9 @@ export interface ExtendedFetchOptions {
   cityFilter?: string;
   statusFilter?: string;
   lastOrderFilter?: string;
+}
+
+// Ajouter un export par défaut pour résoudre l'erreur d'Expo Router
+export default function ClientFiltersExport() {
+  return null;
 } 

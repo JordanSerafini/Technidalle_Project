@@ -35,3 +35,8 @@ export const dateFilters = [
   { id: 'month', label: '30 derniers jours' },
   { id: 'year', label: 'Cette année' }
 ];
+
+// Ajouter un export par défaut pour résoudre l'erreur d'Expo Router
+export default function DocumentConstantsExport() {
+  return null;
+}

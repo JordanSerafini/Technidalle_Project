@@ -8,6 +8,7 @@ export default function TabLayout() {
   
   return (
     <Tabs
+      initialRouteName="dashboard"
       screenOptions={{
         tabBarActiveTintColor: tintColor,
         headerShown: false,
@@ -24,7 +25,7 @@ export default function TabLayout() {
         }),
       }}>
       <Tabs.Screen
-        name="index"
+        name="dashboard"
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
