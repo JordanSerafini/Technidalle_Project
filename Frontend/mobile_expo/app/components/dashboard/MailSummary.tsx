@@ -28,8 +28,8 @@ export default function MailSummary() {
     const [filterType, setFilterType] = useState<'all' | 'high' | 'action'>('high');
     
     // États pour le pliage des sections
-    const [overviewExpanded, setOverviewExpanded] = useState(true);
-    const [dailySummaryExpanded, setDailySummaryExpanded] = useState(true);
+    const [overviewExpanded, setOverviewExpanded] = useState(false);
+    const [dailySummaryExpanded, setDailySummaryExpanded] = useState(false);
     const [emailListExpanded, setEmailListExpanded] = useState(false);
     
     // Utiliser une référence pour suivre si la requête initiale a déjà été effectuée
@@ -168,7 +168,7 @@ export default function MailSummary() {
     const emailsToShow = filteredEmails();
 
     return (
-        <View className="flex-1 w-full bg-white">
+        <View className="w-full bg-white">
                        
             <ScrollView 
                 className="flex-1 w-full"
