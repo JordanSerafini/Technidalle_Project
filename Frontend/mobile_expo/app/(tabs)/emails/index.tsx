@@ -64,7 +64,7 @@ export default function Dashboard() {
           <MailSummary />
         ) : (
           <Suspense fallback={<LazyFallback />}>
-            <EmailResponder key={`email-responder-${Date.now()}`} />
+            <EmailResponder />
           </Suspense>
         )}
       </View>

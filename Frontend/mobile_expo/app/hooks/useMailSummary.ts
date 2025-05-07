@@ -44,26 +44,45 @@ export const useMailSummary = () => {
 
   // Utiliser useRef pour conserver l'URL stable
   const API_BASE_URL = useRef(getApiBaseUrl()).current;
-  const MAIL_ENDPOINT = useRef(`${API_BASE_URL}/analyze-email/today/all/summary`).current;
+  // const MAIL_ENDPOINT = useRef(`${API_BASE_URL}/analyze-email/today/all/summary`).current; // Plus utilisé directement
 
   // Paramètres stockés pour être réutilisés lors des rafraîchissements
-  const paramsRef = useRef<{fastMode: boolean, responseLength: ResponseLength, forceRefresh: boolean}>({
+  const paramsRef = useRef<{fastMode: boolean, forceRefresh: boolean}>({
     fastMode: false,
-    responseLength: 'normal',
     forceRefresh: false
   });
   
   // Effet pour synchroniser les emails du store
   useEffect(() => {
     if (actionRequiredEmails.length > 0) {
+      setState(prev => {
+        const newStats = calculateStats(actionRequiredEmails);
+        let newOverview = prev.overview;
+
+        // Si l'aperçu actuel est vide ou est toujours le générique,
+        // et que nous ne sommes pas en train de charger activement le résumé détaillé,
+        // mettre à jour vers le générique.
+        // fetchMailSummary est responsable de setter l'aperçu détaillé.
+        if ((!prev.overview || prev.overview.startsWith("Vous avez")) && !prev.loading) {
+          newOverview = `Vous avez ${actionRequiredEmails.length} emails nécessitant une réponse aujourd'hui.`;
+        }
+        
+        return {
+          ...prev,
+          emails: actionRequiredEmails,
+          stats: newStats,
+          overview: newOverview
+        };
+      });
+    } else if (!isLoading) { // S'il n'y a pas d'emails et qu'on ne charge pas
       setState(prev => ({
         ...prev,
-        emails: actionRequiredEmails,
-        stats: calculateStats(actionRequiredEmails),
-        overview: `Vous avez ${actionRequiredEmails.length} emails nécessitant une réponse aujourd'hui.`
+        emails: [],
+        stats: null,
+        overview: "Aucun email ne nécessite de réponse pour le moment."
       }));
     }
-  }, [actionRequiredEmails]);
+  }, [actionRequiredEmails, isLoading]); // Ajout de isLoading pour éviter écrasement pendant chargement initial
   
   // Effet pour synchroniser l'état de chargement avec le store
   useEffect(() => {
@@ -104,17 +123,19 @@ export const useMailSummary = () => {
 
   // Modification de la fonction pour utiliser fetchEmailsRequiringResponse
   const fetchMailSummary = useCallback(async (
-    fastMode: boolean = false, 
-    responseLength: ResponseLength = 'normal',
+    fastMode: boolean = false,
     forceRefresh: boolean = false
   ) => {
     try {
-      paramsRef.current = { fastMode, responseLength, forceRefresh };
+      // S'assurer que forceRefresh est un booléen, même si mal appelé
+      const trulyForceRefresh = typeof forceRefresh === 'boolean' ? forceRefresh : false;
+
+      paramsRef.current = { fastMode, forceRefresh: trulyForceRefresh };
       const useMockData = getDataMode();
 
       if (useMockData) {
         console.log('[MOCK] Utilisation des données mock pour tout');
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, loading: true, error: null, refreshing: trulyForceRefresh }));
         await new Promise(resolve => setTimeout(resolve, 800));
         
         const store = useMailsStore.getState();
@@ -137,91 +158,80 @@ export const useMailSummary = () => {
       }
 
       // --- API RÉELLE ---
-      setState(prev => ({ ...prev, loading: true, error: null, refreshing: forceRefresh }));
+      setState(prev => ({ ...prev, loading: true, error: null, refreshing: trulyForceRefresh }));
 
-      // 1. Récupérer les emails nécessitant une réponse
-      console.log('[API] Étape 1: Récupération des emails nécessitant une réponse');
-      const emailsData = await fetchEmailsRequiringResponse(fastMode, forceRefresh);
-
-      if (!emailsData) { // Peut être null ou undefined si fetchEmailsRequiringResponse a un souci avant de retourner []
-        setState(prev => ({
-          ...prev,
-          error: "Aucun email n'a pu être récupéré (fetchEmailsRequiringResponse a échoué)",
-          emails: [],
-          stats: null,
-          overview: '',
-          loading: false,
-          refreshing: false
-        }));
-        return;
-      }
-
-      // 2. Récupérer le résumé complet (overview, stats détaillées)
-      console.log('[API] Étape 2: Récupération du résumé complet depuis l\'API');
-      try {
-        const fetchOptionsForSummary = {
+      // unique API call
+      const summaryApiResponse = await fetch(
+        `${API_BASE_URL}/analyze-email/today/all/summary?fastMode=${fastMode}${trulyForceRefresh ? '&forceRefresh=true' : ''}`, 
+        {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            // 'Content-Type': 'application/json', // Pas nécessaire pour un GET simple
-            'Origin': Platform.OS === 'web' ? 'http://localhost:8081' : 'http://localhost' // Ajustez si votre origine est différente
+            'Origin': Platform.OS === 'web' ? 'http://localhost:8081' : 'http://localhost'
           },
           mode: 'cors' as RequestMode,
-          credentials: 'include' as RequestCredentials // Si votre API utilise des cookies/sessions
-        };
-
-        const summaryApiResponse = await fetch(
-          `${API_BASE_URL}/analyze-email/today/all/summary?fastMode=${fastMode}&responseLength=${responseLength}`,
-          fetchOptionsForSummary
-        );
-        const summaryResponseData = await summaryApiResponse.json();
-
-        if (summaryResponseData.status === 'success' && summaryResponseData.summary && summaryResponseData.summary.overview) {
-          const apiSummary = summaryResponseData.summary;
-          setState(prev => ({
-            ...prev,
-            overview: apiSummary.overview || `Vous avez ${emailsData.length} emails. Résumé non fourni par l'API.`,
-            emails: emailsData,
-            stats: {
-              totalEmails: apiSummary.totalEmails || emailsData.length,
-              highPriorityCount: apiSummary.highPriorityCount || emailsData.filter(e => e.analysis?.priority === 'high').length,
-              actionRequiredCount: apiSummary.actionRequiredCount || emailsData.filter(e => e.analysis?.actionRequired).length,
-              categoryCounts: apiSummary.categoryCounts || {}
-            },
-            loading: false,
-            refreshing: false
-          }));
-          console.log('Emails et résumé complet récupérés depuis l\'API');
-        } else {
-          // Le résumé n'a pas pu être chargé, utiliser un résumé local basé sur les emails
-          console.warn('Résumé complet non obtenu de l\'API, utilisation d\'un résumé local.', summaryResponseData.message);
-          const localStats = calculateStats(emailsData);
-          const localOverview = `Vous avez ${emailsData.length} emails nécessitant une réponse aujourd'hui (résumé API indisponible).`;
-          setState(prev => ({
-            ...prev,
-            overview: localOverview,
-            emails: emailsData,
-            stats: localStats,
-            loading: false,
-            refreshing: false
-          }));
+          credentials: 'include' as RequestCredentials
         }
-      } catch (summaryError) {
-        console.error('Erreur lors de la récupération du résumé complet:', summaryError);
-        // Erreur lors du fetch du résumé, utiliser un résumé local basé sur les emails déjà récupérés
-        const localStats = calculateStats(emailsData);
-        const localOverview = `Vous avez ${emailsData.length} emails nécessitant une réponse aujourd'hui (erreur résumé API).`;
+      );
+
+      if (!summaryApiResponse.ok) {
+        const errorText = await summaryApiResponse.text();
+        setState(prev => ({
+          ...prev,
+          error: `Erreur API résumé: ${summaryApiResponse.status} ${summaryApiResponse.statusText}. Réponse: ${errorText}`,
+          loading: false,
+          refreshing: false
+        }));
+        throw new Error(`Erreur API résumé: ${summaryApiResponse.status} ${summaryApiResponse.statusText}. Réponse: ${errorText}`);
+      }
+
+      const responseData = await summaryApiResponse.json();
+      const allAnalyzedEmailsFromApi: EmailData[] = responseData.data || [];
+
+      if (responseData.status === 'success' && responseData.summary && responseData.data) {
+        const apiSummary = responseData.summary;
+        // allAnalyzedEmailsFromApi est déjà initialisé avec responseData.data
+
+        // Filtrer ici les emails nécessitant une action pour l'affichage
+        const emailsRequiringAction = allAnalyzedEmailsFromApi.filter(
+          email => email.analysis?.actionRequired
+        );
+        
+        // Mettre à jour le store avec les emails filtrés si c'est sa responsabilité
+        useMailsStore.getState().setActionRequiredEmails(emailsRequiringAction);
+
+        setState(prev => ({
+          ...prev,
+          overview: apiSummary.overview,
+          emails: emailsRequiringAction, // Afficher la liste filtrée
+          stats: { // Les stats peuvent rester basées sur le résumé global de tous les emails
+            totalEmails: apiSummary.totalEmails,
+            highPriorityCount: apiSummary.highPriorityCount,
+            actionRequiredCount: apiSummary.actionRequiredCount, // Ceci vient du résumé, basé sur tous les emails
+            categoryCounts: apiSummary.categoryCounts || {}
+          },
+          loading: false,
+          refreshing: false
+        }));
+      } else {
+        console.warn(`Résumé complet non obtenu de l'API (status!='success' ou summary/overview/data manquant). Réponse reçue:`, JSON.stringify(responseData));
+        // Utiliser allAnalyzedEmailsFromApi qui contient responseData.data ou []
+        const localStats = calculateStats(allAnalyzedEmailsFromApi);
+        const localOverview = `Vous avez ${allAnalyzedEmailsFromApi.length} emails (résumé API détaillé non disponible).`;
+        
+        // Mettre à jour le store avec tous les emails si le résumé détaillé échoue mais que les données sont là
+        useMailsStore.getState().setActionRequiredEmails(allAnalyzedEmailsFromApi.filter(e => e.analysis?.actionRequired));
+
         setState(prev => ({
           ...prev,
           overview: localOverview,
-          emails: emailsData, // On a quand même les emails
+          emails: allAnalyzedEmailsFromApi.filter(e => e.analysis?.actionRequired), // Ou allAnalyzedEmailsFromApi si on veut tout afficher
           stats: localStats,
           loading: false,
           refreshing: false,
-          error: prev.error // Conserver une erreur précédente si elle existe, ou la nouvelle
+          error: responseData.message || 'Impossible de traiter la réponse du résumé.'
         }));
       }
-
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue';
       setState(prev => ({
@@ -237,8 +247,8 @@ export const useMailSummary = () => {
   // Mise à jour de onRefresh pour utiliser les derniers paramètres
   const onRefresh = useCallback(() => {
     setState(prev => ({ ...prev, refreshing: true }));
-    const { fastMode, responseLength, forceRefresh } = paramsRef.current;
-    fetchMailSummary(fastMode, responseLength, true); // Force le rafraîchissement pendant un pull-to-refresh
+    const { fastMode } = paramsRef.current;
+    fetchMailSummary(fastMode, true); // Force le rafraîchissement pendant un pull-to-refresh
   }, [fetchMailSummary]);
 
   return {

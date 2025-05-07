@@ -172,7 +172,12 @@ export default function MailSummary() {
     };
 
     const renderDailySummary = () => {
-        if (!overview) return null;
+        // N'affiche rien si overview est vide, null, ou semble être le placeholder initial.
+        // Le placeholder est identifié s'il commence par "Vous avez" et contient le nombre total d'emails des stats.
+        // Cela évite d'afficher un résumé incomplet pendant que les données se chargent.
+        if (!overview || overview.trim() === "" || (stats && overview.startsWith("Vous avez") && overview.includes(String(stats.totalEmails)))) {
+            return null;
+        }
         
         return (
             <View style={styles.summaryContainer}>
