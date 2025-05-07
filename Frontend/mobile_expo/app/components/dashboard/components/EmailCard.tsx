@@ -9,9 +9,10 @@ type EmailCardProps = {
   email: EmailData;
   expanded: boolean;
   onToggleExpand: () => void;
+  onReply: (emailId: string) => void;
 };
 
-export const EmailCard = ({ email, expanded, onToggleExpand }: EmailCardProps) => {
+export const EmailCard = ({ email, expanded, onToggleExpand, onReply }: EmailCardProps) => {
   const isHighPriority = email.analysis.priority === 'high';
   const hasActions = email.analysis.actionRequired && email.analysis.actionItems && email.analysis.actionItems.length > 0;
   
@@ -58,37 +59,66 @@ export const EmailCard = ({ email, expanded, onToggleExpand }: EmailCardProps) =
           {truncateText(email.analysis.summary, expanded, 150)}
         </Text>
         
-        {email.analysis.summary && email.analysis.summary.length > 150 && (
+        {email.analysis.summary && email.analysis.summary.length > 150 && !expanded && (
           <TouchableOpacity 
             onPress={onToggleExpand} 
             className="flex-row items-center mt-2"
           >
             <Text className="text-blue-500 text-sm mr-1">
-              {expanded ? 'Voir moins' : 'Voir plus'}
+              Voir plus
             </Text>
             <Ionicons 
-              name={expanded ? "chevron-up" : "chevron-down"} 
+              name={"chevron-down"} 
               size={16} 
               color="#3b82f6" 
             />
           </TouchableOpacity>
         )}
         
-        {/* Actions requises */}
-        {hasActions && expanded && (
-          <View className="mt-3 pt-3 border-t border-gray-200">
-            <View className="flex-row items-center mb-2">
-              <MaterialIcons name="assignment" size={16} color="#4b5563" />
-              <Text className="text-sm font-semibold text-gray-600 ml-1.5">Actions requises:</Text>
+        {expanded && (
+            <View className="mt-3">
+                {email.analysis.summary && email.analysis.summary.length > 150 &&
+                    <TouchableOpacity 
+                        onPress={onToggleExpand} 
+                        className="flex-row items-center mb-3"
+                    >
+                        <Text className="text-blue-500 text-sm mr-1">
+                            Voir moins
+                        </Text>
+                        <Ionicons 
+                        name={"chevron-up"} 
+                        size={16} 
+                        color="#3b82f6" 
+                        />
+                    </TouchableOpacity>
+                }
+
+                {/* Actions requises */}
+                {hasActions && (
+                    <View className="pt-3 border-t border-gray-200 mb-3">
+                        <View className="flex-row items-center mb-2">
+                        <MaterialIcons name="assignment" size={16} color="#4b5563" />
+                        <Text className="text-sm font-semibold text-gray-600 ml-1.5">Actions requises:</Text>
+                        </View>
+                        
+                        {email.analysis.actionItems?.map((action, actionIndex) => (
+                        <View key={actionIndex} className="flex-row mb-1.5 pl-2">
+                            <Text className="text-sm text-gray-500 mr-2">•</Text>
+                            <Text className="text-sm text-gray-600 flex-1">{action}</Text>
+                        </View>
+                        ))}
+                    </View>
+                )}
+
+                {/* Bouton Répondre visible seulement si étendu */}
+                <TouchableOpacity
+                    className="bg-blue-500 py-2 px-4 rounded-lg items-center flex-row justify-center mt-2"
+                    onPress={() => onReply(email.id)}
+                >
+                    <Ionicons name="arrow-undo-outline" size={16} color="#ffffff" className="mr-2" />
+                    <Text className="text-white font-medium">Répondre</Text>
+                </TouchableOpacity>
             </View>
-            
-            {email.analysis.actionItems?.map((action, actionIndex) => (
-              <View key={actionIndex} className="flex-row mb-1.5 pl-2">
-                <Text className="text-sm text-gray-500 mr-2">•</Text>
-                <Text className="text-sm text-gray-600 flex-1">{action}</Text>
-              </View>
-            ))}
-          </View>
         )}
       </View>
       

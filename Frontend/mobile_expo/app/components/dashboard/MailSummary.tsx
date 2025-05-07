@@ -12,7 +12,7 @@ import EmailCard from './components/EmailCard';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import EmptyState from './components/EmptyState';
-import MailSender from './MailSender';
+import EmailReplyModal from './EmailReplyModal';
 
 export default function MailSummary() {
     const {
@@ -42,6 +42,10 @@ export default function MailSummary() {
     const [mailSenderExpanded, setMailSenderExpanded] = useState(false);
     // État pour contrôler la visibilité complète des options de recherche
     const [showSearchOptions, setShowSearchOptions] = useState(true);
+
+    // États pour la modale de réponse
+    const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
+    const [selectedEmailForReply, setSelectedEmailForReply] = useState<string | null>(null);
 
     const toggleExpand = (id: string) => {
         setExpandedItems(prev => ({
@@ -426,6 +430,10 @@ export default function MailSummary() {
                                                         email={email}
                                                         expanded={!!expandedItems[email.id]}
                                                         onToggleExpand={() => toggleExpand(email.id)}
+                                                        onReply={(emailId) => {
+                                                            setSelectedEmailForReply(emailId);
+                                                            setIsReplyModalVisible(true);
+                                                        }}
                                                     />
                                                 ))}
                                             </View>
@@ -456,11 +464,6 @@ export default function MailSummary() {
                                     color="#3b82f6"
                                 />
                             </TouchableOpacity>
-                            {mailSenderExpanded && (
-                                <MailSender
-                                    responseLength={responseLength}
-                                />
-                            )}
                         </View>
                     </>
                 )}
@@ -498,6 +501,23 @@ export default function MailSummary() {
                 keyExtractor={() => 'content'}
                 onRefresh={hasSearched ? onRefresh : undefined}
                 refreshing={refreshing}
+            />
+
+            {/* Affichage de la modale de réponse */}
+            <EmailReplyModal
+                isVisible={isReplyModalVisible}
+                onClose={() => {
+                    setIsReplyModalVisible(false);
+                    setSelectedEmailForReply(null);
+                    // Optionnel: rafraîchir la liste après envoi si un email doit disparaître
+                    // Ceci est un point à affiner: si l'email est juste marqué comme "répondu"
+                    // ou s'il doit vraiment disparaître de la liste `actionRequiredEmails`
+                    // après l'envoi via la modale.
+                    // Si un rafraîchissement est nécessaire:
+                    // fetchMailSummary(fastMode, true); 
+                }}
+                emailId={selectedEmailForReply}
+                responseLength={responseLength} // On peut passer la longueur de réponse par défaut configurée dans MailSummary
             />
         </View>
     );
