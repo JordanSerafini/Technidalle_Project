@@ -35,6 +35,7 @@ export default function MailSummary() {
     const [dailySummaryExpanded, setDailySummaryExpanded] = useState(true);
     const [emailListExpanded, setEmailListExpanded] = useState(true);
     const [searchOptionsExpanded, setSearchOptionsExpanded] = useState(true);
+    const [mailSenderExpanded, setMailSenderExpanded] = useState(false);
 
     const toggleExpand = (id: string) => {
         setExpandedItems(prev => ({
@@ -354,18 +355,20 @@ export default function MailSummary() {
                             <TouchableOpacity
                                 style={styles.sectionHeader}
                                 onPress={() => {
-                                    // Vous pouvez ajouter un état pour contrôler l'expansion du MailSender
-                                    setEmailListExpanded(false); // Ferme la section des emails quand on ouvre le MailSender
+                                    setMailSenderExpanded(!mailSenderExpanded);
+                                    if (!mailSenderExpanded) {
+                                        setEmailListExpanded(false); // Ferme la section des emails quand on ouvre le MailSender
+                                    }
                                 }}
                             >
                                 <Text style={styles.sectionTitle}>Répondre aux emails</Text>
                                 <Ionicons
-                                    name="chevron-forward"
+                                    name={mailSenderExpanded ? "chevron-down" : "chevron-forward"}
                                     size={20}
                                     color="#3b82f6"
                                 />
                             </TouchableOpacity>
-                            <MailSender />
+                            {mailSenderExpanded && <MailSender />}
                         </View>
                     </>
                 )}
@@ -645,12 +648,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 12,
         fontWeight: 'bold',
-    },
-    categoryHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 8,
     },
     categoryCountBadge: {
         backgroundColor: '#60a5fa', // Bleu plus clair
