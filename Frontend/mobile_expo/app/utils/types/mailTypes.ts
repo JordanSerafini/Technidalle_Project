@@ -9,7 +9,13 @@ export type EmailAnalysis = {
     output: number;
     total: number;
   };
+  performanceMetrics?: {
+    processingTimeMs: number;
+    totalLatencyMs: number;
+  };
 };
+
+export type ResponseLength = 'court' | 'normal' | 'détaillé';
 
 export type EmailData = {
   id: string;
