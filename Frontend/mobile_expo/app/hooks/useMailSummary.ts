@@ -1,6 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
-import { EmailData, MailSummaryResponse, EmailSummaryStats } from '../utils/types/mailTypes';
+import { EmailData, MailSummaryResponse, EmailSummaryStats, ResponseLength } from '../utils/types/mailTypes';
+
+// Constante pour l'URL de l'API
+const getApiBaseUrl = () => {
+  const url = Platform.OS === 'web' 
+    ? 'http://localhost:4444' 
+    : 'http://192.168.20.225:4444';
+  
+  console.log(`useMailSummary utilise l'URL: ${url}`);
+  return url;
+};
 
 type MailSummaryState = {
   overview: string;
@@ -16,30 +26,41 @@ export const useMailSummary = () => {
     overview: "",
     emails: [],
     stats: null,
-    loading: true,
+    loading: false,
     error: null,
     refreshing: false
   });
 
   // Utiliser useRef pour conserver l'URL stable
-  const API_BASE_URL = useRef(
-    Platform.OS === 'web' 
-      ? 'http://localhost:4444' 
-      : 'http://192.168.20.225:4444'
-  ).current;
-
+  const API_BASE_URL = useRef(getApiBaseUrl()).current;
   const MAIL_ENDPOINT = useRef(`${API_BASE_URL}/analyze-email/today/all/summary`).current;
 
-  // Utiliser un tableau vide de dépendances pour s'assurer que la fonction ne change jamais
-  const fetchMailSummary = useCallback(async () => {
+  // Paramètres stockés pour être réutilisés lors des rafraîchissements
+  const paramsRef = useRef<{fastMode: boolean, responseLength: ResponseLength}>({
+    fastMode: false,
+    responseLength: 'normal'
+  });
+
+  // Modification de la fonction pour accepter deux paramètres
+  const fetchMailSummary = useCallback(async (fastMode: boolean = false, responseLength: ResponseLength = 'normal') => {
     try {
+      // Stocker les paramètres pour les réutiliser
+      paramsRef.current = { fastMode, responseLength };
+      
       setState(prev => ({ ...prev, loading: true, error: null }));
-      console.log(`Récupération des emails depuis: ${MAIL_ENDPOINT}`);
+      
+      // Construction de l'URL avec des paramètres de requête
+      const queryParams = new URLSearchParams();
+      queryParams.append('fastMode', fastMode ? 'true' : 'false');
+      queryParams.append('responseLength', responseLength);
+      
+      const endpoint = `${MAIL_ENDPOINT}?${queryParams.toString()}`;
+      console.log(`Récupération des emails depuis: ${endpoint}`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 600000);
       
-      const response = await fetch(MAIL_ENDPOINT, {
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -90,9 +111,11 @@ export const useMailSummary = () => {
     }
   }, []); // Tableau vide pour s'assurer que la fonction reste stable
 
+  // Mise à jour de onRefresh pour utiliser les derniers paramètres
   const onRefresh = useCallback(() => {
     setState(prev => ({ ...prev, refreshing: true }));
-    fetchMailSummary();
+    const { fastMode, responseLength } = paramsRef.current;
+    fetchMailSummary(fastMode, responseLength);
   }, [fetchMailSummary]);
 
   return {

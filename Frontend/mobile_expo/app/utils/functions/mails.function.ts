@@ -1,15 +1,17 @@
-import { Alert } from "react-native";
-import { EmailData } from "../types/mailTypes";
+import { Alert, Platform } from "react-native";
+import { EmailData, ResponseLength } from "../types/mailTypes";
 
-// URL de base de l'API (à remplacer par la valeur réelle)
-const API_URL = 'http://localhost:3000'; 
+// Définir l'URL de l'API correctement en fonction de la plateforme
+const API_URL = Platform.OS === 'web' 
+  ? 'http://localhost:4444' 
+  : 'http://10.0.2.2:4444'; // Pour les émulateurs Android
 
 /**
  * Récupère la liste des emails nécessitant une réponse
  */
-export const fetchEmailsRequiringResponse = async (): Promise<EmailData[]> => {
+export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): Promise<EmailData[]> => {
   try {
-    const apiResponse = await fetch(`${API_URL}/send-email/list-requiring-response`);
+    const apiResponse = await fetch(`${API_URL}/analyze-email/today?fastMode=${fastMode}`);
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
@@ -28,12 +30,15 @@ export const fetchEmailsRequiringResponse = async (): Promise<EmailData[]> => {
 /**
  * Génère un brouillon de réponse pour un email
  */
-export const fetchDraftResponse = async (emailId: string): Promise<{
+export const fetchDraftResponse = async (
+  emailId: string, 
+  responseLength: ResponseLength = 'normal'
+): Promise<{
   originalEmail: EmailData | null;
   draftResponse: string;
 }> => {
   try {
-    const apiResponse = await fetch(`${API_URL}/send-email/draft-response/${emailId}`);
+    const apiResponse = await fetch(`${API_URL}/send-email/draft-response/${emailId}?responseLength=${responseLength}`);
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
@@ -58,12 +63,14 @@ export const fetchDraftResponse = async (emailId: string): Promise<{
 export const fetchRewrittenResponse = async (
   emailId: string,
   draftResponse: string,
-  instructions: string
+  instructions: string,
+  responseLength: ResponseLength = 'normal'
 ): Promise<string> => {
   try {
     const requestBody = {
       draftResponse,
-      instructions
+      instructions,
+      responseLength
     };
     
     const apiResponse = await fetch(`${API_URL}/send-email/rewrite-response/${emailId}`, {
@@ -128,11 +135,14 @@ export const sendEmailResponse = async (
  */
 export const sendAutoResponse = async (
   emailId: string,
+  responseLength: ResponseLength = 'normal',
   customInstructions?: string,
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    const requestBody: any = {};
+    const requestBody: any = {
+      responseLength
+    };
     
     if (customInstructions?.trim()) {
       requestBody.customInstructions = customInstructions;
@@ -164,3 +174,15 @@ export const sendAutoResponse = async (
     return false;
   }
 };
+
+// Export un objet contenant toutes les fonctions
+const mailFunctions = {
+  fetchEmailsRequiringResponse,
+  fetchDraftResponse,
+  fetchRewrittenResponse,
+  sendEmailResponse,
+  sendAutoResponse
+};
+
+export default mailFunctions;
+

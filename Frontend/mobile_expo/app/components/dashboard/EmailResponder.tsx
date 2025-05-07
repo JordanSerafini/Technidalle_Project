@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { EmailData } from '../../utils/types/mailTypes';
+import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
 import mailFunctions from '../../utils/functions/mails.function';
 
 // Destructuring des fonctions depuis l'objet importé
@@ -13,12 +13,12 @@ const {
   sendAutoResponse
 } = mailFunctions;
 
-interface MailSenderProps {
+interface EmailResponderProps {
   onClose?: () => void;
   selectedEmailId?: string;
 }
 
-export default function MailSender({ onClose, selectedEmailId }: MailSenderProps) {
+export default function EmailResponder({ onClose, selectedEmailId }: EmailResponderProps) {
   const [loading, setLoading] = useState(false);
   const [emailData, setEmailData] = useState<EmailData | null>(null);
   const [emailsList, setEmailsList] = useState<EmailData[]>([]);
@@ -28,21 +28,39 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   const [editMode, setEditMode] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(selectedEmailId || null);
   const [activeView, setActiveView] = useState<'list' | 'compose'>(selectedEmailId ? 'compose' : 'list');
+  
+  // Nouvelles propriétés pour les fonctionnalités demandées
+  const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
+  const [fastMode, setFastMode] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const initialRenderDone = useRef(false);
+
+  const processSelectedEmail = useCallback((emailId: string) => {
+    if (emailId) {
+      setSelectedEmail(emailId);
+      generateDraft(emailId);
+    }
+  }, []);  
 
   useEffect(() => {
-    if (selectedEmailId) {
-      setSelectedEmail(selectedEmailId);
-      generateDraft(selectedEmailId);
-    } else {
-      loadEmailsRequiringResponse();
+    // Empêcher toute action automatique au premier rendu
+    if (!initialRenderDone.current) {
+      initialRenderDone.current = true;
+      return;
     }
-  }, [selectedEmailId]);
+
+    // Ne traiter l'email sélectionné que s'il vient d'une prop explicite
+    if (selectedEmailId) {
+      processSelectedEmail(selectedEmailId);
+    }
+  }, [selectedEmailId, processSelectedEmail]);
 
   const loadEmailsRequiringResponse = async () => {
     try {
       setLoading(true);
-      const emails = await fetchEmailsRequiringResponse();
+      const emails = await fetchEmailsRequiringResponse(fastMode);
       setEmailsList(emails);
+      setHasSearched(true);
     } catch (err) {
       console.error('Erreur lors du chargement des emails:', err);
     } finally {
@@ -53,7 +71,7 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   const generateDraft = async (emailId: string) => {
     try {
       setLoading(true);
-      const result = await fetchDraftResponse(emailId);
+      const result = await fetchDraftResponse(emailId, responseLength);
       
       if (result.originalEmail) {
         setEmailData(result.originalEmail);
@@ -75,7 +93,8 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
       const newResponse = await fetchRewrittenResponse(
         selectedEmail,
         response,
-        instructions
+        instructions,
+        responseLength
       );
       
       setResponse(newResponse);
@@ -101,7 +120,6 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
       
       if (success) {
         resetForm();
-        loadEmailsRequiringResponse();
         setActiveView('list');
       }
     } catch (err) {
@@ -118,13 +136,13 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
       setLoading(true);
       const success = await sendAutoResponse(
         selectedEmail,
+        responseLength,
         instructions.trim() || undefined,
         subject || undefined
       );
       
       if (success) {
         resetForm();
-        loadEmailsRequiringResponse();
         setActiveView('list');
       }
     } catch (err) {
@@ -141,6 +159,11 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
     setEmailData(null);
     setSelectedEmail(null);
     setEditMode(false);
+    setHasSearched(false);
+  };
+
+  const toggleFastMode = () => {
+    setFastMode(prevMode => !prevMode);
   };
 
   const renderEmailItem = (email: EmailData) => {
@@ -171,11 +194,52 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
             </Text>
           </View>
           
-          <View className="px-2 py-1 rounded-full bg-blue-100">
+          <View className="px-2 py-1 rounded-full bg-blue-100 mr-2">
             <Text className="text-xs text-blue-800">{email.analysis?.category}</Text>
           </View>
+
+          {email.analysis.performanceMetrics && (
+            <View className="px-2 py-1 rounded-full bg-purple-100">
+              <Text className="text-xs text-purple-800">
+                {Math.round(email.analysis.performanceMetrics.totalLatencyMs / 100) / 10}s
+              </Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
+    );
+  };
+
+  const renderResponseLengthSelector = () => {
+    return (
+      <View className="flex-row justify-between mb-4 p-2 bg-gray-50 rounded-lg">
+        <TouchableOpacity
+          className={`flex-1 p-2 rounded-lg mr-2 ${responseLength === 'court' ? 'bg-blue-500' : 'bg-gray-200'}`}
+          onPress={() => setResponseLength('court')}
+        >
+          <Text className={`text-center font-medium ${responseLength === 'court' ? 'text-white' : 'text-gray-800'}`}>
+            Court
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          className={`flex-1 p-2 rounded-lg mr-2 ${responseLength === 'normal' ? 'bg-blue-500' : 'bg-gray-200'}`}
+          onPress={() => setResponseLength('normal')}
+        >
+          <Text className={`text-center font-medium ${responseLength === 'normal' ? 'text-white' : 'text-gray-800'}`}>
+            Normal
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          className={`flex-1 p-2 rounded-lg ${responseLength === 'détaillé' ? 'bg-blue-500' : 'bg-gray-200'}`}
+          onPress={() => setResponseLength('détaillé')}
+        >
+          <Text className={`text-center font-medium ${responseLength === 'détaillé' ? 'text-white' : 'text-gray-800'}`}>
+            Détaillé
+          </Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -191,9 +255,35 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
           )}
         </View>
         
+        <View className="mb-4 px-2 py-2 bg-gray-50 rounded-lg">
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="text-sm font-medium text-gray-800">Mode rapide</Text>
+            <Switch
+              value={fastMode}
+              onValueChange={toggleFastMode}
+              trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+              thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
+            />
+          </View>
+          
+          <TouchableOpacity
+            className="mt-2 py-2 bg-blue-500 rounded-lg items-center"
+            onPress={loadEmailsRequiringResponse}
+            disabled={loading}
+          >
+            <Text className="text-white font-medium">
+              {loading ? 'Recherche...' : 'Rechercher des emails'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {loading ? (
           <View className="flex-1 justify-center items-center">
             <ActivityIndicator size="large" color="#3b82f6" />
+          </View>
+        ) : !hasSearched ? (
+          <View className="p-4 bg-blue-50 rounded-lg items-center">
+            <Text className="text-center text-blue-800">Utilisez le bouton "Rechercher des emails" pour charger les emails à traiter</Text>
           </View>
         ) : (
           <ScrollView className="flex-1">
@@ -247,8 +337,11 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
           <ScrollView className="flex-1">
             <View className="p-4 bg-blue-50 rounded-lg mb-4">
               <Text className="text-lg font-semibold text-blue-800">{emailData.subject}</Text>
-              <Text className="text-sm text-gray-600">De: {emailData.from}</Text>
+              <Text className="text-sm text-gray-600 mb-2">De: {emailData.from}</Text>
+              <Text className="text-sm text-gray-700">{emailData.body}</Text>
             </View>
+            
+            {renderResponseLengthSelector()}
             
             <View className="mb-4">
               <Text className="text-sm font-medium text-gray-700 mb-1">Sujet (optionnel)</Text>
@@ -308,6 +401,16 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
               <View className="flex-row justify-between mb-4">
                 <TouchableOpacity 
                   className="py-3 px-4 bg-gray-200 rounded-lg"
+                  onPress={() => {
+                    setResponseLength(responseLength);
+                    selectedEmail && generateDraft(selectedEmail);
+                  }}
+                >
+                  <Text className="text-gray-800">Régénérer</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  className="py-3 px-4 bg-gray-200 rounded-lg"
                   onPress={() => setEditMode(true)}
                 >
                   <Text className="text-gray-800">Modifier</Text>
@@ -337,6 +440,18 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {emailData.analysis.performanceMetrics && (
+              <View className="p-3 bg-gray-50 rounded-lg mb-4">
+                <Text className="text-sm font-medium text-gray-700 mb-1">Métriques de performance</Text>
+                <Text className="text-xs text-gray-600">
+                  Temps de traitement: {Math.round(emailData.analysis.performanceMetrics.processingTimeMs) / 1000}s
+                </Text>
+                <Text className="text-xs text-gray-600">
+                  Latence totale: {Math.round(emailData.analysis.performanceMetrics.totalLatencyMs) / 1000}s
+                </Text>
+              </View>
+            )}
           </ScrollView>
         )}
       </View>
@@ -344,8 +459,8 @@ export default function MailSender({ onClose, selectedEmailId }: MailSenderProps
   };
 
   return (
-    <View className="flex-1 bg-green-100 border-t-2 border-blue-200">
+    <View className="flex-1 bg-white border-t-2 border-blue-200 p-4">
       {activeView === 'list' ? renderEmailList() : renderComposeView()}
     </View>
   );
-}
+} 
