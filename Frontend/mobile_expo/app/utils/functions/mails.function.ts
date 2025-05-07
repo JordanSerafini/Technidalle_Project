@@ -1,16 +1,33 @@
-import { Alert, Platform } from "react-native";
-import { EmailData, ResponseLength } from "../types/mailTypes";
+import { Platform, Alert } from 'react-native';
+import { EmailData, ResponseLength } from '../types/mailTypes';
+// Import des données mock
+import { dailyMailsMock as mockData } from '../data/dailyMails.mock';
 
-// Définir l'URL de l'API correctement en fonction de la plateforme
+// API URL
 const API_URL = Platform.OS === 'web' 
   ? 'http://localhost:4444' 
-  : 'http://10.0.2.2:4444'; // Pour les émulateurs Android
+  : 'http://192.168.20.225:4444';
 
 /**
  * Récupère la liste des emails nécessitant une réponse
  */
 export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): Promise<EmailData[]> => {
   try {
+    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
+    console.log(`[DEV] Utilisation des données mock pour fetchEmailsRequiringResponse (fastMode: ${fastMode})`);
+    
+    // Simuler un délai pour imiter un appel réseau
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Filtrer les emails qui nécessitent une réponse (actionRequired: true)
+    const actionRequiredEmails = mockData.data.filter(email => 
+      email.analysis && email.analysis.actionRequired === true
+    );
+    
+    return actionRequiredEmails;
+    
+    /*
+    // Fetch original (commenté pendant le développement)
     const apiResponse = await fetch(`${API_URL}/analyze-email/today?fastMode=${fastMode}`);
     const data = await apiResponse.json();
     
@@ -20,6 +37,7 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
       Alert.alert('Erreur', data.message);
       return [];
     }
+    */
   } catch (err) {
     console.error('Erreur lors du chargement des emails:', err);
     Alert.alert('Erreur', 'Impossible de charger les emails');
@@ -28,7 +46,7 @@ export const fetchEmailsRequiringResponse = async (fastMode: boolean = false): P
 };
 
 /**
- * Génère un brouillon de réponse pour un email
+ * Récupère un brouillon de réponse pour un email
  */
 export const fetchDraftResponse = async (
   emailId: string, 
@@ -38,27 +56,72 @@ export const fetchDraftResponse = async (
   draftResponse: string;
 }> => {
   try {
-    const apiResponse = await fetch(`${API_URL}/send-email/draft-response/${emailId}?responseLength=${responseLength}`);
+    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
+    console.log(`[DEV] Utilisation des données mock pour fetchDraftResponse (emailId: ${emailId}, responseLength: ${responseLength})`);
+    
+    // Simuler un délai pour imiter un appel réseau
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Trouver l'email original dans les données mock
+    const originalEmail = mockData.data.find(email => email.id === emailId) || null;
+    
+    if (!originalEmail) {
+      throw new Error(`Email avec l'ID ${emailId} non trouvé dans les données mockées`);
+    }
+    
+    // Générer un brouillon de réponse simulé
+    let draftResponse = '';
+    
+    const fromName = originalEmail.from.match(/"([^"]+)"/) 
+      ? originalEmail.from.match(/"([^"]+)"/)![1] 
+      : originalEmail.from.split('<')[0].trim();
+      
+    switch (responseLength) {
+      case 'court':
+        draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message. J'ai bien pris note de votre demande.\n\nCordialement,\nJordan`;
+        break;
+      case 'détaillé':
+        draftResponse = `Bonjour ${fromName},\n\nJe vous remercie pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de tous les éléments que vous avez partagés. Après analyse, je souhaite vous informer que nous allons traiter cette demande avec la plus grande attention.\n\nÀ propos des points que vous avez soulevés:\n1. Nous avons bien compris votre préoccupation principale\n2. Les actions suggérées seront mises en œuvre prochainement\n3. Un suivi sera effectué dans les meilleurs délais\n\nN'hésitez pas à me contacter si vous avez besoin d'informations supplémentaires.\n\nCordialement,\nJordan Serafini`;
+        break;
+      default: // 'normal'
+        draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${originalEmail.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
+    }
+    
+    return {
+      originalEmail,
+      draftResponse
+    };
+    
+    /*
+    // Fetch original (commenté pendant le développement)
+    const apiResponse = await fetch(`${API_URL}/email/draft-response/${emailId}?responseLength=${responseLength}`);
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
       return {
-        originalEmail: data.data.originalEmail,
-        draftResponse: data.data.draftResponse
+        originalEmail: data.originalEmail || null,
+        draftResponse: data.draftResponse || ''
       };
     } else {
       Alert.alert('Erreur', data.message);
-      return { originalEmail: null, draftResponse: '' };
+      return {
+        originalEmail: null,
+        draftResponse: ''
+      };
     }
+    */
   } catch (err) {
     console.error('Erreur lors de la génération du brouillon:', err);
-    Alert.alert('Erreur', 'Impossible de générer le brouillon');
-    return { originalEmail: null, draftResponse: '' };
+    Alert.alert('Erreur', 'Impossible de générer un brouillon de réponse');
+    return {
+      originalEmail: null,
+      draftResponse: ''
+    };
   }
 };
 
 /**
- * Reformule une réponse avec des instructions
+ * Récupère une réponse reformulée
  */
 export const fetchRewrittenResponse = async (
   emailId: string,
@@ -67,27 +130,59 @@ export const fetchRewrittenResponse = async (
   responseLength: ResponseLength = 'normal'
 ): Promise<string> => {
   try {
-    const requestBody = {
-      draftResponse,
-      instructions,
-      responseLength
-    };
+    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
+    console.log(`[DEV] Utilisation des données mock pour fetchRewrittenResponse (emailId: ${emailId}, instructions: ${instructions})`);
     
-    const apiResponse = await fetch(`${API_URL}/send-email/rewrite-response/${emailId}`, {
+    // Simuler un délai pour imiter un appel réseau
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Trouver l'email dans les données mock
+    const email = mockData.data.find(email => email.id === emailId);
+    
+    if (!email) {
+      throw new Error(`Email avec l'ID ${emailId} non trouvé dans les données mockées`);
+    }
+    
+    // Simuler une reformulation basée sur les instructions
+    let rewrittenResponse = draftResponse;
+    
+    if (instructions.toLowerCase().includes('formel')) {
+      rewrittenResponse = rewrittenResponse.replace('Bonjour', 'Madame, Monsieur,');
+      rewrittenResponse = rewrittenResponse.replace('Merci pour', 'Je vous remercie pour');
+      rewrittenResponse = rewrittenResponse.replace('Cordialement', 'Je vous prie d\'agréer, Madame, Monsieur, l\'expression de mes salutations distinguées');
+    } else if (instructions.toLowerCase().includes('amical') || instructions.toLowerCase().includes('chaleureux')) {
+      rewrittenResponse = rewrittenResponse.replace('Bonjour', 'Salut');
+      rewrittenResponse = rewrittenResponse.replace('Cordialement', 'Bien à toi');
+    } else if (instructions.toLowerCase().includes('concis') || instructions.toLowerCase().includes('court')) {
+      rewrittenResponse = `Bonjour,\n\nMerci pour votre message. J'ai pris note de votre demande et vous répondrai dans les plus brefs délais.\n\nCordialement,\nJordan`;
+    }
+    
+    return rewrittenResponse;
+    
+    /*
+    // Fetch original (commenté pendant le développement)
+    const apiResponse = await fetch(`${API_URL}/email/rewrite-response/${emailId}`, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        draftResponse,
+        instructions,
+        responseLength
+      })
     });
+    
     const data = await apiResponse.json();
-
+    
     if (data.status === 'success') {
-      return data.data.rewrittenResponse;
+      return data.rewrittenResponse || draftResponse;
     } else {
       Alert.alert('Erreur', data.message);
       return draftResponse;
     }
+    */
   } catch (err) {
     console.error('Erreur lors de la reformulation:', err);
     Alert.alert('Erreur', 'Impossible de reformuler la réponse');
@@ -104,9 +199,22 @@ export const sendEmailResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    const apiResponse = await fetch(`${API_URL}/send-email/send-response/${emailId}`, {
+    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
+    console.log(`[DEV] Simulation d'envoi de réponse (emailId: ${emailId})`);
+    
+    // Simuler un délai pour imiter un appel réseau
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Simuler une réponse réussie
+    Alert.alert('Succès', 'Votre réponse a été envoyée avec succès (simulation)');
+    return true;
+    
+    /*
+    // Fetch original (commenté pendant le développement)
+    const apiResponse = await fetch(`${API_URL}/email/send-response/${emailId}`, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -114,24 +222,26 @@ export const sendEmailResponse = async (
         customSubject
       })
     });
+    
     const data = await apiResponse.json();
-
+    
     if (data.status === 'success') {
-      Alert.alert('Succès', 'Email envoyé avec succès');
+      Alert.alert('Succès', 'Votre réponse a été envoyée avec succès');
       return true;
     } else {
       Alert.alert('Erreur', data.message);
       return false;
     }
+    */
   } catch (err) {
-    console.error('Erreur lors de l\'envoi:', err);
-    Alert.alert('Erreur', 'Impossible d\'envoyer l\'email');
+    console.error('Erreur lors de l\'envoi de la réponse:', err);
+    Alert.alert('Erreur', 'Impossible d\'envoyer la réponse');
     return false;
   }
 };
 
 /**
- * Réponse automatique à un email
+ * Envoie une réponse automatique à un email
  */
 export const sendAutoResponse = async (
   emailId: string,
@@ -140,49 +250,54 @@ export const sendAutoResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    const requestBody: any = {
-      responseLength
-    };
+    // UTILISATION DES DONNÉES MOCK AU LIEU DU FETCH RÉEL
+    console.log(`[DEV] Simulation d'envoi de réponse automatique (emailId: ${emailId}, responseLength: ${responseLength})`);
     
-    if (customInstructions?.trim()) {
-      requestBody.customInstructions = customInstructions;
-    }
+    // Simuler un délai pour imiter un appel réseau
+    await new Promise(resolve => setTimeout(resolve, 1800));
     
-    if (customSubject) {
-      requestBody.customSubject = customSubject;
-    }
+    // Simuler une réponse réussie
+    Alert.alert('Succès', 'Votre réponse automatique a été envoyée avec succès (simulation)');
+    return true;
     
-    const apiResponse = await fetch(`${API_URL}/send-email/auto-respond/${emailId}`, {
+    /*
+    // Fetch original (commenté pendant le développement)
+    const apiResponse = await fetch(`${API_URL}/email/auto-response/${emailId}`, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        responseLength,
+        customInstructions,
+        customSubject
+      })
     });
+    
     const data = await apiResponse.json();
-
+    
     if (data.status === 'success') {
-      Alert.alert('Succès', 'Réponse automatique envoyée avec succès');
+      Alert.alert('Succès', 'Votre réponse automatique a été envoyée avec succès');
       return true;
     } else {
       Alert.alert('Erreur', data.message);
       return false;
     }
+    */
   } catch (err) {
-    console.error('Erreur lors de la réponse automatique:', err);
+    console.error('Erreur lors de l\'envoi de la réponse automatique:', err);
     Alert.alert('Erreur', 'Impossible d\'envoyer la réponse automatique');
     return false;
   }
 };
 
-// Export un objet contenant toutes les fonctions
-const mailFunctions = {
+// Exporter toutes les fonctions dans un objet
+export default {
   fetchEmailsRequiringResponse,
   fetchDraftResponse,
   fetchRewrittenResponse,
   sendEmailResponse,
   sendAutoResponse
 };
-
-export default mailFunctions;
 

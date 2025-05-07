@@ -10,6 +10,7 @@ import EmailCard from './components/EmailCard';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import EmptyState from './components/EmptyState';
+import MailSender from './MailSender';
 
 export default function MailSummary() {
     const {
@@ -247,116 +248,136 @@ export default function MailSummary() {
         if (loading && !refreshing) {
             return <LoadingState />;
         }
-      
+
         if (error) {
             return <ErrorState error={error} onRetry={handleSearch} />;
         }
-      
+
+        // Si les données sont vides et qu'on a déjà fait une recherche
+        if (hasSearched && (!emails || emails.length === 0)) {
+            return <EmptyState onRetry={handleSearch} />;
+        }
+
         return (
-            <View style={styles.contentContainer}>
+            <>
                 {renderSearchOptions()}
                 
-                {!hasSearched ? (
-                    <View style={styles.emptyStateContainer}>
-                        <Text style={styles.emptyStateText}>Utilisez les options de recherche pour charger vos emails</Text>
-                    </View>
-                ) : (
+                {hasSearched && (
                     <>
-                        <TouchableOpacity 
-                            style={styles.sectionHeader}
-                            onPress={() => setOverviewExpanded(!overviewExpanded)}
-                        >
-                            <Text style={styles.sectionTitle}>Aperçu général</Text>
-                            <Ionicons 
-                                name={overviewExpanded ? "chevron-down" : "chevron-forward"} 
-                                size={20} 
-                                color="#3b82f6"
-                            />
-                        </TouchableOpacity>
-                        
-                        {overviewExpanded && (
-                            <>
-                                <TouchableOpacity 
-                                    style={styles.subSectionHeader}
-                                    onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
-                                >
-                                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                                        <Ionicons name="document-text-outline" size={18} color="#3b82f6" />
-                                        <Text style={styles.subSectionTitle}>Résumé journalier</Text>
-                                    </View>
-                                    <Ionicons 
-                                        name={dailySummaryExpanded ? "chevron-down" : "chevron-forward"} 
-                                        size={18} 
-                                        color="#3b82f6"
-                                    />
-                                </TouchableOpacity>
-                                
-                                {dailySummaryExpanded && renderDailySummary()}
-                                
-                                <TouchableOpacity 
-                                    style={[styles.subSectionHeader, {marginTop: 16}]}
-                                    onPress={() => setEmailListExpanded(!emailListExpanded)}
-                                >
-                                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                                        <Ionicons name="mail-outline" size={18} color="#3b82f6" />
-                                        <Text style={styles.subSectionTitle}>Liste des emails</Text>
-                                    </View>
-                                    <Ionicons 
-                                        name={emailListExpanded ? "chevron-down" : "chevron-forward"} 
-                                        size={18} 
-                                        color="#3b82f6"
-                                    />
-                                </TouchableOpacity>
-                                
-                                {emailListExpanded && (
-                                    <>
-                                        {renderSummaryStats()}
-                                        {renderFilterButtons()}
+                        <View style={styles.sectionContainer}>
+                            <TouchableOpacity
+                                style={styles.sectionHeader}
+                                onPress={() => setOverviewExpanded(!overviewExpanded)}
+                            >
+                                <Text style={styles.sectionTitle}>Aperçu général</Text>
+                                <Ionicons
+                                    name={overviewExpanded ? "chevron-down" : "chevron-forward"}
+                                    size={20}
+                                    color="#3b82f6"
+                                />
+                            </TouchableOpacity>
+                            
+                            {overviewExpanded && (
+                                <>
+                                    {renderSummaryStats()}
+                                    
+                                    <View style={styles.sectionContainer}>
+                                        <TouchableOpacity
+                                            style={styles.sectionHeader}
+                                            onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
+                                        >
+                                            <Text style={styles.subsectionTitle}>Résumé de la journée</Text>
+                                            <Ionicons
+                                                name={dailySummaryExpanded ? "chevron-down" : "chevron-forward"}
+                                                size={18}
+                                                color="#3b82f6"
+                                            />
+                                        </TouchableOpacity>
                                         
-                                        {emailsToShow.length === 0 ? (
-                                            <EmptyState />
-                                        ) : (
-                                            <View style={{marginTop: 10}}>
-                                                {Object.entries(emailGroups).map(([category, categoryEmails]) => (
-                                                    <View key={category} style={styles.categoryContainer}>
-                                                        <View style={styles.categoryHeader}>
-                                                            <Ionicons 
-                                                                name={
-                                                                    category === 'professionnel' ? 'briefcase-outline' :
-                                                                    category === 'sécurité' ? 'shield-checkmark-outline' :
-                                                                    category === 'administratif' ? 'document-text-outline' :
-                                                                    category === 'facture' ? 'cash-outline' :
-                                                                    category === 'marketing' ? 'megaphone-outline' :
-                                                                    category === 'personnel' ? 'person-outline' :
-                                                                    'mail-outline'
-                                                                } 
-                                                                size={20} 
-                                                                color="#1e40af" 
-                                                            />
-                                                            <Text style={styles.categoryTitle}>
-                                                                {category.charAt(0).toUpperCase() + category.slice(1)} ({categoryEmails.length})
-                                                            </Text>
-                                                        </View>
-                                                        
-                                                        {categoryEmails.map((email, index) => (
-                                                            <EmailCard
-                                                                key={email.id || `email-${category}-${index}`}
-                                                                email={email}
-                                                                expanded={!!expandedItems[email.id || `email-${category}-${index}`]}
-                                                                onToggleExpand={() => toggleExpand(email.id || `email-${category}-${index}`)}
-                                                            />
-                                                        ))}
+                                        {dailySummaryExpanded && renderDailySummary()}
+                                    </View>
+                                </>
+                            )}
+                        </View>
+                        
+                        <View style={styles.sectionContainer}>
+                            <TouchableOpacity
+                                style={styles.sectionHeader}
+                                onPress={() => setEmailListExpanded(!emailListExpanded)}
+                            >
+                                <Text style={styles.sectionTitle}>Emails</Text>
+                                <View style={styles.headerRightContainer}>
+                                    <View style={styles.emailCountBadge}>
+                                        <Text style={styles.emailCountText}>{emailsToShow.length}</Text>
+                                    </View>
+                                    <Ionicons
+                                        name={emailListExpanded ? "chevron-down" : "chevron-forward"}
+                                        size={20}
+                                        color="#3b82f6"
+                                    />
+                                </View>
+                            </TouchableOpacity>
+                            
+                            {emailListExpanded && (
+                                <>
+                                    {renderFilterButtons()}
+                                    
+                                    {Object.keys(emailGroups).length > 0 ? (
+                                        Object.keys(emailGroups).map(category => (
+                                            <View key={category} style={styles.categoryContainer}>
+                                                <View style={styles.categoryHeader}>
+                                                    <Text style={styles.categoryTitle}>{category}</Text>
+                                                    <View style={styles.categoryCountBadge}>
+                                                        <Text style={styles.categoryCountText}>{emailGroups[category].length}</Text>
                                                     </View>
+                                                </View>
+                                                {emailGroups[category].map(email => (
+                                                    <EmailCard
+                                                        key={email.id}
+                                                        email={email}
+                                                        expanded={!!expandedItems[email.id]}
+                                                        onToggleExpand={() => toggleExpand(email.id)}
+                                                    />
                                                 ))}
                                             </View>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        )}
+                                        ))
+                                    ) : (
+                                        <Text style={styles.noEmailsText}>
+                                            Aucun email ne correspond au filtre sélectionné
+                                        </Text>
+                                    )}
+                                </>
+                            )}
+                        </View>
+                        
+                        <View style={styles.sectionContainer}>
+                            <TouchableOpacity
+                                style={styles.sectionHeader}
+                                onPress={() => {
+                                    // Vous pouvez ajouter un état pour contrôler l'expansion du MailSender
+                                    setEmailListExpanded(false); // Ferme la section des emails quand on ouvre le MailSender
+                                }}
+                            >
+                                <Text style={styles.sectionTitle}>Répondre aux emails</Text>
+                                <Ionicons
+                                    name="chevron-forward"
+                                    size={20}
+                                    color="#3b82f6"
+                                />
+                            </TouchableOpacity>
+                            <MailSender />
+                        </View>
                     </>
                 )}
-            </View>
+                
+                {!hasSearched && (
+                    <View style={styles.initialStateContainer}>
+                        <Text style={styles.initialStateText}>
+                            Configurez vos options de recherche et cliquez sur "Rechercher les emails" pour commencer.
+                        </Text>
+                    </View>
+                )}
+            </>
         );
     };
 
@@ -494,7 +515,8 @@ const styles = StyleSheet.create({
     categoryHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        justifyContent: 'space-between',
+        marginBottom: 8,
     },
     categoryTitle: {
         fontSize: 16,
@@ -580,5 +602,65 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#4b5563',
         textAlign: 'center',
+    },
+    sectionContainer: {
+        marginBottom: 20,
+    },
+    subsectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#3b82f6',
+        marginBottom: 8,
+    },
+    noEmailsText: {
+        fontSize: 16,
+        color: '#4b5563',
+        textAlign: 'center',
+    },
+    initialStateContainer: {
+        padding: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f3f4f6',
+        borderRadius: 8,
+        marginVertical: 20,
+    },
+    initialStateText: {
+        fontSize: 16,
+        color: '#4b5563',
+        textAlign: 'center',
+    },
+    headerRightContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    emailCountBadge: {
+        backgroundColor: '#3b82f6',
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        marginRight: 8,
+    },
+    emailCountText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    categoryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    categoryCountBadge: {
+        backgroundColor: '#60a5fa', // Bleu plus clair
+        borderRadius: 12,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    categoryCountText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '500',
     },
 });
