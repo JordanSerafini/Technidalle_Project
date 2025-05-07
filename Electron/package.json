@@ -1,0 +1,19 @@
+{
+  "name": "electron-env-manager",
+  "version": "1.0.0",
+  "description": "Une application Electron pour gérer les fichiers .env et lancer des projets.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "Electron",
+    "env",
+    "dotenv"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+} 
