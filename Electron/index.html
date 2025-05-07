@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Gestionnaire d'environnement</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+  </head>
+  <body>
+    <h1>Gestionnaire d'environnement</h1>
+    <p>Bienvenue dans votre application Electron.</p>
+
+    <h2>Modifier .env</h2>
+    <textarea id="env-content" rows="10" cols="50"></textarea><br>
+    <button id="save-env">Sauvegarder .env</button>
+
+    <h2>Lancer le projet</h2>
+    <button id="launch-project">Lancer le projet</button>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html> 

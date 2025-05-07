@@ -6,11 +6,11 @@ function createWindow () {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false // Attention: désactiver contextIsolation peut présenter des risques de sécurité. À utiliser avec prudence.
+      contextIsolation: false // Attention: désactiver contextIsolation peut présenter des risques de sécurité.
     }
   })
 
-  win.loadFile('index.html')
+  win.loadFile('index.html') // Doit charger index.html depuis le même répertoire
 }
 
 app.whenReady().then(() => {
