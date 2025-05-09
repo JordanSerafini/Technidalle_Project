@@ -1,5 +1,5 @@
 Fournisseur,Numéro,Date,MontantHT,MontantTTC
-"[object Object]","2021-21396-000009","17/10/2021","",""
+"Domaine des Saies","","17/10/2021","437.63","492.58"
 
 Produits:
 Description,Quantité,PrixUnitaireHT,TVA,MontantHT
@@ -11,8 +11,8 @@ Description,Quantité,PrixUnitaireHT,TVA,MontantHT
 "Taxe de séjour","1","","0%","8.1"
 
 Totaux:
-Total HT,
-Total TTC,
+Total HT,437.63
+Total TTC,492.58
 
 Client:
 Nom,"[object Object]"
