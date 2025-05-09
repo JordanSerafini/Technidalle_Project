@@ -1,24 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { QueryResult, QueryResultRow } from 'pg';
+import { pgClient } from '../clients/PgClient';
 
 @Injectable()
 export class QueryService {
   private readonly logger = new Logger(QueryService.name);
 
+  constructor() {
+    this.logger.log('Service de requêtes PostgreSQL initialisé');
+  }
+
   /**
    * Exécute une requête SQL et renvoie le résultat
-   * @param client Client de base de données (Pool ou PoolClient)
    * @param query Requête SQL à exécuter
    * @param params Paramètres de la requête
    * @returns Résultat de la requête
    */
-  async executeQuery<T = any>(
-    client: Pool | PoolClient,
+  async executeQuery<T extends QueryResultRow = any>(
     query: string,
     params: any[] = [],
   ): Promise<QueryResult<T>> {
     try {
-      return await client.query(query, params);
+      return await pgClient.query(query, params);
     } catch (error) {
       this.logger.error(
         `Erreur lors de l'exécution de la requête: ${query}`,
@@ -26,5 +29,19 @@ export class QueryService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Exécute une requête SQL et renvoie le premier résultat
+   * @param query Requête SQL à exécuter
+   * @param params Paramètres de la requête
+   * @returns Premier résultat de la requête ou null
+   */
+  async executeQuerySingle<T extends QueryResultRow = any>(
+    query: string,
+    params: any[] = [],
+  ): Promise<T | null> {
+    const result = await this.executeQuery<T>(query, params);
+    return result.rows.length > 0 ? result.rows[0] : null;
   }
 }

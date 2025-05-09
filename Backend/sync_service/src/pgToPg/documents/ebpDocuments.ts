@@ -595,16 +595,13 @@ export default class EBPDocuments {
       `Début de la synchronisation du document avec ID EBP ${documentIdEBP}`,
     );
     try {
-      const sourceClient = await pgClientSource.pgClient.connect();
+      // Récupérer le document depuis EBP en utilisant pgClientSource.executeQuery
+      const ebpDocResult = await pgClientSource.executeQuery(
+        'SELECT * FROM "ConstructionSiteReferenceDocument" WHERE "Id" = $1',
+        [documentIdEBP],
+      );
 
-      // Récupérer le document depuis EBP
-      const ebpDocResult =
-        await sourceClient.query<ConstructionsitereferencedocumentInterface>(
-          'SELECT * FROM "ConstructionSiteReferenceDocument" WHERE "Id" = $1',
-          [documentIdEBP],
-        );
-
-      if (ebpDocResult.rows.length === 0) {
+      if (!ebpDocResult || ebpDocResult.length === 0) {
         this.logger.warn(`Document avec ID EBP ${documentIdEBP} non trouvé`);
         return {
           success: false,
@@ -612,17 +609,19 @@ export default class EBPDocuments {
         };
       }
 
-      const ebpDoc = ebpDocResult.rows[0];
+      const ebpDoc =
+        ebpDocResult[0] as ConstructionsitereferencedocumentInterface;
 
       // Récupérer le document étendu depuis EBP
-      const ebpDocExResult =
-        await sourceClient.query<ConstructionsitereferencedocumentexInterface>(
-          'SELECT * FROM "ConstructionSiteReferenceDocumentEx" WHERE "Id" = $1',
-          [documentIdEBP],
-        );
+      const ebpDocExResult = await pgClientSource.executeQuery(
+        'SELECT * FROM "ConstructionSiteReferenceDocumentEx" WHERE "Id" = $1',
+        [documentIdEBP],
+      );
 
       const ebpDocEx =
-        ebpDocExResult.rows.length > 0 ? ebpDocExResult.rows[0] : undefined;
+        ebpDocExResult && ebpDocExResult.length > 0
+          ? (ebpDocExResult[0] as ConstructionsitereferencedocumentexInterface)
+          : undefined;
 
       // Convertir le document
       const convertedDoc = await this.convertToAppDocument(ebpDoc, ebpDocEx);
@@ -680,10 +679,14 @@ export default class EBPDocuments {
         ebpId,
       ]);
       if (result.rows.length > 0) {
-        this.logger.debug(`getClientByEbpId: Found client App ID ${result.rows[0].id} for EBP ID ${ebpId}`);
+        this.logger.debug(
+          `getClientByEbpId: Found client App ID ${result.rows[0].id} for EBP ID ${ebpId}`,
+        );
         return result.rows[0];
       } else {
-        this.logger.warn(`getClientByEbpId: No client found for EBP ID ${ebpId}`);
+        this.logger.warn(
+          `getClientByEbpId: No client found for EBP ID ${ebpId}`,
+        );
         return null;
       }
     } catch (error) {
@@ -710,7 +713,9 @@ export default class EBPDocuments {
       );
 
       if (result.rows.length > 0 && result.rows[0].id) {
-        this.logger.debug(`getProjectByEbpId: Found project App ID ${result.rows[0].id} for EBP ID ${ebpId}`);
+        this.logger.debug(
+          `getProjectByEbpId: Found project App ID ${result.rows[0].id} for EBP ID ${ebpId}`,
+        );
         return result.rows[0];
       } else {
         this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
@@ -738,7 +743,9 @@ export default class EBPDocuments {
         staff_id: string;
       }>('SELECT id, "staff_id" FROM staff WHERE "staff_id" = $1', [ebpId]);
       if (result.rows.length > 0) {
-        this.logger.debug(`getStaffByEbpId: Found staff App ID ${result.rows[0].id} for EBP ID ${ebpId}`);
+        this.logger.debug(
+          `getStaffByEbpId: Found staff App ID ${result.rows[0].id} for EBP ID ${ebpId}`,
+        );
         return result.rows[0];
       } else {
         this.logger.warn(`getStaffByEbpId: No staff found for EBP ID ${ebpId}`);
@@ -802,8 +809,10 @@ export default class EBPDocuments {
       return null;
     }
     // Ajout d'une vérification simple de la longueur pour éviter les erreurs de contrainte (peut être affiné)
-    if (zipCode.length > 10) { 
-      this.logger.warn(`Code Postal "${zipCode}" trop long pour l'adresse Rue='${streetName}', Ville='${city}'. Adresse ignorée.`);
+    if (zipCode.length > 10) {
+      this.logger.warn(
+        `Code Postal "${zipCode}" trop long pour l'adresse Rue='${streetName}', Ville='${city}'. Adresse ignorée.`,
+      );
       return null;
     }
 
@@ -846,7 +855,7 @@ export default class EBPDocuments {
       }
 
       // Si non trouvée, essayer d'insérer
-      this.logger.debug('Adresse non trouvée, tentative d\'insertion...');
+      this.logger.debug("Adresse non trouvée, tentative d'insertion...");
       const insertQuery = `
         INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country, longitude, latitude)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -879,7 +888,7 @@ export default class EBPDocuments {
       // Si l'insertion n'a rien retourné (ON CONFLICT DO NOTHING a été activé par une race condition)
       // Re-sélectionner pour obtenir l'ID
       this.logger.debug(
-        'Insertion n\'a pas retourné d\'ID (conflit détecté), re-sélection...',
+        "Insertion n'a pas retourné d'ID (conflit détecté), re-sélection...",
       );
       const reSelectResult = await destinationClient.query<{ id: number }>(
         selectQuery,
@@ -894,7 +903,7 @@ export default class EBPDocuments {
       } else {
         // Cas très improbable
         this.logger.error(
-          'ERREUR CRITIQUE: Impossible de trouver ou d\'insérer l\'adresse après gestion de conflit.',
+          "ERREUR CRITIQUE: Impossible de trouver ou d'insérer l'adresse après gestion de conflit.",
           { selectValues },
         );
         return null;

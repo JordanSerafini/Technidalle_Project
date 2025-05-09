@@ -8,16 +8,17 @@ import { EbpDocumentsService } from './services/ebpDocuments.service';
 import { TruncateModule } from './truncate/truncate.module';
 import { QueryService } from './services/query.service';
 import { ClientSyncService } from './services/client-sync.service';
+import { SyncModule } from './sync/sync.module';
 
 @Module({
-  imports: [TruncateModule],
+  imports: [TruncateModule, SyncModule],
   controllers: [AppController, PgSyncController, EbpDocumentsController],
   providers: [
-    AppService, 
-    QueryService, 
-    ClientSyncService, 
-    PgSyncService, 
-    EbpDocumentsService
+    AppService,
+    QueryService,
+    ClientSyncService,
+    PgSyncService,
+    EbpDocumentsService,
   ],
 })
 export class AppModule {}

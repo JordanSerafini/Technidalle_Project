@@ -39,9 +39,9 @@ export function convertEBPtoAppClient(
     clientEBP.MainInvoicingContact_Phone ||
     clientEBP.MainDeliveryContact_Phone ||
     '';
-  phone = phone.replace(/[^0-9+\s]/g, ''); // Ne garde que chiffres, +, et espaces
+  phone = phone.replace(/[^0-9+\s]/g, '');
   if (phone && (phone.length < 10 || phone.length > 15)) {
-    phone = ''; // Si format invalide, on préfère ne pas mettre de valeur
+    phone = '';
   }
 
   // Nettoyage et formatage du numéro de mobile
@@ -49,9 +49,9 @@ export function convertEBPtoAppClient(
     clientEBP.MainInvoicingContact_Cellphone ||
     clientEBP.MainDeliveryContact_CellPhone ||
     '';
-  mobile = mobile.replace(/[^0-9+\s]/g, ''); // Ne garde que chiffres, +, et espaces
+  mobile = mobile.replace(/[^0-9+\s]/g, '');
   if (mobile && (mobile.length < 10 || mobile.length > 15)) {
-    mobile = ''; // Si format invalide, on préfère ne pas mettre de valeur
+    mobile = '';
   }
 
   // Formatage et validation de l'email

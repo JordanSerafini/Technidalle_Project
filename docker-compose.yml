@@ -2,6 +2,9 @@ services:
   postgres:
     image: postgres:15
     container_name: postgres
+    depends_on:
+      postgres_sync:
+        condition: service_healthy
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -15,6 +18,7 @@ services:
       - ./Database/sql_dev/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
       - ./Database/sql_dev/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
       - ./Database/sql_dev/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
+      - ./Database/sql_dev/sync_logs.sql:/docker-entrypoint-initdb.d/sync_logs.sql
 
     networks:
       - app-network
