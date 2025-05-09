@@ -7,8 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveEnvButton = document.getElementById('save-env');
     const launchProjectButton = document.getElementById('launch-project');
 
-    // Chemin vers le fichier .env DANS LE DOSSIER PARENT (racine du projet global)
-    // __dirname dans Electron renderer process pointe vers le répertoire du fichier HTML (Electron/)
+
     const projectRoot = path.resolve(__dirname, '../Email_Module/email_service_openai'); 
     const envPath = path.join(projectRoot, '.env');
 

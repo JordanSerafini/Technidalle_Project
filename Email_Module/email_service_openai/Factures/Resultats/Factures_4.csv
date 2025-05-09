@@ -3,11 +3,8 @@ Fournisseur,Numéro,Date,MontantHT,MontantTTC
 
 Produits:
 Description,Quantité,PrixUnitaireHT,TVA,MontantHT
-"","30,00 m²","10,75 €","",""
-"","8,75 u","11,34 €","",""
-"","1,00 u","80,00 €","",""
-"","30,00 m²","62,00 €","",""
-"","30,00 m²","12,33 €","",""
+"","","","",""
+"","","","",""
 
 Totaux:
 Total HT,3 451,63 €

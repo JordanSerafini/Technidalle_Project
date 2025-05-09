@@ -1,19 +1,11 @@
 Fournisseur,Numéro,Date,MontantHT,MontantTTC
-"Solution Logique Informatique","FC20250297","07/03/2025","419.5","503.4"
+"Electricité Générale BAUD & FILS","","07/03/2025","","503.4"
 
 Produits:
 Description,Quantité,PrixUnitaireHT,TVA,MontantHT
-"Disque dur SSD 500Go","1","80","20","80"
-"Forfait Installation et paramétrage","1","339.5","20","339.5"
+"Disque dur SSD 500Go","1","","",""
+"Forfait Installation et paramétrage","1","","",""
 
 Totaux:
-Total HT,419.5
-TVA,83.9
+Total HT,
 Total TTC,503.4
-
-Client:
-Nom,"Electricité Générale BAUD & FILS"
-Adresse,"2373 route de Bonneville, 74250 PEILLONNEX"
-
-Paiement:
-Échéance,"14/03/2025"
