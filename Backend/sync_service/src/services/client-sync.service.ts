@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Pool, PoolClient } from 'pg';
 import { QueryService } from './query.service';
+
+interface ClientRow {
+  id: number;
+  // autres champs potentiels de la table clients...
+}
 
 @Injectable()
 export class ClientSyncService {
@@ -10,24 +14,21 @@ export class ClientSyncService {
 
   /**
    * Synchronise un client en utilisant son ID EBP et renvoie son ID interne
-   * @param dbClient Client de base de données
    * @param ebpClientId Identifiant EBP du client
    * @returns ID interne du client ou null si la synchronisation échoue
    */
-  async syncClientByCustomerId(
-    dbClient: Pool | PoolClient,
-    ebpClientId: string,
-  ): Promise<number | null> {
+  async syncClientByCustomerId(ebpClientId: string): Promise<number | null> {
     try {
-      this.logger.log(`Synchronisation du client avec l'ID EBP: ${ebpClientId}`);
-      
+      this.logger.log(
+        `Synchronisation du client avec l'ID EBP: ${ebpClientId}`,
+      );
+
       // Vérifier d'abord si le client existe déjà
       const existingClientQuery = `
         SELECT id FROM clients WHERE customer_id = $1
       `;
-      
-      const result = await this.queryService.executeQuery(
-        dbClient,
+
+      const result = await this.queryService.executeQuery<ClientRow>(
         existingClientQuery,
         [ebpClientId],
       );
@@ -38,7 +39,9 @@ export class ClientSyncService {
 
       // Logique de synchronisation de client à implémenter selon les besoins
       // Pour l'instant, retourne null si le client n'existe pas
-      this.logger.warn(`Client avec ID EBP ${ebpClientId} non trouvé et la synchronisation complète n'est pas implémentée`);
+      this.logger.warn(
+        `Client avec ID EBP ${ebpClientId} non trouvé et la synchronisation complète n'est pas implémentée`,
+      );
       return null;
     } catch (error) {
       this.logger.error(
@@ -48,4 +51,4 @@ export class ClientSyncService {
       return null;
     }
   }
-} 
+}

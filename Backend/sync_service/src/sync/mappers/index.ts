@@ -1,0 +1,37 @@
+import { DealToProjectMapper } from './deal-to-project.mapper';
+// Importer d'autres mappers ici au besoin
+
+export { DealToProjectMapper };
+
+// Interface commune pour tous les mappers
+export interface Mapper<Source, Target> {
+  map(source: Source, ...args: any[]): Target;
+}
+
+// Classe de base pour les opérations de mappage
+export abstract class BaseMapper<Source, Target>
+  implements Mapper<Source, Target>
+{
+  abstract map(source: Source, ...args: any[]): Target;
+
+  // Méthodes utilitaires communes à tous les mappers
+  protected cleanUndefinedProperties(obj: any): any {
+    const result = { ...obj };
+    for (const key in result) {
+      if (result[key] === undefined) {
+        delete result[key];
+      }
+    }
+    return result;
+  }
+
+  // Convertit les dates string en objets Date
+  protected parseDate(dateStr?: string | Date | null): Date | undefined {
+    if (!dateStr) return undefined;
+
+    if (dateStr instanceof Date) return dateStr;
+
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? undefined : date;
+  }
+}

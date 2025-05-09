@@ -8,13 +8,26 @@ import { ProjectEBP } from '../interfaces/projects/projectEBP';
 import { ProjectAPP } from '../interfaces/projects/projectAPP';
 import EBPProject from './projects/ebpProject';
 import EBPDocuments from './documents/ebpDocuments';
+import EBPDeal from './deals/ebpDeal';
 import { Document } from '../interfaces/documents/documents.interface';
+import { DealInterface } from '../interfaces/Deal/deal.interface';
 import {
   ConstructionsitereferencedocumentInterface,
   ConstructionsitereferencedocumentexInterface,
 } from '../../EBP_interface/ConstructionSite - Projets/constructionSite';
 import { QueryService } from '../services/query.service';
 import { ClientSyncService } from '../services/client-sync.service';
+
+// Interface pour les projets (utilisée par les deals)
+interface Project {
+  id?: number;
+  client_id?: number;
+  external_ebp_id?: string;
+  name?: string;
+  reference?: string;
+  status?: string;
+  [key: string]: any;
+}
 
 // Interface pour typer les erreurs de synchronisation
 export interface SyncErrorDetail {
@@ -28,6 +41,7 @@ export class PgSyncService {
   private ebpClient = new EBPclient();
   private ebpProject: EBPProject;
   private ebpDocuments: EBPDocuments;
+  private ebpDeal: EBPDeal;
   private queryService: QueryService;
   private clientSyncService: ClientSyncService;
 
@@ -36,6 +50,7 @@ export class PgSyncService {
     this.clientSyncService = clientSyncService;
     this.ebpProject = new EBPProject(queryService, clientSyncService);
     this.ebpDocuments = new EBPDocuments(queryService, clientSyncService);
+    this.ebpDeal = new EBPDeal(queryService, clientSyncService);
     this.logger.log('PgSyncService initialized');
   }
 
@@ -387,5 +402,31 @@ export class PgSyncService {
         errors: [{ identifier: 'global', error: errorMessage }],
       };
     }
+  }
+
+  /**
+   * Convertit une affaire EBP en projet format application
+   */
+  convertEBPDealToAppProject(dealEBP: DealInterface): Partial<ProjectAPP> {
+    return this.ebpDeal.convertToAppProject(dealEBP);
+  }
+
+  /**
+   * Convertit plusieurs affaires EBP en projets format application
+   */
+  convertMultipleEBPDealsToAppProjects(dealsEBP: DealInterface[]): Partial<ProjectAPP>[] {
+    return this.ebpDeal.convertMultipleToAppProject(dealsEBP);
+  }
+
+  /**
+   * Synchronise toutes les affaires EBP vers l'application
+   */
+  async syncAllEbpDeals(): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    details: string;
+  }> {
+    return await this.ebpDeal.syncAllDeals();
   }
 }

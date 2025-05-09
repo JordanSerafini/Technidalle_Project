@@ -12,6 +12,7 @@ export interface ProjectAPP {
   actual_cost: number;
   margin: number;
   notes?: string;
+  deal_id?: string; // ID de l'affaire associée au projet
   // Propriété pour conserver les données originales pendant la transformation
   constructionSite?: any;
 }
@@ -32,6 +33,7 @@ export class ProjectMapper {
       actual_cost: constructionSite.AccomplishedSales,
       margin: constructionSite.PredictedGrossMargin,
       notes: constructionSite.Notes,
+      deal_id: constructionSite.DealId || undefined,
       constructionSite: constructionSite,
     };
   }
