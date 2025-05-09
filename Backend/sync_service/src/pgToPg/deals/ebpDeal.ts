@@ -154,13 +154,15 @@ export default class EBPDeal {
       // Essayer de trouver le client existant par client_id (xx_Client au lieu de EbpClientReference)
       if (dealData.xx_Client) {
         try {
-          const clientIdToSearch = dealData.xx_Client ? String(dealData.xx_Client).trim() : null;
-          
+          const clientIdToSearch = dealData.xx_Client
+            ? String(dealData.xx_Client).trim()
+            : null;
+
           // Log de la valeur recherchée
           this.logger.log(
             `Recherche du client avec xx_Client = ${clientIdToSearch}`,
           );
-          
+
           // Requête complète qui utilise différentes stratégies de recherche
           const searchClientQuery = `
             SELECT "id" FROM public."clients" 
@@ -169,14 +171,14 @@ export default class EBPDeal {
             OR "external_ebp_customer_id" = $3
             LIMIT 1
           `;
-          
+
           const clientResult = await this.queryService
             .executeQuery<{
               id: string;
             }>(searchClientQuery, [
-              clientIdToSearch,         // Recherche exacte insensible à la casse
-              `%${clientIdToSearch}%`,  // Recherche partielle
-              clientIdToSearch,         // Recherche exacte
+              clientIdToSearch, // Recherche exacte insensible à la casse
+              `%${clientIdToSearch}%`, // Recherche partielle
+              clientIdToSearch, // Recherche exacte
             ])
             .catch((err) => {
               const errorMessage =
@@ -465,22 +467,22 @@ export default class EBPDeal {
         try {
           // Normaliser l'ID du client pour éviter les problèmes de casse
           const clientId = ebpClient.Id ? String(ebpClient.Id).trim() : null;
-          
+
           if (!clientId) {
             this.logger.warn(`Client sans ID ignoré`);
             continue;
           }
-          
+
           this.logger.log(`Traitement du client EBP: ${clientId}`);
-          
+
           // Vérifier si le client existe déjà (recherche insensible à la casse)
           const checkQuery = `
             SELECT "id", "external_ebp_customer_id", "name" 
             FROM public."clients" 
             WHERE LOWER("external_ebp_customer_id") = LOWER($1)
           `;
-          
-          const existingClient = await this.queryService.executeQuery<{ 
+
+          const existingClient = await this.queryService.executeQuery<{
             id: string;
             external_ebp_customer_id: string;
             name: string;
@@ -488,14 +490,17 @@ export default class EBPDeal {
 
           // Préparer les données du client
           const clientName = ebpClient.Name || clientId;
-          const clientEmail = ebpClient.Email || `no-email-${clientId}@example.com`;
+          const clientEmail =
+            ebpClient.Email || `no-email-${clientId}@example.com`;
           const clientPhone = ebpClient.Phone || null;
           const clientAddress = ebpClient.FullAddress || null;
 
           if (existingClient.rows && existingClient.rows.length > 0) {
             // Mettre à jour le client existant
-            this.logger.log(`Client trouvé dans la base: ${existingClient.rows[0].external_ebp_customer_id} (ID: ${existingClient.rows[0].id})`);
-            
+            this.logger.log(
+              `Client trouvé dans la base: ${existingClient.rows[0].external_ebp_customer_id} (ID: ${existingClient.rows[0].id})`,
+            );
+
             await this.queryService.executeQuery(
               `UPDATE public."clients" SET 
                 "name" = $1,
@@ -522,17 +527,19 @@ export default class EBPDeal {
               FROM public."clients" 
               WHERE LOWER("name") = LOWER($1)
             `;
-            
-            const existingByName = await this.queryService.executeQuery<{ 
+
+            const existingByName = await this.queryService.executeQuery<{
               id: string;
               external_ebp_customer_id: string;
               name: string;
             }>(checkByNameQuery, [clientName]);
-            
+
             if (existingByName.rows && existingByName.rows.length > 0) {
               // Mettre à jour l'ID externe du client existant
-              this.logger.log(`Client trouvé par nom: ${existingByName.rows[0].name} (ID: ${existingByName.rows[0].id})`);
-              
+              this.logger.log(
+                `Client trouvé par nom: ${existingByName.rows[0].name} (ID: ${existingByName.rows[0].id})`,
+              );
+
               await this.queryService.executeQuery(
                 `UPDATE public."clients" SET 
                   "external_ebp_customer_id" = $1,
@@ -549,7 +556,9 @@ export default class EBPDeal {
                   existingByName.rows[0].id,
                 ],
               );
-              this.logger.log(`Client ${clientName} mis à jour avec l'ID externe ${clientId}`);
+              this.logger.log(
+                `Client ${clientName} mis à jour avec l'ID externe ${clientId}`,
+              );
             } else {
               // Créer un nouveau client
               await this.queryService.executeQuery(
@@ -560,15 +569,11 @@ export default class EBPDeal {
                   "phone",
                   "address"
                 ) VALUES ($1, $2, $3, $4, $5)`,
-                [
-                  clientName,
-                  clientId,
-                  clientEmail,
-                  clientPhone,
-                  clientAddress,
-                ],
+                [clientName, clientId, clientEmail, clientPhone, clientAddress],
               );
-              this.logger.log(`Nouveau client créé: ${clientName} (ID externe: ${clientId})`);
+              this.logger.log(
+                `Nouveau client créé: ${clientName} (ID externe: ${clientId})`,
+              );
             }
           }
           successCount++;
@@ -599,7 +604,7 @@ export default class EBPDeal {
    * Attend pendant un certain nombre de millisecondes
    */
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -630,53 +635,63 @@ export default class EBPDeal {
     try {
       // Charger les deals depuis EBP
       const deals = await this.getAllDealsFromEBP();
-      
+
       let processed = 0;
       let succeeded = 0;
       let failed = 0;
       const errorMessages: string[] = [];
-      
+
       // Traitement par lots de 25 affaires (plus petit pour éviter les timeouts)
       const batchSize = 10; // Réduire la taille du lot à 10 au lieu de 25
       const delayBetweenBatches = 1500; // Augmenter le délai entre les lots à 1.5 secondes
       this.logger.log(
         `Traitement de ${deals.length} affaires par lots de ${batchSize} avec ${delayBetweenBatches}ms de délai entre les lots`,
       );
-      
+
       // Diviser les affaires en lots
       const batches: DealInterface[][] = [];
       for (let i = 0; i < deals.length; i += batchSize) {
         batches.push(deals.slice(i, i + batchSize));
       }
-      
+
       this.logger.log(`Nombre total de lots: ${batches.length}`);
-      
+
       // Traiter chaque lot
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
         const batch = batches[batchIndex];
         this.logger.log(
           `Début du traitement du lot ${batchIndex + 1}/${batches.length} (${batch.length} affaires)`,
         );
-        
+
         // Traitement séquentiel des affaires dans le lot avec gestion des erreurs
         for (const deal of batch) {
           try {
             processed++;
-            
+
             // Afficher des informations sur l'affaire en cours de traitement
-            this.logger.log(`Traitement de l'affaire ${deal.Id || 'sans ID'} (${processed}/${deals.length})`);
-            
+            this.logger.log(
+              `Traitement de l'affaire ${deal.Id || 'sans ID'} (${processed}/${deals.length})`,
+            );
+
             // Traiter chaque affaire avec un timeout
             const dealPromise = this.insertDealIntoApp(deal);
-            
+
             // Définir un timeout de 15 secondes pour chaque affaire (réduit de 30s)
             const timeoutPromise = new Promise<null>((_, reject) => {
-              setTimeout(() => reject(new Error(`Timeout lors du traitement de l'affaire ${deal.Id}`)), 15000);
+              setTimeout(
+                () =>
+                  reject(
+                    new Error(
+                      `Timeout lors du traitement de l'affaire ${deal.Id}`,
+                    ),
+                  ),
+                15000,
+              );
             });
-            
+
             // Attendre que l'une des promesses se termine
             const result = await Promise.race([dealPromise, timeoutPromise]);
-            
+
             if (result) {
               succeeded++;
               this.logger.log(`Succès pour l'affaire ${deal.Id}`);
@@ -687,28 +702,37 @@ export default class EBPDeal {
             }
           } catch (error) {
             failed++;
-            const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+            const errorMessage =
+              error instanceof Error ? error.message : 'Erreur inconnue';
             this.logger.error(
               `Erreur lors du traitement de l'affaire ${deal.Id}: ${errorMessage}`,
             );
-            errorMessages.push(`Erreur pour l'affaire ${deal.Id}: ${errorMessage}`);
-            
+            errorMessages.push(
+              `Erreur pour l'affaire ${deal.Id}: ${errorMessage}`,
+            );
+
             // Continuer malgré l'erreur
             continue;
           }
-          
+
           // Log de progression
           if (processed % 5 === 0 || processed === deals.length) {
-            this.logger.log(`Progression: ${processed}/${deals.length} (${Math.round((processed / deals.length) * 100)}%)`);
+            this.logger.log(
+              `Progression: ${processed}/${deals.length} (${Math.round((processed / deals.length) * 100)}%)`,
+            );
           }
         }
-        
+
         // Log de fin de lot
-        this.logger.log(`Lot ${batchIndex + 1}/${batches.length} terminé: ${succeeded} réussis, ${failed} échoués sur ${processed} traités`);
-        
+        this.logger.log(
+          `Lot ${batchIndex + 1}/${batches.length} terminé: ${succeeded} réussis, ${failed} échoués sur ${processed} traités`,
+        );
+
         // Attendre un peu entre les lots pour réduire la charge
         if (batchIndex < batches.length - 1) {
-          this.logger.log(`Attente de ${delayBetweenBatches}ms avant le prochain lot...`);
+          this.logger.log(
+            `Attente de ${delayBetweenBatches}ms avant le prochain lot...`,
+          );
           await this.delay(delayBetweenBatches);
         }
       }
@@ -724,9 +748,12 @@ export default class EBPDeal {
       };
     } catch (error) {
       // Attraper les erreurs globales pour éviter que tout le processus ne s'arrête
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Erreur globale lors de la synchronisation: ${errorMessage}`);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Erreur globale lors de la synchronisation: ${errorMessage}`,
+      );
+
       return {
         processed: 0,
         succeeded: 0,
