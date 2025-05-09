@@ -596,6 +596,13 @@ export default class EBPDeal {
   }
 
   /**
+   * Attend pendant un certain nombre de millisecondes
+   */
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
    * Synchronise toutes les affaires EBP vers l'application
    */
   async syncAllDeals(): Promise<{
@@ -620,41 +627,112 @@ export default class EBPDeal {
     // Synchroniser d'abord les clients depuis EBP
     await this.syncClientsFromEBP();
 
-    // Charger les deals depuis EBP
-    const deals = await this.getAllDealsFromEBP();
-    let processed = 0;
-    let succeeded = 0;
-    let failed = 0;
-    const errorMessages: string[] = [];
-
-    for (const deal of deals) {
-      processed++;
-      try {
-        const result = await this.insertDealIntoApp(deal);
-        if (result) {
-          succeeded++;
-        } else {
-          failed++;
-          errorMessages.push(`Échec pour l'affaire ${deal.Id}`);
-        }
-      } catch (error) {
-        failed++;
-        errorMessages.push(
-          `Erreur pour l'affaire ${deal.Id}: ${
-            error instanceof Error ? error.message : 'Erreur inconnue'
-          }`,
-        );
+    try {
+      // Charger les deals depuis EBP
+      const deals = await this.getAllDealsFromEBP();
+      
+      let processed = 0;
+      let succeeded = 0;
+      let failed = 0;
+      const errorMessages: string[] = [];
+      
+      // Traitement par lots de 25 affaires (plus petit pour éviter les timeouts)
+      const batchSize = 10; // Réduire la taille du lot à 10 au lieu de 25
+      const delayBetweenBatches = 1500; // Augmenter le délai entre les lots à 1.5 secondes
+      this.logger.log(
+        `Traitement de ${deals.length} affaires par lots de ${batchSize} avec ${delayBetweenBatches}ms de délai entre les lots`,
+      );
+      
+      // Diviser les affaires en lots
+      const batches: DealInterface[][] = [];
+      for (let i = 0; i < deals.length; i += batchSize) {
+        batches.push(deals.slice(i, i + batchSize));
       }
+      
+      this.logger.log(`Nombre total de lots: ${batches.length}`);
+      
+      // Traiter chaque lot
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        this.logger.log(
+          `Début du traitement du lot ${batchIndex + 1}/${batches.length} (${batch.length} affaires)`,
+        );
+        
+        // Traitement séquentiel des affaires dans le lot avec gestion des erreurs
+        for (const deal of batch) {
+          try {
+            processed++;
+            
+            // Afficher des informations sur l'affaire en cours de traitement
+            this.logger.log(`Traitement de l'affaire ${deal.Id || 'sans ID'} (${processed}/${deals.length})`);
+            
+            // Traiter chaque affaire avec un timeout
+            const dealPromise = this.insertDealIntoApp(deal);
+            
+            // Définir un timeout de 15 secondes pour chaque affaire (réduit de 30s)
+            const timeoutPromise = new Promise<null>((_, reject) => {
+              setTimeout(() => reject(new Error(`Timeout lors du traitement de l'affaire ${deal.Id}`)), 15000);
+            });
+            
+            // Attendre que l'une des promesses se termine
+            const result = await Promise.race([dealPromise, timeoutPromise]);
+            
+            if (result) {
+              succeeded++;
+              this.logger.log(`Succès pour l'affaire ${deal.Id}`);
+            } else {
+              failed++;
+              errorMessages.push(`Échec pour l'affaire ${deal.Id}`);
+              this.logger.warn(`Échec pour l'affaire ${deal.Id}`);
+            }
+          } catch (error) {
+            failed++;
+            const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+            this.logger.error(
+              `Erreur lors du traitement de l'affaire ${deal.Id}: ${errorMessage}`,
+            );
+            errorMessages.push(`Erreur pour l'affaire ${deal.Id}: ${errorMessage}`);
+            
+            // Continuer malgré l'erreur
+            continue;
+          }
+          
+          // Log de progression
+          if (processed % 5 === 0 || processed === deals.length) {
+            this.logger.log(`Progression: ${processed}/${deals.length} (${Math.round((processed / deals.length) * 100)}%)`);
+          }
+        }
+        
+        // Log de fin de lot
+        this.logger.log(`Lot ${batchIndex + 1}/${batches.length} terminé: ${succeeded} réussis, ${failed} échoués sur ${processed} traités`);
+        
+        // Attendre un peu entre les lots pour réduire la charge
+        if (batchIndex < batches.length - 1) {
+          this.logger.log(`Attente de ${delayBetweenBatches}ms avant le prochain lot...`);
+          await this.delay(delayBetweenBatches);
+        }
+      }
+
+      const details =
+        errorMessages.length > 0 ? `Erreurs: ${errorMessages.join('; ')}` : '';
+
+      return {
+        processed,
+        succeeded,
+        failed,
+        details,
+      };
+    } catch (error) {
+      // Attraper les erreurs globales pour éviter que tout le processus ne s'arrête
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Erreur globale lors de la synchronisation: ${errorMessage}`);
+      
+      return {
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        details: `Erreur globale: ${errorMessage}`,
+      };
     }
-
-    const details =
-      errorMessages.length > 0 ? `Erreurs: ${errorMessages.join('; ')}` : '';
-
-    return {
-      processed,
-      succeeded,
-      failed,
-      details,
-    };
   }
 }
