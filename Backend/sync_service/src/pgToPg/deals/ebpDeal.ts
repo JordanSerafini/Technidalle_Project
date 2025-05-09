@@ -762,4 +762,355 @@ export default class EBPDeal {
       };
     }
   }
+
+  /**
+   * Vérifie et corrige les problèmes de synchronisation des projets avec insertion forcée
+   */
+  async verifyProjects(): Promise<{
+    count: number;
+    fixed: number;
+  }> {
+    try {
+      this.logger.log('Vérification des projets synchronisés');
+
+      // Vérifier le nombre de projets dans la table
+      const countResult = await this.queryService.executeQuery<{
+        count: string;
+      }>('SELECT COUNT(*) as count FROM public."projects"');
+
+      const projectCount = parseInt(countResult.rows?.[0]?.count || '0', 10);
+      this.logger.log(`Nombre de projets dans la table: ${projectCount}`);
+
+      // Si table vide ou presque vide
+      if (projectCount < 100) {
+        this.logger.log('Pas assez de projets, exécution insertion forcée');
+
+        // Récupérer toutes les affaires depuis la base EBP
+        const deals = await this.getAllDealsFromEBP();
+        this.logger.log(
+          `Récupération de ${deals.length} affaires pour insertion forcée`,
+        );
+
+        // Créer un script SQL pour une insertion massive
+        let sqlScript = 'BEGIN;\n';
+        let fixedCount = 0;
+        const batchSize = 50; // Traiter par lots de 50
+
+        for (let i = 0; i < Math.min(deals.length, 500); i++) {
+          const deal = deals[i];
+
+          if (!deal.Id) {
+            continue; // Ignorer les affaires sans ID
+          }
+
+          // Créer des valeurs sécurisées pour l'insertion SQL
+          const name = (deal as any).Name
+            ? (deal as any).Name.replace(/'/g, "''")
+            : `Projet ${deal.Id}`;
+
+          const clientId = deal.xx_Client
+            ? String(deal.xx_Client).replace(/'/g, "''")
+            : null;
+
+          const status = 'PROSPECT';
+
+          // Ajouter l'instruction INSERT
+          sqlScript += `
+INSERT INTO public."projects" ("external_ebp_id", "name", "client_id", "status")
+VALUES ('${deal.Id.replace(/'/g, "''")}', '${name}', ${clientId ? `'${clientId}'` : 'NULL'}, '${status}')
+ON CONFLICT ("external_ebp_id") DO NOTHING;
+`;
+
+          fixedCount++;
+
+          // Exécuter par lots pour éviter des scripts trop volumineux
+          if (
+            fixedCount % batchSize === 0 ||
+            i === Math.min(deals.length, 500) - 1
+          ) {
+            sqlScript += 'COMMIT;';
+
+            this.logger.log(
+              `Exécution du lot ${Math.ceil(fixedCount / batchSize)}/${Math.ceil(Math.min(deals.length, 500) / batchSize)}`,
+            );
+
+            try {
+              await this.queryService.executeQuery(sqlScript);
+              this.logger.log(
+                `Lot inséré avec succès: ${fixedCount} affaires traitées`,
+              );
+            } catch (error) {
+              this.logger.error(
+                `Erreur lors de l'exécution du script SQL: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            }
+
+            // Réinitialiser le script pour le prochain lot
+            sqlScript = 'BEGIN;\n';
+          }
+        }
+
+        // Vérifier à nouveau le nombre de projets
+        const newCountResult = await this.queryService.executeQuery<{
+          count: string;
+        }>('SELECT COUNT(*) as count FROM public."projects"');
+
+        const newProjectCount = parseInt(
+          newCountResult.rows?.[0]?.count || '0',
+          10,
+        );
+
+        this.logger.log(
+          `Nombre de projets après insertion forcée: ${newProjectCount}`,
+        );
+
+        return {
+          count: newProjectCount,
+          fixed: fixedCount,
+        };
+      }
+
+      return {
+        count: projectCount,
+        fixed: 0,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la vérification des projets: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return {
+        count: 0,
+        fixed: 0,
+      };
+    }
+  }
+
+  /**
+   * Synchronise rapidement toutes les affaires EBP vers l'application avec des insertions SQL directes
+   */
+  async fastSyncAllDeals(): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    details: string;
+  }> {
+    this.logger.log('Début de la synchronisation rapide des affaires EBP');
+
+    // Vérifier et créer les tables si nécessaire
+    const tablesReady = await this.createTablesIfNotExist();
+    if (!tablesReady) {
+      return {
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        details: 'Erreur: Impossible de créer les tables nécessaires',
+      };
+    }
+
+    try {
+      // Charger les deals depuis EBP
+      const deals = await this.getAllDealsFromEBP();
+      this.logger.log(
+        `Récupération de ${deals.length} affaires depuis EBP pour synchronisation rapide`,
+      );
+
+      let processed = 0;
+      let succeeded = 0;
+      let failed = 0;
+      const errorMessages: string[] = [];
+
+      // Traitement par lots plus grands pour accélérer
+      const batchSize = 250; // Augmentation significative de la taille des lots
+      const totalBatches = Math.ceil(deals.length / batchSize);
+
+      for (let i = 0; i < deals.length; i += batchSize) {
+        const batchDeals = deals.slice(i, i + batchSize);
+        const batchIndex = Math.floor(i / batchSize) + 1;
+
+        this.logger.log(
+          `Traitement du lot ${batchIndex}/${totalBatches} (${batchDeals.length} affaires)`,
+        );
+
+        // Créer un script SQL pour insérer tout le lot en une seule transaction
+        let sqlScript = 'BEGIN;\n';
+
+        for (const deal of batchDeals) {
+          if (!deal.Id) {
+            failed++;
+            continue; // Ignorer les affaires sans ID
+          }
+
+          // Extraire les valeurs nécessaires avec échappement pour SQL
+          const dealId = String(deal.Id).replace(/'/g, "''");
+          const name = (deal as any).Name
+            ? String((deal as any).Name).replace(/'/g, "''")
+            : `Projet ${dealId}`;
+
+          const clientId = deal.xx_Client
+            ? String(deal.xx_Client).replace(/'/g, "''")
+            : null;
+
+          const reference = (deal as any).Reference
+            ? String((deal as any).Reference).replace(/'/g, "''")
+            : dealId;
+
+          const description = (deal as any).Description
+            ? String((deal as any).Description).replace(/'/g, "''")
+            : null;
+
+          // Construire l'instruction INSERT
+          sqlScript += `
+INSERT INTO public."projects" (
+  "external_ebp_id", "name", "reference", "description", "status", "client_id"
+) VALUES (
+  '${dealId}', '${name}', '${reference}', ${description ? `'${description}'` : 'NULL'}, 'PROSPECT', ${clientId ? `'${clientId}'` : 'NULL'}
+)
+ON CONFLICT ("external_ebp_id") 
+DO UPDATE SET 
+  "name" = EXCLUDED."name",
+  "reference" = EXCLUDED."reference", 
+  "description" = EXCLUDED."description",
+  "client_id" = EXCLUDED."client_id",
+  "updated_at" = CURRENT_TIMESTAMP;
+`;
+          processed++;
+        }
+
+        sqlScript += 'COMMIT;';
+
+        try {
+          // Exécuter le script pour tout le lot
+          await this.queryService.executeQuery(sqlScript);
+          succeeded += batchDeals.length;
+          
+          // Log moins verbeux - uniquement pour les lots multiples de 5 ou le dernier
+          if (batchIndex % 5 === 0 || batchIndex === totalBatches) {
+            this.logger.log(
+              `Progression: ${batchIndex}/${totalBatches} lots traités (${Math.round((batchIndex / totalBatches) * 100)}%)`,
+            );
+          }
+        } catch (error) {
+          failed += batchDeals.length - (processed - succeeded - failed);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Erreur lot ${batchIndex}: ${errorMessage}`,
+          );
+          errorMessages.push(`Erreur lot ${batchIndex}: ${errorMessage}`);
+        }
+
+        // Pas de délai entre les lots pour maximiser la vitesse
+        // Sauf si on est à un multiple de 5 pour laisser respirer la BD
+        if (batchIndex < totalBatches && batchIndex % 5 === 0) {
+          await this.delay(100);
+        }
+      }
+
+      const details =
+        errorMessages.length > 0 ? `Erreurs: ${errorMessages.join('; ')}` : '';
+
+      return {
+        processed,
+        succeeded,
+        failed,
+        details,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Erreur globale lors de la synchronisation rapide: ${errorMessage}`,
+      );
+
+      return {
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        details: `Erreur globale: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Point d'entrée principal pour la synchronisation rapide des deals
+   */
+  async runFastSync(): Promise<{
+    success: boolean;
+    message: string;
+    stats: {
+      processed: number;
+      succeeded: number;
+      failed: number;
+    };
+  }> {
+    try {
+      this.logger.log('Démarrage de la synchronisation rapide des affaires');
+
+      // Synchroniser les clients en premier (cette étape est nécessaire)
+      const clientResult = await this.syncClientsFromEBP();
+      
+      if (!clientResult) {
+        this.logger.warn('Synchronisation des clients terminée avec des avertissements, mais on continue');
+      }
+
+      // Vérifier l'état des projets avant de commencer
+      const { count: projectCountBefore } = await this.verifyProjects();
+      this.logger.log(`Nombre de projets avant synchronisation: ${projectCountBefore}`);
+
+      // Utiliser la méthode rapide pour les deals
+      const startTime = Date.now();
+      const result = await this.fastSyncAllDeals();
+      const endTime = Date.now();
+
+      // Calculer des statistiques de performance
+      const durationSeconds = (endTime - startTime) / 1000;
+      const dealsPerSecond = result.processed > 0 ? (result.processed / durationSeconds).toFixed(2) : '0';
+      
+      // Vérifier si au moins 50% des affaires ont été synchronisées avec succès
+      const successRate =
+        result.processed > 0 ? (result.succeeded / result.processed) * 100 : 0;
+
+      this.logger.log(`Synchronisation terminée en ${durationSeconds.toFixed(2)}s (${dealsPerSecond} affaires/s)`);
+
+      if (successRate >= 50) {
+        return {
+          success: true,
+          message: `Synchronisation terminée avec succès à ${Math.round(successRate)}% en ${durationSeconds.toFixed(2)}s`,
+          stats: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+          },
+        };
+      } else {
+        return {
+          success: false,
+          message: `Synchronisation terminée avec un taux de succès faible: ${Math.round(successRate)}%`,
+          stats: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+          },
+        };
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Erreur lors de la synchronisation rapide: ${errorMessage}`,
+      );
+
+      return {
+        success: false,
+        message: `Erreur: ${errorMessage}`,
+        stats: {
+          processed: 0,
+          succeeded: 0,
+          failed: 0,
+        },
+      };
+    }
+  }
 }
