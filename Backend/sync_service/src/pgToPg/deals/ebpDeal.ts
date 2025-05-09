@@ -919,49 +919,36 @@ ON CONFLICT ("external_ebp_id") DO NOTHING;
       let processed = 0;
       let succeeded = 0;
       let failed = 0;
-      const errorMessages: string[] = [];
+      
+      // Créer un script SQL pour insérer toutes les affaires en une seule transaction
+      let sqlScript = 'BEGIN;\n';
 
-      // Traitement par lots plus grands pour accélérer
-      const batchSize = 250; // Augmentation significative de la taille des lots
-      const totalBatches = Math.ceil(deals.length / batchSize);
+      for (const deal of deals) {
+        if (!deal.Id) {
+          failed++;
+          continue; // Ignorer les affaires sans ID
+        }
 
-      for (let i = 0; i < deals.length; i += batchSize) {
-        const batchDeals = deals.slice(i, i + batchSize);
-        const batchIndex = Math.floor(i / batchSize) + 1;
+        // Extraire les valeurs nécessaires avec échappement pour SQL
+        const dealId = String(deal.Id).replace(/'/g, "''");
+        const name = (deal as any).Name
+          ? String((deal as any).Name).replace(/'/g, "''")
+          : `Projet ${dealId}`;
 
-        this.logger.log(
-          `Traitement du lot ${batchIndex}/${totalBatches} (${batchDeals.length} affaires)`,
-        );
+        const clientId = deal.xx_Client
+          ? String(deal.xx_Client).replace(/'/g, "''")
+          : null;
 
-        // Créer un script SQL pour insérer tout le lot en une seule transaction
-        let sqlScript = 'BEGIN;\n';
+        const reference = (deal as any).Reference
+          ? String((deal as any).Reference).replace(/'/g, "''")
+          : dealId;
 
-        for (const deal of batchDeals) {
-          if (!deal.Id) {
-            failed++;
-            continue; // Ignorer les affaires sans ID
-          }
+        const description = (deal as any).Description
+          ? String((deal as any).Description).replace(/'/g, "''")
+          : null;
 
-          // Extraire les valeurs nécessaires avec échappement pour SQL
-          const dealId = String(deal.Id).replace(/'/g, "''");
-          const name = (deal as any).Name
-            ? String((deal as any).Name).replace(/'/g, "''")
-            : `Projet ${dealId}`;
-
-          const clientId = deal.xx_Client
-            ? String(deal.xx_Client).replace(/'/g, "''")
-            : null;
-
-          const reference = (deal as any).Reference
-            ? String((deal as any).Reference).replace(/'/g, "''")
-            : dealId;
-
-          const description = (deal as any).Description
-            ? String((deal as any).Description).replace(/'/g, "''")
-            : null;
-
-          // Construire l'instruction INSERT
-          sqlScript += `
+        // Construire l'instruction INSERT
+        sqlScript += `
 INSERT INTO public."projects" (
   "external_ebp_id", "name", "reference", "description", "status", "client_id"
 ) VALUES (
@@ -975,47 +962,34 @@ DO UPDATE SET
   "client_id" = EXCLUDED."client_id",
   "updated_at" = CURRENT_TIMESTAMP;
 `;
-          processed++;
-        }
-
-        sqlScript += 'COMMIT;';
-
-        try {
-          // Exécuter le script pour tout le lot
-          await this.queryService.executeQuery(sqlScript);
-          succeeded += batchDeals.length;
-          
-          // Log moins verbeux - uniquement pour les lots multiples de 5 ou le dernier
-          if (batchIndex % 5 === 0 || batchIndex === totalBatches) {
-            this.logger.log(
-              `Progression: ${batchIndex}/${totalBatches} lots traités (${Math.round((batchIndex / totalBatches) * 100)}%)`,
-            );
-          }
-        } catch (error) {
-          failed += batchDeals.length - (processed - succeeded - failed);
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          this.logger.error(
-            `Erreur lot ${batchIndex}: ${errorMessage}`,
-          );
-          errorMessages.push(`Erreur lot ${batchIndex}: ${errorMessage}`);
-        }
-
-        // Pas de délai entre les lots pour maximiser la vitesse
-        // Sauf si on est à un multiple de 5 pour laisser respirer la BD
-        if (batchIndex < totalBatches && batchIndex % 5 === 0) {
-          await this.delay(100);
-        }
+        processed++;
       }
 
-      const details =
-        errorMessages.length > 0 ? `Erreurs: ${errorMessages.join('; ')}` : '';
+      sqlScript += 'COMMIT;';
+
+      // Exécuter le script pour toutes les affaires en une seule transaction
+      try {
+        this.logger.log(`Exécution de la transaction pour ${processed} affaires`);
+        await this.queryService.executeQuery(sqlScript);
+        succeeded = processed;
+        this.logger.log(`Transaction terminée avec succès pour ${succeeded} affaires`);
+      } catch (error) {
+        failed = processed;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Erreur lors de l'exécution de la transaction: ${errorMessage}`);
+        return {
+          processed,
+          succeeded: 0,
+          failed,
+          details: `Erreur globale: ${errorMessage}`,
+        };
+      }
 
       return {
         processed,
         succeeded,
         failed,
-        details,
+        details: '',
       };
     } catch (error) {
       const errorMessage =
