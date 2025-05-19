@@ -33,7 +33,7 @@ export class SendEmailController {
     @Query('forceRefresh') forceRefresh?: string,
   ) {
     try {
-      const shouldForceRefresh = forceRefresh === 'true';
+      const shouldForceRefresh = forceRefresh === undefined ? false : forceRefresh === 'true';
 
       this.logger.log(
         `Génération d'une réponse ${responseLength} pour l'email ${emailId}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,
