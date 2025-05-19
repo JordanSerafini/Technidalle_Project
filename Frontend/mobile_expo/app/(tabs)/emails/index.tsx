@@ -1,110 +1,114 @@
-import React, { useState, Suspense, lazy } from 'react';
-import { SafeAreaView, StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
-import { Ionicons } from '@expo/vector-icons';
-import MailSummary from '@/app/components/email/MailSummary';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
+import { EmailData } from '../../utils/types/mailTypes';
+import { analyzeEmailsInRange } from '../../utils/functions/emails.function';
+import FilterEmails from '../../components/emails/FilterEmails';
+import MailsList from '../../components/emails/MailsList';
+import Overview from '../../components/emails/Overview';
 
-// Import lazy du composant EmailResponder pour éviter tout effet de bord
-const EmailResponder = lazy(() => 
-  import('@/app/components/email/EmailResponder').then(module => ({
-    default: module.default
-  }))
-);
+export default function Emails() {
+    const [emails, setEmails] = useState<EmailData[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [isFilterOpen, setIsFilterOpen] = useState(true);
+    const [showOverview, setShowOverview] = useState(true);
+    const [emailSummary, setEmailSummary] = useState(null);
 
-export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'summary' | 'sender'>('summary');
+    const handleSearch = async (
+        startDate: string,
+        endDate: string,
+        unseenOnly: boolean,
+        summary: boolean,
+        limit: number,
+        fastMode: boolean
+    ) => {
+        setLoading(true);
+        try {
+            const response = await analyzeEmailsInRange(
+                startDate,
+                endDate,
+                unseenOnly,
+                summary,
+                limit,
+                fastMode
+            );
+            
+            if (response && response.data) {
+                setEmails(response.data);
+                if (response.summary) {
+                    setEmailSummary(response.summary);
+                    setShowOverview(true);
+                }
+            }
+        } catch (error) {
+            console.error("Erreur lors de la recherche d'emails:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const renderTabs = () => {
+    const handleToggleFilter = (isOpen: boolean) => {
+        setIsFilterOpen(isOpen);
+    };
+
+    // Fonction pour déterminer la couleur de priorité
+    const getPriorityColor = (priority: string) => {
+        switch(priority?.toLowerCase()) {
+            case 'high':
+            case 'haute':
+            case 'élevée':
+                return 'bg-red-100 text-red-800';
+            case 'medium':
+            case 'moyenne':
+                return 'bg-yellow-100 text-yellow-800';
+            case 'low':
+            case 'basse':
+                return 'bg-green-100 text-green-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    };
+
     return (
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'summary' && styles.activeTab]}
-          onPress={() => setActiveTab('summary')}
-        >
-          <Ionicons 
-            name="mail-outline" 
-            size={20} 
-            color={activeTab === 'summary' ? '#3b82f6' : '#6b7280'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'summary' && styles.activeTabText]}>
-            Résumé
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'sender' && styles.activeTab]}
-          onPress={() => setActiveTab('sender')}
-        >
-          <Ionicons 
-            name="send-outline" 
-            size={20} 
-            color={activeTab === 'sender' ? '#3b82f6' : '#6b7280'} 
-          />
-          <Text style={[styles.tabText, activeTab === 'sender' && styles.activeTabText]}>
-            Répondre
-          </Text>
-        </TouchableOpacity>
-      </View>
+        <View className="flex-1 p-4 bg-gray-50">
+            {/* Filtres */}
+            {isFilterOpen ? (
+                <FilterEmails 
+                    onSearch={handleSearch} 
+                    onToggleFilter={handleToggleFilter} 
+                />
+            ) : (
+                <TouchableOpacity 
+                    onPress={() => setIsFilterOpen(true)}
+                    className="bg-indigo-600 mb-4 rounded-lg py-2 px-4"
+                >
+                    <Text className="text-white text-center font-bold">Ouvrir les filtres</Text>
+                </TouchableOpacity>
+            )}
+            
+            {/* Boutons de navigation */}
+            {emails.length > 0 && emailSummary && (
+                <View className="flex-row mb-4">
+                    <TouchableOpacity 
+                        onPress={() => setShowOverview(false)}
+                        className={`flex-1 py-2 px-4 rounded-l-lg ${!showOverview ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                    >
+                        <Text className={`text-center font-medium ${!showOverview ? 'text-white' : 'text-gray-700'}`}>Liste</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={() => setShowOverview(true)}
+                        className={`flex-1 py-2 px-4 rounded-r-lg ${showOverview ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                    >
+                        <Text className={`text-center font-medium ${showOverview ? 'text-white' : 'text-gray-700'}`}>Aperçu</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+            
+            {/* Contenu principal */}
+            {showOverview && emailSummary ? (
+                <Overview summary={emailSummary} />
+            ) : (
+                <MailsList emails={emails} loading={loading} />
+            )}
+        </View>
     );
-  };
-
-  // Composant de fallback pour le chargement lazy
-  const LazyFallback = () => (
-    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-      <ActivityIndicator size="large" color="#3b82f6" />
-    </View>
-  );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      {renderTabs()}
-      
-      {/* Content based on active tab */}
-      <View style={styles.content}>
-        <View style={{ display: activeTab === 'summary' ? 'flex' : 'none', flex: 1 }}>
-          <MailSummary />
-        </View>
-        <View style={{ display: activeTab === 'sender' ? 'flex' : 'none', flex: 1 }}>
-          <Suspense fallback={<LazyFallback />}>
-            <EmailResponder />
-          </Suspense>
-        </View>
-      </View>
-    </SafeAreaView>
-  )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingHorizontal: 10,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 10,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#3b82f6',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 8,
-    color: '#6b7280',
-  },
-  activeTabText: {
-    color: '#3b82f6',
-  },
-  content: {
-    flex: 1,
-  }
-});

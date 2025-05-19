@@ -15,5 +15,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-  ]
+, "../../Conception/old/2email/mailUtils.ts", "../../Conception/old/2email/mails.function.ts", "../../Conception/old/useMailSummary.ts"  ]
 }

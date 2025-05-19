@@ -6,6 +6,9 @@ import {
   EmailContent,
 } from '../analyze_email/analyze_email.service';
 
+// URL de base pour les appels API internes
+const API_URL = 'http://localhost:4444';
+
 // Ajout des interfaces pour le cache
 interface CachedEmails {
   timestamp: number;
@@ -398,5 +401,126 @@ export class SendEmailService {
     this.emailsCache = {};
     this.responsesCache = {};
     this.logger.log('Cache vidé avec succès');
+  }
+
+  /**
+   * Génère une réponse automatique à un email (méthode optimisée)
+   * Cette version utilise un appel API direct pour récupérer l'email par ID
+   * au lieu de charger tous les emails
+   * @param mailbox Boîte mail contenant l'email
+   * @param emailId ID de l'email à répondre
+   * @param responseLength Niveau de détail de la réponse ('court', 'normal', 'détaillé')
+   * @param forceRefresh Force l'actualisation des données au lieu d'utiliser le cache
+   */
+  async generateOptimizedResponseForEmail(
+    mailbox: string,
+    emailId: string,
+    responseLength: 'court' | 'normal' | 'détaillé' = 'normal',
+    forceRefresh: boolean = false,
+  ): Promise<{
+    originalEmail: EmailContent | null;
+    draftResponse:
+      | string
+      | {
+          response: string;
+          tokensUsed: { input: number; output: number; total: number };
+        };
+  }> {
+    try {
+      // Vérifier le cache pour la réponse si forceRefresh est faux
+      const cacheKey = `${emailId}_${responseLength}`;
+      const now = Date.now();
+      const cachedResponse = this.responsesCache[cacheKey];
+
+      if (
+        !forceRefresh &&
+        cachedResponse &&
+        now - cachedResponse.timestamp < this.CACHE_TTL
+      ) {
+        this.logger.log(
+          `[CACHE] Utilisation de la réponse en cache pour l'email ${emailId} (${responseLength})`,
+        );
+        return {
+          originalEmail: cachedResponse.data.originalEmail,
+          draftResponse: cachedResponse.data.draftResponse,
+        };
+      }
+
+      // Faire une requête au service analyze_email pour récupérer l'email par son ID
+      try {
+        // Utiliser un fetch HTTP à l'endpoint /analyze-email/get-email/:emailId
+        const apiUrl = `${API_URL}/analyze-email/get-email/${emailId}?mailbox=${mailbox}&forceRefresh=${forceRefresh}`;
+
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Erreur lors de la récupération de l'email: ${response.status}`,
+          );
+        }
+
+        const result = (await response.json()) as {
+          status: string;
+          message: string;
+          data: EmailContent;
+        };
+
+        if (result.status !== 'success' || !result.data) {
+          throw new Error(result.message || 'Email non trouvé');
+        }
+
+        const email = result.data;
+
+        // Analyser l'email s'il n'a pas encore été analysé
+        const analyzedEmail = email.analysis
+          ? email
+          : (await this.analyzeEmailService.analyzeEmails([email]))[0];
+
+        // Générer une réponse automatique avec la longueur spécifiée
+        const draftResponse =
+          await this.analyzeEmailService.generateEmailResponse(
+            analyzedEmail,
+            responseLength,
+          );
+
+        this.logger.log(
+          `[API] Réponse ${responseLength} générée pour l'email ${emailId}`,
+        );
+
+        // Stocker dans le cache
+        this.responsesCache[cacheKey] = {
+          timestamp: now,
+          data: {
+            originalEmail: analyzedEmail,
+            draftResponse,
+          },
+        };
+
+        return {
+          originalEmail: analyzedEmail,
+          draftResponse,
+        };
+      } catch (error) {
+        // Si l'appel à l'API échoue, on revient à la méthode classique
+        this.logger.warn(
+          `Échec de récupération optimisée pour l'email ${emailId}, repli sur la méthode classique: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+
+        return this.generateResponseForEmail(
+          mailbox,
+          emailId,
+          responseLength,
+          forceRefresh,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération de la réponse: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw error;
+    }
   }
 }

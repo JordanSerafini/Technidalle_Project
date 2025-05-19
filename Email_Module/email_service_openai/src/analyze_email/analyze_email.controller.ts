@@ -5,6 +5,7 @@ import {
   HttpException,
   Logger,
   Query,
+  Param,
 } from '@nestjs/common';
 import { AnalyzeEmailService, EmailContent } from './analyze_email.service';
 
@@ -947,6 +948,62 @@ export class AnalyzeEmailController {
         {
           status: 'error',
           message: `Erreur lors de l'analyse des emails: ${errorMessage}`,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Récupère un email spécifique par son ID
+   * @param mailbox Boîte mail contenant l'email
+   * @param emailId Identifiant de l'email
+   * @param forceRefresh Force la mise à jour du cache
+   */
+  @Get('get-email/:emailId')
+  async getEmailById(
+    @Param('emailId') emailId: string,
+    @Query('mailbox') mailbox: string = 'INBOX',
+    @Query('forceRefresh') forceRefresh?: string,
+  ) {
+    try {
+      const shouldForceRefresh = forceRefresh === 'true';
+
+      this.logger.log(
+        `Récupération de l'email ${emailId} dans ${mailbox}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,
+      );
+
+      const email = await this.analyzeEmailService.getSpecificEmailById(
+        mailbox,
+        emailId,
+        shouldForceRefresh,
+      );
+
+      if (!email) {
+        return {
+          status: 'error',
+          message: `Email avec ID ${emailId} non trouvé`,
+          data: null,
+        };
+      }
+
+      return {
+        status: 'success',
+        message: 'Email récupéré avec succès',
+        data: email,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        `Erreur lors de la récupération de l'email: ${errorMessage}`,
+      );
+
+      throw new HttpException(
+        {
+          status: 'error',
+          message: `Erreur lors de la récupération de l'email: ${errorMessage}`,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

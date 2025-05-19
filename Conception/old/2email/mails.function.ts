@@ -1,9 +1,9 @@
 import { Platform, Alert } from 'react-native';
-import { EmailData, ResponseLength } from '../types/mailTypes';
+import { EmailData, ResponseLength } from '../../../Frontend/mobile_expo/app/utils/types/mailTypes';
 // Import des données mock
-import { dailyMailsMock as mockData } from '../data/dailyMails.mock';
+import { dailyMailsMock as mockData } from '../../../Frontend/mobile_expo/app/utils/data/dailyMails.mock';
 // Import du store
-import { useMailsStore } from '../../store/mailsStore';
+import { useMailsStore } from '../../../Frontend/mobile_expo/app/store/mailsStore';
 
 // API URL
 const API_URL = Platform.OS === 'web' 
@@ -440,8 +440,8 @@ export const sendEmailResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    // Indiquer que le chargement est en cours
-    useMailsStore.getState().setIsLoading(true);
+    // On n'active PAS l'indicateur de chargement global pour éviter les rechargements automatiques
+    // Utiliser plutôt un indicateur local dans le composant appelant
     
     // Fetch avec l'API réelle
     // Utilisation de imapUID au lieu de emailId
@@ -463,23 +463,15 @@ export const sendEmailResponse = async (
     const data = await apiResponse.json();
     
     if (data.status === 'success') {
-      // Réinitialiser l'indicateur de chargement
-      useMailsStore.getState().setIsLoading(false);
-      
+      // Ne pas réinitialiser l'indicateur de chargement global
       Alert.alert('Succès', 'Votre réponse a été envoyée avec succès');
       return true;
     } else {
-      // Réinitialiser l'indicateur de chargement
-      useMailsStore.getState().setIsLoading(false);
-      
       Alert.alert('Erreur', data.message);
       return false;
     }
   } catch (err) {
     console.error('Erreur lors de l\'envoi de la réponse:', err);
-    
-    // Réinitialiser l'indicateur de chargement
-    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours
     console.log(`[FALLBACK] Simulation d'envoi de réponse (emailId: ${emailId})`);
@@ -502,8 +494,8 @@ export const sendAutoResponse = async (
   customSubject?: string
 ): Promise<boolean> => {
   try {
-    // Indiquer que le chargement est en cours
-    useMailsStore.getState().setIsLoading(true);
+    // On n'active PAS l'indicateur de chargement global pour éviter les rechargements automatiques
+    // Utiliser plutôt un indicateur local dans le composant appelant
     
     // Fetch avec l'API réelle
     // Utilisation de imapUID au lieu de emailId
@@ -537,23 +529,16 @@ export const sendAutoResponse = async (
         store.setActionRequiredEmails(updatedEmails);
       }
       
-      // Réinitialiser l'indicateur de chargement
-      useMailsStore.getState().setIsLoading(false);
+      // Ne pas réinitialiser l'indicateur de chargement global
       
       Alert.alert('Succès', 'Votre réponse automatique a été envoyée avec succès');
       return true;
     } else {
-      // Réinitialiser l'indicateur de chargement
-      useMailsStore.getState().setIsLoading(false);
-      
       Alert.alert('Erreur', data.message);
       return false;
     }
   } catch (err) {
     console.error('Erreur lors de l\'envoi de la réponse automatique:', err);
-    
-    // Réinitialiser l'indicateur de chargement
-    useMailsStore.getState().setIsLoading(false);
     
     // Solution de secours
     console.log(`[FALLBACK] Simulation d'envoi de réponse automatique (emailId: ${emailId})`);

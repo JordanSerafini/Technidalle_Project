@@ -39,7 +39,8 @@ export class SendEmailController {
         `Génération d'une réponse ${responseLength} pour l'email ${emailId}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,
       );
 
-      const result = await this.sendEmailService.generateResponseForEmail(
+      // Utiliser une méthode optimisée pour récupérer directement l'email par ID
+      const result = await this.sendEmailService.generateOptimizedResponseForEmail(
         mailbox,
         emailId,
         responseLength,

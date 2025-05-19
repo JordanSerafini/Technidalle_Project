@@ -210,7 +210,9 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
     if (!response.trim() || !selectedEmail) return;
 
     try {
+      // Utiliser l'état local pour le chargement
       setLoading(true);
+      
       const success = await sendEmailResponse(
         selectedEmail,
         response,
@@ -240,7 +242,9 @@ export default function MailSender({ onClose, selectedEmailId, responseLength: i
     if (!selectedEmail) return;
 
     try {
+      // Utiliser l'état local pour le chargement
       setLoading(true);
+      
       const success = await sendAutoResponse(
         selectedEmail,
         responseLength,
