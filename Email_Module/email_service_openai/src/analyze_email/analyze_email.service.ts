@@ -1453,4 +1453,269 @@ export class AnalyzeEmailService {
       };
     }
   }
+
+  /**
+   * Récupère les emails dans une plage de dates spécifique
+   * @param startDate Date de début au format YYYY-MM-DD
+   * @param endDate Date de fin au format YYYY-MM-DD
+   * @param unseenOnly Si true, ne récupère que les emails non lus
+   * @param limit Nombre maximum d'emails à récupérer
+   */
+  async getEmailsInDateRange(
+    startDate: string,
+    endDate: string,
+    unseenOnly = false,
+    limit?: number,
+  ): Promise<EmailContent[]> {
+    try {
+      await this.connectToImap();
+
+      // Récupérer tous les dossiers disponibles
+      const folders = await this.getAllFolders();
+      this.logger.log(
+        `Analyse de ${folders.length} dossiers pour les emails du ${startDate} au ${endDate} (non lus: ${unseenOnly}, limit: ${limit || 'aucune'})`,
+      );
+
+      const allEmails: EmailContent[] = [];
+      let totalEmailsFound = 0;
+      const limitReached = { value: false };
+
+      // Valider et convertir les dates
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
+
+      // Vérifier que les dates sont valides
+      if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+        throw new Error('Dates invalides');
+      }
+
+      // Ajouter un jour à la date de fin pour inclure ce jour entier
+      endDateObj.setDate(endDateObj.getDate() + 1);
+
+      // Parcourir chaque dossier
+      for (const folder of folders) {
+        try {
+          // Si la limite est atteinte, arrêter de chercher
+          if (limit && totalEmailsFound >= limit) {
+            this.logger.log(
+              `Limite de ${limit} emails atteinte, arrêt de la recherche`,
+            );
+            limitReached.value = true;
+            break;
+          }
+
+          this.logger.log(`Recherche des emails dans le dossier: ${folder}`);
+
+          await new Promise<void>((resolve) => {
+            this.imap.openBox(folder, true, (err: Error | null) => {
+              if (err) {
+                this.logger.warn(
+                  `Impossible d'ouvrir le dossier ${folder}: ${err.message}`,
+                );
+              }
+              resolve();
+            });
+          });
+
+          // Formater les dates pour IMAP (DD-MMM-YYYY)
+          const formatDateForImap = (date: Date): string => {
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Oct',
+              'Nov',
+              'Dec',
+            ][date.getMonth()];
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+          };
+
+          const imapStartDate = formatDateForImap(startDateObj);
+          const imapEndDate = formatDateForImap(endDateObj);
+
+          this.logger.log(
+            `Recherche des emails dans ${folder} du ${imapStartDate} au ${imapEndDate}`,
+          );
+
+          // Critères de recherche
+          const searchCriteria = unseenOnly
+            ? ['UNSEEN', ['SINCE', imapStartDate], ['BEFORE', imapEndDate]]
+            : ['ALL', ['SINCE', imapStartDate], ['BEFORE', imapEndDate]];
+
+          // Rechercher les emails dans ce dossier
+          const folderEmails = await new Promise<EmailContent[]>(
+            (resolve, reject) => {
+              this.imap.search(
+                searchCriteria,
+                (searchErr: SearchError | null, results: number[]) => {
+                  if (searchErr) {
+                    this.logger.error(
+                      `Erreur lors de la recherche des emails dans ${folder}: ${searchErr.message}`,
+                    );
+                    return reject(searchErr);
+                  }
+
+                  if (!results || results.length === 0) {
+                    this.logger.log(
+                      `Aucun email trouvé dans ${folder} pour la période spécifiée`,
+                    );
+                    return resolve([]);
+                  }
+
+                  // Si une limite est définie, limiter le nombre d'emails à récupérer
+                  const remainingLimit = limit
+                    ? limit - totalEmailsFound
+                    : undefined;
+                  const resultsToFetch = remainingLimit
+                    ? results.slice(0, remainingLimit)
+                    : results;
+
+                  this.logger.log(
+                    `${results.length} emails trouvés dans ${folder}. Chargement de ${resultsToFetch.length} emails...`,
+                  );
+
+                  const emailPromises: Promise<EmailContent>[] = [];
+                  const fetch = this.imap.fetch(resultsToFetch, {
+                    bodies: [''],
+                    struct: true,
+                    uid: true,
+                  }) as ImapFetch;
+
+                  fetch.on('message', (msg: ImapMessage, seqno: number) => {
+                    const emailPromise = new Promise<EmailContent>(
+                      (resolveEmail, rejectEmail) => {
+                        const email: Partial<EmailContent> = {
+                          id: String(seqno),
+                          folderPath: folder,
+                        };
+
+                        // Capturer l'UID IMAP
+                        msg.once('attributes', (attrs) => {
+                          if (attrs && attrs.uid) {
+                            email.imapUID = String(attrs.uid);
+                          }
+                        });
+
+                        msg.on('body', (stream: NodeJS.ReadableStream) => {
+                          let buffer = '';
+                          stream.on('data', (chunk: Buffer) => {
+                            buffer += chunk.toString('utf8');
+                          });
+
+                          stream.once('end', () => {
+                            void (async () => {
+                              try {
+                                this.logger.debug(
+                                  `Parsing du contenu de l'email #${seqno} dans ${folder}`,
+                                );
+                                const bufferContent: Buffer =
+                                  Buffer.from(buffer);
+                                const parsedEmail: ParsedMail =
+                                  await simpleParser(bufferContent);
+                                const parsed: ParsedEmail =
+                                  parsedEmail as unknown as ParsedEmail;
+
+                                email.from = parsed.from?.text || '';
+                                email.to = parsed.to?.text || '';
+                                email.subject = parsed.subject || '';
+                                email.date = parsed.date || new Date();
+                                email.body = parsed.text || '';
+
+                                this.logger.debug(
+                                  `Email #${seqno} parsé avec succès: ${email.subject}`,
+                                );
+
+                                resolveEmail(email as EmailContent);
+                              } catch (e: unknown) {
+                                const errorMessage =
+                                  e instanceof Error
+                                    ? e.message
+                                    : 'Erreur inconnue';
+                                this.logger.error(
+                                  `Erreur lors du parsing de l'email #${seqno}: ${errorMessage}`,
+                                );
+                                rejectEmail(
+                                  new Error(
+                                    `Erreur lors du parsing de l'email #${seqno}: ${errorMessage}`,
+                                  ),
+                                );
+                              }
+                            })();
+                          });
+                        });
+                      },
+                    );
+
+                    emailPromises.push(emailPromise);
+                  });
+
+                  fetch.once('end', () => {
+                    Promise.all(emailPromises)
+                      .then((emails) => resolve(emails))
+                      .catch((error: Error) => reject(error));
+                  });
+                },
+              );
+            },
+          );
+
+          // Filtrer les emails par date
+          const filteredEmails = folderEmails.filter((email) => {
+            if (!email.date) return false;
+
+            const emailDate = new Date(email.date);
+            return emailDate >= startDateObj && emailDate < endDateObj;
+          });
+
+          // Ajouter les emails de ce dossier au tableau global
+          allEmails.push(...filteredEmails);
+          totalEmailsFound += filteredEmails.length;
+
+          // Vérifier si la limite a été atteinte
+          if (limit && totalEmailsFound >= limit) {
+            this.logger.log(
+              `Limite de ${limit} emails atteinte après le dossier ${folder}`,
+            );
+            limitReached.value = true;
+            break;
+          }
+        } catch (folderError: unknown) {
+          const errorMessage =
+            folderError instanceof Error
+              ? folderError.message
+              : 'Erreur inconnue';
+          this.logger.error(
+            `Erreur lors du traitement du dossier ${folder}: ${errorMessage}`,
+          );
+          // Continuer avec le dossier suivant
+        }
+      }
+
+      const message = limitReached.value
+        ? `Limite de ${limit} emails atteinte. ${allEmails.length} emails récupérés.`
+        : `${allEmails.length} emails récupérés au total de tous les dossiers pour la période spécifiée`;
+
+      this.logger.log(message);
+
+      // Si une limite est définie, s'assurer de ne pas dépasser
+      return limit ? allEmails.slice(0, limit) : allEmails;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this.logger.error(
+        `Erreur lors de la récupération des emails: ${errorMessage}`,
+      );
+      throw error;
+    } finally {
+      this.imap.end();
+    }
+  }
 }
