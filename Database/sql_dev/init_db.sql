@@ -813,4 +813,25 @@ COMMENT ON TABLE vehicle_incidents IS 'Incidents et accidents impliquant les vé
 COMMENT ON TABLE client_addresses IS 'Association entre clients et leurs différentes adresses';
 COMMENT ON TABLE project_addresses IS 'Association entre projets et leurs différentes adresses';
 
+CREATE TABLE IF NOT EXISTS vector_embeddings (
+    id SERIAL PRIMARY KEY,
+    source_type VARCHAR(50) NOT NULL, -- 'projects', 'clients', 'staff', etc.
+    source_id INTEGER NOT NULL, -- ID de l'entité référencée
+    content TEXT NOT NULL, -- Contenu textuel utilisé pour générer l'embedding
+    embedding BYTEA NOT NULL, -- Vecteur d'embedding stocké en format binaire
+    metadata JSONB, -- Métadonnées supplémentaires en format JSON
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index pour améliorer les performances des requêtes
+CREATE INDEX idx_vector_embeddings_source ON vector_embeddings(source_type, source_id);
+
+-- Trigger pour mettre à jour le timestamp
+CREATE TRIGGER update_vector_embeddings_timestamp BEFORE UPDATE ON vector_embeddings
+    FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
+-- Ajouter un commentaire sur la table
+COMMENT ON TABLE vector_embeddings IS 'Stockage des embeddings vectoriels pour le chatbot RAG';
+
 COMMIT; 
