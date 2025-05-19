@@ -67,6 +67,42 @@ export class SortEmailController {
     }
   }
 
+  @Post('sort-optimized')
+  async sortEmailsOptimized(@Body() body?: { limit?: number }) {
+    try {
+      this.logger.log('Démarrage du processus de tri optimisé des emails...');
+      const limit = body?.limit;
+      
+      // Obtenir les emails triés
+      const sortedEmails = await this.sortEmailService.sortEmails(limit);
+      
+      // Traiter les emails avec la méthode optimisée
+      await this.sortEmailService.processSortedEmails(sortedEmails);
+      
+      this.logger.log('Tri et déplacement des emails terminés avec succès');
+
+      // Préparer une réponse avec des statistiques
+      const stats = Object.entries(sortedEmails).map(([category, emails]) => ({
+        category,
+        count: emails.length,
+      }));
+
+      return {
+        success: true,
+        message: 'Emails triés et déplacés avec succès (méthode optimisée)',
+        stats,
+      };
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      this.logger.error(`Erreur lors du tri optimisé des emails: ${errorMessage}`);
+      return {
+        success: false,
+        message: 'Erreur lors du tri optimisé des emails',
+        error: errorMessage,
+      };
+    }
+  }
+
   @Post('sort-all')
   async sortAllEmails(@Body() body?: { limit?: number }) {
     try {
