@@ -508,6 +508,129 @@ export class SortEmailService implements OnModuleInit {
   }
 
   /**
+   * Categorise plusieurs emails en une seule requête à l'API OpenAI (traitement par lots)
+   */
+  async categorizeEmailsBatch(
+    emails: Email[],
+    batchSize: number = 5,
+  ): Promise<Map<string, string>> {
+    // Map pour stocker les résultats (emailId -> catégorie)
+    const categoriesMap = new Map<string, string>();
+
+    try {
+      // Diviser les emails en lots de taille batchSize
+      const batches: Email[][] = [];
+      for (let i = 0; i < emails.length; i += batchSize) {
+        batches.push(emails.slice(i, i + batchSize));
+      }
+
+      this.logger.log(
+        `Traitement des emails par lots: ${batches.length} lots de max ${batchSize} emails`,
+      );
+
+      // Traiter chaque lot
+      for (const batch of batches) {
+        // Préparer le prompt pour tous les emails du lot
+        const emailDescriptions = batch
+          .map((email, index) => {
+            return `Email ${index + 1}:
+De: ${email.from}
+À: ${email.to}
+Sujet: ${email.subject}
+Contenu: ${email.body.substring(0, 500)}
+---`;
+          })
+          .join('\n\n');
+
+        const prompt = `
+          Analyse les emails suivants et classe chacun dans l'une des catégories suivantes: ${this.categories.join(', ')}.
+          
+          ${emailDescriptions}
+          
+          Réponds uniquement avec un objet JSON au format suivant:
+          {
+            "email1": "Catégorie1",
+            "email2": "Catégorie2",
+            ...
+          }
+          Où "email1", "email2", etc. correspondent aux numéros des emails, et les valeurs sont les catégories attribuées.
+        `;
+
+        this.logger.debug(
+          'Envoi de la requête à OpenAI pour classification par lots...',
+        );
+
+        const response = await this.openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content:
+                "Tu es un assistant spécialisé dans le tri d'emails. Tu dois classifier rapidement les emails dans les catégories spécifiées de manière précise.",
+            },
+            { role: 'user', content: prompt },
+          ],
+          response_format: { type: 'json_object' },
+          max_tokens: 500,
+          temperature: 0.3,
+        });
+
+        const resultContent = response.choices[0]?.message?.content || '{}';
+
+        try {
+          const categoriesJson = JSON.parse(resultContent);
+
+          // Associer les résultats à chaque email
+          batch.forEach((email, index) => {
+            const key = `email${index + 1}`;
+            const predictedCategory = categoriesJson[key] || 'Autre';
+
+            // Vérifier si la catégorie est valide
+            const validCategory =
+              this.categories.find(
+                (category) =>
+                  category.toLowerCase() === predictedCategory.toLowerCase(),
+              ) || 'Autre';
+
+            categoriesMap.set(email.id, validCategory);
+            this.logger.debug(
+              `Email #${email.id} classé dans la catégorie: ${validCategory}`,
+            );
+          });
+        } catch (e) {
+          this.logger.error(
+            'Erreur lors du parsing JSON de la réponse OpenAI batch',
+          );
+          // En cas d'erreur, catégoriser individuellement chaque email du lot comme fallback
+          for (const email of batch) {
+            const category = await this.categorizeEmail(email);
+            categoriesMap.set(email.id, category);
+          }
+        }
+      }
+
+      return categoriesMap;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la catégorisation par lots: ${error.message}`,
+      );
+
+      // Fallback: catégoriser individuellement
+      this.logger.log('Tentative de catégorisation individuelle...');
+      for (const email of emails) {
+        try {
+          const category = await this.categorizeEmail(email);
+          categoriesMap.set(email.id, category);
+        } catch {
+          categoriesMap.set(email.id, 'Autre');
+        }
+      }
+
+      return categoriesMap;
+    }
+  }
+
+  /**
    * Tri les emails en utilisant l'API OpenAI
    */
   async sortEmails(limit?: number): Promise<{ [category: string]: Email[] }> {
@@ -546,19 +669,9 @@ export class SortEmailService implements OnModuleInit {
         const count = sortedEmails[category].length;
         if (count > 0) {
           this.logger.log(`- ${category}: ${count} email(s)`);
-
-          // Afficher les UIDs par catégorie pour le débogage
-          this.logger.debug(
-            `UIDs des emails dans la catégorie "${category}": ${sortedEmails[
-              category
-            ]
-              .map((e) => (e as any).uid)
-              .join(', ')}`,
-          );
         }
       }
 
-      // Ne pas fermer la connexion ici
       return sortedEmails;
     } catch (error) {
       this.closeConnection();
@@ -577,23 +690,42 @@ export class SortEmailService implements OnModuleInit {
       this.logger.log('Début du traitement des emails triés...');
 
       // S'assurer que la connexion IMAP est active
-      try {
-        if (!this.imap.state || this.imap.state === 'disconnected') {
-          this.logger.log(
-            'Reconnexion IMAP nécessaire, reconnexion en cours...',
-          );
-          await this.connectToImap();
-        }
-      } catch (error) {
-        this.logger.log('Reconnexion IMAP forcée...');
+      if (!this.imap.state || this.imap.state === 'disconnected') {
+        this.logger.log('Reconnexion IMAP nécessaire, reconnexion en cours...');
+        await this.connectToImap();
+      }
+
+      // Appeler la méthode optimisée pour le traitement
+      await this.processSortedEmailsOptimized(sortedEmails);
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors du traitement des emails triés: ${error.message}`,
+      );
+      this.closeConnection();
+      throw error;
+    }
+  }
+
+  /**
+   * Version optimisée du traitement des emails triés avec des délais réduits
+   */
+  async processSortedEmailsOptimized(sortedEmails: {
+    [category: string]: Email[];
+  }): Promise<void> {
+    try {
+      this.logger.log('Début du traitement optimisé des emails triés...');
+
+      // S'assurer que la connexion IMAP est active
+      if (!this.imap.state || this.imap.state === 'disconnected') {
+        this.logger.log('Reconnexion IMAP nécessaire, reconnexion en cours...');
         await this.connectToImap();
       }
 
       let totalProcessed = 0;
 
-      for (const category of Object.keys(sortedEmails)) {
+      const processCategory = async (category: string) => {
         const emailsInCategory = sortedEmails[category].length;
-        if (emailsInCategory === 0) continue;
+        if (emailsInCategory === 0) return;
 
         this.logger.log(
           `Traitement de ${emailsInCategory} email(s) dans la catégorie "${category}"...`,
@@ -602,23 +734,41 @@ export class SortEmailService implements OnModuleInit {
         // S'assurer que le dossier de catégorie existe
         await this.ensureCategoryExists(category);
 
-        // Traiter les emails un par un plutôt qu'en groupe pour éviter les problèmes de concurrence
-        for (const email of sortedEmails[category]) {
-          if (!(email as any).uid) {
-            this.logger.warn(`Email sans UID trouvé, ignoré`);
-            continue;
-          }
+        // Ouvrir la boîte INBOX en mode écriture
+        await new Promise<void>((resolve, reject) => {
+          this.imap.openBox('INBOX', false, (err) => {
+            if (err) {
+              this.logger.error(
+                `Erreur lors de l'ouverture de la boîte: ${err.message}`,
+              );
+              return reject(err);
+            }
+            resolve();
+          });
+        });
 
-          const uid = (email as any).uid;
-          this.logger.log(`Traitement de l'email avec UID: ${uid}`);
+        // Traiter les emails par petits groupes pour optimiser
+        const batchSize = 3; // Traiter 3 emails à la fois
+        const emailGroups: Email[][] = [];
+
+        for (let i = 0; i < sortedEmails[category].length; i += batchSize) {
+          emailGroups.push(sortedEmails[category].slice(i, i + batchSize));
+        }
+
+        for (const emailGroup of emailGroups) {
+          const validEmails = emailGroup.filter((email) => (email as any).uid);
+          if (validEmails.length === 0) continue;
+
+          const uids = validEmails.map((email) => (email as any).uid);
+          this.logger.log(`Traitement par lot des UIDs: ${uids.join(', ')}`);
 
           try {
-            // Ouvrir la boîte INBOX en mode écriture
+            // 1. Marquer comme lus (tous ensemble)
             await new Promise<void>((resolve, reject) => {
-              this.imap.openBox('INBOX', false, (err) => {
+              this.imap.setFlags(uids, ['\\Seen'], (err) => {
                 if (err) {
                   this.logger.error(
-                    `Erreur lors de l'ouverture de la boîte: ${err.message}`,
+                    `Erreur lors du marquage des emails: ${err.message}`,
                   );
                   return reject(err);
                 }
@@ -626,64 +776,40 @@ export class SortEmailService implements OnModuleInit {
               });
             });
 
-            // 1. Marquer comme lu
-            await new Promise<void>((resolve, reject) => {
-              this.imap.setFlags(uid, ['\\Seen'], (err) => {
-                if (err) {
-                  this.logger.error(
-                    `Erreur lors du marquage de l'email: ${err.message}`,
-                  );
-                  return reject(err);
-                }
-                this.logger.debug('Email marqué comme lu avec succès');
-                resolve();
-              });
-            });
+            // Petit délai réduit
+            await new Promise((resolve) => setTimeout(resolve, 200));
 
-            // Petit délai pour que l'opération soit complétée côté serveur
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // 2. Copier vers la catégorie
+            // 2. Copier vers la catégorie (tous ensemble)
             const folderName = this.normalizeMailboxName(category);
             await new Promise<void>((resolve, reject) => {
-              this.logger.debug(
-                `Tentative de copie vers le dossier: "${folderName}"`,
-              );
-              this.imap.copy(uid, folderName, (err) => {
+              this.imap.copy(uids, folderName, (err) => {
                 if (err) {
                   this.logger.error(
-                    `Erreur lors de la copie de l'email: ${err.message}`,
+                    `Erreur lors de la copie des emails: ${err.message}`,
                   );
                   return reject(err);
                 }
-                this.logger.debug(
-                  `Email copié vers "${folderName}" avec succès`,
-                );
                 resolve();
               });
             });
 
-            // Petit délai pour que l'opération soit complétée côté serveur
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            // Petit délai réduit
+            await new Promise((resolve) => setTimeout(resolve, 200));
 
-            // 3. Marquer pour suppression
+            // 3. Marquer pour suppression (tous ensemble)
             await new Promise<void>((resolve, reject) => {
-              this.imap.addFlags(uid, ['\\Deleted'], (err) => {
+              this.imap.addFlags(uids, ['\\Deleted'], (err) => {
                 if (err) {
                   this.logger.error(
                     `Erreur lors du marquage pour suppression: ${err.message}`,
                   );
                   return reject(err);
                 }
-                this.logger.debug('Email marqué pour suppression avec succès');
                 resolve();
               });
             });
 
-            // Petit délai avant l'expunge
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // 4. Expurger (supprimer définitivement)
+            // 4. Expurger (une seule fois pour le lot)
             await new Promise<void>((resolve, reject) => {
               this.imap.expunge((err) => {
                 if (err) {
@@ -692,113 +818,52 @@ export class SortEmailService implements OnModuleInit {
                   );
                   return reject(err);
                 }
-                this.logger.log(
-                  `Email avec UID ${uid} déplacé vers "${category}"`,
-                );
                 resolve();
               });
             });
 
-            totalProcessed++;
+            totalProcessed += validEmails.length;
             this.logger.log(`Progression: ${totalProcessed} emails traités`);
-
-            // Réouvrir la connexion pour le prochain email
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          } catch (emailError) {
+          } catch (error) {
             this.logger.error(
-              `Erreur lors du traitement de l'email UID ${uid}: ${emailError.message}. Continuation avec l'email suivant.`,
+              `Erreur lors du traitement par lot: ${error.message}`,
             );
-            // On continue avec l'email suivant malgré l'erreur
-            continue;
+            // On continue avec le groupe suivant malgré l'erreur
           }
-        }
 
-        this.logger.log(
-          `Tous les emails de la catégorie "${category}" ont été traités`,
-        );
+          // Délai entre les groupes d'emails
+          await new Promise((resolve) => setTimeout(resolve, 400));
+        }
+      };
+
+      // Traiter jusqu'à 3 catégories en parallèle pour accélérer le processus
+      const categoryChunks: string[][] = [];
+      const categories = Object.keys(sortedEmails).filter(
+        (cat) => sortedEmails[cat].length > 0,
+      );
+      const chunkSize = 3;
+
+      for (let i = 0; i < categories.length; i += chunkSize) {
+        categoryChunks.push(categories.slice(i, i + chunkSize));
+      }
+
+      for (const chunk of categoryChunks) {
+        // Traiter chaque chunk de catégories en parallèle
+        await Promise.all(chunk.map((category) => processCategory(category)));
       }
 
       this.logger.log(
         `Traitement terminé. ${totalProcessed} emails ont été triés et déplacés`,
       );
 
-      // Fermer la connexion IMAP une fois toutes les opérations terminées
       this.closeConnection();
     } catch (error) {
       this.logger.error(
-        `Erreur lors du traitement des emails triés: ${error.message}`,
+        `Erreur lors du traitement optimisé des emails: ${error.message}`,
       );
-      // S'assurer que la connexion est fermée même en cas d'erreur
       this.closeConnection();
       throw error;
     }
-  }
-
-  /**
-   * S'assure que le dossier de catégorie existe, le crée si nécessaire
-   */
-  private async ensureCategoryExists(categoryName: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      this.imap.getBoxes((err, boxes) => {
-        if (err) {
-          this.logger.error(
-            `Erreur lors de la vérification des dossiers: ${err.message}`,
-          );
-          return reject(err);
-        }
-
-        // Afficher tous les dossiers disponibles pour le débogage
-        this.logger.debug(
-          `Dossiers disponibles: ${Object.keys(boxes).join(', ')}`,
-        );
-
-        // Normaliser le nom de catégorie pour la recherche
-        const normalizedName = this.normalizeMailboxName(categoryName);
-        this.logger.debug(
-          `Recherche du dossier avec le nom normalisé: "${normalizedName}"`,
-        );
-
-        // Vérifier si le dossier existe déjà (vérification insensible à la casse)
-        // et prendre en compte les variations d'encodage possibles
-        let categoryExists = false;
-        let exactBoxName = '';
-
-        // Pour chaque boîte, vérifier si le nom correspond (insensible à la casse)
-        Object.keys(boxes).forEach((boxName) => {
-          if (
-            boxName.toLowerCase() === categoryName.toLowerCase() ||
-            boxName === normalizedName
-          ) {
-            categoryExists = true;
-            exactBoxName = boxName; // Conserver le nom exact tel qu'il apparaît dans la liste
-            this.logger.debug(
-              `Correspondance trouvée pour le dossier: ${boxName}`,
-            );
-          }
-        });
-
-        // Si le dossier n'existe pas, le créer
-        if (!categoryExists) {
-          this.logger.log(`Création du dossier "${categoryName}"...`);
-          // Utiliser le nom normalisé pour la création
-          this.imap.addBox(normalizedName, (addBoxErr) => {
-            if (addBoxErr) {
-              this.logger.error(
-                `Erreur lors de la création du dossier: ${addBoxErr.message}`,
-              );
-              return reject(addBoxErr);
-            }
-            this.logger.log(`Dossier "${normalizedName}" créé avec succès`);
-            resolve();
-          });
-        } else {
-          this.logger.debug(
-            `Le dossier "${categoryName}" existe déjà (trouvé sous le nom "${exactBoxName}")`,
-          );
-          resolve();
-        }
-      });
-    });
   }
 
   /**
@@ -1541,5 +1606,72 @@ export class SortEmailService implements OnModuleInit {
     }
 
     return folderName;
+  }
+
+  /**
+   * S'assure que le dossier de catégorie existe, le crée si nécessaire
+   */
+  private async ensureCategoryExists(categoryName: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.imap.getBoxes((err, boxes) => {
+        if (err) {
+          this.logger.error(
+            `Erreur lors de la vérification des dossiers: ${err.message}`,
+          );
+          return reject(err);
+        }
+
+        // Afficher tous les dossiers disponibles pour le débogage
+        this.logger.debug(
+          `Dossiers disponibles: ${Object.keys(boxes).join(', ')}`,
+        );
+
+        // Normaliser le nom de catégorie pour la recherche
+        const normalizedName = this.normalizeMailboxName(categoryName);
+        this.logger.debug(
+          `Recherche du dossier avec le nom normalisé: "${normalizedName}"`,
+        );
+
+        // Vérifier si le dossier existe déjà (vérification insensible à la casse)
+        // et prendre en compte les variations d'encodage possibles
+        let categoryExists = false;
+        let exactBoxName = '';
+
+        // Pour chaque boîte, vérifier si le nom correspond (insensible à la casse)
+        Object.keys(boxes).forEach((boxName) => {
+          if (
+            boxName.toLowerCase() === categoryName.toLowerCase() ||
+            boxName === normalizedName
+          ) {
+            categoryExists = true;
+            exactBoxName = boxName; // Conserver le nom exact tel qu'il apparaît dans la liste
+            this.logger.debug(
+              `Correspondance trouvée pour le dossier: ${boxName}`,
+            );
+          }
+        });
+
+        // Si le dossier n'existe pas, le créer
+        if (!categoryExists) {
+          this.logger.log(`Création du dossier "${categoryName}"...`);
+          // Utiliser le nom normalisé pour la création
+          this.imap.addBox(normalizedName, (addBoxErr) => {
+            if (addBoxErr) {
+              this.logger.error(
+                `Erreur lors de la création du dossier: ${addBoxErr.message}`,
+              );
+              return reject(addBoxErr);
+            }
+            this.logger.log(`Dossier "${normalizedName}" créé avec succès`);
+            resolve();
+          });
+        } else {
+          this.logger.debug(
+            `Le dossier "${categoryName}" existe déjà (trouvé sous le nom "${exactBoxName}")`,
+          );
+          resolve();
+        }
+      });
+    });
   }
 }
