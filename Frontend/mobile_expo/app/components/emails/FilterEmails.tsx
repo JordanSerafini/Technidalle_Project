@@ -39,6 +39,8 @@ export default function FilterEmails({ onSearch, onToggleFilter }: FilterEmailsP
       parseInt(limit) || 10,
       fastMode
     );
+    // Fermer le filtre après la recherche
+    onToggleFilter(false);
   };
 
   const handleClose = () => {

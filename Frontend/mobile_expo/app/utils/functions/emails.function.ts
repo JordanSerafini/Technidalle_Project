@@ -50,7 +50,7 @@ export const generateDraftResponse = async (
   responseLength: 'court' | 'normal' | 'détaillé' = 'normal'
 ) => {
   try {
-    const apiUrl = `${url.email}/send-email/draft-response/${emailId}?mailbox=${mailbox}&responseLength=${responseLength}`;
+    const apiUrl = `${url.email}/send-email/draft-response/${emailId}?mailbox=${mailbox}&responseLength=${responseLength}&forceRefresh=false`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
