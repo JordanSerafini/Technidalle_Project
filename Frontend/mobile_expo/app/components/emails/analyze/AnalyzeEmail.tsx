@@ -1,10 +1,10 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
-import { EmailData } from '../../utils/types/mailTypes';
-import { analyzeEmailsInRange } from '../../utils/functions/emails.function';
-import FilterEmails from './FilterEmails';
-import MailsList from './MailsList';
-import Overview from './Overview';
+import { EmailData } from '../../../utils/types/mailTypes';
+import { analyzeEmailsInRange } from '../../../utils/functions/emails.function';
+import FilterEmails from '../analyze/FilterEmails';
+import MailsList from '../analyze/MailsList';
+import Overview from '../analyze/Overview';
 
 export default function AnalyzeEmail() {
     const [emails, setEmails] = useState<EmailData[]>([]);

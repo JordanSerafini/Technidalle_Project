@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
-import AnalyzeEmail from '../../components/emails/AnalyzeEmail';
-import SimplePage from '../../components/emails/SimplePage';
+import AnalyzeEmail from '../../components/emails/analyze/AnalyzeEmail';
+import SortPage from '../../components/emails/sort/SortPage';
 
 export default function Emails() {
     const [currentPage, setCurrentPage] = useState<'analyze' | 'simple'>('analyze');
@@ -23,17 +23,22 @@ export default function Emails() {
                     className={`flex-1 py-2 px-4 mx-1 rounded-lg ${currentPage === 'simple' ? 'bg-indigo-600' : 'bg-gray-200'}`}
                 >
                     <Text className={`text-center font-medium ${currentPage === 'simple' ? 'text-white' : 'text-gray-700'}`}>
-                        Page 2
+                    Tri des emails
                     </Text>
                 </TouchableOpacity>
             </View>
             
             {/* Affichage du contenu en fonction de la page sélectionnée */}
-            {currentPage === 'analyze' ? (
-                <AnalyzeEmail />
-            ) : (
-                <SimplePage />
-            )}
+            {(() => {
+                switch(currentPage) {
+                    case 'analyze':
+                        return <AnalyzeEmail />;
+                    case 'simple':
+                        return <SortPage />;
+                    default:
+                        return <AnalyzeEmail />;
+                }
+            })()}
         </View>
     );
 }
