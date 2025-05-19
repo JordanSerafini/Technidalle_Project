@@ -1,4 +1,4 @@
-import url from "../../../utils/url";
+import url from "../../url";
 
 export const analyzeEmailsInRange = async (
   startDate: string,

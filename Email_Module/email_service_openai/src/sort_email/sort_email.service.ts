@@ -602,103 +602,116 @@ export class SortEmailService implements OnModuleInit {
         // S'assurer que le dossier de catégorie existe
         await this.ensureCategoryExists(category);
 
-        // Ouvrir la boîte INBOX en mode écriture
-        await new Promise<void>((resolve, reject) => {
-          this.imap.openBox('INBOX', false, (err) => {
-            if (err) {
-              this.logger.error(
-                `Erreur lors de l'ouverture de la boîte: ${err.message}`,
+        // Traiter les emails un par un plutôt qu'en groupe pour éviter les problèmes de concurrence
+        for (const email of sortedEmails[category]) {
+          if (!(email as any).uid) {
+            this.logger.warn(`Email sans UID trouvé, ignoré`);
+            continue;
+          }
+
+          const uid = (email as any).uid;
+          this.logger.log(`Traitement de l'email avec UID: ${uid}`);
+
+          try {
+            // Ouvrir la boîte INBOX en mode écriture
+            await new Promise<void>((resolve, reject) => {
+              this.imap.openBox('INBOX', false, (err) => {
+                if (err) {
+                  this.logger.error(
+                    `Erreur lors de l'ouverture de la boîte: ${err.message}`,
+                  );
+                  return reject(err);
+                }
+                resolve();
+              });
+            });
+
+            // 1. Marquer comme lu
+            await new Promise<void>((resolve, reject) => {
+              this.imap.setFlags(uid, ['\\Seen'], (err) => {
+                if (err) {
+                  this.logger.error(
+                    `Erreur lors du marquage de l'email: ${err.message}`,
+                  );
+                  return reject(err);
+                }
+                this.logger.debug('Email marqué comme lu avec succès');
+                resolve();
+              });
+            });
+
+            // Petit délai pour que l'opération soit complétée côté serveur
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            // 2. Copier vers la catégorie
+            const folderName = this.normalizeMailboxName(category);
+            await new Promise<void>((resolve, reject) => {
+              this.logger.debug(
+                `Tentative de copie vers le dossier: "${folderName}"`,
               );
-              return reject(err);
-            }
-            resolve();
-          });
-        });
+              this.imap.copy(uid, folderName, (err) => {
+                if (err) {
+                  this.logger.error(
+                    `Erreur lors de la copie de l'email: ${err.message}`,
+                  );
+                  return reject(err);
+                }
+                this.logger.debug(
+                  `Email copié vers "${folderName}" avec succès`,
+                );
+                resolve();
+              });
+            });
 
-        // Déplacer tous les emails de cette catégorie
-        // Récupérer les UIDs sous forme de chaînes pour garantir la précision
-        const emailUids = sortedEmails[category]
-          .filter((email) => (email as any).uid) // S'assurer que l'email a un UID
-          .map((email) => (email as any).uid);
+            // Petit délai pour que l'opération soit complétée côté serveur
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
-        if (emailUids.length === 0) {
-          this.logger.warn(
-            `Aucun UID valide trouvé pour la catégorie ${category}`,
-          );
-          continue;
-        }
+            // 3. Marquer pour suppression
+            await new Promise<void>((resolve, reject) => {
+              this.imap.addFlags(uid, ['\\Deleted'], (err) => {
+                if (err) {
+                  this.logger.error(
+                    `Erreur lors du marquage pour suppression: ${err.message}`,
+                  );
+                  return reject(err);
+                }
+                this.logger.debug('Email marqué pour suppression avec succès');
+                resolve();
+              });
+            });
 
-        this.logger.log(
-          `Déplacement de ${emailUids.length} emails vers "${category}"...`,
-        );
+            // Petit délai avant l'expunge
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Afficher les UIDs pour le débogage
-        this.logger.debug(`UIDs à déplacer: ${emailUids.join(', ')}`);
+            // 4. Expurger (supprimer définitivement)
+            await new Promise<void>((resolve, reject) => {
+              this.imap.expunge((err) => {
+                if (err) {
+                  this.logger.error(
+                    `Erreur lors de la suppression définitive: ${err.message}`,
+                  );
+                  return reject(err);
+                }
+                this.logger.log(
+                  `Email avec UID ${uid} déplacé vers "${category}"`,
+                );
+                resolve();
+              });
+            });
 
-        // 1. Marquer comme lus
-        await new Promise<void>((resolve, reject) => {
-          this.imap.setFlags(emailUids, ['\\Seen'], (err) => {
-            if (err) {
-              this.logger.error(
-                `Erreur lors du marquage des emails: ${err.message}`,
-              );
-              return reject(err);
-            }
-            this.logger.debug('Emails marqués comme lus avec succès');
-            resolve();
-          });
-        });
+            totalProcessed++;
+            this.logger.log(`Progression: ${totalProcessed} emails traités`);
 
-        // 2. Copier vers la catégorie - utiliser un nom de dossier sans encodage spécial
-        const folderName = this.normalizeMailboxName(category);
-        await new Promise<void>((resolve, reject) => {
-          this.logger.debug(
-            `Tentative de copie vers le dossier: "${folderName}"`,
-          );
-          this.imap.copy(emailUids, folderName, (err) => {
-            if (err) {
-              this.logger.error(
-                `Erreur lors de la copie des emails: ${err.message}`,
-              );
-              return reject(err);
-            }
-            this.logger.debug(`Emails copiés vers "${folderName}" avec succès`);
-            resolve();
-          });
-        });
-
-        // 3. Marquer pour suppression
-        await new Promise<void>((resolve, reject) => {
-          this.imap.addFlags(emailUids, ['\\Deleted'], (err) => {
-            if (err) {
-              this.logger.error(
-                `Erreur lors du marquage pour suppression: ${err.message}`,
-              );
-              return reject(err);
-            }
-            this.logger.debug('Emails marqués pour suppression avec succès');
-            resolve();
-          });
-        });
-
-        // 4. Expurger (supprimer définitivement)
-        await new Promise<void>((resolve, reject) => {
-          this.imap.expunge((err) => {
-            if (err) {
-              this.logger.error(
-                `Erreur lors de la suppression définitive: ${err.message}`,
-              );
-              return reject(err);
-            }
-            this.logger.log(
-              `${emailUids.length} emails déplacés vers "${category}"`,
+            // Réouvrir la connexion pour le prochain email
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          } catch (emailError) {
+            this.logger.error(
+              `Erreur lors du traitement de l'email UID ${uid}: ${emailError.message}. Continuation avec l'email suivant.`,
             );
-            resolve();
-          });
-        });
-
-        totalProcessed += emailUids.length;
-        this.logger.log(`Progression: ${totalProcessed} emails traités`);
+            // On continue avec l'email suivant malgré l'erreur
+            continue;
+          }
+        }
 
         this.logger.log(
           `Tous les emails de la catégorie "${category}" ont été traités`,
@@ -717,6 +730,7 @@ export class SortEmailService implements OnModuleInit {
       );
       // S'assurer que la connexion est fermée même en cas d'erreur
       this.closeConnection();
+      throw error;
     }
   }
 
