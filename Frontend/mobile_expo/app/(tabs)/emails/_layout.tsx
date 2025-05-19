@@ -1,4 +1,4 @@
-import MailSummary from '@/app/components/dashboard/MailSummary';
+import MailSummary from '@/app/components/email/MailSummary';
 import React from 'react';
 import { SafeAreaView, StyleSheet } from "react-native";
 

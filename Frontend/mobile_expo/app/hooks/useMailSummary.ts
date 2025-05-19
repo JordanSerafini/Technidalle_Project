@@ -9,15 +9,16 @@ import { getDataMode } from '../utils/functions/mails.function';
 import { useMailsStore } from '../store/mailsStore';
 // Import des fonctions optimisées
 import { fetchEmailsRequiringResponse } from '../utils/functions/mails.function';
+import urlConfig from '@/app/utils/url';
 
 // Constante pour l'URL de l'API
 const getApiBaseUrl = () => {
-  const url = Platform.OS === 'web' 
-    ? 'http://localhost:4444' 
-    : 'http://192.168.20.225:4444';
+  const apiUrl = Platform.OS === 'web' 
+    ? urlConfig.email
+    : urlConfig.local;
   
-  console.log(`useMailSummary utilise l'URL: ${url}`);
-  return url;
+  console.log(`useMailSummary utilise l'URL: ${apiUrl}`);
+  return apiUrl;
 };
 
 type MailSummaryState = {
@@ -160,19 +161,22 @@ export const useMailSummary = () => {
       // --- API RÉELLE ---
       setState(prev => ({ ...prev, loading: true, error: null, refreshing: trulyForceRefresh }));
 
+      const requestUrl = `${API_BASE_URL}/analyze-email/today/all/summary?fastMode=${fastMode}${trulyForceRefresh ? '&forceRefresh=true' : ''}`;
+      
+      console.log(`Tentative de connexion à: ${requestUrl}`);
+      
       // unique API call
-      const summaryApiResponse = await fetch(
-        `${API_BASE_URL}/analyze-email/today/all/summary?fastMode=${fastMode}${trulyForceRefresh ? '&forceRefresh=true' : ''}`, 
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Origin': Platform.OS === 'web' ? 'http://localhost:8081' : 'http://localhost'
-          },
-          mode: 'cors' as RequestMode,
-          credentials: 'include' as RequestCredentials
-        }
-      );
+      const summaryApiResponse = await fetch(requestUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        // En web, on ne peut pas utiliser credentials avec une origine différente
+        // à moins que le serveur n'autorise spécifiquement cette origine
+        mode: 'cors' as RequestMode,
+        credentials: Platform.OS === 'web' ? 'same-origin' as RequestCredentials : 'include' as RequestCredentials
+      });
 
       if (!summaryApiResponse.ok) {
         const errorText = await summaryApiResponse.text();
@@ -248,7 +252,7 @@ export const useMailSummary = () => {
   const onRefresh = useCallback(() => {
     setState(prev => ({ ...prev, refreshing: true }));
     const { fastMode } = paramsRef.current;
-    fetchMailSummary(fastMode, true); // Force le rafraîchissement pendant un pull-to-refresh
+    fetchMailSummary(fastMode, true);
   }, [fetchMailSummary]);
 
   return {
