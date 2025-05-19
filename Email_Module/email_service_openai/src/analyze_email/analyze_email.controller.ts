@@ -778,4 +778,178 @@ export class AnalyzeEmailController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  /**
+   * Endpoint pour analyser les emails dans une plage de dates
+   * @param startDate Date de début au format YYYY-MM-DD
+   * @param endDate Date de fin au format YYYY-MM-DD
+   * @param unseenOnly Si true, ne récupère que les emails non lus (optionnel, par défaut: false)
+   * @param summary Si true, inclut un résumé général des emails (optionnel, par défaut: false)
+   * @param limit Nombre maximum d'emails à analyser (optionnel)
+   */
+  @Get('date-range')
+  async analyzeEmailsByDateRange(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('unseenOnly') unseenOnly?: string,
+    @Query('summary') summary?: string,
+    @Query('limit') limit?: string,
+    @Query('fastMode') fastMode?: string,
+  ): Promise<{
+    status: string;
+    message: string;
+    data: EmailContent[];
+    summary?: {
+      overview: string;
+      totalEmails: number;
+      highPriorityCount: number;
+      actionRequiredCount: number;
+      categoryCounts: Record<string, number>;
+      topPriorityEmails: EmailContent[];
+      actionItems: string[];
+      tokensUsed?: {
+        input: number;
+        output: number;
+        total: number;
+      };
+    };
+    performanceMetrics?: {
+      totalDuration: number;
+      emailFetchDuration: number;
+      analysisDuration: number;
+      summaryDuration?: number;
+    };
+  }> {
+    try {
+      // Vérifier si les dates sont fournies
+      if (!startDate || !endDate) {
+        throw new Error('Les dates de début et de fin sont requises');
+      }
+
+      const startTime = Date.now();
+      const isUnseenOnly = unseenOnly === 'true';
+      const isFastMode = fastMode === 'true';
+
+      // Convertir le paramètre limit en nombre si présent
+      const limitValue = limit ? parseInt(limit, 10) : undefined;
+
+      // Vérifier que limitValue est un nombre valide
+      const validLimit =
+        limitValue && !isNaN(limitValue) && limitValue > 0
+          ? limitValue
+          : undefined;
+
+      this.logger.log(
+        `Début de l'analyse des emails du ${startDate} au ${endDate} (non lus uniquement: ${isUnseenOnly}, mode rapide: ${isFastMode}, limite: ${validLimit || 'aucune'})`,
+      );
+
+      // Récupération des emails dans la période spécifiée (avec limite dès la récupération)
+      const fetchStartTime = Date.now();
+      const emails = await this.analyzeEmailService.getEmailsInDateRange(
+        startDate,
+        endDate,
+        isUnseenOnly,
+        validLimit,
+      );
+      const fetchEndTime = Date.now();
+
+      if (emails.length === 0) {
+        return {
+          status: 'success',
+          message: `Aucun email trouvé pour la période du ${startDate} au ${endDate}`,
+          data: [],
+          performanceMetrics: {
+            totalDuration: Date.now() - startTime,
+            emailFetchDuration: fetchEndTime - fetchStartTime,
+            analysisDuration: 0,
+          },
+        };
+      }
+
+      this.logger.log(
+        `${emails.length} emails récupérés, analyse en cours${isFastMode ? ' (mode rapide)' : ''}`,
+      );
+
+      // Analyse des emails récupérés (déjà limités par le service)
+      const analysisStartTime = Date.now();
+      const analyzedEmails = await this.analyzeEmailService.analyzeEmails(
+        emails,
+        isFastMode,
+      );
+      const analysisEndTime = Date.now();
+
+      // Métriques de performance de base
+      const performanceMetrics: {
+        totalDuration: number;
+        emailFetchDuration: number;
+        analysisDuration: number;
+        summaryDuration?: number;
+      } = {
+        totalDuration: 0, // Sera mis à jour à la fin
+        emailFetchDuration: fetchEndTime - fetchStartTime,
+        analysisDuration: analysisEndTime - analysisStartTime,
+      };
+
+      // Si résumé demandé, générer un résumé global
+      if (summary === 'true') {
+        const summaryStartTime = Date.now();
+        const overallSummary =
+          await this.analyzeEmailService.generateOverallSummary(
+            analyzedEmails,
+            isFastMode,
+          );
+        const summaryEndTime = Date.now();
+
+        // Mettre à jour les métriques avec le temps de génération du résumé
+        performanceMetrics.summaryDuration = summaryEndTime - summaryStartTime;
+        performanceMetrics.totalDuration = Date.now() - startTime;
+
+        this.logger.log(
+          `Analyse complète en ${performanceMetrics.totalDuration}ms (récupération: ${performanceMetrics.emailFetchDuration}ms, analyse: ${performanceMetrics.analysisDuration}ms, résumé: ${performanceMetrics.summaryDuration}ms)`,
+        );
+
+        return {
+          status: 'success',
+          message: `${analyzedEmails.length} emails analysés avec succès du ${startDate} au ${endDate}${isFastMode ? ' (mode rapide)' : ''}`,
+          data: analyzedEmails,
+          summary: {
+            overview: overallSummary.summary,
+            totalEmails: overallSummary.totalEmails,
+            highPriorityCount: overallSummary.highPriorityCount,
+            actionRequiredCount: overallSummary.actionRequiredCount,
+            categoryCounts: overallSummary.categoryCounts,
+            topPriorityEmails: overallSummary.topPriorityEmails,
+            actionItems: overallSummary.actionItems,
+            tokensUsed: overallSummary.tokensUsed,
+          },
+          performanceMetrics,
+        };
+      }
+
+      // Finaliser les métriques de performance sans résumé
+      performanceMetrics.totalDuration = Date.now() - startTime;
+
+      this.logger.log(
+        `Analyse complète en ${performanceMetrics.totalDuration}ms (récupération: ${performanceMetrics.emailFetchDuration}ms, analyse: ${performanceMetrics.analysisDuration}ms)`,
+      );
+
+      return {
+        status: 'success',
+        message: `${analyzedEmails.length} emails analysés avec succès du ${startDate} au ${endDate}${isFastMode ? ' (mode rapide)' : ''}`,
+        data: analyzedEmails,
+        performanceMetrics,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Erreur lors de l'analyse des emails: ${errorMessage}`);
+      throw new HttpException(
+        {
+          status: 'error',
+          message: `Erreur lors de l'analyse des emails: ${errorMessage}`,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
