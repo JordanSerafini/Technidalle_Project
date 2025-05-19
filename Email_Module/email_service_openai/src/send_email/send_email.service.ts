@@ -449,7 +449,8 @@ export class SendEmailService {
       // Faire une requête au service analyze_email pour récupérer l'email par son ID
       try {
         // Utiliser un fetch HTTP à l'endpoint /analyze-email/get-email/:emailId
-        const apiUrl = `${API_URL}/analyze-email/get-email/${emailId}?mailbox=${mailbox}&forceRefresh=${forceRefresh}`;
+        // Toujours passer forceRefresh=false à l'API interne pour éviter de recharger tous les emails
+        const apiUrl = `${API_URL}/analyze-email/get-email/${emailId}?mailbox=${mailbox}&forceRefresh=false`;
 
         const response = await fetch(apiUrl);
         if (!response.ok) {
@@ -500,19 +501,49 @@ export class SendEmailService {
           draftResponse,
         };
       } catch (error) {
-        // Si l'appel à l'API échoue, on revient à la méthode classique
+        // Si l'appel à l'API échoue, au lieu de revenir à la méthode classique qui recharge tous les emails,
+        // rechercher l'email dans le cache existant des emails sans forcer le rechargement
         this.logger.warn(
-          `Échec de récupération optimisée pour l'email ${emailId}, repli sur la méthode classique: ${
+          `Échec de récupération optimisée pour l'email ${emailId}, recherche dans le cache: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
 
-        return this.generateResponseForEmail(
-          mailbox,
-          emailId,
-          responseLength,
-          forceRefresh,
-        );
+        // Utiliser la méthode getEmailById avec forceRefresh=false pour chercher dans le cache
+        const email = await this.getEmailById(mailbox, emailId, false);
+
+        if (!email) {
+          return {
+            originalEmail: null,
+            draftResponse: `Email avec ID ${emailId} non trouvé. Veuillez rafraîchir la liste des emails.`,
+          };
+        }
+
+        // Analyser l'email si nécessaire
+        const analyzedEmail = email.analysis
+          ? email
+          : (await this.analyzeEmailService.analyzeEmails([email]))[0];
+
+        // Générer la réponse
+        const draftResponse =
+          await this.analyzeEmailService.generateEmailResponse(
+            analyzedEmail,
+            responseLength,
+          );
+
+        // Stocker dans le cache
+        this.responsesCache[cacheKey] = {
+          timestamp: now,
+          data: {
+            originalEmail: analyzedEmail,
+            draftResponse,
+          },
+        };
+
+        return {
+          originalEmail: analyzedEmail,
+          draftResponse,
+        };
       }
     } catch (error) {
       this.logger.error(

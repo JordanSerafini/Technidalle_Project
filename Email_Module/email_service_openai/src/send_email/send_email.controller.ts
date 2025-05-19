@@ -33,19 +33,21 @@ export class SendEmailController {
     @Query('forceRefresh') forceRefresh?: string,
   ) {
     try {
-      const shouldForceRefresh = forceRefresh === undefined ? false : forceRefresh === 'true';
+      const shouldForceRefresh =
+        forceRefresh === undefined ? false : forceRefresh === 'true';
 
       this.logger.log(
         `Génération d'une réponse ${responseLength} pour l'email ${emailId}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,
       );
 
       // Utiliser une méthode optimisée pour récupérer directement l'email par ID
-      const result = await this.sendEmailService.generateOptimizedResponseForEmail(
-        mailbox,
-        emailId,
-        responseLength,
-        shouldForceRefresh,
-      );
+      const result =
+        await this.sendEmailService.generateOptimizedResponseForEmail(
+          mailbox,
+          emailId,
+          responseLength,
+          shouldForceRefresh,
+        );
 
       if (!result.originalEmail) {
         return {
