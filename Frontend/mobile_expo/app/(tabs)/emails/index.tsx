@@ -7,7 +7,7 @@ export default function Emails() {
     const [currentPage, setCurrentPage] = useState<'analyze' | 'simple'>('analyze');
 
     return (
-        <View className="flex-1 bg-gray-50">
+        <View className="flex-1 bg-gray-50 pt-">
             {/* Navigation entre les pages */}
             <View className="flex-row p-2 bg-white border-b border-gray-200">
                 <TouchableOpacity 
@@ -23,7 +23,7 @@ export default function Emails() {
                     className={`flex-1 py-2 px-4 mx-1 rounded-lg ${currentPage === 'simple' ? 'bg-indigo-600' : 'bg-gray-200'}`}
                 >
                     <Text className={`text-center font-medium ${currentPage === 'simple' ? 'text-white' : 'text-gray-700'}`}>
-                    Tri des emails
+                        Tri des emails
                     </Text>
                 </TouchableOpacity>
             </View>
