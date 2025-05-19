@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { EmailData } from '../../../utils/types/mailTypes';
-import { truncateText, extractSenderName } from '../../../utils/functions/mailUtils';
-import { formatDateTime } from '../../../utils/dateFormatter';
+import { EmailData } from '../../utils/types/mailTypes';
+import { truncateText, extractSenderName } from '../../utils/functions/mailUtils';
+import { formatDateTime } from '../../utils/dateFormatter';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 type EmailCardProps = {

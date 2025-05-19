@@ -3,13 +3,12 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
 import mailFunctions from '../../utils/functions/mails.function';
+import url from '@/app/utils/url';
 // Import du store
 import { useMailsStore } from '../../store/mailsStore';
 
 // Constantes pour l'API (locales)
-const API_URL = Platform.OS === 'web' 
-  ? 'http://localhost:4444' 
-  : 'http://192.168.20.225:4444';
+const API_URL = url.email;
 
 // Options fetch de base
 const fetchOptions = {

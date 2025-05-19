@@ -306,7 +306,8 @@ export class SendEmailController {
   ) {
     try {
       // Ne convertir en booléen que si le paramètre est explicitement fourni
-      const shouldForceRefresh = forceRefresh === undefined ? false : forceRefresh === 'true';
+      const shouldForceRefresh =
+        forceRefresh === undefined ? false : forceRefresh === 'true';
 
       this.logger.log(
         `Récupération des emails nécessitant une réponse dans ${mailbox}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,

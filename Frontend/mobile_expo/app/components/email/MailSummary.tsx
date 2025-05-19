@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Switch, Alert } from "react-native";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
@@ -8,10 +8,10 @@ import { getDataMode, setDataMode } from '../../utils/functions/mails.function';
 import { useMailsStore } from '../../store/mailsStore';
 
 // Components importés au besoin
-import EmailCard from './components/EmailCard';
-import LoadingState from './components/LoadingState';
-import ErrorState from './components/ErrorState';
-import EmptyState from './components/EmptyState';
+import EmailCard from './EmailCard';
+import LoadingState from './LoadingState';
+import ErrorState from './ErrorState';
+import EmptyState from './EmptyState';
 import EmailReplyModal from './EmailReplyModal';
 
 export default function MailSummary() {
@@ -33,6 +33,7 @@ export default function MailSummary() {
     const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
     const [useMockData, setUseMockData] = useState(getDataMode());
     const [forceRefresh, setForceRefresh] = useState(false);
+    const [searchStarted, setSearchStarted] = useState(false);
     
     // États pour le pliage des sections - toujours à true par défaut
     const [overviewExpanded, setOverviewExpanded] = useState(true);
@@ -46,6 +47,25 @@ export default function MailSummary() {
     // États pour la modale de réponse
     const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
     const [selectedEmailForReply, setSelectedEmailForReply] = useState<string | null>(null);
+    // Ajout d'un cache d'email pour éviter de refetch si on a déjà les données
+    const [emailCache, setEmailCache] = useState<Record<string, EmailData>>({});
+
+    // Mise à jour du cache d'emails quand de nouveaux emails sont chargés
+    useEffect(() => {
+        if (emails && emails.length > 0) {
+            const newCache: Record<string, EmailData> = {};
+            emails.forEach(email => {
+                newCache[email.id] = email;
+            });
+            setEmailCache(prev => ({...prev, ...newCache}));
+        }
+    }, [emails]);
+
+    // Récupère l'email sélectionné depuis le cache
+    const selectedEmail = useMemo(() => {
+        if (!selectedEmailForReply) return null;
+        return emailCache[selectedEmailForReply] || null;
+    }, [selectedEmailForReply, emailCache]);
 
     const toggleExpand = (id: string) => {
         setExpandedItems(prev => ({
@@ -63,9 +83,14 @@ export default function MailSummary() {
 
     // Fonction pour lancer la recherche avec les paramètres configurés
     const handleSearch = () => {
+        console.log("Démarrage d'une recherche manuelle");
+        // Indiquer qu'une recherche a été démarrée avant d'appeler l'API
+        setSearchStarted(true);
+        // hasSearched restera à false jusqu'à la fin du chargement (via l'effet)
+        
         // Toujours forcer la recherche quand on clique sur le bouton
         fetchMailSummary(fastMode, forceRefresh);
-        setHasSearched(true);
+        
         // Garder les options de recherche visibles
         setShowSearchOptions(true);
         // Replier les options après la recherche
@@ -108,20 +133,20 @@ export default function MailSummary() {
         if (!stats) return null;
         
         return (
-            <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.totalEmails}</Text>
-                    <Text style={styles.statLabel}>Emails</Text>
+            <View className="flex-row justify-around bg-blue-50 rounded-xl p-4 my-4 border border-blue-100">
+                <View className="items-center">
+                    <Text className="text-lg font-bold text-blue-800">{stats.totalEmails}</Text>
+                    <Text className="text-xs text-gray-500 mt-1">Emails</Text>
                 </View>
-                <View style={styles.dividerVertical} />
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.highPriorityCount}</Text>
-                    <Text style={styles.statLabel}>Prioritaires</Text>
+                <View className="h-8 w-px bg-blue-200" />
+                <View className="items-center">
+                    <Text className="text-lg font-bold text-blue-800">{stats.highPriorityCount}</Text>
+                    <Text className="text-xs text-gray-500 mt-1">Prioritaires</Text>
                 </View>
-                <View style={styles.dividerVertical} />
-                <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.actionRequiredCount}</Text>
-                    <Text style={styles.statLabel}>Actions</Text>
+                <View className="h-8 w-px bg-blue-200" />
+                <View className="items-center">
+                    <Text className="text-lg font-bold text-blue-800">{stats.actionRequiredCount}</Text>
+                    <Text className="text-xs text-gray-500 mt-1">Actions</Text>
                 </View>
             </View>
         );
@@ -129,9 +154,9 @@ export default function MailSummary() {
 
     const renderFilterButtons = () => {
         return (
-            <View style={styles.filterContainer}>
+            <View className="flex-row justify-between mb-4">
                 <TouchableOpacity 
-                    style={[styles.filterButton, filterType === 'high' && styles.filterButtonActive]}
+                    className={`flex-row items-center justify-center py-2 px-3 rounded-lg flex-1 mx-1 ${filterType === 'high' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onPress={() => setFilterType('high')}
                 >
                     <MaterialIcons 
@@ -139,13 +164,13 @@ export default function MailSummary() {
                         size={16} 
                         color={filterType === 'high' ? '#ffffff' : '#6b7280'} 
                     />
-                    <Text style={[styles.filterText, filterType === 'high' && styles.filterTextActive]}>
+                    <Text className={`text-sm font-medium ml-1 ${filterType === 'high' ? 'text-white' : 'text-gray-500'}`}>
                         Prioritaires
                     </Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                    style={[styles.filterButton, filterType === 'action' && styles.filterButtonActive]}
+                    className={`flex-row items-center justify-center py-2 px-3 rounded-lg flex-1 mx-1 ${filterType === 'action' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onPress={() => setFilterType('action')}
                 >
                     <Ionicons 
@@ -153,13 +178,13 @@ export default function MailSummary() {
                         size={16} 
                         color={filterType === 'action' ? '#ffffff' : '#6b7280'} 
                     />
-                    <Text style={[styles.filterText, filterType === 'action' && styles.filterTextActive]}>
+                    <Text className={`text-sm font-medium ml-1 ${filterType === 'action' ? 'text-white' : 'text-gray-500'}`}>
                         Actions
                     </Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                    style={[styles.filterButton, filterType === 'all' && styles.filterButtonActive]}
+                    className={`flex-row items-center justify-center py-2 px-3 rounded-lg flex-1 mx-1 ${filterType === 'all' ? 'bg-blue-500' : 'bg-gray-100'}`}
                     onPress={() => setFilterType('all')}
                 >
                     <Ionicons 
@@ -167,7 +192,7 @@ export default function MailSummary() {
                         size={16} 
                         color={filterType === 'all' ? '#ffffff' : '#6b7280'} 
                     />
-                    <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
+                    <Text className={`text-sm font-medium ml-1 ${filterType === 'all' ? 'text-white' : 'text-gray-500'}`}>
                         Tous
                     </Text>
                 </TouchableOpacity>
@@ -184,8 +209,8 @@ export default function MailSummary() {
         }
         
         return (
-            <View style={styles.summaryContainer}>
-                <Text style={styles.summaryText}>{overview}</Text>
+            <View className="p-4 bg-blue-50 rounded-lg mb-4 border border-blue-100">
+                <Text className="text-sm text-gray-600">{overview}</Text>
             </View>
         );
     };
@@ -193,12 +218,12 @@ export default function MailSummary() {
     // Composant modifié pour les options de recherche avec bouton de recherche
     const renderSearchOptions = () => {
         return (
-            <View style={styles.searchOptionsContainer}>
+            <View className="mb-5 bg-gray-50 rounded-lg p-3 border border-gray-200">
                 <TouchableOpacity 
-                    style={styles.sectionHeader}
+                    className="flex-row justify-between items-center py-2 mb-2 border-b border-gray-200"
                     onPress={() => setSearchOptionsExpanded(!searchOptionsExpanded)}
                 >
-                    <Text style={styles.sectionTitle}>Options de recherche</Text>
+                    <Text className="text-lg font-bold text-blue-500">Options de recherche</Text>
                     <Ionicons 
                         name={searchOptionsExpanded ? "chevron-down" : "chevron-forward"} 
                         size={20} 
@@ -208,11 +233,11 @@ export default function MailSummary() {
                 
                 {searchOptionsExpanded && (
                     <>
-                        <View style={styles.optionRow}>
-                            <View style={styles.optionLabelContainer}>
-                                <Text style={styles.optionLabel}>Utiliser les données mockées</Text>
+                        <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
+                            <View className="flex-row items-center">
+                                <Text className="text-base font-medium text-gray-600">Utiliser les données mockées</Text>
                                 <TouchableOpacity 
-                                    style={styles.infoButton}
+                                    className="ml-2 p-0.5 rounded-full bg-gray-100"
                                     onPress={() => Alert.alert(
                                         "Mode de données",
                                         "Choisissez entre les données mockées (mode hors ligne) ou l'API réelle (mode en ligne)."
@@ -229,8 +254,8 @@ export default function MailSummary() {
                             />
                         </View>
 
-                        <View style={styles.optionRow}>
-                            <Text style={styles.optionLabel}>Mode rapide</Text>
+                        <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
+                            <Text className="text-base font-medium text-gray-600">Mode rapide</Text>
                             <Switch
                                 value={fastMode}
                                 onValueChange={setFastMode}
@@ -239,11 +264,11 @@ export default function MailSummary() {
                             />
                         </View>
                         
-                        <View style={styles.optionRow}>
-                            <View style={styles.optionLabelContainer}>
-                                <Text style={styles.optionLabel}>Forcer le rafraîchissement</Text>
+                        <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
+                            <View className="flex-row items-center">
+                                <Text className="text-base font-medium text-gray-600">Forcer le rafraîchissement</Text>
                                 <TouchableOpacity 
-                                    style={styles.infoButton}
+                                    className="ml-2 p-0.5 rounded-full bg-gray-100"
                                     onPress={() => Alert.alert(
                                         "Forcer le rafraîchissement",
                                         "Ignore le cache et recharge toutes les données depuis l'API."
@@ -260,70 +285,46 @@ export default function MailSummary() {
                             />
                         </View>
                         
-                        <View style={styles.optionRow}>
-                            <Text style={styles.optionLabel}>Longueur des réponses</Text>
-                            <View style={styles.radioGroup}>
+                        <View className="py-3 border-b border-gray-200">
+                            <Text className="text-base font-medium text-gray-600 mb-2">Longueur des réponses</Text>
+                            <View className="flex-row justify-between items-center">
                                 <TouchableOpacity 
-                                    style={[
-                                        styles.radioOption,
-                                        responseLength === 'court' && styles.radioOptionActive
-                                    ]}
+                                    className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'court' ? 'bg-blue-500' : 'bg-gray-100'}`}
                                     onPress={() => setResponseLength('court')}
                                 >
-                                    <Text 
-                                        style={[
-                                            styles.radioText,
-                                            responseLength === 'court' && styles.radioTextActive
-                                        ]}
-                                    >
+                                    <Text className={`text-sm font-medium ${responseLength === 'court' ? 'text-white' : 'text-gray-500'}`}>
                                         Court
                                     </Text>
                                 </TouchableOpacity>
                                 
                                 <TouchableOpacity 
-                                    style={[
-                                        styles.radioOption,
-                                        responseLength === 'normal' && styles.radioOptionActive
-                                    ]}
+                                    className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'normal' ? 'bg-blue-500' : 'bg-gray-100'}`}
                                     onPress={() => setResponseLength('normal')}
                                 >
-                                    <Text 
-                                        style={[
-                                            styles.radioText,
-                                            responseLength === 'normal' && styles.radioTextActive
-                                        ]}
-                                    >
+                                    <Text className={`text-sm font-medium ${responseLength === 'normal' ? 'text-white' : 'text-gray-500'}`}>
                                         Normal
                                     </Text>
                                 </TouchableOpacity>
                                 
                                 <TouchableOpacity 
-                                    style={[
-                                        styles.radioOption,
-                                        responseLength === 'détaillé' && styles.radioOptionActive
-                                    ]}
+                                    className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'détaillé' ? 'bg-blue-500' : 'bg-gray-100'}`}
                                     onPress={() => setResponseLength('détaillé')}
                                 >
-                                    <Text 
-                                        style={[
-                                            styles.radioText,
-                                            responseLength === 'détaillé' && styles.radioTextActive
-                                        ]}
-                                    >
+                                    <Text className={`text-sm font-medium ${responseLength === 'détaillé' ? 'text-white' : 'text-gray-500'}`}>
                                         Détaillé
                                     </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                         
-                        {/* Nouveau bouton de recherche */}
+                        {/* Bouton de recherche */}
                         <TouchableOpacity 
-                            style={styles.searchButton}
+                            className="flex-row bg-blue-500 py-3 px-4 rounded-lg justify-center items-center mt-4 mx-4 mb-2"
                             onPress={handleSearch}
                             disabled={loading}
                         >
                             <Ionicons name="search" size={18} color="#ffffff" />
-                            <Text style={styles.searchButtonText}>
+                            <Text className="text-white font-semibold text-base ml-2">
                                 {loading ? "Chargement..." : "Rechercher les emails"}
                             </Text>
                         </TouchableOpacity>
@@ -336,19 +337,37 @@ export default function MailSummary() {
     const emailGroups = groupedEmails();
     const emailsToShow = filteredEmails();
 
+    // Fonction pour ouvrir la modal de réponse sans recharger les emails
+    const handleReplyToEmail = useCallback((emailId: string) => {
+        console.log("Réponse à l'email:", emailId);
+        // Vérifier si nous avons déjà cet email dans le cache
+        if (emailCache[emailId]) {
+            setSelectedEmailForReply(emailId);
+            setIsReplyModalVisible(true);
+            return;
+        }
+        
+        // Si l'email n'est pas dans le cache (cas rare), on pourrait le récupérer ici
+        // Pour l'instant, on utilise quand même l'ID que nous avons
+        setSelectedEmailForReply(emailId);
+        setIsReplyModalVisible(true);
+    }, [emailCache]);
+
     // Fonction pour afficher tout le contenu
     const renderContent = () => {
-        if (loading && !refreshing) {
+        console.log("Rendu avec loading:", loading, "searchStarted:", searchStarted, "hasSearched:", hasSearched);
+        
+        // Toujours afficher le chargement en priorité
+        if (loading) {
             return <LoadingState />;
         }
 
-        // Only show error if not currently loading
+        // Afficher l'erreur seulement quand le chargement est terminé
         if (!loading && error) {
             return <ErrorState error={error} onRetry={handleSearch} />;
         }
 
-        // Si les données sont vides et qu'on a déjà fait une recherche
-        // Only show empty state if not currently loading
+        // Afficher l'état vide seulement après le chargement terminé et si aucun email
         if (!loading && hasSearched && (!emails || emails.length === 0)) {
             return <EmptyState onRetry={handleSearch} />;
         }
@@ -359,12 +378,12 @@ export default function MailSummary() {
                 
                 {hasSearched && (
                     <>
-                        <View style={styles.sectionContainer}>
+                        <View className="mb-5">
                             <TouchableOpacity
-                                style={styles.sectionHeader}
+                                className="flex-row justify-between items-center py-2 mb-2 border-b border-gray-200"
                                 onPress={() => setOverviewExpanded(!overviewExpanded)}
                             >
-                                <Text style={styles.sectionTitle}>Aperçu général</Text>
+                                <Text className="text-lg font-bold text-blue-500">Aperçu général</Text>
                                 <Ionicons
                                     name={overviewExpanded ? "chevron-down" : "chevron-forward"}
                                     size={20}
@@ -376,12 +395,12 @@ export default function MailSummary() {
                                 <>
                                     {renderSummaryStats()}
                                     
-                                    <View style={styles.sectionContainer}>
+                                    <View className="mb-5">
                                         <TouchableOpacity
-                                            style={styles.sectionHeader}
+                                            className="flex-row justify-between items-center py-2 mb-2 border-b border-gray-200"
                                             onPress={() => setDailySummaryExpanded(!dailySummaryExpanded)}
                                         >
-                                            <Text style={styles.subsectionTitle}>Résumé de la journée</Text>
+                                            <Text className="text-base font-semibold text-blue-500 mb-2">Résumé de la journée</Text>
                                             <Ionicons
                                                 name={dailySummaryExpanded ? "chevron-down" : "chevron-forward"}
                                                 size={18}
@@ -395,15 +414,15 @@ export default function MailSummary() {
                             )}
                         </View>
                         
-                        <View style={styles.sectionContainer}>
+                        <View className="mb-5">
                             <TouchableOpacity
-                                style={styles.sectionHeader}
+                                className="flex-row justify-between items-center py-2 mb-2 border-b border-gray-200"
                                 onPress={() => setEmailListExpanded(!emailListExpanded)}
                             >
-                                <Text style={styles.sectionTitle}>Emails</Text>
-                                <View style={styles.headerRightContainer}>
-                                    <View style={styles.emailCountBadge}>
-                                        <Text style={styles.emailCountText}>{emailsToShow.length}</Text>
+                                <Text className="text-lg font-bold text-blue-500">Actions Emails</Text>
+                                <View className="flex-row items-center">
+                                    <View className="bg-blue-500 rounded-full px-2 py-0.5 mr-2">
+                                        <Text className="text-white text-xs font-bold">{emailsToShow.length}</Text>
                                     </View>
                                     <Ionicons
                                         name={emailListExpanded ? "chevron-down" : "chevron-forward"}
@@ -419,11 +438,11 @@ export default function MailSummary() {
                                     
                                     {Object.keys(emailGroups).length > 0 ? (
                                         Object.keys(emailGroups).map(category => (
-                                            <View key={category} style={styles.categoryContainer}>
-                                                <View style={styles.categoryHeader}>
-                                                    <Text style={styles.categoryTitle}>{category}</Text>
-                                                    <View style={styles.categoryCountBadge}>
-                                                        <Text style={styles.categoryCountText}>{emailGroups[category].length}</Text>
+                                            <View key={category} className="mb-5">
+                                                <View className="flex-row items-center justify-between mb-2">
+                                                    <Text className="text-base font-semibold text-blue-800 ml-2">{category}</Text>
+                                                    <View className="bg-blue-400 rounded-full px-1.5 py-0.5">
+                                                        <Text className="text-white text-xs font-medium">{emailGroups[category].length}</Text>
                                                     </View>
                                                 </View>
                                                 {emailGroups[category].map(email => (
@@ -432,47 +451,26 @@ export default function MailSummary() {
                                                         email={email}
                                                         expanded={!!expandedItems[email.id]}
                                                         onToggleExpand={() => toggleExpand(email.id)}
-                                                        onReply={(emailId) => {
-                                                            setSelectedEmailForReply(emailId);
-                                                            setIsReplyModalVisible(true);
-                                                        }}
+                                                        onReply={handleReplyToEmail}
                                                     />
                                                 ))}
                                             </View>
                                         ))
                                     ) : (
-                                        <Text style={styles.noEmailsText}>
+                                        <Text className="text-base text-gray-500 text-center">
                                             Aucun email ne correspond au filtre sélectionné
                                         </Text>
                                     )}
                                 </>
                             )}
                         </View>
-                        
-                        <View style={styles.sectionContainer}>
-                            <TouchableOpacity
-                                style={styles.sectionHeader}
-                                onPress={() => {
-                                    setMailSenderExpanded(!mailSenderExpanded);
-                                    if (!mailSenderExpanded) {
-                                        setEmailListExpanded(false); // Ferme la section des emails quand on ouvre le MailSender
-                                    }
-                                }}
-                            >
-                                <Text style={styles.sectionTitle}>Répondre aux emails</Text>
-                                <Ionicons
-                                    name={mailSenderExpanded ? "chevron-down" : "chevron-forward"}
-                                    size={20}
-                                    color="#3b82f6"
-                                />
-                            </TouchableOpacity>
-                        </View>
+                       
                     </>
                 )}
                 
                 {!hasSearched && (
-                    <View style={styles.initialStateContainer}>
-                        <Text style={styles.initialStateText}>
+                    <View className="p-8 justify-center items-center bg-gray-100 rounded-lg my-5">
+                        <Text className="text-base text-gray-600 text-center">
                             Configurez vos options de recherche et cliquez sur "Rechercher les emails" pour commencer.
                         </Text>
                     </View>
@@ -483,7 +481,10 @@ export default function MailSummary() {
 
     const handleCloseReplyModal = useCallback(() => {
         setIsReplyModalVisible(false);
-        setSelectedEmailForReply(null);
+        // Ne pas réinitialiser selectedEmailForReply immédiatement pour permettre une animation de fermeture plus fluide
+        setTimeout(() => {
+            setSelectedEmailForReply(null);
+        }, 300);
         // Optionnel: rafraîchir la liste après envoi si un email doit disparaître
         // Ceci est un point à affiner: si l'email est juste marqué comme "répondu"
         // ou s'il doit vraiment disparaître de la liste `actionRequiredEmails`
@@ -492,24 +493,42 @@ export default function MailSummary() {
         // fetchMailSummary(fastMode, true); 
     }, []);
 
+    // Effet pour marquer hasSearched une fois le chargement terminé
+    useEffect(() => {
+        // Si une recherche a été lancée et le chargement est terminé
+        if (searchStarted && !loading) {
+            setHasSearched(true);
+        }
+    }, [loading, searchStarted]);
+
+    // Effet pour déclencher le chargement initial
+    useEffect(() => {
+        // Chargement automatique à l'ouverture de la page
+        if (!hasSearched && !searchStarted && !loading) {
+            console.log("Démarrage du chargement automatique initial");
+            setSearchStarted(true);
+            fetchMailSummary(fastMode, false);
+        }
+    }, []);
+
     return (
-        <View style={styles.container}>
+        <View className="flex-1 bg-white">
             {/* En-tête avec bouton pour réafficher les options de recherche si nécessaire */}
             {hasSearched && !showSearchOptions && (
                 <TouchableOpacity
-                    style={styles.showSearchButton}
+                    className="absolute top-4 right-4 bg-blue-500 rounded-lg p-2 flex-row items-center"
                     onPress={() => setShowSearchOptions(true)}
                 >
                     <Ionicons name="search-outline" size={18} color="#ffffff" />
-                    <Text style={styles.showSearchButtonText}>Rechercher à nouveau</Text>
+                    <Text className="text-white font-semibold text-base ml-2">Rechercher à nouveau</Text>
                 </TouchableOpacity>
             )}
             
             {/* On utilise une FlatList comme conteneur principal pour tout le contenu */}
             <FlatList
-                style={styles.flatList}
-                contentContainerStyle={styles.flatListContent}
-                data={[1]} // On utilise un tableau avec un seul élément pour afficher tout le contenu
+                className="flex-1"
+                contentContainerStyle={{padding: 16, paddingBottom: 60}}
+                data={[1]}
                 renderItem={() => renderContent()}
                 keyExtractor={() => 'content'}
                 onRefresh={hasSearched ? onRefresh : undefined}
@@ -521,323 +540,8 @@ export default function MailSummary() {
                 isVisible={isReplyModalVisible}
                 onClose={handleCloseReplyModal}
                 emailId={selectedEmailForReply}
-                responseLength={responseLength} // On peut passer la longueur de réponse par défaut configurée dans MailSummary
+                responseLength={responseLength}
             />
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: 'white',
-    },
-    flatList: {
-        flex: 1,
-    },
-    flatListContent: {
-        padding: 16,
-        paddingBottom: 60,
-    },
-    contentContainer: {
-        width: '100%',
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-        marginBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#3b82f6',
-    },
-    subSectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 8,
-        marginBottom: 8,
-        backgroundColor: '#f3f4f6',
-        borderRadius: 8,
-    },
-    subSectionTitle: {
-        marginLeft: 8,
-        fontWeight: '600',
-        color: '#1e40af',
-    },
-    summaryContainer: {
-        padding: 16,
-        backgroundColor: '#eff6ff',
-        borderRadius: 8,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#dbeafe',
-    },
-    summaryText: {
-        fontSize: 14,
-        color: '#4b5563',
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        backgroundColor: '#eff6ff',
-        borderRadius: 12,
-        padding: 16,
-        marginVertical: 16,
-        borderWidth: 1,
-        borderColor: '#dbeafe',
-    },
-    statItem: {
-        alignItems: 'center',
-    },
-    statNumber: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1e40af',
-    },
-    statLabel: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 4,
-    },
-    dividerVertical: {
-        height: 32,
-        width: 1,
-        backgroundColor: '#bfdbfe',
-    },
-    filterContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    filterButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        flex: 1,
-        marginHorizontal: 4,
-        backgroundColor: '#f3f4f6',
-    },
-    filterButtonActive: {
-        backgroundColor: '#3b82f6',
-    },
-    filterText: {
-        fontSize: 13,
-        fontWeight: '500',
-        marginLeft: 4,
-        color: '#6b7280',
-    },
-    filterTextActive: {
-        color: '#ffffff',
-    },
-    categoryContainer: {
-        marginBottom: 20,
-    },
-    categoryHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    categoryTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1e40af',
-        marginLeft: 8,
-    },
-    // Nouveaux styles pour les options de recherche
-    searchOptionsContainer: {
-        marginBottom: 20,
-        backgroundColor: '#f9fafb',
-        borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    optionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-    },
-    optionLabel: {
-        fontSize: 15,
-        fontWeight: '500',
-        color: '#4b5563',
-    },
-    lengthSelector: {
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-    },
-    lengthOptions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 8,
-    },
-    lengthOption: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 8,
-        marginHorizontal: 4,
-        backgroundColor: '#f3f4f6',
-        borderRadius: 6,
-    },
-    lengthOptionActive: {
-        backgroundColor: '#3b82f6',
-    },
-    lengthOptionText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#6b7280',
-    },
-    lengthOptionTextActive: {
-        color: '#ffffff',
-    },
-    searchButton: {
-        flexDirection: 'row',
-        backgroundColor: '#3b82f6',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 6,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 16,
-        marginHorizontal: 16,
-        marginBottom: 8,
-    },
-    searchButtonText: {
-        color: '#ffffff',
-        fontWeight: '600',
-        fontSize: 16,
-        marginLeft: 8,
-    },
-    emptyStateContainer: {
-        padding: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f3f4f6',
-        borderRadius: 8,
-        marginVertical: 20,
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: '#4b5563',
-        textAlign: 'center',
-    },
-    sectionContainer: {
-        marginBottom: 20,
-    },
-    subsectionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#3b82f6',
-        marginBottom: 8,
-    },
-    noEmailsText: {
-        fontSize: 16,
-        color: '#4b5563',
-        textAlign: 'center',
-    },
-    initialStateContainer: {
-        padding: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f3f4f6',
-        borderRadius: 8,
-        marginVertical: 20,
-    },
-    initialStateText: {
-        fontSize: 16,
-        color: '#4b5563',
-        textAlign: 'center',
-    },
-    headerRightContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    emailCountBadge: {
-        backgroundColor: '#3b82f6',
-        borderRadius: 12,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        marginRight: 8,
-    },
-    emailCountText: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    categoryCountBadge: {
-        backgroundColor: '#60a5fa', // Bleu plus clair
-        borderRadius: 12,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-    },
-    categoryCountText: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    showSearchButton: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        backgroundColor: '#3b82f6',
-        borderRadius: 8,
-        padding: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    showSearchButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#ffffff',
-        marginLeft: 8,
-    },
-    optionLabelContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    infoButton: {
-        marginLeft: 8,
-        padding: 2,
-        borderRadius: 12,
-        backgroundColor: '#f3f4f6',
-    },
-    radioGroup: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    radioOption: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 8,
-        marginHorizontal: 4,
-        backgroundColor: '#f3f4f6',
-        borderRadius: 6,
-    },
-    radioOptionActive: {
-        backgroundColor: '#3b82f6',
-    },
-    radioText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#6b7280',
-    },
-    radioTextActive: {
-        color: '#ffffff',
-    },
-});

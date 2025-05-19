@@ -1,11 +1,11 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { SafeAreaView, StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import MailSummary from '@/app/components/dashboard/MailSummary';
+import MailSummary from '@/app/components/email/MailSummary';
 
 // Import lazy du composant EmailResponder pour éviter tout effet de bord
 const EmailResponder = lazy(() => 
-  import('@/app/components/dashboard/EmailResponder').then(module => ({
+  import('@/app/components/email/EmailResponder').then(module => ({
     default: module.default
   }))
 );
