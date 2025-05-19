@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { EmailData } from '../../utils/types/mailTypes';
+import { EmailData } from '../../../utils/types/mailTypes';
 import MailDetails from './MailDetails';
 
 interface MailsListProps {

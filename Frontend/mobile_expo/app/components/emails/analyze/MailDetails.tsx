@@ -11,8 +11,8 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { EmailData } from '../../utils/types/mailTypes';
-import { generateDraftResponse, sendEmailResponse } from '../../utils/functions/emails.function';
+import { EmailData } from '../../../utils/types/mailTypes';
+import { generateDraftResponse, sendEmailResponse } from '../../../utils/functions/emails.function';
 
 interface MailDetailsProps {
   visible: boolean;
