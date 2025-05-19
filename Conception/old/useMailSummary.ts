@@ -1,21 +1,21 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { EmailData, MailSummaryResponse, EmailSummaryStats, ResponseLength } from '../utils/types/mailTypes';
+import { EmailData, MailSummaryResponse, EmailSummaryStats, ResponseLength } from '../../Frontend/mobile_expo/app/utils/types/mailTypes';
 // Import des données mock
-import { dailyMailsMock as mockData } from '../utils/data/dailyMails.mock';
+import { dailyMailsMock as mockData } from '../../Frontend/mobile_expo/app/utils/data/dailyMails.mock';
 // Import des fonctions de gestion du mode de données
-import { getDataMode } from '../utils/functions/mails.function';
+import { getDataMode } from './2email/mails.function';
 // Import du store
-import { useMailsStore } from '../store/mailsStore';
+import { useMailsStore } from '../../Frontend/mobile_expo/app/store/mailsStore';
 // Import des fonctions optimisées
-import { fetchEmailsRequiringResponse } from '../utils/functions/mails.function';
+import { fetchEmailsRequiringResponse } from './2email/mails.function';
 import urlConfig from '@/app/utils/url';
 
 // Constante pour l'URL de l'API
 const getApiBaseUrl = () => {
   const apiUrl = Platform.OS === 'web' 
     ? urlConfig.email
-    : urlConfig.local;
+    : urlConfig.email;
   
   console.log(`useMailSummary utilise l'URL: ${apiUrl}`);
   return apiUrl;

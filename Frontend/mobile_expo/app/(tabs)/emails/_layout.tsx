@@ -1,18 +1,16 @@
-import MailSummary from '@/app/components/email/MailSummary';
+import { Stack } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, StyleSheet } from "react-native";
 
-export default function Dashboard() {
+export default function EmailsLayout() {
   return (
-    <SafeAreaView style={styles.container}>
-      <MailSummary />
-    </SafeAreaView>
-  )
+    <Stack>
+      <Stack.Screen 
+        name="index" 
+        options={{
+          title: 'Emails',
+          headerShown: false,
+        }}
+      />
+    </Stack>
+  );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-  }
-});

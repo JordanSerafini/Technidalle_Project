@@ -69,6 +69,12 @@ interface ParsedEmail {
   text?: string;
 }
 
+// Interface pour le cache d'emails
+interface CachedEmails {
+  timestamp: number;
+  emails: EmailContent[];
+}
+
 // Suppression des interfaces non utilisées
 interface ImapError extends Error {
   message: string;
@@ -84,6 +90,9 @@ export class AnalyzeEmailService {
   private imap: TypedImap;
   private openai: OpenAI;
   private analysisCache = new Map<string, EmailContent['analysis']>();
+  // Ajout des propriétés manquantes
+  private emailsCache: Record<string, CachedEmails> = {};
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes en millisecondes
 
   constructor(private configService: ConfigService) {
     this.openai = new OpenAI({
@@ -1712,6 +1721,193 @@ export class AnalyzeEmailService {
         error instanceof Error ? error.message : 'Erreur inconnue';
       this.logger.error(
         `Erreur lors de la récupération des emails: ${errorMessage}`,
+      );
+      throw error;
+    } finally {
+      this.imap.end();
+    }
+  }
+
+  /**
+   * Récupère un email spécifique par son ID sans charger tous les emails
+   * @param mailbox Boîte mail contenant l'email
+   * @param emailId ID de l'email à récupérer
+   * @param forceRefresh Forcer l'actualisation du cache
+   */
+  async getSpecificEmailById(
+    mailbox: string,
+    emailId: string,
+    forceRefresh: boolean = false,
+  ): Promise<EmailContent | null> {
+    try {
+      this.logger.log(
+        `Recherche directe de l'email ${emailId} dans ${mailbox}`,
+      );
+
+      // Vérifier d'abord le cache
+      const cacheKey = `${mailbox}_emails`;
+      const cachedData = this.emailsCache[cacheKey];
+      const now = Date.now();
+
+      // Si le cache est valide et qu'on ne force pas le rechargement
+      if (
+        !forceRefresh &&
+        cachedData &&
+        now - cachedData.timestamp < this.CACHE_TTL
+      ) {
+        // Chercher l'email dans le cache
+        const cachedEmail = cachedData.emails.find(
+          (e) => e.id === emailId || e.imapUID === emailId,
+        );
+
+        if (cachedEmail) {
+          this.logger.log(`[CACHE] Email ${emailId} trouvé dans le cache`);
+          return cachedEmail;
+        }
+      }
+
+      // Si l'email n'est pas dans le cache, on doit établir une nouvelle connexion IMAP
+      await this.connectToImap();
+
+      // Ouvrir la boîte mail spécifiée
+      await new Promise<void>((resolve, reject) => {
+        this.imap.openBox(mailbox, true, (err) => {
+          if (err) {
+            this.logger.error(
+              `Erreur lors de l'ouverture de la boîte ${mailbox}: ${err.message}`,
+            );
+            reject(err);
+            return;
+          }
+          resolve();
+        });
+      });
+
+      // Rechercher l'email par son ID ou UID
+      let searchCriteria: any[];
+
+      // Déterminer le type d'ID
+      if (/^\d+$/.test(emailId)) {
+        // UID IMAP (si c'est un nombre)
+        searchCriteria = [['UID', emailId]];
+      } else {
+        // Message-ID (si c'est une chaîne avec des caractères)
+        searchCriteria = [['HEADER', 'Message-ID', emailId]];
+      }
+
+      const messages = await new Promise<number[]>((resolve, reject) => {
+        this.imap.search(searchCriteria, (err, results) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve(results);
+        });
+      });
+
+      if (!messages || messages.length === 0) {
+        this.logger.warn(`Aucun email trouvé avec l'ID ${emailId}`);
+        return null;
+      }
+
+      // Récupérer le contenu du message
+      const emailData = await new Promise<EmailContent | null>((resolve) => {
+        try {
+          const fetch = this.imap.fetch(messages, {
+            bodies: [''],
+            struct: true,
+            uid: true,
+          }) as ImapFetch;
+
+          let email: Partial<EmailContent> | null = null;
+
+          fetch.on('message', (msg: ImapMessage, seqno: number) => {
+            email = {
+              id: String(seqno),
+              folderPath: mailbox,
+            };
+
+            // Capturer l'UID IMAP
+            msg.once('attributes', (attrs) => {
+              if (attrs && attrs.uid) {
+                email!.imapUID = String(attrs.uid);
+              }
+            });
+
+            msg.on('body', (stream: NodeJS.ReadableStream) => {
+              let buffer = '';
+              stream.on('data', (chunk: Buffer) => {
+                buffer += chunk.toString('utf8');
+              });
+
+              stream.once('end', () => {
+                void (async () => {
+                  try {
+                    const bufferContent: Buffer = Buffer.from(buffer);
+                    const parsedEmail = await simpleParser(bufferContent);
+
+                    email!.from = parsedEmail.from?.text || '';
+                    email!.to = parsedEmail.to?.text || '';
+                    email!.subject = parsedEmail.subject || '';
+                    email!.date = parsedEmail.date || new Date();
+                    email!.body = parsedEmail.text || '';
+                  } catch (e) {
+                    this.logger.error(
+                      `Erreur lors du parsing de l'email: ${e instanceof Error ? e.message : String(e)}`,
+                    );
+                  }
+                })();
+              });
+            });
+          });
+
+          fetch.once('end', () => {
+            resolve(email as EmailContent);
+          });
+        } catch (e) {
+          this.logger.error(
+            `Erreur lors de la récupération du message: ${e instanceof Error ? e.message : String(e)}`,
+          );
+          resolve(null);
+        }
+      });
+
+      if (!emailData) {
+        this.logger.warn(
+          `Impossible de récupérer l'email avec l'ID ${emailId}`,
+        );
+        return null;
+      }
+
+      // Mettre à jour le cache avec ce nouvel email
+      if (cachedData) {
+        // Remplacer l'email dans le cache s'il existe déjà, sinon l'ajouter
+        const emailIndex = cachedData.emails.findIndex(
+          (e) => e.id === emailData.id || e.imapUID === emailData.imapUID,
+        );
+
+        if (emailIndex >= 0) {
+          cachedData.emails[emailIndex] = emailData;
+        } else {
+          cachedData.emails.push(emailData);
+        }
+
+        // Mettre à jour le timestamp du cache
+        cachedData.timestamp = now;
+      } else {
+        // Créer une nouvelle entrée dans le cache
+        this.emailsCache[cacheKey] = {
+          timestamp: now,
+          emails: [emailData],
+        };
+      }
+
+      return emailData;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération de l'email ${emailId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       throw error;
     } finally {

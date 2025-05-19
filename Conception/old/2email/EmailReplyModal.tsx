@@ -96,6 +96,13 @@ export default function EmailReplyModal({
         try {
             const success = await sendEmailResponse(emailId, response, subject);
             if (success) {
+                // Après un envoi réussi, mettre à jour le store directement
+                const store = useMailsStore.getState();
+                const updatedEmails = store.actionRequiredEmails.filter(
+                    email => email.id !== emailId && email.imapUID !== emailId
+                );
+                store.setActionRequiredEmails(updatedEmails);
+                
                 Alert.alert("Succès", "Réponse envoyée.");
                 onClose();
             } else {

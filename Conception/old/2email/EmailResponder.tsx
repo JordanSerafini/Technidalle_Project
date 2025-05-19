@@ -252,7 +252,9 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     if (!response.trim() || !selectedEmail) return;
 
     try {
-      // Le loading est géré par le store
+      // Utiliser l'état local de chargement au lieu du store
+      setLoading(true);
+      
       const success = await sendEmailResponse(
         selectedEmail,
         response,
@@ -277,6 +279,9 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       }
     } catch (err) {
       console.error('Erreur lors de l\'envoi:', err);
+    } finally {
+      // S'assurer que l'état de chargement local est réinitialisé
+      setLoading(false);
     }
   };
 
@@ -284,7 +289,9 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
     if (!selectedEmail) return;
 
     try {
-      // Le loading est géré par le store
+      // Utiliser l'état local de chargement au lieu du store
+      setLoading(true);
+      
       const success = await sendAutoResponse(
         selectedEmail,
         responseLength,
@@ -310,6 +317,9 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       }
     } catch (err) {
       console.error('Erreur lors de la réponse automatique:', err);
+    } finally {
+      // S'assurer que l'état de chargement local est réinitialisé
+      setLoading(false);
     }
   };
 
