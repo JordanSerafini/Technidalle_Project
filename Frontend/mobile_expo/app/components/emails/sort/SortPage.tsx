@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Modal, TextInput, Platform } from 'react-native';
 import { useState } from 'react';
 import { sortUnreadEmails, sortAllEmails, sortEmailsByCategory, SortResult } from '../../../utils/functions/emails/sort-emails.function';
 
@@ -6,6 +6,8 @@ export default function SortPage() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<SortResult | null>(null);
     const [selectedAction, setSelectedAction] = useState('');
+    const [modalVisible, setModalVisible] = useState(false);
+    const [categoryInput, setCategoryInput] = useState('');
 
     const handleSort = async (action: string, categoryName?: string) => {
         setLoading(true);
@@ -37,6 +39,14 @@ export default function SortPage() {
         setLoading(false);
     };
 
+    const handleCategorySubmit = () => {
+        if (categoryInput && categoryInput.trim().length > 0) {
+            handleSort('sort-by-category', categoryInput.trim());
+            setCategoryInput('');
+            setModalVisible(false);
+        }
+    };
+
     return (
         <ScrollView className="flex-1 bg-gray-50">
             <View className="p-4">
@@ -65,23 +75,7 @@ export default function SortPage() {
                     
                     <TouchableOpacity 
                         className="bg-indigo-400 p-4 rounded-lg shadow"
-                        onPress={() => {
-                            Alert.prompt(
-                                'Trier par catégorie',
-                                'Entrez le nom de la catégorie:',
-                                [
-                                    { text: 'Annuler', style: 'cancel' },
-                                    {
-                                        text: 'OK',
-                                        onPress: (category) => {
-                                            if (category && category.trim().length > 0) {
-                                                handleSort('sort-by-category', category.trim());
-                                            }
-                                        }
-                                    }
-                                ]
-                            );
-                        }}
+                        onPress={() => setModalVisible(true)}
                         disabled={loading}
                     >
                         <Text className="text-white font-medium text-center">Trier par catégorie spécifique</Text>
@@ -123,6 +117,48 @@ export default function SortPage() {
                         )}
                     </View>
                 )}
+                
+                {/* Modal pour remplacer Alert.prompt */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={() => setModalVisible(false)}
+                >
+                    <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                        <View className="bg-white w-4/5 p-5 rounded-lg">
+                            <Text className="text-lg font-medium text-indigo-800 mb-4">Trier par catégorie</Text>
+                            <Text className="text-gray-700 mb-3">Entrez le nom de la catégorie:</Text>
+                            
+                            <TextInput
+                                className="border border-gray-300 rounded-lg p-3 mb-4"
+                                value={categoryInput}
+                                onChangeText={setCategoryInput}
+                                placeholder="Nom de la catégorie"
+                                autoFocus={Platform.OS === 'ios'}
+                            />
+                            
+                            <View className="flex-row justify-end">
+                                <TouchableOpacity 
+                                    className="bg-gray-300 p-2 rounded-lg mr-3"
+                                    onPress={() => {
+                                        setCategoryInput('');
+                                        setModalVisible(false);
+                                    }}
+                                >
+                                    <Text className="text-gray-700 font-medium">Annuler</Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    className="bg-indigo-600 p-2 rounded-lg"
+                                    onPress={handleCategorySubmit}
+                                >
+                                    <Text className="text-white font-medium">OK</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </View>
         </ScrollView>
     );
