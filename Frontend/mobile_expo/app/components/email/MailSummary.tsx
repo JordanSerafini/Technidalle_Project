@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Switch, Alert } from "react-native";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 import { useMailSummary } from '../../hooks/useMailSummary';
 import { EmailData, ResponseLength } from '../../utils/types/mailTypes';
@@ -23,6 +26,7 @@ export default function MailSummary() {
         error,
         refreshing,
         fetchMailSummary,
+        fetchMailsByDateRange,
         onRefresh
     } = useMailSummary();
 
@@ -40,6 +44,7 @@ export default function MailSummary() {
     const [dailySummaryExpanded, setDailySummaryExpanded] = useState(true);
     const [emailListExpanded, setEmailListExpanded] = useState(false);
     const [searchOptionsExpanded, setSearchOptionsExpanded] = useState(true);
+    const [advancedOptionsExpanded, setAdvancedOptionsExpanded] = useState(false);
     const [mailSenderExpanded, setMailSenderExpanded] = useState(false);
     // État pour contrôler la visibilité complète des options de recherche
     const [showSearchOptions, setShowSearchOptions] = useState(true);
@@ -49,6 +54,15 @@ export default function MailSummary() {
     const [selectedEmailForReply, setSelectedEmailForReply] = useState<string | null>(null);
     // Ajout d'un cache d'email pour éviter de refetch si on a déjà les données
     const [emailCache, setEmailCache] = useState<Record<string, EmailData>>({});
+
+    // États pour la plage de dates
+    const [useDateRange, setUseDateRange] = useState(false);
+    const [startDate, setStartDate] = useState(new Date());
+    const [endDate, setEndDate] = useState(new Date());
+    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+    const [unseenOnly, setUnseenOnly] = useState(false);
+    const [emailLimit, setEmailLimit] = useState<number | undefined>(20);
 
     // Mise à jour du cache d'emails quand de nouveaux emails sont chargés
     useEffect(() => {
@@ -81,19 +95,43 @@ export default function MailSummary() {
         setDataMode(newMode);
     };
 
-    // Fonction pour lancer la recherche avec les paramètres configurés
+    // Fonction pour gérer les changements de date
+    const onChangeStartDate = (event: any, selectedDate?: Date) => {
+        setShowStartDatePicker(false);
+        if (selectedDate) {
+            setStartDate(selectedDate);
+        }
+    };
+
+    const onChangeEndDate = (event: any, selectedDate?: Date) => {
+        setShowEndDatePicker(false);
+        if (selectedDate) {
+            setEndDate(selectedDate);
+        }
+    };
+
+    // Fonction modifiée pour la recherche, utilisant fetchMailsByDateRange si nécessaire
     const handleSearch = () => {
         console.log("Démarrage d'une recherche manuelle");
-        // Indiquer qu'une recherche a été démarrée avant d'appeler l'API
         setSearchStarted(true);
-        // hasSearched restera à false jusqu'à la fin du chargement (via l'effet)
         
-        // Toujours forcer la recherche quand on clique sur le bouton
-        fetchMailSummary(fastMode, forceRefresh);
+        if (useDateRange) {
+            // Utiliser la recherche par plage de dates
+            const formattedStartDate = format(startDate, 'yyyy-MM-dd');
+            const formattedEndDate = format(endDate, 'yyyy-MM-dd');
+            
+            fetchMailsByDateRange(formattedStartDate, formattedEndDate, {
+                unseenOnly,
+                limit: emailLimit,
+                fastMode,
+                forceRefresh
+            });
+        } else {
+            // Utiliser la recherche standard
+            fetchMailSummary(fastMode, forceRefresh);
+        }
         
-        // Garder les options de recherche visibles
         setShowSearchOptions(true);
-        // Replier les options après la recherche
         setSearchOptionsExpanded(false);
     };
 
@@ -215,7 +253,7 @@ export default function MailSummary() {
         );
     };
     
-    // Composant modifié pour les options de recherche avec bouton de recherche
+    // Composant modifié pour les options de recherche avec filtre de date
     const renderSearchOptions = () => {
         return (
             <View className="mb-5 bg-gray-50 rounded-lg p-3 border border-gray-200">
@@ -234,88 +272,195 @@ export default function MailSummary() {
                 {searchOptionsExpanded && (
                     <>
                         <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
-                            <View className="flex-row items-center">
-                                <Text className="text-base font-medium text-gray-600">Utiliser les données mockées</Text>
-                                <TouchableOpacity 
-                                    className="ml-2 p-0.5 rounded-full bg-gray-100"
-                                    onPress={() => Alert.alert(
-                                        "Mode de données",
-                                        "Choisissez entre les données mockées (mode hors ligne) ou l'API réelle (mode en ligne)."
-                                    )}
-                                >
-                                    <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
-                                </TouchableOpacity>
-                            </View>
+                            <Text className="text-base font-medium text-gray-600">Utiliser plage de dates</Text>
                             <Switch
-                                value={useMockData}
-                                onValueChange={toggleDataMode}
+                                value={useDateRange}
+                                onValueChange={setUseDateRange}
                                 trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-                                thumbColor={useMockData ? "#3b82f6" : "#f4f4f5"}
+                                thumbColor={useDateRange ? "#3b82f6" : "#f4f4f5"}
                             />
                         </View>
 
-                        <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
-                            <Text className="text-base font-medium text-gray-600">Mode rapide</Text>
-                            <Switch
-                                value={fastMode}
-                                onValueChange={setFastMode}
-                                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-                                thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
-                            />
-                        </View>
-                        
-                        <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
-                            <View className="flex-row items-center">
-                                <Text className="text-base font-medium text-gray-600">Forcer le rafraîchissement</Text>
-                                <TouchableOpacity 
-                                    className="ml-2 p-0.5 rounded-full bg-gray-100"
-                                    onPress={() => Alert.alert(
-                                        "Forcer le rafraîchissement",
-                                        "Ignore le cache et recharge toutes les données depuis l'API."
+                        {useDateRange && (
+                            <>
+                                <View className="py-3 border-b border-gray-200">
+                                    <Text className="text-base font-medium text-gray-600 mb-2">Plage de dates</Text>
+                                    
+                                    <View className="flex-row justify-between mb-4">
+                                        <TouchableOpacity 
+                                            onPress={() => setShowStartDatePicker(true)}
+                                            className="bg-white p-2 rounded-lg border border-gray-300 flex-1 mr-2"
+                                        >
+                                            <Text className="text-gray-700">
+                                                Du: {format(startDate, 'dd/MM/yyyy', { locale: fr })}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        
+                                        <TouchableOpacity 
+                                            onPress={() => setShowEndDatePicker(true)}
+                                            className="bg-white p-2 rounded-lg border border-gray-300 flex-1"
+                                        >
+                                            <Text className="text-gray-700">
+                                                Au: {format(endDate, 'dd/MM/yyyy', { locale: fr })}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {showStartDatePicker && (
+                                        <DateTimePicker
+                                            value={startDate}
+                                            mode="date"
+                                            display="default"
+                                            onChange={onChangeStartDate}
+                                        />
                                     )}
-                                >
-                                    <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
-                                </TouchableOpacity>
-                            </View>
-                            <Switch
-                                value={forceRefresh}
-                                onValueChange={setForceRefresh}
-                                trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-                                thumbColor={forceRefresh ? "#3b82f6" : "#f4f4f5"}
+
+                                    {showEndDatePicker && (
+                                        <DateTimePicker
+                                            value={endDate}
+                                            mode="date"
+                                            display="default"
+                                            onChange={onChangeEndDate}
+                                        />
+                                    )}
+                                    
+                                    <View className="flex-row justify-between items-center mt-2">
+                                        <Text className="text-gray-600">Emails non lus uniquement</Text>
+                                        <Switch
+                                            value={unseenOnly}
+                                            onValueChange={setUnseenOnly}
+                                            trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                                            thumbColor={unseenOnly ? "#3b82f6" : "#f4f4f5"}
+                                        />
+                                    </View>
+                                    
+                                    <View className="flex-row items-center mt-4">
+                                        <Text className="text-gray-600 mr-4">Limite d'emails:</Text>
+                                        <View className="flex-row">
+                                            {[10, 20, 50, 100].map(value => (
+                                                <TouchableOpacity 
+                                                    key={value}
+                                                    className={`py-1 px-3 rounded-lg mx-1 ${emailLimit === value ? 'bg-blue-500' : 'bg-gray-200'}`}
+                                                    onPress={() => setEmailLimit(value)}
+                                                >
+                                                    <Text className={emailLimit === value ? 'text-white' : 'text-gray-700'}>
+                                                        {value}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                            <TouchableOpacity
+                                                className={`py-1 px-3 rounded-lg mx-1 ${emailLimit === undefined ? 'bg-blue-500' : 'bg-gray-200'}`}
+                                                onPress={() => setEmailLimit(undefined)}
+                                            >
+                                                <Text className={emailLimit === undefined ? 'text-white' : 'text-gray-700'}>
+                                                    Tous
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                            </>
+                        )}
+
+                        <TouchableOpacity 
+                            className="flex-row justify-between items-center py-3 border-b border-gray-200"
+                            onPress={() => setAdvancedOptionsExpanded(!advancedOptionsExpanded)}
+                        >
+                            <Text className="text-base font-medium text-gray-600">Options avancées</Text>
+                            <Ionicons 
+                                name={advancedOptionsExpanded ? "chevron-down" : "chevron-forward"} 
+                                size={18} 
+                                color="#3b82f6"
                             />
-                        </View>
-                        
-                        <View className="py-3 border-b border-gray-200">
-                            <Text className="text-base font-medium text-gray-600 mb-2">Longueur des réponses</Text>
-                            <View className="flex-row justify-between items-center">
-                                <TouchableOpacity 
-                                    className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'court' ? 'bg-blue-500' : 'bg-gray-100'}`}
-                                    onPress={() => setResponseLength('court')}
-                                >
-                                    <Text className={`text-sm font-medium ${responseLength === 'court' ? 'text-white' : 'text-gray-500'}`}>
-                                        Court
-                                    </Text>
-                                </TouchableOpacity>
+                        </TouchableOpacity>
+
+                        {advancedOptionsExpanded && (
+                            <>
+                                <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
+                                    <View className="flex-row items-center">
+                                        <Text className="text-base font-medium text-gray-600">Utiliser les données mockées</Text>
+                                        <TouchableOpacity 
+                                            className="ml-2 p-0.5 rounded-full bg-gray-100"
+                                            onPress={() => Alert.alert(
+                                                "Mode de données",
+                                                "Choisissez entre les données mockées (mode hors ligne) ou l'API réelle (mode en ligne)."
+                                            )}
+                                        >
+                                            <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <Switch
+                                        value={useMockData}
+                                        onValueChange={toggleDataMode}
+                                        trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                                        thumbColor={useMockData ? "#3b82f6" : "#f4f4f5"}
+                                    />
+                                </View>
+
+                                <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
+                                    <Text className="text-base font-medium text-gray-600">Mode rapide</Text>
+                                    <Switch
+                                        value={fastMode}
+                                        onValueChange={setFastMode}
+                                        trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                                        thumbColor={fastMode ? "#3b82f6" : "#f4f4f5"}
+                                    />
+                                </View>
                                 
-                                <TouchableOpacity 
-                                    className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'normal' ? 'bg-blue-500' : 'bg-gray-100'}`}
-                                    onPress={() => setResponseLength('normal')}
-                                >
-                                    <Text className={`text-sm font-medium ${responseLength === 'normal' ? 'text-white' : 'text-gray-500'}`}>
-                                        Normal
-                                    </Text>
-                                </TouchableOpacity>
+                                <View className="flex-row justify-between items-center py-3 border-b border-gray-200">
+                                    <View className="flex-row items-center">
+                                        <Text className="text-base font-medium text-gray-600">Forcer le rafraîchissement</Text>
+                                        <TouchableOpacity 
+                                            className="ml-2 p-0.5 rounded-full bg-gray-100"
+                                            onPress={() => Alert.alert(
+                                                "Forcer le rafraîchissement",
+                                                "Ignore le cache et recharge toutes les données depuis l'API."
+                                            )}
+                                        >
+                                            <Ionicons name="information-circle-outline" size={16} color="#4b5563" />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <Switch
+                                        value={forceRefresh}
+                                        onValueChange={setForceRefresh}
+                                        trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+                                        thumbColor={forceRefresh ? "#3b82f6" : "#f4f4f5"}
+                                    />
+                                </View>
                                 
-                                <TouchableOpacity 
-                                    className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'détaillé' ? 'bg-blue-500' : 'bg-gray-100'}`}
-                                    onPress={() => setResponseLength('détaillé')}
-                                >
-                                    <Text className={`text-sm font-medium ${responseLength === 'détaillé' ? 'text-white' : 'text-gray-500'}`}>
-                                        Détaillé
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+                                <View className="py-3 border-b border-gray-200">
+                                    <Text className="text-base font-medium text-gray-600 mb-2">Longueur des réponses</Text>
+                                    <View className="flex-row justify-between items-center">
+                                        <TouchableOpacity 
+                                            className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'court' ? 'bg-blue-500' : 'bg-gray-100'}`}
+                                            onPress={() => setResponseLength('court')}
+                                        >
+                                            <Text className={`text-sm font-medium ${responseLength === 'court' ? 'text-white' : 'text-gray-500'}`}>
+                                                Court
+                                            </Text>
+                                        </TouchableOpacity>
+                                        
+                                        <TouchableOpacity 
+                                            className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'normal' ? 'bg-blue-500' : 'bg-gray-100'}`}
+                                            onPress={() => setResponseLength('normal')}
+                                        >
+                                            <Text className={`text-sm font-medium ${responseLength === 'normal' ? 'text-white' : 'text-gray-500'}`}>
+                                                Normal
+                                            </Text>
+                                        </TouchableOpacity>
+                                        
+                                        <TouchableOpacity 
+                                            className={`flex-1 items-center py-2 mx-1 rounded-lg ${responseLength === 'détaillé' ? 'bg-blue-500' : 'bg-gray-100'}`}
+                                            onPress={() => setResponseLength('détaillé')}
+                                        >
+                                            <Text className={`text-sm font-medium ${responseLength === 'détaillé' ? 'text-white' : 'text-gray-500'}`}>
+                                                Détaillé
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </>
+                        )}
                         
                         {/* Bouton de recherche */}
                         <TouchableOpacity 
@@ -340,18 +485,46 @@ export default function MailSummary() {
     // Fonction pour ouvrir la modal de réponse sans recharger les emails
     const handleReplyToEmail = useCallback((emailId: string) => {
         console.log("Réponse à l'email:", emailId);
-        // Vérifier si nous avons déjà cet email dans le cache
-        if (emailCache[emailId]) {
-            setSelectedEmailForReply(emailId);
-            setIsReplyModalVisible(true);
-            return;
+        
+        // 1. Mettre l'email dans le cache du store si ce n'est pas déjà fait
+        const store = useMailsStore.getState();
+        const emailInStore = store.actionRequiredEmails.find(e => e.id === emailId);
+        
+        if (emailInStore) {
+            // Préparer ou mettre à jour le cache de brouillon pour optimiser le chargement
+            const existingDraft = store.getDraftResponse(emailId, responseLength);
+            if (!existingDraft) {
+                // Pré-générer un "mock" de brouillon pour éviter l'appel API
+                const fromName = emailInStore.from.match(/"([^"]+)"/) 
+                    ? emailInStore.from.match(/"([^"]+)"/)![1] 
+                    : emailInStore.from.split('<')[0].trim();
+                
+                let draftResponse = '';
+                switch (responseLength) {
+                    case 'court':
+                        draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message. J'ai bien pris note de votre demande.\n\nCordialement,\nJordan`;
+                        break;
+                    case 'détaillé':
+                        draftResponse = `Bonjour ${fromName},\n\nJe vous remercie pour votre message concernant "${emailInStore.subject}".\n\nJ'ai bien pris note de tous les éléments que vous avez partagés. Après analyse, je souhaite vous informer que nous allons traiter cette demande avec la plus grande attention.\n\nÀ propos des points que vous avez soulevés:\n1. Nous avons bien compris votre préoccupation principale\n2. Les actions suggérées seront mises en œuvre prochainement\n3. Un suivi sera effectué dans les meilleurs délais\n\nN'hésitez pas à me contacter si vous avez besoin d'informations supplémentaires.\n\nCordialement,\nJordan Serafini`;
+                        break;
+                    default: // 'normal'
+                        draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${emailInStore.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
+                }
+                
+                // Ajouter au cache pour éviter une génération inutile
+                store.setDraftResponse(emailId, {
+                    originalEmail: emailInStore,
+                    draftResponse
+                }, responseLength);
+                
+                console.log("[OPTIMIZE] Pré-génération du brouillon pour éviter un appel API");
+            }
         }
         
-        // Si l'email n'est pas dans le cache (cas rare), on pourrait le récupérer ici
-        // Pour l'instant, on utilise quand même l'ID que nous avons
+        // 2. Afficher la modal avec l'email sélectionné
         setSelectedEmailForReply(emailId);
         setIsReplyModalVisible(true);
-    }, [emailCache]);
+    }, [responseLength]);
 
     // Fonction pour afficher tout le contenu
     const renderContent = () => {
@@ -503,12 +676,9 @@ export default function MailSummary() {
 
     // Effet pour déclencher le chargement initial
     useEffect(() => {
-        // Chargement automatique à l'ouverture de la page
-        if (!hasSearched && !searchStarted && !loading) {
-            console.log("Démarrage du chargement automatique initial");
-            setSearchStarted(true);
-            fetchMailSummary(fastMode, false);
-        }
+        // Ne plus charger automatiquement à l'ouverture de la page
+        // Laisser l'utilisateur cliquer sur le bouton de recherche
+        console.log("Page des emails chargée, en attente de l'action utilisateur");
     }, []);
 
     return (
