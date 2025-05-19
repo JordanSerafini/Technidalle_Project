@@ -42,7 +42,7 @@ export default function EmailReplyModal({
         if (!id) return;
         setLoading(true);
         try {
-            const result = await fetchDraftResponse(id, currentResponseLength, true); // Force refresh du brouillon
+            const result = await fetchDraftResponse(id, currentResponseLength, false); // Utiliser le cache si disponible
             if (result.originalEmail) {
                 setEmailData(result.originalEmail);
                 setResponse(result.draftResponse);

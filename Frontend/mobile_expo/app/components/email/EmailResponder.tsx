@@ -134,7 +134,8 @@ export default function EmailResponder({ onClose, selectedEmailId }: EmailRespon
       const store = useMailsStore.getState();
       const cachedDraft = store.getDraftResponse(emailId, responseLength);
       
-      if (cachedDraft && !forceRefresh) {
+      // Toujours utiliser le cache s'il est disponible, même si forceRefresh est vrai
+      if (cachedDraft) {
         console.log('[STORE] Utilisation du brouillon depuis le cache');
         setEmailData(cachedDraft.originalEmail);
         setResponse(cachedDraft.draftResponse);

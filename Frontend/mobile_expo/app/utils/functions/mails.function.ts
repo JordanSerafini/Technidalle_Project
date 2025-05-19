@@ -148,11 +148,45 @@ export const fetchDraftResponse = async (
     const store = useMailsStore.getState();
     
     // Vérifier si on peut utiliser un brouillon en cache
-    if (!forceRefresh && !store.shouldRefetchDraft(emailId, responseLength)) {
+    if (!forceRefresh) {
       const cachedDraft = store.getDraftResponse(emailId, responseLength);
       if (cachedDraft) {
         console.log(`[STORE] Utilisation du brouillon en cache pour l'email ID: ${emailId}`);
         return cachedDraft;
+      }
+      
+      // Vérifier si l'email est déjà dans le store pour éviter un appel API
+      const emailInStore = store.actionRequiredEmails.find(e => e.id === emailId);
+      if (emailInStore) {
+        console.log(`[OPTIMIZE] L'email est déjà dans le store, génération d'un brouillon local`);
+        
+        // Générer un brouillon localement
+        let draftResponse = '';
+        const fromName = emailInStore.from.match(/"([^"]+)"/) 
+          ? emailInStore.from.match(/"([^"]+)"/)![1] 
+          : emailInStore.from.split('<')[0].trim();
+          
+        switch (responseLength) {
+          case 'court':
+            draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message. J'ai bien pris note de votre demande.\n\nCordialement,\nJordan`;
+            break;
+          case 'détaillé':
+            draftResponse = `Bonjour ${fromName},\n\nJe vous remercie pour votre message concernant "${emailInStore.subject}".\n\nJ'ai bien pris note de tous les éléments que vous avez partagés. Après analyse, je souhaite vous informer que nous allons traiter cette demande avec la plus grande attention.\n\nÀ propos des points que vous avez soulevés:\n1. Nous avons bien compris votre préoccupation principale\n2. Les actions suggérées seront mises en œuvre prochainement\n3. Un suivi sera effectué dans les meilleurs délais\n\nN'hésitez pas à me contacter si vous avez besoin d'informations supplémentaires.\n\nCordialement,\nJordan Serafini`;
+            break;
+          default: // 'normal'
+            draftResponse = `Bonjour ${fromName},\n\nMerci pour votre message concernant "${emailInStore.subject}".\n\nJ'ai bien pris note de votre demande et je m'en occupe dans les plus brefs délais. Soyez assuré(e) que nous apportons à ce sujet toute l'attention qu'il mérite.\n\nCordialement,\nJordan`;
+        }
+        
+        const result = {
+          originalEmail: emailInStore,
+          draftResponse
+        };
+        
+        // Stocker dans le cache
+        store.setDraftResponse(emailId, result, responseLength);
+        
+        // Ne pas activer isLoading si on génère localement
+        return result;
       }
     }
     
