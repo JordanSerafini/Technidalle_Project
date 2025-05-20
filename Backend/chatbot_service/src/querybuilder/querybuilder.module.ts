@@ -7,4 +7,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [QueryBuilderService],
   exports: [QueryBuilderService],
 })
-export class QueryBuilderModule {} 
+export class QueryBuilderModule {}
