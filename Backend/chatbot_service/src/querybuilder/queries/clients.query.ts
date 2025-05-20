@@ -776,16 +776,16 @@ export const clientsQueries = {
           },
         },
       });
-      
+
       // Ensuite, on filtre pour ne garder que ceux avec plus d'un projet
       const clientsWithMultipleProjects = allClients
-        .filter(client => client.projects.length > 1)
-        .map(client => ({
+        .filter((client) => client.projects.length > 1)
+        .map((client) => ({
           ...client,
-          projectCount: client.projects.length
+          projectCount: client.projects.length,
         }))
         .sort((a, b) => b.projectCount - a.projectCount);
-        
+
       return clientsWithMultipleProjects;
     },
     description:
