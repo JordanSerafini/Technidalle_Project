@@ -514,10 +514,11 @@ export const projectsQueries = {
           completed: projectData.project_stages.filter(
             (s) => s.status === 'termine',
           ).length,
-          average_completion: projectData.project_stages.reduce(
-            (acc, stage) => acc + (stage.completion_percentage || 0),
-            0,
-          ) / projectData.project_stages.length,
+          average_completion:
+            projectData.project_stages.reduce(
+              (acc, stage) => acc + (stage.completion_percentage || 0),
+              0,
+            ) / projectData.project_stages.length,
         },
         hours: {
           planned: projectData.project_staff.reduce(
@@ -551,7 +552,8 @@ export const projectsQueries = {
           total_entries: projectData.time_logs.length,
           total_hours: projectData.time_logs.reduce((acc, log) => {
             if (!log.check_out) return acc;
-            const hours = (log.check_out.getTime() - log.check_in.getTime()) /
+            const hours =
+              (log.check_out.getTime() - log.check_in.getTime()) /
               (1000 * 60 * 60);
             return acc + hours;
           }, 0),
@@ -560,7 +562,8 @@ export const projectsQueries = {
 
       return stats;
     },
-    description: "Statistiques détaillées sur l'avancement et les performances d'un projet",
+    description:
+      "Statistiques détaillées sur l'avancement et les performances d'un projet",
     parameters: [
       {
         name: 'PROJECT',
