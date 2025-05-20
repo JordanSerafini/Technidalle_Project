@@ -399,7 +399,7 @@ export const clientsQueries = {
                 every: {
                   OR: [
                     { issue_date: { lt: sixMonthsAgo } },
-                    { issue_date: null },
+                    { issue_date: undefined },
                   ],
                 },
               },
@@ -409,7 +409,7 @@ export const clientsQueries = {
                 every: {
                   OR: [
                     { start_date: { lt: sixMonthsAgo } },
-                    { start_date: null },
+                    { start_date: undefined },
                   ],
                 },
               },
@@ -764,38 +764,29 @@ export const clientsQueries = {
       'Portefeuille clients multi-chantiers',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
-        where: {
-          projects: {
-            some: {},
-          },
-        },
+      // D'abord, on récupère tous les clients avec leurs projets
+      const allClients = await prisma.clients.findMany({
         include: {
-          _count: {
-            select: {
-              projects: true,
-            },
-          },
           projects: {
             select: {
+              id: true,
               name: true,
               status: true,
             },
           },
         },
-        having: {
-          projects: {
-            _count: {
-              gt: 1,
-            },
-          },
-        },
-        orderBy: {
-          projects: {
-            _count: 'desc',
-          },
-        },
       });
+      
+      // Ensuite, on filtre pour ne garder que ceux avec plus d'un projet
+      const clientsWithMultipleProjects = allClients
+        .filter(client => client.projects.length > 1)
+        .map(client => ({
+          ...client,
+          projectCount: client.projects.length
+        }))
+        .sort((a, b) => b.projectCount - a.projectCount);
+        
+      return clientsWithMultipleProjects;
     },
     description:
       "Liste des clients ayant plus d'un projet, triés par nombre de projets décroissant",
