@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Logger, Param, ParseIntPipe, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Logger,
+  Param,
+  ParseIntPipe,
+  Post,
+} from '@nestjs/common';
 import { ChatbotService } from './chatbot.service';
 
 interface ChatMessage {
@@ -20,12 +28,12 @@ export class ChatbotController {
   @Post('query')
   async query(@Body() chatRequest: ChatRequest) {
     this.logger.log(`Nouvelle requête reçue: "${chatRequest.query}"`);
-    
+
     const result = await this.chatbotService.processQuery(
       chatRequest.query,
       chatRequest.conversationHistory || [],
     );
-    
+
     return result;
   }
 
@@ -35,12 +43,12 @@ export class ChatbotController {
     @Param('sourceId', ParseIntPipe) sourceId: number,
   ) {
     this.logger.log(`Demande de détails pour ${sourceType} ID ${sourceId}`);
-    
+
     const details = await this.chatbotService.getDetailedInfo(
       sourceType,
       sourceId,
     );
-    
+
     return { details };
   }
-} 
+}
