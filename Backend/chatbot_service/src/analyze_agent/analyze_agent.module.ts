@@ -2,11 +2,20 @@ import { Module } from '@nestjs/common';
 import { AnalyzeAgentController } from './analyze_agent.controller';
 import { AnalyzeAgentService } from './analyze_agent.service';
 import { ConfigModule } from '@nestjs/config';
+import { ElasticsearchModule } from '../elasticsearch/elasticsearch.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { QueryExecutorService } from './query-executor.service';
+import { LangchainModule } from '../langchain/langchain.module';
 
 @Module({
-  imports: [ConfigModule.forRoot()],
+  imports: [
+    ConfigModule.forRoot(),
+    ElasticsearchModule,
+    PrismaModule,
+    LangchainModule,
+  ],
   controllers: [AnalyzeAgentController],
-  providers: [AnalyzeAgentService],
-  exports: [AnalyzeAgentService],
+  providers: [AnalyzeAgentService, QueryExecutorService],
+  exports: [AnalyzeAgentService, QueryExecutorService],
 })
 export class AnalyzeAgentModule {}
