@@ -430,6 +430,12 @@ export class AnalyzeAgentController {
                 case 'TASK':
                   friendlyParamName = 'la tâche';
                   break;
+                case 'EMPLOYEE':
+                  friendlyParamName = 'le nom de l\'employé';
+                  break;
+                case 'PERIOD':
+                  friendlyParamName = 'la période';
+                  break;
               }
 
               return {
@@ -740,6 +746,10 @@ export class AnalyzeAgentController {
       vehicle: 'VEHICLE',
       material: 'MATERIAL',
       task: 'TASK',
+      employee: 'EMPLOYEE',
+      staff: 'EMPLOYEE',
+      period: 'PERIOD',
+      timeframe: 'PERIOD',
     };
 
     // Parcourir les entités pour extraire les paramètres pertinents
@@ -776,13 +786,15 @@ export class AnalyzeAgentController {
 
     // Utiliser en premier la détection d'entités
     const paramTypeMap: Record<string, string[]> = {
-      CLIENT: ['client', 'person', 'organization', 'people'],
-      DATE: ['date', 'datetime', 'time'],
-      CITY: ['city', 'location', 'place', 'address'],
-      PROJECT: ['project', 'mission', 'chantier'],
-      VEHICLE: ['vehicle', 'car', 'truck', 'transport'],
-      MATERIAL: ['material', 'equipment', 'tool'],
-      TASK: ['task', 'work', 'job', 'mission'],
+      'CLIENT': ['client', 'person', 'organization', 'people'],
+      'DATE': ['date', 'datetime', 'time'],
+      'CITY': ['city', 'location', 'place', 'address'],
+      'PROJECT': ['project', 'mission', 'chantier'],
+      'VEHICLE': ['vehicle', 'car', 'truck', 'transport'],
+      'MATERIAL': ['material', 'equipment', 'tool'],
+      'TASK': ['task', 'work', 'job', 'mission'],
+      'EMPLOYEE': ['employee', 'staff', 'worker', 'technician', 'person'],
+      'PERIOD': ['period', 'timeframe', 'duration', 'time', 'date'],
     };
 
     // Récupérer les types valides pour ce paramètre
@@ -820,44 +832,70 @@ export class AnalyzeAgentController {
   ): string | null {
     // Convertir le texte en minuscules pour les patterns
     const textLower = text.toLowerCase();
-    
+
     // Différentes stratégies d'extraction selon le paramètre
     switch (paramName) {
       case 'CLIENT':
         // Patterns pour extraire un client
         const clientPatterns = [
-          /client\s+([a-zÀ-ÿ\s]+)/i,
-          /informations? (?:de|du|sur) ([a-zÀ-ÿ\s]+)/i,
-          /(?:info|détails) (?:de|du|sur) ([a-zÀ-ÿ\s]+)/i,
+          /client\s+([a-zÀ-ÿ0-9\s\-]+)/i,
+          /informations? (?:de|du|sur) ([a-zÀ-ÿ0-9\s\-]+)/i,
+          /(?:info|détails) (?:de|du|sur) ([a-zÀ-ÿ0-9\s\-]+)/i,
+          /(?:entreprise|société) ([a-zÀ-ÿ0-9\s\-]+)/i,
+          /([a-zÀ-ÿ0-9\-]{2,})/i, // Capture les mots contenant des tirets
         ];
-        
-        for (const pattern of clientPatterns) {
+
+        // Vérifier d'abord les patterns spécifiques
+        for (let i = 0; i < clientPatterns.length - 1; i++) {
+          const pattern = clientPatterns[i];
           const match = textLower.match(pattern);
           if (match && match[1]) {
             return match[1].trim();
           }
         }
+
+        // Si aucun match spécifique, essayer de trouver des mots avec caractères spéciaux
+        // qui pourraient être des noms d'entreprises
+        const wordsWithSpecialChars = textLower.match(
+          /\b([a-zÀ-ÿ0-9\-_]{2,})\b/gi,
+        );
+        if (wordsWithSpecialChars) {
+          for (const word of wordsWithSpecialChars) {
+            // Vérifier si le mot contient des caractères spéciaux
+            if (word.includes('-') || word.includes('_')) {
+              return word.trim();
+            }
+          }
+        }
+
+        // Enfin, essayer le pattern générique (risque de faux positifs)
+        const genericMatch = textLower.match(
+          clientPatterns[clientPatterns.length - 1],
+        );
+        if (genericMatch && genericMatch[1]) {
+          return genericMatch[1].trim();
+        }
         break;
-        
+
       case 'DATE':
         // Patterns pour extraire une date
         if (textLower.includes("aujourd'hui")) {
           return new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
         }
-        
+
         if (textLower.includes('demain')) {
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
           return tomorrow.toISOString().split('T')[0];
         }
-        
+
         // Recherche de dates au format JJ/MM/YYYY ou autres formats courants
         const datePatterns = [
           /(\d{1,2})[/-](\d{1,2})[/-](\d{4})/,
           /(\d{1,2})[/-](\d{1,2})[/-](\d{2})/,
           /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/,
         ];
-        
+
         for (const pattern of datePatterns) {
           const match = textLower.match(pattern);
           if (match) {
@@ -876,14 +914,14 @@ export class AnalyzeAgentController {
           }
         }
         break;
-        
+
       case 'CITY':
         // Patterns pour extraire une ville
         const cityPatterns = [
           /(?:à|a|dans|de|d') ([a-zÀ-ÿ\s]+)/i,
           /ville (?:de|d') ([a-zÀ-ÿ\s]+)/i,
         ];
-        
+
         for (const pattern of cityPatterns) {
           const match = textLower.match(pattern);
           if (match && match[1]) {
@@ -907,17 +945,18 @@ export class AnalyzeAgentController {
           }
         }
         break;
-        
+
       case 'PROJECT':
         // Patterns pour extraire un projet
         const projectPatterns = [
-          /projet\s+([a-zÀ-ÿ0-9\s]+)/i,
-          /chantier\s+([a-zÀ-ÿ0-9\s]+)/i,
-          /mission\s+([a-zÀ-ÿ0-9\s]+)/i,
-          /(?:info|détail|statut|état|avancement) (?:du|de la|sur le|sur|pour le|pour) projet ([a-zÀ-ÿ0-9\s]+)/i,
-          /(?:info|détail|statut|état|avancement) (?:du|de la|sur le|sur|pour le|pour) chantier ([a-zÀ-ÿ0-9\s]+)/i,
+          /projet\s+([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /chantier\s+([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /mission\s+([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /(?:info|détail|statut|état|avancement) (?:du|de la|sur le|sur|pour le|pour) projet ([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /(?:info|détail|statut|état|avancement) (?:du|de la|sur le|sur|pour le|pour) chantier ([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /référence\s+([a-zÀ-ÿ0-9\-_]+)/i,
         ];
-        
+
         for (const pattern of projectPatterns) {
           const match = textLower.match(pattern);
           if (match && match[1]) {
@@ -925,7 +964,7 @@ export class AnalyzeAgentController {
           }
         }
         break;
-        
+
       case 'VEHICLE':
         // Patterns pour extraire un véhicule
         const vehiclePatterns = [
@@ -936,7 +975,7 @@ export class AnalyzeAgentController {
           /(?:info|détail|spécification) (?:du|de la|sur le|sur|pour le|pour) véhicule ([a-zÀ-ÿ0-9\s]+)/i,
           /immatriculation\s+([a-zÀ-ÿ0-9\s-]+)/i,
         ];
-        
+
         for (const pattern of vehiclePatterns) {
           const match = textLower.match(pattern);
           if (match && match[1]) {
@@ -944,7 +983,7 @@ export class AnalyzeAgentController {
           }
         }
         break;
-        
+
       case 'MATERIAL':
         // Patterns pour extraire un matériau
         const materialPatterns = [
@@ -957,7 +996,7 @@ export class AnalyzeAgentController {
           /(?:info|détail|spécification) (?:du|de la|sur le|sur|pour le|pour) matériau ([a-zÀ-ÿ0-9\s]+)/i,
           /(?:info|détail|spécification) (?:du|de la|sur le|sur|pour le|pour) matériel ([a-zÀ-ÿ0-9\s]+)/i,
         ];
-        
+
         for (const pattern of materialPatterns) {
           const match = textLower.match(pattern);
           if (match && match[1]) {
@@ -965,7 +1004,7 @@ export class AnalyzeAgentController {
           }
         }
         break;
-        
+
       case 'TYPE':
         // Extraction du type de document
         const typePatterns = [
@@ -974,19 +1013,28 @@ export class AnalyzeAgentController {
           /(?:afficher|voir|liste des|consulter|rechercher) (?:les |des )?([a-zÀ-ÿ]+)s/i,
           /(?:les|des) ([a-zÀ-ÿ]+)s/i,
         ];
-        
+
         for (const pattern of typePatterns) {
           const match = textLower.match(pattern);
           if (match && match[1]) {
             const type = match[1].trim();
             // Vérifier si c'est un type de document valide
-            if (['devis', 'facture', 'bon_de_commande', 'reçu', 'contrat', 'rapport'].includes(type)) {
+            if (
+              [
+                'devis',
+                'facture',
+                'bon_de_commande',
+                'reçu',
+                'contrat',
+                'rapport',
+              ].includes(type)
+            ) {
               return type;
             }
           }
         }
         break;
-        
+
       case 'STATUS':
         // Extraction du statut
         const statusPatterns = [
@@ -996,19 +1044,30 @@ export class AnalyzeAgentController {
           /documents? ([a-zÀ-ÿ_]+)/i,
           /(?:les|des) ([a-zÀ-ÿ_]+)/i,
         ];
-        
+
         for (const pattern of statusPatterns) {
           const match = textLower.match(pattern);
           if (match && match[1]) {
             const status = match[1].trim();
             // Vérifier si c'est un statut de document valide
-            if (['brouillon', 'en_attente', 'valide', 'envoye', 'signe', 'refuse', 'en_cours', 'termine'].includes(status)) {
+            if (
+              [
+                'brouillon',
+                'en_attente',
+                'valide',
+                'envoye',
+                'signe',
+                'refuse',
+                'en_cours',
+                'termine',
+              ].includes(status)
+            ) {
               return status;
             }
           }
         }
         break;
-        
+
       case 'START_DATE':
         // Pour les plages de dates, on essaie d'extraire une paire de dates
         // avec priorité à la première pour START_DATE
@@ -1017,11 +1076,14 @@ export class AnalyzeAgentController {
           /(?:entre|du|depuis) (?:le )?(\d{1,2})[/-](\d{1,2})[/-](\d{2})/i,
           /(?:entre|du|depuis) (?:le )?(\d{4})[/-](\d{1,2})[/-](\d{1,2})/i,
         ];
-        
+
         for (const pattern of startDatePatterns) {
           const match = textLower.match(pattern);
           if (match) {
-            if (pattern === startDatePatterns[0] || pattern === startDatePatterns[1]) {
+            if (
+              pattern === startDatePatterns[0] ||
+              pattern === startDatePatterns[1]
+            ) {
               const day = match[1].padStart(2, '0');
               const month = match[2].padStart(2, '0');
               const year = match[3].length === 2 ? `20${match[3]}` : match[3];
@@ -1035,7 +1097,7 @@ export class AnalyzeAgentController {
           }
         }
         break;
-        
+
       case 'END_DATE':
         // Pour les plages de dates, on essaie d'extraire une paire de dates
         // avec priorité à la seconde pour END_DATE
@@ -1044,11 +1106,14 @@ export class AnalyzeAgentController {
           /(?:et|au|jusqu'au|jusqu'à) (?:le )?(\d{1,2})[/-](\d{1,2})[/-](\d{2})/i,
           /(?:et|au|jusqu'au|jusqu'à) (?:le )?(\d{4})[/-](\d{1,2})[/-](\d{1,2})/i,
         ];
-        
+
         for (const pattern of endDatePatterns) {
           const match = textLower.match(pattern);
           if (match) {
-            if (pattern === endDatePatterns[0] || pattern === endDatePatterns[1]) {
+            if (
+              pattern === endDatePatterns[0] ||
+              pattern === endDatePatterns[1]
+            ) {
               const day = match[1].padStart(2, '0');
               const month = match[2].padStart(2, '0');
               const year = match[3].length === 2 ? `20${match[3]}` : match[3];
@@ -1061,14 +1126,86 @@ export class AnalyzeAgentController {
             }
           }
         }
-        
+
         // Si pas de date de fin explicite, mais une date de début existe,
         // on pourrait retourner une date par défaut (ex: 1 mois après la date de début)
         break;
-        
+
+      case 'EMPLOYEE':
+        // Patterns pour extraire un employé
+        const employeePatterns = [
+          /(?:employé|salarié|technicien|personnel)\s+([a-zÀ-ÿ\s]+)/i,
+          /(?:travail|planning|agenda) (?:de|du|pour) ([a-zÀ-ÿ\s]+)/i,
+          /(?:qui est|horaires de) ([a-zÀ-ÿ\s]+)/i,
+        ];
+
+        for (const pattern of employeePatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        }
+        break;
+
+      case 'PERIOD':
+        // Patterns pour extraire une période
+        const periodPatterns = [
+          /(?:pour|durant|pendant|sur) (?:la |cette |l')?(semaine|mois|année|journée|trimestre)/i,
+          /(?:semaine|mois) (prochaine?|suivante?|précédente?|dernière?|passée?|à venir)/i,
+          /(cette semaine|ce mois|aujourd'hui|demain|hier)/i,
+        ];
+
+        for (const pattern of periodPatterns) {
+          const match = textLower.match(pattern);
+          if (match) {
+            let period;
+            if (match[1]) {
+              period = match[1].trim();
+              
+              // Convertir en valeur standardisée
+              if (/semaine prochaine|semaine suivante|semaine à venir/.test(period)) {
+                return 'next_week';
+              } else if (/cette semaine|semaine actuelle/.test(period)) {
+                return 'current_week';
+              } else if (/semaine dernière|semaine passée|semaine précédente/.test(period)) {
+                return 'previous_week';
+              } else if (/mois prochain|mois suivant|mois à venir/.test(period)) {
+                return 'next_month';
+              } else if (/ce mois|mois actuel/.test(period)) {
+                return 'current_month';
+              } else if (/aujourd'hui/.test(period)) {
+                return 'today';
+              } else if (/demain/.test(period)) {
+                return 'tomorrow';
+              } else if (/hier/.test(period)) {
+                return 'yesterday';
+              }
+            }
+            return period || match[0].trim();
+          }
+        }
+        break;
+
+      case 'TASK':
+        // Patterns pour extraire une tâche
+        const taskPatterns = [
+          /tâche\s+([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /activité\s+([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /mission\s+([a-zÀ-ÿ0-9\s\-_]+)/i,
+          /(?:info|détail|statut) (?:de la|sur la|pour la) tâche ([a-zÀ-ÿ0-9\s\-_]+)/i,
+        ];
+
+        for (const pattern of taskPatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        }
+        break;
+
       // Cas par défaut pour les autres types de paramètres
     }
-    
+
     return null;
   }
 }
