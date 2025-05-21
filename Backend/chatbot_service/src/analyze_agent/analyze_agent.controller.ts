@@ -127,7 +127,7 @@ export class AnalyzeAgentController {
       // Détection spécifique pour des requêtes connues qui peuvent avoir des problèmes de matching
       const questionLower = analyzeQuestionDto.question.toLowerCase().trim();
       let forcedQueryId: string | null = null;
-      
+
       // Mappings directs pour certaines questions spécifiques qui peuvent avoir des problèmes de matching
       const directMappings: Record<string, string> = {
         'qui travaille la semaine prochaine': 'staff_schedule_next_week',
@@ -135,23 +135,30 @@ export class AnalyzeAgentController {
         'qui est prévu la semaine prochaine': 'staff_schedule_next_week',
         'planning semaine prochaine': 'staff_schedule_next_week',
         'qui travaille semaine prochaine': 'staff_schedule_next_week',
-        'travail semaine prochaine': 'staff_schedule_next_week'
+        'travail semaine prochaine': 'staff_schedule_next_week',
       };
-      
+
       // Si la question exacte est dans notre mapping, forcer la requête
       if (directMappings[questionLower]) {
         forcedQueryId = directMappings[questionLower];
-        this.logger.log(`Forçage de la requête ${forcedQueryId} pour la question "${questionLower}"`);
+        this.logger.log(
+          `Forçage de la requête ${forcedQueryId} pour la question "${questionLower}"`,
+        );
       }
-      
+
       // Si aucun matching direct, vérifier par mots-clés
       if (!forcedQueryId) {
         if (
-          (questionLower.includes('semaine prochaine') || questionLower.includes('semaine pro')) && 
-          (questionLower.includes('travail') || questionLower.includes('planning') || questionLower.includes('qui'))
+          (questionLower.includes('semaine prochaine') ||
+            questionLower.includes('semaine pro')) &&
+          (questionLower.includes('travail') ||
+            questionLower.includes('planning') ||
+            questionLower.includes('qui'))
         ) {
           forcedQueryId = 'staff_schedule_next_week';
-          this.logger.log(`Forçage de la requête ${forcedQueryId} par mots-clés pour la question "${questionLower}"`);
+          this.logger.log(
+            `Forçage de la requête ${forcedQueryId} par mots-clés pour la question "${questionLower}"`,
+          );
         }
       }
 
@@ -177,10 +184,11 @@ export class AnalyzeAgentController {
             entities: analysisResult.analysis.entities,
           };
 
-          const generatedResponse = await this.langchainService.generateResponse(
-            questionContext,
-            queryResult.data,
-          );
+          const generatedResponse =
+            await this.langchainService.generateResponse(
+              questionContext,
+              queryResult.data,
+            );
 
           return {
             analysis: analysisResult,
@@ -191,7 +199,9 @@ export class AnalyzeAgentController {
             response: generatedResponse,
           };
         } catch (forcedQueryError) {
-          this.logger.error(`Erreur lors de l'exécution de la requête forcée ${forcedQueryId}: ${forcedQueryError.message}`);
+          this.logger.error(
+            `Erreur lors de l'exécution de la requête forcée ${forcedQueryId}: ${forcedQueryError.message}`,
+          );
           // Si la requête forcée échoue, continuer avec le processus normal
         }
       }
@@ -214,9 +224,30 @@ export class AnalyzeAgentController {
       let generatedResponse = '';
 
       try {
+        // Extraction préalable des entités potentiellement utiles
+        const clientEntity = analysisResult.analysis.entities?.find(
+          (e: any) =>
+            e.type?.toLowerCase() === 'client' ||
+            e.name?.toLowerCase() === 'client',
+        );
+
+        // Préparation des paramètres de la requête
+        const queryParams: Record<string, unknown> = {};
+
+        // Si une entité client est détectée, l'ajouter aux paramètres
+        if (clientEntity && clientEntity.value) {
+          queryParams.CLIENT = clientEntity.value;
+        }
+
+        // Extraire d'autres types de paramètres à partir des entités détectées
+        this.extractParametersFromEntities(
+          analysisResult.analysis.entities,
+          queryParams,
+        );
+
         queryResult = await this.queryExecutorService.executeQuery(
           topQuery.query_id,
-          {},
+          queryParams,
         );
 
         // Étape 4: Générer une réponse naturelle avec LangChain
@@ -241,6 +272,175 @@ export class AnalyzeAgentController {
           response: generatedResponse,
         };
       } catch (queryError) {
+        // Gestion du cas CLIENT manquant dans la requête
+        if (
+          queryError instanceof Error &&
+          queryError.message &&
+          queryError.message.includes('Paramètre requis CLIENT non fourni')
+        ) {
+          // Tenter d'extraire le nom du client depuis la question
+          const question = analyzeQuestionDto.question.toLowerCase();
+          let clientName = '';
+
+          // Extractions basées sur des patterns courants
+          if (question.includes('client')) {
+            const clientPattern = /client\s+([a-zÀ-ÿ\s]+)/i;
+            const match = question.match(clientPattern);
+            if (match && match[1]) {
+              clientName = match[1].trim();
+            }
+          }
+
+          // Si aucun client n'est trouvé par pattern, essayer l'extraction d'entité
+          if (!clientName) {
+            const clientEntity = analysisResult.analysis.entities?.find(
+              (e: any) =>
+                e.type?.toLowerCase() === 'client' ||
+                e.name?.toLowerCase() === 'client' ||
+                e.type?.toLowerCase() === 'person',
+            );
+            if (clientEntity && clientEntity.value) {
+              clientName = clientEntity.value;
+            }
+          }
+
+          if (clientName) {
+            try {
+              // Relancer la requête avec le nom du client trouvé
+              const queryResult2 = await this.queryExecutorService.executeQuery(
+                topQuery.query_id,
+                { CLIENT: clientName },
+              );
+
+              const questionContext = {
+                originalQuestion: analyzeQuestionDto.question,
+                reformulatedQuestion: analysisResult.reformulatedQuestion,
+                intent: analysisResult.analysis.intent,
+                entities: analysisResult.analysis.entities,
+              };
+
+              const generatedResponse2 =
+                await this.langchainService.generateResponse(
+                  questionContext,
+                  queryResult2.data,
+                );
+
+              return {
+                analysis: analysisResult,
+                query_executed: topQuery.query_id,
+                query_description: queryResult2.description,
+                data: queryResult2.data,
+                response_format: queryResult2.response_format,
+                response: generatedResponse2,
+              };
+            } catch (e2) {
+              return {
+                analysis: analysisResult,
+                message: `Erreur lors de la recherche des informations du client ${clientName}: ${e2 instanceof Error ? e2.message : e2}`,
+                data: null,
+              };
+            }
+          } else {
+            return {
+              analysis: analysisResult,
+              message:
+                'Veuillez préciser le nom du client dans votre question.',
+              data: null,
+            };
+          }
+        }
+
+        // Gestion générique des paramètres manquants
+        if (queryError instanceof Error && queryError.message) {
+          const missingParamMatch = queryError.message.match(
+            /Paramètre requis ([A-Z_]+) non fourni/,
+          );
+          if (missingParamMatch && missingParamMatch[1]) {
+            const paramName = missingParamMatch[1];
+
+            // Tentative d'extraction automatique du paramètre manquant
+            const extractedParam = this.tryExtractParameterFromText(
+              analyzeQuestionDto.question,
+              paramName,
+              analysisResult.analysis.entities,
+            );
+
+            if (extractedParam) {
+              try {
+                // Relancer la requête avec le paramètre trouvé
+                const params: Record<string, unknown> = {};
+                params[paramName] = extractedParam;
+
+                const queryResult2 =
+                  await this.queryExecutorService.executeQuery(
+                    topQuery.query_id,
+                    params,
+                  );
+
+                const questionContext = {
+                  originalQuestion: analyzeQuestionDto.question,
+                  reformulatedQuestion: analysisResult.reformulatedQuestion,
+                  intent: analysisResult.analysis.intent,
+                  entities: analysisResult.analysis.entities,
+                };
+
+                const generatedResponse2 =
+                  await this.langchainService.generateResponse(
+                    questionContext,
+                    queryResult2.data,
+                  );
+
+                return {
+                  analysis: analysisResult,
+                  query_executed: topQuery.query_id,
+                  query_description: queryResult2.description,
+                  data: queryResult2.data,
+                  response_format: queryResult2.response_format,
+                  response: generatedResponse2,
+                };
+              } catch (e2) {
+                return {
+                  analysis: analysisResult,
+                  message: `Erreur lors de la recherche avec le paramètre ${paramName}: ${e2 instanceof Error ? e2.message : e2}`,
+                  data: null,
+                };
+              }
+            } else {
+              // Paramètre non trouvé, demander à l'utilisateur
+              let friendlyParamName = paramName;
+              switch (paramName) {
+                case 'CLIENT':
+                  friendlyParamName = 'le nom du client';
+                  break;
+                case 'DATE':
+                  friendlyParamName = 'la date';
+                  break;
+                case 'CITY':
+                  friendlyParamName = 'la ville';
+                  break;
+                case 'PROJECT':
+                  friendlyParamName = 'le projet';
+                  break;
+                case 'VEHICLE':
+                  friendlyParamName = 'le véhicule';
+                  break;
+                case 'MATERIAL':
+                  friendlyParamName = 'le matériel';
+                  break;
+                case 'TASK':
+                  friendlyParamName = 'la tâche';
+                  break;
+              }
+
+              return {
+                analysis: analysisResult,
+                message: `Veuillez préciser ${friendlyParamName} dans votre question.`,
+                data: null,
+              };
+            }
+          }
+        }
+
         // Ajout de la gestion du cas PROJECT manquant
         if (
           queryError instanceof Error &&
@@ -249,10 +449,14 @@ export class AnalyzeAgentController {
         ) {
           // On tente d'extraire le nom du client depuis les entités détectées
           const clientEntity = analysisResult.analysis.entities?.find(
-            (e: any) => e.name.toLowerCase() === 'client' || e.type.toLowerCase() === 'client'
+            (e: any) =>
+              e.name.toLowerCase() === 'client' ||
+              e.type.toLowerCase() === 'client',
           );
           if (clientEntity && clientEntity.value) {
-            const projets = await this.analyzeAgentService.getProjectsForClient(clientEntity.value);
+            const projets = await this.analyzeAgentService.getProjectsForClient(
+              clientEntity.value,
+            );
             if (projets.length === 0) {
               return {
                 analysis: analysisResult,
@@ -263,20 +467,22 @@ export class AnalyzeAgentController {
               // Relancer la requête avec le nom du projet trouvé
               try {
                 const projectName = projets[0].name || projets[0].reference;
-                const queryResult2 = await this.queryExecutorService.executeQuery(
-                  topQuery.query_id,
-                  { PROJECT: projectName },
-                );
+                const queryResult2 =
+                  await this.queryExecutorService.executeQuery(
+                    topQuery.query_id,
+                    { PROJECT: projectName },
+                  );
                 const questionContext = {
                   originalQuestion: analyzeQuestionDto.question,
                   reformulatedQuestion: analysisResult.reformulatedQuestion,
                   intent: analysisResult.analysis.intent,
                   entities: analysisResult.analysis.entities,
                 };
-                const generatedResponse2 = await this.langchainService.generateResponse(
-                  questionContext,
-                  queryResult2.data,
-                );
+                const generatedResponse2 =
+                  await this.langchainService.generateResponse(
+                    questionContext,
+                    queryResult2.data,
+                  );
                 return {
                   analysis: analysisResult,
                   query_executed: topQuery.query_id,
@@ -294,7 +500,9 @@ export class AnalyzeAgentController {
               }
             } else {
               // Plusieurs projets trouvés, demander à l'utilisateur de préciser
-              const listeProjets = projets.map((p: any) => p.name || p.reference).join(', ');
+              const listeProjets = projets
+                .map((p: any) => p.name || p.reference)
+                .join(', ');
               return {
                 analysis: analysisResult,
                 message: `Le client ${clientEntity.value} a plusieurs projets : ${listeProjets}. Merci de préciser le projet souhaité dans votre prochaine question.`,
@@ -348,15 +556,19 @@ export class AnalyzeAgentController {
       }
 
       // Récupérer le contexte de conversation existant ou en créer un nouveau
-      let context = this.analyzeAgentService.getConversationContext(conversationDto.userId);
+      let context = this.analyzeAgentService.getConversationContext(
+        conversationDto.userId,
+      );
       if (!context) {
-        context = this.analyzeAgentService.createConversationContext(conversationDto.userId);
+        context = this.analyzeAgentService.createConversationContext(
+          conversationDto.userId,
+        );
       }
 
       // Ajouter l'historique des conversations au contexte à envoyer à LangChain
-      const conversationHistory = context.messages.map(msg => ({
+      const conversationHistory = context.messages.map((msg) => ({
         role: msg.role,
-        content: msg.content
+        content: msg.content,
       }));
 
       // Analyser la question avec contexte historique
@@ -372,10 +584,11 @@ export class AnalyzeAgentController {
         // Si aucune requête trouvée, mais que nous avons un contexte précédent, essayer de continuer sur le même sujet
         if (context.lastQueryExecuted) {
           try {
-            const lastQueryResult = await this.queryExecutorService.executeQuery(
-              context.lastQueryExecuted,
-              {}, // On pourrait extraire des paramètres de la nouvelle question ici
-            );
+            const lastQueryResult =
+              await this.queryExecutorService.executeQuery(
+                context.lastQueryExecuted,
+                {}, // On pourrait extraire des paramètres de la nouvelle question ici
+              );
 
             const questionContextWithHistory = {
               originalQuestion: conversationDto.message,
@@ -385,10 +598,11 @@ export class AnalyzeAgentController {
               conversationHistory,
             };
 
-            const generatedResponse = await this.langchainService.generateResponse(
-              questionContextWithHistory,
-              lastQueryResult.data,
-            );
+            const generatedResponse =
+              await this.langchainService.generateResponse(
+                questionContextWithHistory,
+                lastQueryResult.data,
+              );
 
             // Mettre à jour le contexte de conversation
             this.analyzeAgentService.updateConversationContext(
@@ -410,8 +624,9 @@ export class AnalyzeAgentController {
         }
 
         // Réponse par défaut quand aucune requête n'est trouvée
-        const genericResponse = "Je ne comprends pas bien votre question. Pourriez-vous la reformuler ?";
-        
+        const genericResponse =
+          'Je ne comprends pas bien votre question. Pourriez-vous la reformuler ?';
+
         // Mettre à jour le contexte de conversation
         this.analyzeAgentService.updateConversationContext(
           conversationDto.userId,
@@ -430,7 +645,7 @@ export class AnalyzeAgentController {
 
       // Exécuter la requête la plus pertinente
       const topQuery = analysisResult.similarPredefinedQueries[0];
-      
+
       try {
         const queryResult = await this.queryExecutorService.executeQuery(
           topQuery.query_id,
@@ -469,7 +684,7 @@ export class AnalyzeAgentController {
       } catch (queryError) {
         if (queryError instanceof NotFoundException) {
           const errorResponse = `Je n'ai pas pu trouver les informations demandées.`;
-          
+
           // Mettre à jour le contexte de conversation même en cas d'erreur
           this.analyzeAgentService.updateConversationContext(
             conversationDto.userId,
@@ -478,7 +693,7 @@ export class AnalyzeAgentController {
             analysisResult.analysis.intent,
             analysisResult.analysis.entities,
           );
-          
+
           return {
             analysis: analysisResult,
             message: `La requête ${topQuery.query_id} n'a pas pu être exécutée: ${queryError.message}`,
@@ -500,5 +715,360 @@ export class AnalyzeAgentController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * Extrait tous les paramètres potentiels depuis les entités détectées
+   * @param entities Liste des entités détectées
+   * @param params Objet de paramètres à compléter
+   */
+  private extractParametersFromEntities(
+    entities: any[] | undefined,
+    params: Record<string, unknown>,
+  ): void {
+    if (!entities || entities.length === 0) return;
+
+    // Mapping des types d'entités vers les noms de paramètres
+    const entityTypeToParam: Record<string, string> = {
+      client: 'CLIENT',
+      person: 'CLIENT', // Les personnes peuvent aussi être des clients
+      date: 'DATE',
+      datetime: 'DATE',
+      city: 'CITY',
+      location: 'CITY',
+      project: 'PROJECT',
+      vehicle: 'VEHICLE',
+      material: 'MATERIAL',
+      task: 'TASK',
+    };
+
+    // Parcourir les entités pour extraire les paramètres pertinents
+    for (const entity of entities) {
+      if (!entity || !entity.value) continue;
+
+      // Utiliser le type d'entité s'il existe
+      if (entity.type && typeof entity.type === 'string') {
+        const paramName = entityTypeToParam[entity.type.toLowerCase()];
+        if (paramName && !params[paramName]) {
+          params[paramName] = entity.value;
+        }
+      }
+
+      // Utiliser le nom d'entité s'il existe
+      if (entity.name && typeof entity.name === 'string') {
+        const paramName = entityTypeToParam[entity.name.toLowerCase()];
+        if (paramName && !params[paramName]) {
+          params[paramName] = entity.value;
+        }
+      }
+    }
+  }
+
+  private tryExtractParameterFromText(
+    text: string,
+    paramName: string,
+    entities: any[] | undefined,
+  ): string | null {
+    // Si pas d'entités à analyser, retourner null
+    if (!entities || entities.length === 0) {
+      return this.extractFromTextPattern(text, paramName);
+    }
+
+    // Utiliser en premier la détection d'entités
+    const paramTypeMap: Record<string, string[]> = {
+      CLIENT: ['client', 'person', 'organization', 'people'],
+      DATE: ['date', 'datetime', 'time'],
+      CITY: ['city', 'location', 'place', 'address'],
+      PROJECT: ['project', 'mission', 'chantier'],
+      VEHICLE: ['vehicle', 'car', 'truck', 'transport'],
+      MATERIAL: ['material', 'equipment', 'tool'],
+      TASK: ['task', 'work', 'job', 'mission'],
+    };
+
+    // Récupérer les types valides pour ce paramètre
+    const validTypes = paramTypeMap[paramName] || [];
+
+    // Chercher une entité correspondante
+    const matchingEntity = entities.find((entity: any) => {
+      if (!entity) return false;
+
+      // Vérifier le type d'entité
+      if (entity.type && validTypes.includes(entity.type.toLowerCase())) {
+        return true;
+      }
+
+      // Vérifier le nom d'entité
+      if (entity.name && validTypes.includes(entity.name.toLowerCase())) {
+        return true;
+      }
+
+      return false;
+    });
+
+    // Si une entité correspondante est trouvée, utiliser sa valeur
+    if (matchingEntity && matchingEntity.value) {
+      return matchingEntity.value.toString();
+    }
+
+    // Si aucune entité n'est trouvée, essayer avec des patterns textuels
+    return this.extractFromTextPattern(text, paramName);
+  }
+
+  private extractFromTextPattern(
+    text: string,
+    paramName: string,
+  ): string | null {
+    // Convertir le texte en minuscules pour les patterns
+    const textLower = text.toLowerCase();
+    
+    // Différentes stratégies d'extraction selon le paramètre
+    switch (paramName) {
+      case 'CLIENT':
+        // Patterns pour extraire un client
+        const clientPatterns = [
+          /client\s+([a-zÀ-ÿ\s]+)/i,
+          /informations? (?:de|du|sur) ([a-zÀ-ÿ\s]+)/i,
+          /(?:info|détails) (?:de|du|sur) ([a-zÀ-ÿ\s]+)/i,
+        ];
+        
+        for (const pattern of clientPatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        }
+        break;
+        
+      case 'DATE':
+        // Patterns pour extraire une date
+        if (textLower.includes("aujourd'hui")) {
+          return new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+        }
+        
+        if (textLower.includes('demain')) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow.toISOString().split('T')[0];
+        }
+        
+        // Recherche de dates au format JJ/MM/YYYY ou autres formats courants
+        const datePatterns = [
+          /(\d{1,2})[/-](\d{1,2})[/-](\d{4})/,
+          /(\d{1,2})[/-](\d{1,2})[/-](\d{2})/,
+          /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/,
+        ];
+        
+        for (const pattern of datePatterns) {
+          const match = textLower.match(pattern);
+          if (match) {
+            // Selon le pattern, on réorganise la date
+            if (pattern === datePatterns[0] || pattern === datePatterns[1]) {
+              const day = match[1].padStart(2, '0');
+              const month = match[2].padStart(2, '0');
+              const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+              return `${year}-${month}-${day}`;
+            } else {
+              const year = match[1];
+              const month = match[2].padStart(2, '0');
+              const day = match[3].padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+          }
+        }
+        break;
+        
+      case 'CITY':
+        // Patterns pour extraire une ville
+        const cityPatterns = [
+          /(?:à|a|dans|de|d') ([a-zÀ-ÿ\s]+)/i,
+          /ville (?:de|d') ([a-zÀ-ÿ\s]+)/i,
+        ];
+        
+        for (const pattern of cityPatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            const city = match[1].trim();
+            // Filtrer les articles et stopwords courants
+            if (
+              ![
+                'la',
+                'le',
+                'les',
+                'un',
+                'une',
+                'des',
+                'nos',
+                'vos',
+                'leurs',
+              ].includes(city)
+            ) {
+              return city;
+            }
+          }
+        }
+        break;
+        
+      case 'PROJECT':
+        // Patterns pour extraire un projet
+        const projectPatterns = [
+          /projet\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /chantier\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /mission\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /(?:info|détail|statut|état|avancement) (?:du|de la|sur le|sur|pour le|pour) projet ([a-zÀ-ÿ0-9\s]+)/i,
+          /(?:info|détail|statut|état|avancement) (?:du|de la|sur le|sur|pour le|pour) chantier ([a-zÀ-ÿ0-9\s]+)/i,
+        ];
+        
+        for (const pattern of projectPatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        }
+        break;
+        
+      case 'VEHICLE':
+        // Patterns pour extraire un véhicule
+        const vehiclePatterns = [
+          /véhicule\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /voiture\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /camion\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /utilitaire\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /(?:info|détail|spécification) (?:du|de la|sur le|sur|pour le|pour) véhicule ([a-zÀ-ÿ0-9\s]+)/i,
+          /immatriculation\s+([a-zÀ-ÿ0-9\s-]+)/i,
+        ];
+        
+        for (const pattern of vehiclePatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        }
+        break;
+        
+      case 'MATERIAL':
+        // Patterns pour extraire un matériau
+        const materialPatterns = [
+          /matériau\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /matériel\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /matière\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /fourniture\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /équipement\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /outil\s+([a-zÀ-ÿ0-9\s]+)/i,
+          /(?:info|détail|spécification) (?:du|de la|sur le|sur|pour le|pour) matériau ([a-zÀ-ÿ0-9\s]+)/i,
+          /(?:info|détail|spécification) (?:du|de la|sur le|sur|pour le|pour) matériel ([a-zÀ-ÿ0-9\s]+)/i,
+        ];
+        
+        for (const pattern of materialPatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            return match[1].trim();
+          }
+        }
+        break;
+        
+      case 'TYPE':
+        // Extraction du type de document
+        const typePatterns = [
+          /document(?:s)? de type\s+([a-zÀ-ÿ]+)/i,
+          /document(?:s)? ([a-zÀ-ÿ]+)/i,
+          /(?:afficher|voir|liste des|consulter|rechercher) (?:les |des )?([a-zÀ-ÿ]+)s/i,
+          /(?:les|des) ([a-zÀ-ÿ]+)s/i,
+        ];
+        
+        for (const pattern of typePatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            const type = match[1].trim();
+            // Vérifier si c'est un type de document valide
+            if (['devis', 'facture', 'bon_de_commande', 'reçu', 'contrat', 'rapport'].includes(type)) {
+              return type;
+            }
+          }
+        }
+        break;
+        
+      case 'STATUS':
+        // Extraction du statut
+        const statusPatterns = [
+          /statut\s+([a-zÀ-ÿ_]+)/i,
+          /status\s+([a-zÀ-ÿ_]+)/i,
+          /état\s+([a-zÀ-ÿ_]+)/i,
+          /documents? ([a-zÀ-ÿ_]+)/i,
+          /(?:les|des) ([a-zÀ-ÿ_]+)/i,
+        ];
+        
+        for (const pattern of statusPatterns) {
+          const match = textLower.match(pattern);
+          if (match && match[1]) {
+            const status = match[1].trim();
+            // Vérifier si c'est un statut de document valide
+            if (['brouillon', 'en_attente', 'valide', 'envoye', 'signe', 'refuse', 'en_cours', 'termine'].includes(status)) {
+              return status;
+            }
+          }
+        }
+        break;
+        
+      case 'START_DATE':
+        // Pour les plages de dates, on essaie d'extraire une paire de dates
+        // avec priorité à la première pour START_DATE
+        const startDatePatterns = [
+          /(?:entre|du|depuis) (?:le )?(\d{1,2})[/-](\d{1,2})[/-](\d{4})/i,
+          /(?:entre|du|depuis) (?:le )?(\d{1,2})[/-](\d{1,2})[/-](\d{2})/i,
+          /(?:entre|du|depuis) (?:le )?(\d{4})[/-](\d{1,2})[/-](\d{1,2})/i,
+        ];
+        
+        for (const pattern of startDatePatterns) {
+          const match = textLower.match(pattern);
+          if (match) {
+            if (pattern === startDatePatterns[0] || pattern === startDatePatterns[1]) {
+              const day = match[1].padStart(2, '0');
+              const month = match[2].padStart(2, '0');
+              const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+              return `${year}-${month}-${day}`;
+            } else {
+              const year = match[1];
+              const month = match[2].padStart(2, '0');
+              const day = match[3].padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+          }
+        }
+        break;
+        
+      case 'END_DATE':
+        // Pour les plages de dates, on essaie d'extraire une paire de dates
+        // avec priorité à la seconde pour END_DATE
+        const endDatePatterns = [
+          /(?:et|au|jusqu'au|jusqu'à) (?:le )?(\d{1,2})[/-](\d{1,2})[/-](\d{4})/i,
+          /(?:et|au|jusqu'au|jusqu'à) (?:le )?(\d{1,2})[/-](\d{1,2})[/-](\d{2})/i,
+          /(?:et|au|jusqu'au|jusqu'à) (?:le )?(\d{4})[/-](\d{1,2})[/-](\d{1,2})/i,
+        ];
+        
+        for (const pattern of endDatePatterns) {
+          const match = textLower.match(pattern);
+          if (match) {
+            if (pattern === endDatePatterns[0] || pattern === endDatePatterns[1]) {
+              const day = match[1].padStart(2, '0');
+              const month = match[2].padStart(2, '0');
+              const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+              return `${year}-${month}-${day}`;
+            } else {
+              const year = match[1];
+              const month = match[2].padStart(2, '0');
+              const day = match[3].padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+          }
+        }
+        
+        // Si pas de date de fin explicite, mais une date de début existe,
+        // on pourrait retourner une date par défaut (ex: 1 mois après la date de début)
+        break;
+        
+      // Cas par défaut pour les autres types de paramètres
+    }
+    
+    return null;
   }
 }
