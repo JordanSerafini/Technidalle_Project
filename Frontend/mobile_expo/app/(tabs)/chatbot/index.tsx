@@ -8,6 +8,7 @@ import { Message, Attachment } from '@/app/components/chatbot/types';
 import QuickReply from '@/app/components/chatbot/QuickReply';
 import AttachmentButton from '@/app/components/chatbot/AttachmentButton';
 import { sendMessageToChatbot, formatChatbotResponse, checkChatbotHealth } from '@/app/utils/functions/chatbot/chatbot.function';
+import DataCards from '@/app/components/chatbot/DataCards';
 
 // Suggestions de démarrage pour la conversation
 const INITIAL_SUGGESTIONS = [
@@ -158,6 +159,30 @@ export default function ChatbotScreen() {
     }
   };
 
+  // Fonction pour gérer les clics sur les éléments de données (clients, projets, etc.)
+  const handleItemPress = (item: any) => {
+    // Déterminer le type d'élément et rediriger vers la page appropriée
+    if ('firstname' in item && 'lastname' in item) {
+      // C'est un client
+      router.push({
+        pathname: "/(tabs)/clients/[id]",
+        params: { id: item.id.toString() }
+      });
+    } else if ('reference' in item && 'start_date' in item) {
+      // C'est un projet
+      router.push({
+        pathname: "/(tabs)/projects/[id]",
+        params: { id: item.id.toString() }
+      });
+    } else {
+      // Type d'élément non pris en charge, afficher une alerte
+      Alert.alert(
+        "Information",
+        "Désolé, je ne peux pas ouvrir les détails de cet élément."
+      );
+    }
+  };
+
   const renderAttachmentPreview = () => {
     if (currentAttachments.length === 0) return null;
 
@@ -223,6 +248,16 @@ export default function ChatbotScreen() {
           <QuickReply 
             suggestions={quickReplies} 
             onPress={handleQuickReply}
+          />
+        )}
+
+        {/* Afficher les données structurées si disponibles dans le dernier message */}
+        {!isLoading && messages[messages.length - 1]?.data && (
+          <DataCards 
+            data={messages[messages.length - 1].data as any[]} 
+            format={messages[messages.length - 1].responseFormat || 'default'}
+            title={messages[messages.length - 1].queryDescription}
+            onItemPress={handleItemPress}
           />
         )}
 
