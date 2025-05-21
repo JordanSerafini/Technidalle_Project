@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ChatMessageProps, Attachment } from './types';
 import { Ionicons } from '@expo/vector-icons';
+import DataCards from './DataCards';
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const formattedTime = format(message.timestamp, 'HH:mm', { locale: fr });
@@ -39,9 +40,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     }
   };
   
+  // Détermine s'il faut afficher des cartes de données
+  const shouldRenderDataCards = !message.isUser && message.data && message.data.length > 0;
+  
   return (
     <View 
-      className={`mb-4 max-w-[80%] ${
+      className={`mb-4 max-w-[95%] ${
         message.isUser ? 'self-end ml-auto' : 'self-start mr-auto'
       }`}
     >
@@ -66,6 +70,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           </View>
         )}
       </View>
+      
+      {/* Afficher les cartes de données si disponibles */}
+      {shouldRenderDataCards && message.data && (
+        <DataCards 
+          data={message.data} 
+          format={message.responseFormat || 'default'} 
+          title={message.queryDescription}
+        />
+      )}
+      
       <Text className="text-xs text-gray-500 mt-1 ml-1">
         {formattedTime}
       </Text>

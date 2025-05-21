@@ -10,6 +10,9 @@ export interface Message {
   isUser: boolean;
   timestamp: Date;
   attachments?: Attachment[];
+  data?: any[];
+  responseFormat?: string;
+  queryDescription?: string;
 }
 
 export interface ChatMessageProps {
