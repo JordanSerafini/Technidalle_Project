@@ -49,8 +49,28 @@ interface PredefinedQueryResult {
   score: number;
 }
 
+// Interface pour stocker le contexte des conversations
+export interface ConversationContext {
+  userId: string;
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+  }>;
+  lastIntent?: string;
+  lastEntities?: Array<{
+    name: string;
+    value: string;
+    type: string;
+  }>;
+  lastQueryExecuted?: string;
+}
+
 @Injectable()
 export class AnalyzeAgentService {
+  // Map pour stocker les contextes de conversation par utilisateur
+  private conversationContexts: Map<string, ConversationContext> = new Map();
+
   constructor(
     private readonly elasticsearchService: ElasticsearchService,
     private readonly langchainService: LangchainService,
@@ -187,5 +207,60 @@ export class AnalyzeAgentService {
       similarQuestions,
       similarPredefinedQueries,
     };
+  }
+
+  // Méthodes pour gérer le contexte des conversations
+  getConversationContext(userId: string): ConversationContext | undefined {
+    return this.conversationContexts.get(userId);
+  }
+
+  createConversationContext(userId: string): ConversationContext {
+    const newContext: ConversationContext = {
+      userId,
+      messages: [],
+    };
+    this.conversationContexts.set(userId, newContext);
+    return newContext;
+  }
+
+  updateConversationContext(
+    userId: string,
+    userQuestion: string,
+    assistantResponse: string,
+    intent?: string,
+    entities?: any[],
+    queryExecuted?: string,
+  ): void {
+    let context = this.getConversationContext(userId);
+
+    if (!context) {
+      context = this.createConversationContext(userId);
+    }
+
+    // Ajouter le message de l'utilisateur
+    context.messages.push({
+      role: 'user',
+      content: userQuestion,
+      timestamp: new Date(),
+    });
+
+    // Ajouter la réponse de l'assistant
+    context.messages.push({
+      role: 'assistant',
+      content: assistantResponse,
+      timestamp: new Date(),
+    });
+
+    // Mettre à jour le contexte avec les dernières informations
+    if (intent) context.lastIntent = intent;
+    if (entities) context.lastEntities = entities;
+    if (queryExecuted) context.lastQueryExecuted = queryExecuted;
+
+    // Limiter le nombre de messages stockés (par exemple, les 10 derniers)
+    if (context.messages.length > 20) {
+      context.messages = context.messages.slice(context.messages.length - 20);
+    }
+
+    this.conversationContexts.set(userId, context);
   }
 }
