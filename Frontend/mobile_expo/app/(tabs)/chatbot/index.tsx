@@ -109,11 +109,16 @@ export default function ChatbotScreen() {
       const response = await sendMessageToChatbot(userMessage.text);
       const formattedResponse = formatChatbotResponse(response);
       
+      // Création du message de réponse avec données structurées si disponibles
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: formattedResponse,
         isUser: false,
         timestamp: new Date(),
+        // Ajouter les données structurées si disponibles
+        data: Array.isArray(response.data) ? response.data : undefined,
+        responseFormat: response.response_format,
+        queryDescription: response.query_description,
       };
       
       setMessages((prevMessages) => [...prevMessages, botResponse]);

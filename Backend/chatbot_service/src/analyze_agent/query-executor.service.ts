@@ -122,7 +122,9 @@ export class QueryExecutorService {
             if (param.default !== undefined) {
               paramValues.push(param.default);
             } else {
-              throw new Error(`Paramètre requis ${paramName} non fourni`);
+              throw new Error(
+                `Paramètre requis ${paramName} non fourni pour la requête ${queryId}`,
+              );
             }
           }
         }

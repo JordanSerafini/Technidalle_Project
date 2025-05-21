@@ -447,6 +447,7 @@ export class ElasticsearchService {
   async findSimilarPredefinedQueries(
     questionText: string,
     limit: number = 5,
+    additionalParams: Record<string, unknown> = {},
   ): Promise<any[]> {
     try {
       // Générer l'embedding pour la question
@@ -479,6 +480,7 @@ export class ElasticsearchService {
         parameters: hit._source.parameters,
         response_format: hit._source.response_format,
         score: hit._score,
+        additionalParams: additionalParams,
       }));
 
       return results;

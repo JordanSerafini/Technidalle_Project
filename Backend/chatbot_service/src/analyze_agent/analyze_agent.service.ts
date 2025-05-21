@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
 import { LangchainService } from '../langchain/langchain.service';
+import { QueryExecutorService } from './query-executor.service';
 
 export interface QuestionAnalysisResult {
   originalQuestion: string;
@@ -74,6 +75,7 @@ export class AnalyzeAgentService {
   constructor(
     private readonly elasticsearchService: ElasticsearchService,
     private readonly langchainService: LangchainService,
+    private readonly queryExecutorService: QueryExecutorService,
   ) {}
 
   async analyzeQuestion(question: string): Promise<QuestionAnalysisResult> {
@@ -262,5 +264,20 @@ export class AnalyzeAgentService {
     }
 
     this.conversationContexts.set(userId, context);
+  }
+
+  /**
+   * Récupère la liste des projets associés à un client (par nom, email ou ID)
+   */
+  async getProjectsForClient(client: string): Promise<any[]> {
+    try {
+      const result = await this.queryExecutorService.executeQuery('client_projects', { CLIENT: client });
+      if (result && result.data) {
+        return result.data as any[];
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des projets du client:', error);
+    }
+    return [];
   }
 }

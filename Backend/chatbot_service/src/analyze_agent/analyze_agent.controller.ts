@@ -124,10 +124,77 @@ export class AnalyzeAgentController {
         );
       }
 
+      // Détection spécifique pour des requêtes connues qui peuvent avoir des problèmes de matching
+      const questionLower = analyzeQuestionDto.question.toLowerCase().trim();
+      let forcedQueryId: string | null = null;
+      
+      // Mappings directs pour certaines questions spécifiques qui peuvent avoir des problèmes de matching
+      const directMappings: Record<string, string> = {
+        'qui travaille la semaine prochaine': 'staff_schedule_next_week',
+        'qui travaille la semaine pro': 'staff_schedule_next_week',
+        'qui est prévu la semaine prochaine': 'staff_schedule_next_week',
+        'planning semaine prochaine': 'staff_schedule_next_week',
+        'qui travaille semaine prochaine': 'staff_schedule_next_week',
+        'travail semaine prochaine': 'staff_schedule_next_week'
+      };
+      
+      // Si la question exacte est dans notre mapping, forcer la requête
+      if (directMappings[questionLower]) {
+        forcedQueryId = directMappings[questionLower];
+        this.logger.log(`Forçage de la requête ${forcedQueryId} pour la question "${questionLower}"`);
+      }
+      
+      // Si aucun matching direct, vérifier par mots-clés
+      if (!forcedQueryId) {
+        if (
+          (questionLower.includes('semaine prochaine') || questionLower.includes('semaine pro')) && 
+          (questionLower.includes('travail') || questionLower.includes('planning') || questionLower.includes('qui'))
+        ) {
+          forcedQueryId = 'staff_schedule_next_week';
+          this.logger.log(`Forçage de la requête ${forcedQueryId} par mots-clés pour la question "${questionLower}"`);
+        }
+      }
+
       // Étape 1: Analyser la question
       const analysisResult = await this.analyzeAgentService.analyzeQuestion(
         analyzeQuestionDto.question,
       );
+
+      // Si on a un forçage de requête, l'appliquer
+      if (forcedQueryId) {
+        try {
+          // Exécuter la requête forcée
+          const queryResult = await this.queryExecutorService.executeQuery(
+            forcedQueryId,
+            {},
+          );
+
+          // Générer une réponse naturelle avec LangChain
+          const questionContext = {
+            originalQuestion: analyzeQuestionDto.question,
+            reformulatedQuestion: analysisResult.reformulatedQuestion,
+            intent: analysisResult.analysis.intent,
+            entities: analysisResult.analysis.entities,
+          };
+
+          const generatedResponse = await this.langchainService.generateResponse(
+            questionContext,
+            queryResult.data,
+          );
+
+          return {
+            analysis: analysisResult,
+            query_executed: forcedQueryId,
+            query_description: queryResult.description,
+            data: queryResult.data,
+            response_format: queryResult.response_format,
+            response: generatedResponse,
+          };
+        } catch (forcedQueryError) {
+          this.logger.error(`Erreur lors de l'exécution de la requête forcée ${forcedQueryId}: ${forcedQueryError.message}`);
+          // Si la requête forcée échoue, continuer avec le processus normal
+        }
+      }
 
       // Étape 2: Vérifier si des requêtes prédéfinies ont été trouvées
       if (
@@ -174,6 +241,68 @@ export class AnalyzeAgentController {
           response: generatedResponse,
         };
       } catch (queryError) {
+        // Ajout de la gestion du cas PROJECT manquant
+        if (
+          queryError instanceof Error &&
+          queryError.message &&
+          queryError.message.includes('Paramètre requis PROJECT non fourni')
+        ) {
+          // On tente d'extraire le nom du client depuis les entités détectées
+          const clientEntity = analysisResult.analysis.entities?.find(
+            (e: any) => e.name.toLowerCase() === 'client' || e.type.toLowerCase() === 'client'
+          );
+          if (clientEntity && clientEntity.value) {
+            const projets = await this.analyzeAgentService.getProjectsForClient(clientEntity.value);
+            if (projets.length === 0) {
+              return {
+                analysis: analysisResult,
+                message: `Aucun projet trouvé pour le client ${clientEntity.value}.`,
+                data: null,
+              };
+            } else if (projets.length === 1) {
+              // Relancer la requête avec le nom du projet trouvé
+              try {
+                const projectName = projets[0].name || projets[0].reference;
+                const queryResult2 = await this.queryExecutorService.executeQuery(
+                  topQuery.query_id,
+                  { PROJECT: projectName },
+                );
+                const questionContext = {
+                  originalQuestion: analyzeQuestionDto.question,
+                  reformulatedQuestion: analysisResult.reformulatedQuestion,
+                  intent: analysisResult.analysis.intent,
+                  entities: analysisResult.analysis.entities,
+                };
+                const generatedResponse2 = await this.langchainService.generateResponse(
+                  questionContext,
+                  queryResult2.data,
+                );
+                return {
+                  analysis: analysisResult,
+                  query_executed: topQuery.query_id,
+                  query_description: topQuery.description,
+                  data: queryResult2.data,
+                  response_format: queryResult2.response_format,
+                  response: generatedResponse2,
+                };
+              } catch (e2) {
+                return {
+                  analysis: analysisResult,
+                  message: `Erreur lors de la récupération du projet du client : ${e2 instanceof Error ? e2.message : e2}`,
+                  data: null,
+                };
+              }
+            } else {
+              // Plusieurs projets trouvés, demander à l'utilisateur de préciser
+              const listeProjets = projets.map((p: any) => p.name || p.reference).join(', ');
+              return {
+                analysis: analysisResult,
+                message: `Le client ${clientEntity.value} a plusieurs projets : ${listeProjets}. Merci de préciser le projet souhaité dans votre prochaine question.`,
+                data: projets,
+              };
+            }
+          }
+        }
         if (queryError instanceof NotFoundException) {
           // Si la requête n'est pas trouvée, retourner seulement l'analyse
           return {

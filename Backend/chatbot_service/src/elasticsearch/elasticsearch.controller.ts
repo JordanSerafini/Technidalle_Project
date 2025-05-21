@@ -194,6 +194,7 @@ export class ElasticsearchController {
   async findSimilarPredefinedQueries(
     @Query('question') question: string,
     @Query('limit') limit: number = 5,
+    @Query('client') client?: string,
   ) {
     try {
       if (!question) {
@@ -203,10 +204,16 @@ export class ElasticsearchController {
         );
       }
 
+      const additionalParams: Record<string, unknown> = {};
+      if (client) {
+        additionalParams.CLIENT = client;
+      }
+
       const results =
         await this.elasticsearchService.findSimilarPredefinedQueries(
           question,
           limit,
+          additionalParams,
         );
 
       return { results };
