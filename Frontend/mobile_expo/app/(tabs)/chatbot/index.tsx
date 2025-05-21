@@ -7,6 +7,7 @@ import ChatMessage from '@/app/components/chatbot/ChatMessage';
 import { Message, Attachment } from '@/app/components/chatbot/types';
 import QuickReply from '@/app/components/chatbot/QuickReply';
 import AttachmentButton from '@/app/components/chatbot/AttachmentButton';
+import SpeechButton from '@/app/components/chatbot/SpeechButton';
 import { sendMessageToChatbot, formatChatbotResponse, checkChatbotHealth } from '@/app/utils/functions/chatbot/chatbot.function';
 import DataCards from '@/app/components/chatbot/DataCards';
 
@@ -110,10 +111,14 @@ export default function ChatbotScreen() {
       const response = await sendMessageToChatbot(userMessage.text);
       const formattedResponse = formatChatbotResponse(response);
       
+      // Vérifier si des données structurées sont disponibles
+      const hasStructuredData = Array.isArray(response.data) && response.data.length > 0;
+      
       // Création du message de réponse avec données structurées si disponibles
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: formattedResponse,
+        // N'afficher le texte que s'il n'y a pas de données structurées ou si le format nécessite le texte
+        text: hasStructuredData ? "" : formattedResponse,
         isUser: false,
         timestamp: new Date(),
         // Ajouter les données structurées si disponibles
@@ -271,20 +276,12 @@ export default function ChatbotScreen() {
           />
         )}
 
-        {/* Afficher les données structurées si disponibles dans le dernier message */}
-        {!isLoading && messages[messages.length - 1]?.data && (
-          <DataCards 
-            data={messages[messages.length - 1].data as any[]} 
-            format={messages[messages.length - 1].responseFormat || 'default'}
-            title={messages[messages.length - 1].queryDescription}
-            onItemPress={handleItemPress}
-          />
-        )}
-
         {renderAttachmentPreview()}
 
         <View className="p-2 border-t border-gray-200 bg-white flex-row items-center">
           <AttachmentButton onFileSelected={handleAttachment} />
+          
+          <SpeechButton onSpeechResult={setInputText} />
           
           <TextInput
             className="flex-1 bg-gray-100 p-3 rounded-full mr-2"

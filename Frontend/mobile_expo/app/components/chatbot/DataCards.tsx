@@ -474,7 +474,9 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           renderItem={({ item }: { item: ClientData }) => (
             <ClientCard client={item} onPress={onItemPress} />
           )}
-          scrollEnabled={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          style={{ maxHeight: 400 }}
         />
       </View>
     );
@@ -493,7 +495,9 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           renderItem={({ item }: { item: ProjectData }) => (
             <ProjectCard project={item} onPress={onItemPress} />
           )}
-          scrollEnabled={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          style={{ maxHeight: 400 }}
         />
       </View>
     );
@@ -512,7 +516,9 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           renderItem={({ item }: { item: DocumentData }) => (
             <DocumentCard document={item} onPress={onItemPress} />
           )}
-          scrollEnabled={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          style={{ maxHeight: 400 }}
         />
       </View>
     );
@@ -531,7 +537,9 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           renderItem={({ item }: { item: ScheduleItemData }) => (
             <ScheduleCard scheduleItem={item} onPress={onItemPress} />
           )}
-          scrollEnabled={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          style={{ maxHeight: 400 }}
         />
       </View>
     );
@@ -589,7 +597,9 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
             })}
           </TouchableOpacity>
         )}
-        scrollEnabled={false}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        style={{ maxHeight: 400 }}
       />
     </View>
   );
