@@ -255,6 +255,8 @@ services:
     volumes:
       - ./Backend/chatbot_service:/app
       - /app/node_modules
+      - /app/generated/prisma
+
 
   api-gateway:
     build:

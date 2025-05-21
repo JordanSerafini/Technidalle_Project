@@ -1,8 +1,7 @@
-import { PrismaClient } from '../../../../generated/prisma';
+import { PrismaService } from '../../prisma/prisma.service';
 
-const prisma = new PrismaClient();
-
-export const clientsQueries = {
+// Exporter une fonction factory qui prend le PrismaService en paramètre
+export const getClientsQueries = (prismaService: PrismaService) => ({
   clients_list: {
     keywords: [
       'client',
@@ -26,7 +25,7 @@ export const clientsQueries = {
       'Annuaire des clients',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         select: {
           firstname: true,
           lastname: true,
@@ -69,7 +68,7 @@ export const clientsQueries = {
       'Dossier client [CLIENT]',
     ],
     prisma: async (client: string) => {
-      return await prisma.clients.findFirst({
+      return await prismaService.clients.findFirst({
         where: {
           OR: [
             { firstname: { contains: client, mode: 'insensitive' } },
@@ -161,7 +160,7 @@ export const clientsQueries = {
       'Factures non payées',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           documents: {
             some: {
@@ -222,7 +221,7 @@ export const clientsQueries = {
       'Répertoire clients [CITY]',
     ],
     prisma: async (city: string) => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           OR: [
             {
@@ -315,7 +314,7 @@ export const clientsQueries = {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           OR: [
             {
@@ -438,7 +437,7 @@ export const clientsQueries = {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           AND: [
             {
@@ -535,7 +534,7 @@ export const clientsQueries = {
       'Nouvelles fiches clients',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         select: {
           id: true,
           firstname: true,
@@ -582,7 +581,7 @@ export const clientsQueries = {
       'Que fait [CLIENT] comme projets ?',
     ],
     prisma: async (client: string) => {
-      return await prisma.projects.findMany({
+      return await prismaService.projects.findMany({
         where: {
           clients: {
             OR: [
@@ -639,7 +638,7 @@ export const clientsQueries = {
       'Factures en cours pour [CLIENT]',
     ],
     prisma: async (client: string) => {
-      return await prisma.documents.findMany({
+      return await prismaService.documents.findMany({
         where: {
           type: 'facture',
           projects: {
@@ -707,7 +706,7 @@ export const clientsQueries = {
       'Portfolio clients actifs',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           projects: {
             some: {
@@ -761,7 +760,7 @@ export const clientsQueries = {
       'Clients sans aucun projet associé',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           projects: {
             none: {},
@@ -797,7 +796,7 @@ export const clientsQueries = {
       "Clients avec le plus gros volume d'affaires",
     ],
     prisma: async () => {
-      const clients = await prisma.clients.findMany({
+      const clients = await prismaService.clients.findMany({
         include: {
           projects: {
             include: {
@@ -863,7 +862,7 @@ export const clientsQueries = {
     ],
     prisma: async () => {
       // D'abord, on récupère tous les clients avec leurs projets
-      const allClients = await prisma.clients.findMany({
+      const allClients = await prismaService.clients.findMany({
         include: {
           projects: {
             select: {
@@ -930,7 +929,7 @@ export const clientsQueries = {
           dateLimit = new Date(now.setMonth(now.getMonth() - 1));
       }
 
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           created_at: {
             gte: dateLimit,
@@ -982,7 +981,7 @@ export const clientsQueries = {
     ],
     response_format: 'table',
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           projects: {
             some: {
@@ -1060,7 +1059,7 @@ export const clientsQueries = {
     prisma: async (client: string) => {
       // Cette requête est complexe car nous n'avons pas de table payments directement dans Prisma
       // Nous allons utiliser les documents payés comme approximation des paiements
-      return await prisma.documents.findMany({
+      return await prismaService.documents.findMany({
         where: {
           type: 'facture',
           payment_status: 'paye',
@@ -1130,7 +1129,7 @@ export const clientsQueries = {
     ],
     response_format: 'table',
     prisma: async (zip: string) => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         where: {
           OR: [
             {
@@ -1205,7 +1204,7 @@ export const clientsQueries = {
       'Ensemble des clients',
     ],
     prisma: async () => {
-      return await prisma.clients.findMany({
+      return await prismaService.clients.findMany({
         select: {
           id: true,
           firstname: true,
@@ -1225,4 +1224,4 @@ export const clientsQueries = {
     description:
       'Liste complète de tous les clients enregistrés dans le système',
   },
-};
+});

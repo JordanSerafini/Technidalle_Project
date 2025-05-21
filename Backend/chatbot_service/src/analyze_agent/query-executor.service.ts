@@ -1,12 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { clientsQueries } from '../elasticsearch/queries/clients.query';
-import { vehiclesQueries } from '../elasticsearch/queries/vehicles.query';
+import { getClientsQueries } from '../elasticsearch/queries/clients.query';
+import { getVehiclesQueries } from '../elasticsearch/queries/vehicles.query';
 import { tasksQueries } from '../elasticsearch/queries/tasks.query';
 import { staffQueries } from '../elasticsearch/queries/staff.query';
 import { projectsQueries } from '../elasticsearch/queries/projects.query';
 import { planningQueries } from '../elasticsearch/queries/planning.query';
-import { materialsQueries } from '../elasticsearch/queries/materials.query';
+import { getMaterialsQueries } from '../elasticsearch/queries/materials.query';
 import { documentsQueries } from '../elasticsearch/queries/documents.query';
 
 // Interface pour les paramètres de requête
@@ -47,13 +47,13 @@ export class QueryExecutorService {
   constructor(private readonly prismaService: PrismaService) {
     // Combiner toutes les requêtes dans une seule map
     this.queryMap = {
-      ...clientsQueries,
-      ...vehiclesQueries,
+      ...getClientsQueries(this.prismaService),
+      ...getVehiclesQueries(this.prismaService),
       ...tasksQueries,
       ...staffQueries,
       ...projectsQueries,
       ...planningQueries,
-      ...materialsQueries,
+      ...getMaterialsQueries(this.prismaService),
       ...documentsQueries,
     } as Record<string, PredefinedQuery>;
   }
