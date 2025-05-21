@@ -12,6 +12,7 @@ import {
   QueryExecutorService,
   QueryExecutionResult,
 } from './query-executor.service';
+import { LangchainService } from '../langchain/langchain.service';
 
 class AnalyzeQuestionDto {
   question: string;
@@ -29,6 +30,7 @@ interface ChatbotResponse {
   query_description?: string;
   data?: unknown;
   response_format?: string;
+  response?: string;
 }
 
 @Controller('analyze')
@@ -38,6 +40,7 @@ export class AnalyzeAgentController {
   constructor(
     private readonly analyzeAgentService: AnalyzeAgentService,
     private readonly queryExecutorService: QueryExecutorService,
+    private readonly langchainService: LangchainService,
   ) {}
 
   @Post('question')
@@ -135,10 +138,26 @@ export class AnalyzeAgentController {
 
       // Étape 3: Exécuter la requête la plus pertinente
       const topQuery = analysisResult.similarPredefinedQueries[0];
+      let queryResult;
+      let generatedResponse = '';
+
       try {
-        const queryResult = await this.queryExecutorService.executeQuery(
+        queryResult = await this.queryExecutorService.executeQuery(
           topQuery.query_id,
           {},
+        );
+
+        // Étape 4: Générer une réponse naturelle avec LangChain
+        const questionContext = {
+          originalQuestion: analyzeQuestionDto.question,
+          reformulatedQuestion: analysisResult.reformulatedQuestion,
+          intent: analysisResult.analysis.intent,
+          entities: analysisResult.analysis.entities,
+        };
+
+        generatedResponse = await this.langchainService.generateResponse(
+          questionContext,
+          queryResult.data,
         );
 
         return {
@@ -147,6 +166,7 @@ export class AnalyzeAgentController {
           query_description: topQuery.description,
           data: queryResult.data,
           response_format: queryResult.response_format,
+          response: generatedResponse,
         };
       } catch (queryError) {
         if (queryError instanceof NotFoundException) {

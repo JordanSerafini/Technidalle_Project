@@ -5,9 +5,15 @@ import { ConfigModule } from '@nestjs/config';
 import { ElasticsearchModule } from '../elasticsearch/elasticsearch.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { QueryExecutorService } from './query-executor.service';
+import { LangchainModule } from '../langchain/langchain.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), ElasticsearchModule, PrismaModule],
+  imports: [
+    ConfigModule.forRoot(),
+    ElasticsearchModule,
+    PrismaModule,
+    LangchainModule,
+  ],
   controllers: [AnalyzeAgentController],
   providers: [AnalyzeAgentService, QueryExecutorService],
   exports: [AnalyzeAgentService, QueryExecutorService],
