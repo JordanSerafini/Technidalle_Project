@@ -1,5 +1,11 @@
-import { Module } from '@nestjs/common';import { ConfigModule } from '@nestjs/config';import { PrismaModule } from './prisma/prisma.module';import { EmbeddingModule } from './embedding/embedding.module';import { DataLoaderModule } from './data-loader/data-loader.module';import { ChatbotModule } from './chatbot/chatbot.module';import { QueryBuilderModule } from './querybuilder/querybuilder.module';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from './prisma/prisma.module';
+import { EmbeddingModule } from './embedding/embedding.module';
+import { DataLoaderModule } from './data-loader/data-loader.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 import { AnalyzeAgentModule } from './analyze_agent/analyze_agent.module';
+import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
 
 @Module({
   imports: [
@@ -10,8 +16,8 @@ import { AnalyzeAgentModule } from './analyze_agent/analyze_agent.module';
     EmbeddingModule,
     DataLoaderModule,
     ChatbotModule,
-    QueryBuilderModule,
     AnalyzeAgentModule,
+    ElasticsearchModule,
   ],
 })
 export class AppModule {}

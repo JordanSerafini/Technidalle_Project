@@ -33,7 +33,6 @@ export const clientsQueries = {
           company_name: true,
           email: true,
           phone: true,
-          mobile: true,
           addresses: {
             select: {
               city: true,
@@ -961,6 +960,14 @@ export const clientsQueries = {
   },
 
   clients_without_paid_invoices: {
+    keywords: [
+      'impayé',
+      'sans paiement',
+      'facture',
+      'non réglé',
+      'risque',
+      'historique',
+    ],
     questions: [
       "Quels clients n'ont jamais payé une facture ?",
       'Clients sans paiements enregistrés',
@@ -973,6 +980,7 @@ export const clientsQueries = {
       'Clients avec factures mais sans paiement',
       'Clientèle sans historique de règlement',
     ],
+    response_format: 'table',
     prisma: async () => {
       return await prisma.clients.findMany({
         where: {
@@ -1028,6 +1036,14 @@ export const clientsQueries = {
   },
 
   clients_payment_history: {
+    keywords: [
+      'paiement',
+      'historique',
+      'règlement',
+      'transaction',
+      'facture',
+      'payé',
+    ],
     questions: [
       'Historique des paiements du client [CLIENT]',
       'Quels paiements a effectué [CLIENT] ?',
@@ -1040,6 +1056,7 @@ export const clientsQueries = {
       'Historique financier du client [CLIENT]',
       'Transactions de paiement de [CLIENT]',
     ],
+    response_format: 'table',
     prisma: async (client: string) => {
       // Cette requête est complexe car nous n'avons pas de table payments directement dans Prisma
       // Nous allons utiliser les documents payés comme approximation des paiements
@@ -1091,6 +1108,14 @@ export const clientsQueries = {
   },
 
   clients_by_zip_code: {
+    keywords: [
+      'code postal',
+      'zip',
+      'localisation',
+      'adresse',
+      'zone',
+      'région',
+    ],
     questions: [
       'Quels clients habitent dans le code postal [ZIP] ?',
       'Clients du code postal [ZIP]',
@@ -1103,6 +1128,7 @@ export const clientsQueries = {
       'Clients dans la zone postale [ZIP]',
       'Recherche clients par code postal [ZIP]',
     ],
+    response_format: 'table',
     prisma: async (zip: string) => {
       return await prisma.clients.findMany({
         where: {
