@@ -49,27 +49,29 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
         message.isUser ? 'self-end ml-auto' : 'self-start mr-auto'
       }`}
     >
-      <View 
-        className={`rounded-2xl p-3 ${
-          message.isUser 
-            ? 'bg-blue-600 rounded-tr-none' 
-            : 'bg-gray-200 rounded-tl-none'
-        }`}
-      >
-        <Text 
-          className={`${
-            message.isUser ? 'text-white' : 'text-black'
+      {message.text && message.text.trim() !== '' && (
+        <View 
+          className={`rounded-2xl p-3 ${
+            message.isUser 
+              ? 'bg-blue-600 rounded-tr-none' 
+              : 'bg-gray-200 rounded-tl-none'
           }`}
         >
-          {message.text}
-        </Text>
+          <Text 
+            className={`${
+              message.isUser ? 'text-white' : 'text-black'
+            }`}
+          >
+            {message.text}
+          </Text>
 
-        {message.attachments && message.attachments.length > 0 && (
-          <View className="mt-1">
-            {message.attachments.map(renderAttachment)}
-          </View>
-        )}
-      </View>
+          {message.attachments && message.attachments.length > 0 && (
+            <View className="mt-1">
+              {message.attachments.map(renderAttachment)}
+            </View>
+          )}
+        </View>
+      )}
       
       {/* Afficher les cartes de données si disponibles */}
       {shouldRenderDataCards && message.data && (
