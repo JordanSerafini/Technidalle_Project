@@ -72,7 +72,7 @@ export class ElasticsearchService {
         rejectUnauthorized: false,
       },
     };
-    
+
     // Créer le client avec les options de base
     this.client = new Client(options) as Client;
 
@@ -476,5 +476,117 @@ export class ElasticsearchService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Recherche une requête prédéfinie par son ID
+   * @param queryId L'identifiant de la requête à rechercher
+   * @returns Un tableau de requêtes prédéfinies correspondant à l'ID
+   */
+  async findPredefinedQueryById(queryId: string): Promise<any[]> {
+    try {
+      const response = (await this.client.search({
+        index: this.queriesIndexName,
+        body: {
+          query: {
+            match: {
+              query_id: queryId,
+            },
+          },
+        },
+      })) as ElasticsearchResponse;
+
+      return response.hits.hits.map((hit) => ({
+        ...hit._source,
+        score: hit._score,
+      }));
+    } catch (error: any) {
+      this.logger.error(
+        `Erreur lors de la recherche de la requête par ID ${queryId}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async findSimilarQuestionsWithBoth(
+    questionText: string,
+    reformulatedQuestion: string,
+    limit: number = 5,
+  ): Promise<any[]> {
+    try {
+      // Générer les embeddings pour les deux versions
+      const originalVector =
+        await this.vectorStoreService.generateEmbedding(questionText);
+      const reformulatedVector =
+        await this.vectorStoreService.generateEmbedding(reformulatedQuestion);
+
+      // Combiner les résultats des deux recherches
+      const originalResults = await this.searchWithVector(
+        originalVector,
+        limit,
+      );
+      const reformulatedResults = await this.searchWithVector(
+        reformulatedVector,
+        limit,
+      );
+
+      // Fusionner et dédupliquer les résultats
+      const combinedResults = this.mergeResults(
+        originalResults,
+        reformulatedResults,
+      );
+
+      return combinedResults.slice(0, limit);
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la recherche avec double embedding: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  private async searchWithVector(
+    vector: number[],
+    limit: number,
+  ): Promise<any[]> {
+    const response = (await this.client.search({
+      index: this.indexName,
+      size: limit,
+      query: {
+        script_score: {
+          query: { match_all: {} },
+          script: {
+            source:
+              "cosineSimilarity(params.query_vector, 'question_vector') + 1.0",
+            params: { query_vector: vector },
+          },
+        },
+      },
+    })) as ElasticsearchResponse;
+
+    return response.hits.hits.map((hit) => ({
+      id: hit._id,
+      question: hit._source.question,
+      answer: hit._source.answer,
+      category: hit._source.category,
+      source: hit._source.source,
+      score: hit._score,
+    }));
+  }
+
+  private mergeResults(results1: any[], results2: any[]): any[] {
+    // Fusionner les deux ensembles de résultats
+    const merged = [...results1];
+    const existingIds = new Set(results1.map((r) => r.id));
+
+    // Ajouter seulement les résultats uniques de results2
+    for (const result of results2) {
+      if (!existingIds.has(result.id)) {
+        merged.push(result);
+      }
+    }
+
+    // Trier par score de pertinence
+    return merged.sort((a, b) => b.score - a.score);
   }
 }
