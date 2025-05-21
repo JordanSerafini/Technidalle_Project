@@ -145,7 +145,50 @@ export const formatChatbotResponse = (response: ChatbotResponse): string => {
     // Si les données sont disponibles mais pas de message formaté, 
     // on peut créer un message générique ou formater les données
     if (typeof response.data === 'object') {
-      return JSON.stringify(response.data, null, 2);
+      try {
+        // Fonction récursive pour transformer [object Object] en valeurs plus lisibles
+        const replacer = (key: string, value: any) => {
+          // Gérer les objets spéciaux comme les dates
+          if (value instanceof Date) {
+            return value.toISOString();
+          }
+          
+          // Pour les objets imbriqués sans toString personnalisé
+          if (typeof value === 'object' && value !== null) {
+            // Si c'est un tableau d'objets, formater chaque élément
+            if (Array.isArray(value)) {
+              return value.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                  // Pour les objets dans les tableaux, on extrait les propriétés importantes
+                  if ('id' in item && ('name' in item || 'firstname' in item)) {
+                    // Format simplifié pour les objets avec ID et nom
+                    const name = 'name' in item ? item.name : 
+                                 ('firstname' in item && 'lastname' in item) ? 
+                                 `${item.firstname} ${item.lastname}` : 'Sans nom';
+                    return `#${item.id} ${name}`;
+                  }
+                }
+                return item;
+              });
+            }
+            
+            // Si c'est un objet avec des propriétés importantes, on les met en avant
+            if ('id' in value) {
+              if ('name' in value) {
+                return `${value.name} (ID: ${value.id})`;
+              } else if ('firstname' in value && 'lastname' in value) {
+                return `${value.firstname} ${value.lastname} (ID: ${value.id})`;
+              }
+            }
+          }
+          return value;
+        };
+        
+        return JSON.stringify(response.data, replacer, 2);
+      } catch (error) {
+        console.error('Erreur lors du formatage des données:', error);
+        return JSON.stringify(response.data, null, 2);
+      }
     }
     return String(response.data);
   }

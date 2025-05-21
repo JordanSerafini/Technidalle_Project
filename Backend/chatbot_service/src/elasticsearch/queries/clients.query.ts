@@ -75,6 +75,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             { lastname: { contains: client, mode: 'insensitive' } },
             { company_name: { contains: client, mode: 'insensitive' } },
             { email: { contains: client, mode: 'insensitive' } },
+            { customer_id: { contains: client, mode: 'insensitive' } },
           ],
         },
         include: {

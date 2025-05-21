@@ -11,10 +11,10 @@ import { sendMessageToChatbot, formatChatbotResponse, checkChatbotHealth } from 
 
 // Suggestions de démarrage pour la conversation
 const INITIAL_SUGGESTIONS = [
-  "Comment puis-je créer un nouveau projet ?",
-  "Quelles sont les solutions pour mes clients ?",
-  "Où trouver mes documents ?",
-  "Comment analyser mes emails ?"
+  "Quels sont les chantiers de cette année ?",
+  "Qui sont les 10 derniers clients ?",
+  "Quel sont les projets les plus rentables ?",
+  "Quel est le planning de travail du mois ?",
 ];
 
 export default function ChatbotScreen() {
