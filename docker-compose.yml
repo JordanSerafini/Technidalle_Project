@@ -104,36 +104,6 @@ services:
       - "host.docker.internal:host-gateway"
       - "postgres_sync:172.18.0.3"
 
-  # sync_service:
-  #   build:
-  #     context: ./Backend/sync_service
-  #     dockerfile: Dockerfile
-  #   container_name: sync_service
-  #   ports:
-  #     - "3006:3006"
-  #   environment:
-  #     - PORT=3006
-  #     - DB_HOST=postgres_sync
-  #     - DB_PORT=5432
-  #     - DB_USER=sync_user
-  #     - DB_PASSWORD=sync_password
-  #     - DB_NAME=sync_db
-  #     - EBP_SERVER=host.docker.internal
-  #     - EBP_DATABASE=votre_base_ebp
-  #     - EBP_USER=votre_utilisateur_ebp
-  #     - EBP_PASSWORD=votre_mot_de_passe_ebp
-  #     - EBP_PORT=1433
-  #     - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-  #   depends_on:
-  #     postgres_sync:
-  #       condition: service_healthy
-  #   networks:
-  #     - app-network
-  #   extra_hosts:
-  #     - "host.docker.internal:host-gateway"
-  #   volumes:
-  #     - ./Backend/sync_service:/app
-
   resources:
     build:
       context: ./Backend/resources_service
@@ -257,6 +227,25 @@ services:
       - /app/node_modules
       - /app/generated/prisma
 
+  email-modules:
+    build:
+      context: ./Email_Module/email_service_openai
+      dockerfile: Dockerfile
+    container_name: email-modules
+    ports:
+      - "4444:4444"
+    environment:
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - IMAP_HOST=${IMAP_HOST}
+      - IMAP_PORT=${IMAP_PORT}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+
+    networks:
+      - app-network
 
   api-gateway:
     build:
