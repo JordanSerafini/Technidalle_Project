@@ -33,6 +33,7 @@
     "helmet": "^7.2.0",
     "langchain": "^0.0.212",
     "openai": "^4.20.1",
+    "path-to-regexp": "^8.2.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "zod": "^3.22.4"
