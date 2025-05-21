@@ -9,6 +9,15 @@ interface EventCount {
 
 export const planningQueries = {
   staff_schedule_next_week: {
+    keywords: [
+      'planning',
+      'semaine',
+      'personnel',
+      'employé',
+      'travail',
+      'équipe',
+      'programmé',
+    ],
     questions: [
       'Qui travaille la semaine prochaine ?',
       'Planning des employés pour la semaine prochaine',
@@ -60,11 +69,21 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       "Planning du personnel pour la semaine prochaine avec leur nombre d'heures programmées",
   },
 
   events_today: {
+    keywords: [
+      'événement',
+      'aujourd\'hui',
+      'activité',
+      'programme',
+      'rendez-vous',
+      'planning',
+      'journée',
+    ],
     questions: [
       "Quels sont les événements aujourd'hui ?",
       'Activités du jour',
@@ -109,10 +128,20 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description: "Liste de tous les événements programmés pour aujourd'hui",
   },
 
   staff_availability_tomorrow: {
+    keywords: [
+      'disponible',
+      'demain',
+      'personnel',
+      'libre',
+      'membre',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui est disponible demain ?',
       'Personnel disponible demain',
@@ -156,11 +185,21 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel disponible pour demain (sans entrées dans le planning)',
   },
 
   project_staff_distribution: {
+    keywords: [
+      'distribution',
+      'répartition',
+      'projet',
+      'personnel',
+      'équipe',
+      'chantier',
+      'ressource',
+    ],
     questions: [
       'Comment sont distribués les employés sur les projets ?',
       'Répartition du personnel par projet',
@@ -190,11 +229,20 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       "Répartition du personnel sur les différents projets en cours, avec le nombre d'employés et la liste des membres par projet",
   },
 
   events_tomorrow: {
+    keywords: [
+      'événement',
+      'demain',
+      'activité',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements demain ?',
       'Activités de demain',
@@ -240,10 +288,19 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste de tous les événements programmés pour demain',
   },
 
   events_this_week: {
+    keywords: [
+      'événement',
+      'semaine',
+      'activité',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements cette semaine ?',
       'Activités de la semaine',
@@ -290,11 +347,21 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste de tous les événements programmés pour la semaine en cours',
   },
 
   events_next_week: {
+    keywords: [
+      'événement',
+      'semaine',
+      'prochaine',
+      'activité',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements la semaine prochaine ?',
       'Activités de la semaine prochaine',
@@ -341,11 +408,20 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste de tous les événements programmés pour la semaine prochaine',
   },
 
   events_by_type: {
+    keywords: [
+      'événement',
+      'type',
+      'activité',
+      'rendez-vous',
+      'liste',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements de type [TYPE] ?',
       'Activités de catégorie [TYPE]',
@@ -381,6 +457,7 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des événements filtrés par type spécifique',
     parameters: [
       {
@@ -392,6 +469,13 @@ export const planningQueries = {
   },
 
   events_by_date_range: {
+    keywords: [
+      'événement',
+      'date',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements entre [START_DATE] et [END_DATE] ?',
       'Activités programmées du [START_DATE] au [END_DATE]',
@@ -436,6 +520,7 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste des événements programmés dans une plage de dates spécifique',
     parameters: [
@@ -453,6 +538,13 @@ export const planningQueries = {
   },
 
   events_by_project: {
+    keywords: [
+      'événement',
+      'projet',
+      'activité',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements pour le projet [PROJECT] ?',
       'Activités liées au chantier [PROJECT]',
@@ -493,6 +585,7 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des événements associés à un projet spécifique',
     parameters: [
       {
@@ -503,6 +596,13 @@ export const planningQueries = {
   },
 
   events_by_staff: {
+    keywords: [
+      'événement',
+      'personnel',
+      'activité',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements pour [STAFF] ?',
       'Activités de [STAFF]',
@@ -548,6 +648,7 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste des événements associés à un membre du personnel spécifique',
     parameters: [
@@ -559,6 +660,14 @@ export const planningQueries = {
   },
 
   upcoming_events: {
+    keywords: [
+      'événement',
+      'prochain',
+      'rendez-vous',
+      'activité',
+      'programme',
+      'planning',
+    ],
     questions: [
       'Quels sont les prochains événements ?',
       'Prochains rendez-vous',
@@ -599,10 +708,18 @@ export const planningQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description: 'Liste des 10 prochains événements programmés',
   },
 
   busy_days: {
+    keywords: [
+      'jour',
+      'chargé',
+      'événement',
+      'programme',
+      'planning',
+    ],
     questions: [
       'Quels sont les jours les plus chargés ?',
       "Journées avec le plus d'événements",
@@ -649,11 +766,19 @@ export const planningQueries = {
         .sort((a: EventCount, b: EventCount) => b.event_count - a.event_count)
         .slice(0, 10);
     },
+    response_format: 'table',
     description:
       "Liste des 10 jours avec le plus grand nombre d'événements programmés",
   },
 
   site_visits_scheduled: {
+    keywords: [
+      'visite',
+      'chantier',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quelles visites de chantier sont programmées ?',
       'Prochaines visites techniques',
@@ -696,11 +821,18 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste des visites de chantier et réunions sur site programmées',
   },
 
   client_meetings_scheduled: {
+    keywords: [
+      'rendez-vous',
+      'client',
+      'programme',
+      'planning',
+    ],
     questions: [
       'Quels rendez-vous clients sont programmés ?',
       'Prochaines rencontres avec clients',
@@ -747,10 +879,19 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des rendez-vous avec les clients programmés',
   },
 
   tasks_due_today: {
+    keywords: [
+      'tâche',
+      'faire',
+      'aujourd\'hui',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       "Quelles tâches sont à faire aujourd'hui ?",
       'Tâches du jour',
@@ -801,10 +942,18 @@ export const planningQueries = {
         orderBy: [{ priority: 'desc' }, { due_date: 'asc' }],
       });
     },
+    response_format: 'table',
     description: "Liste des tâches à réaliser aujourd'hui, triées par priorité",
   },
 
   staff_availability_this_week: {
+    keywords: [
+      'disponible',
+      'semaine',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui est disponible cette semaine ?',
       'Personnel disponible cette semaine',
@@ -868,11 +1017,19 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel disponible pour la semaine en cours (sans entrées dans le planning ni événements)',
   },
 
   project_stages_upcoming: {
+    keywords: [
+      'étape',
+      'projet',
+      'chantier',
+      'programme',
+      'planning',
+    ],
     questions: [
       'Quelles sont les prochaines étapes de projet ?',
       'Prochaines phases de chantier',
@@ -921,11 +1078,19 @@ export const planningQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description:
       'Liste des 10 prochaines étapes de projet à venir, avec leur planning et le personnel affecté',
   },
 
   staff_working_next_month: {
+    keywords: [
+      'travail',
+      'mois',
+      'prochain',
+      'programme',
+      'équipe',
+    ],
     questions: [
       'Qui travaille le mois prochain ?',
       'Personnel programmé pour le mois prochain',
@@ -991,11 +1156,19 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel qui travaillera sur des projets actifs le mois prochain',
   },
 
   staff_schedule_by_date: {
+    keywords: [
+      'travail',
+      'date',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui travaille le [DATE] ?',
       'Personnel présent le [DATE]',
@@ -1056,6 +1229,7 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste des employés programmés pour travailler à une date spécifique',
     parameters: [
@@ -1068,6 +1242,13 @@ export const planningQueries = {
   },
 
   staff_schedule_for_project: {
+    keywords: [
+      'travail',
+      'projet',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui travaille sur le projet [PROJECT] ?',
       'Personnel assigné au chantier [PROJECT]',
@@ -1125,6 +1306,7 @@ export const planningQueries = {
         ],
       });
     },
+    response_format: 'table',
     description:
       'Liste des employés assignés à un projet spécifique avec leur rôle',
     parameters: [
@@ -1136,6 +1318,13 @@ export const planningQueries = {
   },
 
   events_this_month: {
+    keywords: [
+      'événement',
+      'mois',
+      'programme',
+      'rendez-vous',
+      'planning',
+    ],
     questions: [
       'Quels sont les événements ce mois-ci ?',
       'Activités du mois',
@@ -1183,11 +1372,19 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste de tous les événements programmés pour le mois en cours',
   },
 
   deadlines_this_month: {
+    keywords: [
+      'échéance',
+      'mois',
+      'projet',
+      'date',
+      'deadline',
+    ],
     questions: [
       'Quelles sont les échéances ce mois-ci ?',
       'Dates limites du mois',
@@ -1238,10 +1435,18 @@ export const planningQueries = {
         },
       });
     },
+    response_format: 'table',
     description: "Liste des échéances d'étapes de projets pour le mois courant",
   },
 
   daily_site_reports_recent: {
+    keywords: [
+      'rapport',
+      'chantier',
+      'activité',
+      'journée',
+      'récent',
+    ],
     questions: [
       'Quels sont les derniers rapports de chantier ?',
       'Rapports journaliers récents',
@@ -1278,10 +1483,18 @@ export const planningQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description: 'Liste des 10 derniers rapports journaliers de chantier',
   },
 
   staff_availability_month: {
+    keywords: [
+      'disponible',
+      'mois',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui est disponible ce mois ?',
       'Personnel disponible ce mois',
@@ -1327,11 +1540,19 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel disponible pour le mois en cours (sans entrées dans le planning)',
   },
 
   staff_availability_week: {
+    keywords: [
+      'disponible',
+      'semaine',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui est disponible cette semaine ?',
       'Personnel disponible cette semaine',
@@ -1376,11 +1597,20 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel disponible pour la semaine en cours (sans entrées dans le planning)',
   },
 
   staff_availability_next_week: {
+    keywords: [
+      'disponible',
+      'semaine',
+      'prochaine',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui est disponible la semaine prochaine ?',
       'Personnel disponible semaine prochaine',
@@ -1427,11 +1657,18 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel disponible pour la semaine prochaine (sans entrées dans le planning)',
   },
 
   missing_timesheets: {
+    keywords: [
+      'employé',
+      'pointage',
+      'aujourd\'hui',
+      'manque',
+    ],
     questions: [
       "Qui n'a pas pointé aujourd'hui ?",
       'Employés sans pointage',
@@ -1477,10 +1714,17 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description: "Liste des employés qui n'ont pas de pointage aujourd'hui",
   },
 
   daily_workload: {
+    keywords: [
+      'travail',
+      'charge',
+      'semaine',
+      'heures',
+    ],
     questions: [
       'Quelle est la charge de travail cette semaine ?',
       'Quels jours sont les plus chargés ?',
@@ -1540,11 +1784,18 @@ export const planningQueries = {
         }))
         .sort((a, b) => a.date.getTime() - b.date.getTime());
     },
+    response_format: 'table',
     description:
       "Nombre total d'heures de travail enregistrées pour chaque jour de la semaine en cours",
   },
 
   work_hours_per_project: {
+    keywords: [
+      'heures',
+      'travail',
+      'chantier',
+      'projet',
+    ],
     questions: [
       "Combien d'heures ont été travaillées par projet ?",
       'Répartition des heures de travail par chantier',
@@ -1610,10 +1861,18 @@ export const planningQueries = {
       // Convertir en tableau pour le retour
       return Object.values(projectHours).sort((a, b) => b.hours - a.hours);
     },
+    response_format: 'table',
     description: "Nombre d'heures travaillées par projet cette semaine",
   },
 
   staff_most_worked_current_month: {
+    keywords: [
+      'travail',
+      'mois',
+      'personnel',
+      'employé',
+      'heures',
+    ],
     questions: [
       'Qui a le plus travaillé ce mois ?',
       "Personnel avec le plus d'heures ce mois-ci",
@@ -1675,11 +1934,20 @@ export const planningQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description:
       "Top 10 des employés ayant accumulé le plus d'heures de travail effectif durant le mois en cours",
   },
 
   staff_availability_next_month: {
+    keywords: [
+      'disponible',
+      'mois',
+      'prochain',
+      'personnel',
+      'employé',
+      'planifié',
+    ],
     questions: [
       'Qui est disponible le mois prochain ?',
       'Personnel disponible mois prochain',
@@ -1735,6 +2003,7 @@ export const planningQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste du personnel disponible pour le mois prochain (sans affectation à des projets pour cette période)',
   },

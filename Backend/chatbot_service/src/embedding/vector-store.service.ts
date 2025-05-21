@@ -21,7 +21,7 @@ export class VectorStoreService {
     try {
       const response = await this.openai.embeddings.create({
         input: text,
-        model: 'text-embedding-3-small',
+        model: 'text-embedding-3-large',
       });
 
       return response.data[0].embedding;

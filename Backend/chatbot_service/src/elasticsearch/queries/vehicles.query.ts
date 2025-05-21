@@ -4,6 +4,16 @@ const prisma = new PrismaClient();
 
 export const vehiclesQueries = {
   vehicles_list: {
+    keywords: [
+      'véhicule',
+      'voiture',
+      'camion',
+      'utilitaire',
+      'flotte',
+      'parc',
+      'automobile',
+      'transport',
+    ],
     questions: [
       'Liste des véhicules',
       'Tous les véhicules',
@@ -32,10 +42,21 @@ export const vehiclesQueries = {
         orderBy: [{ status: 'asc' }, { name: 'asc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste complète des véhicules de la flotte',
   },
 
   vehicle_details: {
+    keywords: [
+      'véhicule',
+      'détail',
+      'fiche',
+      'information',
+      'spécification',
+      'caractéristique',
+      'technique',
+      'immatriculation',
+    ],
     questions: [
       'Détails du véhicule [VEHICLE]',
       'Information sur [VEHICLE]',
@@ -116,6 +137,7 @@ export const vehiclesQueries = {
         },
       });
     },
+    response_format: 'object',
     description: 'Informations détaillées sur un véhicule spécifique',
     parameters: [
       {
@@ -126,6 +148,16 @@ export const vehiclesQueries = {
   },
 
   available_vehicles: {
+    keywords: [
+      'disponible',
+      'libre',
+      'utilisable',
+      'prêt',
+      'non réservé',
+      'véhicule',
+      'flotte',
+      'parc',
+    ],
     questions: [
       'Véhicules disponibles',
       'Quels véhicules sont libres ?',
@@ -155,11 +187,22 @@ export const vehiclesQueries = {
         orderBy: [{ type: 'asc' }, { name: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste des véhicules actuellement disponibles pour utilisation',
   },
 
   vehicles_maintenance_due: {
+    keywords: [
+      'entretien',
+      'maintenance',
+      'révision',
+      'contrôle',
+      'inspection',
+      'réparation',
+      'technique',
+      'vérification',
+    ],
     questions: [
       'Véhicules nécessitant un entretien',
       'Entretiens à prévoir',
@@ -210,11 +253,22 @@ export const vehiclesQueries = {
         orderBy: [{ next_technical_control: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste des véhicules nécessitant un entretien dans le mois à venir',
   },
 
   vehicle_reservations: {
+    keywords: [
+      'réservation',
+      'planning',
+      'calendrier',
+      'utilisation',
+      'occupation',
+      'attribution',
+      'emploi',
+      'programme',
+    ],
     questions: [
       'Réservations de véhicules',
       'Planning des véhicules',
@@ -266,10 +320,21 @@ export const vehiclesQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des réservations de véhicules à venir',
   },
 
   vehicle_by_staff: {
+    keywords: [
+      'véhicule',
+      'réservation',
+      'utilisateur',
+      'personnel',
+      'employé',
+      'attribution',
+      'conducteur',
+      'chauffeur',
+    ],
     questions: [
       'Véhicules utilisés par [STAFF]',
       'Quels véhicules utilise [STAFF] ?',
@@ -320,6 +385,7 @@ export const vehiclesQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description:
       'Liste des véhicules utilisés par un membre du personnel spécifique',
     parameters: [
@@ -331,6 +397,16 @@ export const vehiclesQueries = {
   },
 
   fuel_consumption_statistics: {
+    keywords: [
+      'carburant',
+      'consommation',
+      'essence',
+      'diesel',
+      'coût',
+      'économie',
+      'rendement',
+      'efficacité',
+    ],
     questions: [
       'Statistiques de consommation de carburant',
       'Consommation moyenne de la flotte',
@@ -443,11 +519,22 @@ export const vehiclesQueries = {
         (a, b) => (b.average_consumption || 0) - (a.average_consumption || 0),
       );
     },
+    response_format: 'table',
     description:
       'Analyse statistique de la consommation de carburant de la flotte sur les 3 derniers mois',
   },
 
   vehicle_incidents_report: {
+    keywords: [
+      'incident',
+      'accident',
+      'panne',
+      'sinistre',
+      'dommage',
+      'problème',
+      'réparation',
+      'défaillance',
+    ],
     questions: [
       'Rapport des incidents véhicules',
       'Incidents sur la flotte',
@@ -500,6 +587,7 @@ export const vehiclesQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Rapport des incidents de véhicules des 6 derniers mois',
   },
 };

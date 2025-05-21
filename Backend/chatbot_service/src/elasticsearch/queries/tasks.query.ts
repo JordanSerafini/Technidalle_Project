@@ -4,6 +4,16 @@ const prisma = new PrismaClient();
 
 export const tasksQueries = {
   tasks_list: {
+    keywords: [
+      'tâche',
+      'liste',
+      'travail',
+      'activité',
+      'à faire',
+      'en cours',
+      'planning',
+      'chantier',
+    ],
     questions: [
       'Liste des tâches',
       'Toutes les tâches',
@@ -50,10 +60,21 @@ export const tasksQueries = {
         orderBy: [{ due_date: 'asc' }, { priority: 'desc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste de toutes les tâches non terminées',
   },
 
   tasks_by_staff: {
+    keywords: [
+      'tâche',
+      'personnel',
+      'affecté',
+      'assigné',
+      'employé',
+      'responsable',
+      'technicien',
+      'travail',
+    ],
     questions: [
       'Tâches de [STAFF]',
       'Quelles tâches pour [STAFF] ?',
@@ -101,6 +122,7 @@ export const tasksQueries = {
         orderBy: [{ due_date: 'asc' }, { priority: 'desc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste des tâches assignées à un membre du personnel spécifique',
     parameters: [
@@ -112,6 +134,16 @@ export const tasksQueries = {
   },
 
   tasks_by_project: {
+    keywords: [
+      'tâche',
+      'projet',
+      'chantier',
+      'travail',
+      'mission',
+      'programme',
+      'planning',
+      'activité',
+    ],
     questions: [
       'Tâches du projet [PROJECT]',
       'Quelles tâches pour [PROJECT] ?',
@@ -158,6 +190,7 @@ export const tasksQueries = {
         orderBy: [{ status: 'asc' }, { due_date: 'asc' }, { priority: 'desc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste des tâches associées à un projet spécifique',
     parameters: [
       {
@@ -168,6 +201,16 @@ export const tasksQueries = {
   },
 
   overdue_tasks: {
+    keywords: [
+      'retard',
+      'dépassé',
+      'échéance',
+      'date limite',
+      'en souffrance',
+      'non terminé',
+      'expiré',
+      'délai',
+    ],
     questions: [
       'Tâches en retard',
       'Retards de tâches',
@@ -220,11 +263,22 @@ export const tasksQueries = {
         orderBy: [{ due_date: 'asc' }, { priority: 'desc' }],
       });
     },
+    response_format: 'table',
     description:
       "Liste des tâches en retard (date d'échéance dépassée et non terminées)",
   },
 
   high_priority_tasks: {
+    keywords: [
+      'priorité',
+      'urgent',
+      'important',
+      'critique',
+      'essentiel',
+      'immédiat',
+      'primordial',
+      'pressant',
+    ],
     questions: [
       'Tâches prioritaires',
       'Tâches urgentes',
@@ -274,10 +328,21 @@ export const tasksQueries = {
         orderBy: [{ priority: 'desc' }, { due_date: 'asc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste des tâches à haute priorité (priorité ≥ 8)',
   },
 
   project_stages: {
+    keywords: [
+      'étape',
+      'phase',
+      'stade',
+      'progression',
+      'avancement',
+      'cycle',
+      'séquence',
+      'projet',
+    ],
     questions: [
       'Étapes des projets',
       'Phases des chantiers',
@@ -336,10 +401,21 @@ export const tasksQueries = {
         ],
       });
     },
+    response_format: 'table',
     description: 'Liste des étapes de projets non terminées',
   },
 
   project_stages_by_project: {
+    keywords: [
+      'étape',
+      'phase',
+      'projet',
+      'chantier',
+      'progression',
+      'découpage',
+      'organisation',
+      'structure',
+    ],
     questions: [
       'Étapes du projet [PROJECT]',
       'Phases du chantier [PROJECT]',
@@ -406,6 +482,7 @@ export const tasksQueries = {
         },
       });
     },
+    response_format: 'object',
     description:
       "Liste des étapes d'un projet spécifique avec leur avancement et les tâches associées",
     parameters: [
@@ -417,6 +494,16 @@ export const tasksQueries = {
   },
 
   stage_checklists: {
+    keywords: [
+      'checklist',
+      'vérification',
+      'contrôle',
+      'validation',
+      'qualité',
+      'point',
+      'inspection',
+      'test',
+    ],
     questions: [
       'Checklists des étapes',
       'Points de contrôle',
@@ -464,11 +551,22 @@ export const tasksQueries = {
         ],
       });
     },
+    response_format: 'table',
     description:
       'Liste des points de vérification (checklists) pour les étapes de projet',
   },
 
   task_completion_statistics: {
+    keywords: [
+      'statistique',
+      'achèvement',
+      'complétion',
+      'avancement',
+      'performance',
+      'indicateur',
+      'suivi',
+      'analytique',
+    ],
     questions: [
       'Statistiques de complétion des tâches',
       'Avancement des tâches',
@@ -620,6 +718,7 @@ export const tasksQueries = {
           .sort((a, b) => b.completion_rate - a.completion_rate),
       };
     },
+    response_format: 'object',
     description:
       'Analyse statistique de la complétion des tâches avec ventilation par projet et personnel',
   },
