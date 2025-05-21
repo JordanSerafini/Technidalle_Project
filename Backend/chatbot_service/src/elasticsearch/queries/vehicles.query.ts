@@ -2,6 +2,18 @@ import { PrismaClient } from '../../../../generated/prisma';
 
 const prisma = new PrismaClient();
 
+interface VehicleStatistics {
+  name: string;
+  registration_number: string;
+  type: string;
+  fuel_type: string;
+  total_quantity: number;
+  total_cost: number;
+  total_distance: number;
+  average_consumption: number | null;
+  cost_per_km: number | null;
+}
+
 export const vehiclesQueries = {
   vehicles_list: {
     keywords: [
@@ -480,7 +492,7 @@ export const vehiclesQueries = {
       });
 
       // Calculer les statistiques
-      const statistics = [];
+      const statistics: VehicleStatistics[] = [];
 
       vehiclesMap.forEach((vehicle) => {
         if (vehicle.refuelings.length > 1) {
