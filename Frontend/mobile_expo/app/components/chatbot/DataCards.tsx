@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { router } from 'expo-router';
 
 interface ClientData {
   id: number;
@@ -51,8 +52,15 @@ interface DataCardsProps {
 
 const ClientCard: React.FC<ClientCardProps> = ({ client, onPress }) => {
   const handlePress = () => {
+    // Navigation vers la page de détail du client
     if (onPress) {
       onPress(client);
+    } else {
+      // Navigation par défaut si onPress n'est pas fourni
+      router.push({
+        pathname: "/(tabs)/clients/[id]",
+        params: { id: client.id.toString() }
+      });
     }
   };
 
@@ -95,8 +103,15 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onPress }) => {
 // Composant pour afficher un projet
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, onPress }) => {
   const handlePress = () => {
+    // Navigation vers la page de détail du projet
     if (onPress) {
       onPress(project);
+    } else {
+      // Navigation par défaut si onPress n'est pas fourni
+      router.push({
+        pathname: "/(tabs)/projects/[id]",
+        params: { id: project.id.toString() }
+      });
     }
   };
 
@@ -181,6 +196,28 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
     return null;
   }
 
+  // Fonction pour naviguer vers la page de détail générique
+  const navigateToDetailPage = (item: any) => {
+    if (onItemPress) {
+      onItemPress(item);
+    } else {
+      // Navigation par défaut basée sur le type de données
+      if ('firstname' in item && 'lastname' in item) {
+        // C'est un client
+        router.push({
+          pathname: "/(tabs)/clients/[id]",
+          params: { id: item.id.toString() }
+        });
+      } else if ('reference' in item && 'start_date' in item) {
+        // C'est un projet
+        router.push({
+          pathname: "/(tabs)/projects/[id]",
+          params: { id: item.id.toString() }
+        });
+      }
+    }
+  };
+
   // Déterminer le type de données à afficher
   const isClientData = format === 'table' && data[0] && 'firstname' in data[0] && 'lastname' in data[0];
   const isProjectData = format === 'table' && data[0] && 'reference' in data[0] && 'start_date' in data[0];
@@ -233,7 +270,10 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
         data={data}
         keyExtractor={(_: any, index: number) => index.toString()}
         renderItem={({ item }: { item: any }) => (
-          <View className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200">
+          <TouchableOpacity 
+            className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
+            onPress={() => navigateToDetailPage(item)}
+          >
             {Object.entries(item).map(([key, value]) => {
               // Ne pas afficher les objets complexes ou les tableaux directement
               if (typeof value === 'object' && value !== null) {
@@ -253,27 +293,14 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
                 );
               }
               
-              // Pour les dates, les formater correctement
+              // Pour les dates, afficher simplement la valeur telle quelle
               if (key.includes('date') && value) {
-                try {
-                  // S'assurer que value est une chaîne de caractères avant de l'utiliser
-                  let dateString = '';
-                  if (typeof value === 'string') {
-                    dateString = value;
-                  } else {
-                    dateString = '' + value; // Conversion forcée en string
-                  }
-                  
-                  const formattedDate = format(new Date(dateString), 'dd/MM/yyyy', { locale: fr });
-                  return (
-                    <View key={key} className="flex-row mb-1">
-                      <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                      <Text className="text-gray-600">{formattedDate}</Text>
-                    </View>
-                  );
-                } catch (e) {
-                  // En cas d'erreur de formatage, afficher la valeur telle quelle
-                }
+                return (
+                  <View key={key} className="flex-row mb-1">
+                    <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
+                    <Text className="text-gray-600">{String(value)}</Text>
+                  </View>
+                );
               }
               
               return (
@@ -283,7 +310,7 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
                 </View>
               );
             })}
-          </View>
+          </TouchableOpacity>
         )}
         scrollEnabled={false}
       />
