@@ -174,6 +174,26 @@ export default function ChatbotScreen() {
         pathname: "/(tabs)/projects/[id]",
         params: { id: item.id.toString() }
       });
+    } else if ('reference' in item && 'issue_date' in item) {
+      // C'est un document
+      router.push({
+        pathname: "/(tabs)/documents/[id]",
+        params: { id: item.id.toString() }
+      });
+    } else if (item.id && item.title && 'type' in item && (item.type === 'event' || item.type === 'assignment')) {
+      // C'est un élément de planning
+      if (item.project?.id) {
+        // Si c'est lié à un projet, on redirige vers le projet
+        router.push({
+          pathname: "/(tabs)/projects/[id]",
+          params: { id: item.project.id.toString() }
+        });
+      } else {
+        // Sinon, on redirige vers la page de planning
+        router.push({
+          pathname: "/(tabs)/planning"
+        });
+      }
     } else {
       // Type d'élément non pris en charge, afficher une alerte
       Alert.alert(
