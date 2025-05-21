@@ -2,14 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from '@elastic/elasticsearch';
 import { VectorStoreService } from '../embedding/vector-store.service';
-import { clientsQueries } from './queries/clients.query';
-import { vehiclesQueries } from './queries/vehicles.query';
+import { getClientsQueries } from './queries/clients.query';
+import { getVehiclesQueries } from './queries/vehicles.query';
 import { tasksQueries } from './queries/tasks.query';
 import { staffQueries } from './queries/staff.query';
 import { projectsQueries } from './queries/projects.query';
 import { planningQueries } from './queries/planning.query';
-import { materialsQueries } from './queries/materials.query';
+import { getMaterialsQueries } from './queries/materials.query';
 import { documentsQueries } from './queries/documents.query';
+import { PrismaService } from '../prisma/prisma.service';
 
 // Interfaces pour le typage
 interface ElasticsearchResponseHit {
@@ -48,9 +49,15 @@ export class ElasticsearchService {
   private readonly indexName = 'questions';
   private readonly queriesIndexName = 'predefined_queries';
 
+  // Instancier les queries avec PrismaService
+  private readonly clientsQueries;
+  private readonly materialsQueries;
+  private readonly vehiclesQueries;
+
   constructor(
     private readonly configService: ConfigService,
     private readonly vectorStoreService: VectorStoreService,
+    private readonly prismaService: PrismaService,
   ) {
     const options = {
       node: this.configService.get<string>(
@@ -75,6 +82,11 @@ export class ElasticsearchService {
 
     // Créer le client avec les options de base
     this.client = new Client(options) as Client;
+
+    // Initialiser les queries avec PrismaService
+    this.clientsQueries = getClientsQueries(this.prismaService);
+    this.materialsQueries = getMaterialsQueries(this.prismaService);
+    this.vehiclesQueries = getVehiclesQueries(this.prismaService);
 
     // Pas besoin de modifier les en-têtes, utiliser version Client simple
     this.initializeIndex();
@@ -337,13 +349,13 @@ export class ElasticsearchService {
 
       // Récupérer toutes les requêtes prédéfinies
       const allQueries: Record<string, QueryDetails> = {
-        ...clientsQueries,
-        ...vehiclesQueries,
+        ...this.clientsQueries,
+        ...this.vehiclesQueries,
         ...tasksQueries,
         ...staffQueries,
         ...projectsQueries,
         ...planningQueries,
-        ...materialsQueries,
+        ...this.materialsQueries,
         ...documentsQueries,
       };
 
@@ -435,6 +447,7 @@ export class ElasticsearchService {
   async findSimilarPredefinedQueries(
     questionText: string,
     limit: number = 5,
+    additionalParams: Record<string, unknown> = {},
   ): Promise<any[]> {
     try {
       // Générer l'embedding pour la question
@@ -467,6 +480,7 @@ export class ElasticsearchService {
         parameters: hit._source.parameters,
         response_format: hit._source.response_format,
         score: hit._score,
+        additionalParams: additionalParams,
       }));
 
       return results;

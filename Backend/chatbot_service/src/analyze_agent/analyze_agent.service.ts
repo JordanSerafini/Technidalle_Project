@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
 import { LangchainService } from '../langchain/langchain.service';
+import { QueryExecutorService } from './query-executor.service';
 
 export interface QuestionAnalysisResult {
   originalQuestion: string;
@@ -49,11 +50,32 @@ interface PredefinedQueryResult {
   score: number;
 }
 
+// Interface pour stocker le contexte des conversations
+export interface ConversationContext {
+  userId: string;
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+  }>;
+  lastIntent?: string;
+  lastEntities?: Array<{
+    name: string;
+    value: string;
+    type: string;
+  }>;
+  lastQueryExecuted?: string;
+}
+
 @Injectable()
 export class AnalyzeAgentService {
+  // Map pour stocker les contextes de conversation par utilisateur
+  private conversationContexts: Map<string, ConversationContext> = new Map();
+
   constructor(
     private readonly elasticsearchService: ElasticsearchService,
     private readonly langchainService: LangchainService,
+    private readonly queryExecutorService: QueryExecutorService,
   ) {}
 
   async analyzeQuestion(question: string): Promise<QuestionAnalysisResult> {
@@ -187,5 +209,75 @@ export class AnalyzeAgentService {
       similarQuestions,
       similarPredefinedQueries,
     };
+  }
+
+  // Méthodes pour gérer le contexte des conversations
+  getConversationContext(userId: string): ConversationContext | undefined {
+    return this.conversationContexts.get(userId);
+  }
+
+  createConversationContext(userId: string): ConversationContext {
+    const newContext: ConversationContext = {
+      userId,
+      messages: [],
+    };
+    this.conversationContexts.set(userId, newContext);
+    return newContext;
+  }
+
+  updateConversationContext(
+    userId: string,
+    userQuestion: string,
+    assistantResponse: string,
+    intent?: string,
+    entities?: any[],
+    queryExecuted?: string,
+  ): void {
+    let context = this.getConversationContext(userId);
+
+    if (!context) {
+      context = this.createConversationContext(userId);
+    }
+
+    // Ajouter le message de l'utilisateur
+    context.messages.push({
+      role: 'user',
+      content: userQuestion,
+      timestamp: new Date(),
+    });
+
+    // Ajouter la réponse de l'assistant
+    context.messages.push({
+      role: 'assistant',
+      content: assistantResponse,
+      timestamp: new Date(),
+    });
+
+    // Mettre à jour le contexte avec les dernières informations
+    if (intent) context.lastIntent = intent;
+    if (entities) context.lastEntities = entities;
+    if (queryExecuted) context.lastQueryExecuted = queryExecuted;
+
+    // Limiter le nombre de messages stockés (par exemple, les 10 derniers)
+    if (context.messages.length > 20) {
+      context.messages = context.messages.slice(context.messages.length - 20);
+    }
+
+    this.conversationContexts.set(userId, context);
+  }
+
+  /**
+   * Récupère la liste des projets associés à un client (par nom, email ou ID)
+   */
+  async getProjectsForClient(client: string): Promise<any[]> {
+    try {
+      const result = await this.queryExecutorService.executeQuery('client_projects', { CLIENT: client });
+      if (result && result.data) {
+        return result.data as any[];
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des projets du client:', error);
+    }
+    return [];
   }
 }
