@@ -138,7 +138,7 @@ export class AnalyzeAgentController {
       try {
         const queryResult = await this.queryExecutorService.executeQuery(
           topQuery.query_id,
-          {}, // Pour le moment, nous n'extrayons pas de paramètres de la question
+          {},
         );
 
         return {
