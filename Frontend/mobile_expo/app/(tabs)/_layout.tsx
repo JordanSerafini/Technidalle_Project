@@ -66,6 +66,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="document-outline" size={24} color={color} />,
         }}
       />
+      
       {/* <Tabs.Screen
         name="search-results"
         options={{

@@ -25,15 +25,29 @@ export interface QuestionAnalysisResult {
   possibleQueries: string[];
 }
 
+// Interface pour les messages de conversation
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 @Injectable()
 export class LangchainService {
   private readonly logger = new Logger(LangchainService.name);
   private readonly chatModel: ChatOpenAI;
+  private readonly gpt4Model: ChatOpenAI;
 
   constructor(private readonly configService: ConfigService) {
     this.chatModel = new ChatOpenAI({
       modelName: 'gpt-3.5-turbo',
       temperature: 0,
+      openAIApiKey: this.configService.get<string>('OPENAI_API_KEY'),
+    });
+    
+    // Initialiser un modèle GPT-4 pour les tâches plus complexes
+    this.gpt4Model = new ChatOpenAI({
+      modelName: 'gpt-4',
+      temperature: 0.2,
       openAIApiKey: this.configService.get<string>('OPENAI_API_KEY'),
     });
   }
@@ -79,7 +93,7 @@ export class LangchainService {
         format_instructions: async () => parser.getFormatInstructions(),
       },
       prompt,
-      this.chatModel,
+      this.gpt4Model,
       parser,
     ]);
 
@@ -99,35 +113,157 @@ export class LangchainService {
     questionContext: any,
     queryResult: any,
   ): Promise<string> {
-    const prompt = PromptTemplate.fromTemplate(`
-      Tu es un assistant pour une entreprise de batiment, tu dois répondre à des questions sur l'entreprise l'entreprise. 
+    // Vérifier si nous avons un historique de conversation
+    const conversationHistory = questionContext.conversationHistory || [];
+    
+    let promptTemplate;
+    
+    if (conversationHistory.length > 0) {
+      // Prompt avec historique de conversation
+      promptTemplate = PromptTemplate.fromTemplate(`
+        Tu es un assistant pour une entreprise de bâtiment, tu dois répondre à des questions sur l'entreprise. 
+        
+        Historique de la conversation:
+        {conversationHistoryText}
+        
+        Contexte de la question actuelle:
+        Question originale: {originalQuestion}
+        Question reformulée: {reformulatedQuestion}
+        Intention détectée: {intent}
+        
+        Données obtenues de la base de données:
+        {queryData}
+        
+        Génère une réponse naturelle, utile et concise basée sur ces données et l'historique de la conversation.
+        Assure-toi de faire référence aux éléments pertinents des échanges précédents pour montrer que tu te souviens du contexte.
+      `);
       
-      Contexte de la question:
-      Question originale: {originalQuestion}
+      // Formater l'historique de conversation
+      const historyText = conversationHistory
+        .map((msg: ConversationMessage) => `${msg.role === 'user' ? 'Utilisateur' : 'Assistant'}: ${msg.content}`)
+        .join('\n');
       
-      Données obtenues de la base de données:
-      {queryData}
+      const chain = promptTemplate.pipe(this.gpt4Model);
       
-      Génère une réponse naturelle et utile basée sur ces données.
+      try {
+        const result = await chain.invoke({
+          conversationHistoryText: historyText,
+          originalQuestion: questionContext.originalQuestion,
+          reformulatedQuestion: questionContext.reformulatedQuestion || '',
+          intent: questionContext.intent || 'Non spécifiée',
+          queryData: JSON.stringify(queryResult),
+        });
+        
+        return typeof result.content === 'string'
+          ? result.content
+          : JSON.stringify(result.content);
+      } catch (error) {
+        this.logger.error(
+          `Erreur lors de la génération de réponse avec historique: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        throw error;
+      }
+    } else {
+      // Prompt standard sans historique
+      promptTemplate = PromptTemplate.fromTemplate(`
+        Tu es un assistant pour une entreprise de bâtiment, tu dois répondre à des questions sur l'entreprise.
+        
+        Contexte de la question:
+        Question originale: {originalQuestion}
+        
+        Données obtenues de la base de données:
+        {queryData}
+        
+        Génère une réponse naturelle, utile et concise basée sur ces données.
+      `);
+      
+      const chain = promptTemplate.pipe(this.chatModel);
+      
+      try {
+        const result = await chain.invoke({
+          originalQuestion: questionContext.originalQuestion,
+          queryData: JSON.stringify(queryResult),
+        });
+        
+        return typeof result.content === 'string'
+          ? result.content
+          : JSON.stringify(result.content);
+      } catch (error) {
+        this.logger.error(
+          `Erreur lors de la génération de réponse: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        throw error;
+      }
+    }
+  }
+  
+  // Méthode pour extraire des paramètres à partir d'une question utilisateur
+  async extractParameters(
+    question: string,
+    parameterDefinitions: any[],
+    previousContext: any = null,
+  ): Promise<Record<string, any>> {
+    if (!parameterDefinitions || parameterDefinitions.length === 0) {
+      return {};
+    }
+    
+    // Construire le schéma Zod pour les paramètres
+    const paramSchema: Record<string, any> = {};
+    const paramDescriptions: string[] = [];
+    
+    for (const param of parameterDefinitions) {
+      paramSchema[param.name] = z.any().describe(param.description);
+      paramDescriptions.push(`- ${param.name}: ${param.description}`);
+    }
+    
+    const parser = StructuredOutputParser.fromZodSchema(z.object(paramSchema));
+    
+    // Construire le template de prompt
+    let contextInfo = '';
+    if (previousContext) {
+      contextInfo = `
+        Contexte précédent:
+        ${JSON.stringify(previousContext)}
+      `;
+    }
+    
+    const promptTemplate = PromptTemplate.fromTemplate(`
+      Ton objectif est d'extraire des paramètres spécifiques à partir de la question de l'utilisateur.
+      
+      Question: {question}
+      
+      Paramètres à extraire:
+      {paramDescriptions}
+      
+      ${contextInfo}
+      
+      {format_instructions}
+      
+      Extrait seulement les paramètres qui sont clairement mentionnés dans la question.
+      Pour les paramètres qui ne sont pas mentionnés, laisse-les vides ou null.
+      Si un paramètre est mentionné dans le contexte précédent mais pas dans la question actuelle, utilise la valeur du contexte.
     `);
-
-    const chain = prompt.pipe(this.chatModel);
-
+    
+    const chain = RunnableSequence.from([
+      {
+        question: (input: any) => input.question,
+        paramDescriptions: (_: any) => paramDescriptions.join('\n'),
+        format_instructions: async () => parser.getFormatInstructions(),
+      },
+      promptTemplate,
+      this.gpt4Model,
+      parser,
+    ]);
+    
     try {
-      const result = await chain.invoke({
-        originalQuestion: questionContext.originalQuestion,
-        queryData: JSON.stringify(queryResult),
-      });
-
-      // Assurer que la valeur retournée est une chaîne
-      return typeof result.content === 'string'
-        ? result.content
-        : JSON.stringify(result.content);
+      const result = await chain.invoke({ question });
+      return result;
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la génération de réponse: ${error instanceof Error ? error.message : String(error)}`,
+        `Erreur lors de l'extraction des paramètres: ${error instanceof Error ? error.message : String(error)}`,
       );
-      throw error;
+      // En cas d'erreur, retourner un objet vide
+      return {};
     }
   }
 }
