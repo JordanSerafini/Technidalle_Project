@@ -1,6 +1,4 @@
-import { PrismaClient } from '../../../../generated/prisma';
-
-const prisma = new PrismaClient();
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface VehicleStatistics {
   name: string;
@@ -14,7 +12,7 @@ interface VehicleStatistics {
   cost_per_km: number | null;
 }
 
-export const vehiclesQueries = {
+export const getVehiclesQueries = (prismaService: PrismaService) => ({
   vehicles_list: {
     keywords: [
       'véhicule',
@@ -39,7 +37,7 @@ export const vehiclesQueries = {
       'Liste de la flotte',
     ],
     prisma: async () => {
-      return await prisma.vehicles.findMany({
+      return await prismaService.vehicles.findMany({
         select: {
           name: true,
           type: true,
@@ -82,7 +80,7 @@ export const vehiclesQueries = {
       'Détails sur [VEHICLE]',
     ],
     prisma: async (vehicle: string) => {
-      return await prisma.vehicles.findFirst({
+      return await prismaService.vehicles.findFirst({
         where: {
           OR: [
             { name: { contains: vehicle, mode: 'insensitive' } },
@@ -183,7 +181,7 @@ export const vehiclesQueries = {
       'Flotte disponible',
     ],
     prisma: async () => {
-      return await prisma.vehicles.findMany({
+      return await prismaService.vehicles.findMany({
         where: {
           status: 'disponible',
         },
@@ -231,7 +229,7 @@ export const vehiclesQueries = {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-      return await prisma.vehicles.findMany({
+      return await prismaService.vehicles.findMany({
         where: {
           OR: [
             { next_technical_control: { lte: nextMonth } },
@@ -296,7 +294,7 @@ export const vehiclesQueries = {
     prisma: async () => {
       const now = new Date();
 
-      return await prisma.vehicle_reservations.findMany({
+      return await prismaService.vehicle_reservations.findMany({
         where: {
           start_date: {
             gte: now,
@@ -360,7 +358,7 @@ export const vehiclesQueries = {
       'Calendrier véhicules [STAFF]',
     ],
     prisma: async (staff: string) => {
-      return await prisma.vehicle_reservations.findMany({
+      return await prismaService.vehicle_reservations.findMany({
         where: {
           staff: {
             OR: [
@@ -436,7 +434,7 @@ export const vehiclesQueries = {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-      const refuelingData = await prisma.vehicle_refueling.findMany({
+      const refuelingData = await prismaService.vehicle_refueling.findMany({
         where: {
           refuel_date: {
             gte: threeMonthsAgo,
@@ -563,7 +561,7 @@ export const vehiclesQueries = {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-      return await prisma.vehicle_incidents.findMany({
+      return await prismaService.vehicle_incidents.findMany({
         where: {
           incident_date: {
             gte: sixMonthsAgo,
@@ -602,4 +600,4 @@ export const vehiclesQueries = {
     response_format: 'table',
     description: 'Rapport des incidents de véhicules des 6 derniers mois',
   },
-};
+});

@@ -1,8 +1,7 @@
-import { PrismaClient } from '../../../../generated/prisma';
+import { PrismaService } from '../../prisma/prisma.service';
 
-const prisma = new PrismaClient();
-
-export const materialsQueries = {
+// Exporter une fonction factory qui prend le PrismaService en paramètre
+export const getMaterialsQueries = (prismaService: PrismaService) => ({
   materials_list: {
     keywords: [
       'matériau',
@@ -26,7 +25,7 @@ export const materialsQueries = {
       'Catalogue fournitures',
     ],
     prisma: async () => {
-      return await prisma.materials.findMany({
+      return await prismaService.materials.findMany({
         select: {
           name: true,
           description: true,
@@ -69,7 +68,7 @@ export const materialsQueries = {
       'Détails sur [MATERIAL]',
     ],
     prisma: async (material: string) => {
-      return await prisma.materials.findFirst({
+      return await prismaService.materials.findFirst({
         where: {
           OR: [
             { name: { contains: material, mode: 'insensitive' } },
@@ -168,10 +167,10 @@ export const materialsQueries = {
       'Matériaux en quantité insuffisante',
     ],
     prisma: async () => {
-      return await prisma.materials.findMany({
+      return await prismaService.materials.findMany({
         where: {
           stock_quantity: {
-            lte: prisma.materials.fields.minimum_stock,
+            lte: prismaService.materials.fields.minimum_stock,
           },
         },
         select: {
@@ -221,7 +220,7 @@ export const materialsQueries = {
       'Que fournit [SUPPLIER] ?',
     ],
     prisma: async (supplier: string) => {
-      return await prisma.materials.findMany({
+      return await prismaService.materials.findMany({
         where: {
           supplier: {
             contains: supplier,
@@ -275,7 +274,7 @@ export const materialsQueries = {
     ],
     prisma: async () => {
       // Récupérer tous les matériaux avec leurs utilisations dans les projets
-      const materialsWithUsage = await prisma.materials.findMany({
+      const materialsWithUsage = await prismaService.materials.findMany({
         select: {
           id: true,
           name: true,
@@ -339,7 +338,7 @@ export const materialsQueries = {
       'Consommation ressources [PROJECT]',
     ],
     prisma: async (project: string) => {
-      return await prisma.project_materials.findMany({
+      return await prismaService.project_materials.findMany({
         where: {
           projects: {
             OR: [
@@ -392,4 +391,4 @@ export const materialsQueries = {
       },
     ],
   },
-};
+});
