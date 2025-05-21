@@ -8,6 +8,15 @@ const prisma = new PrismaClient();
 
 export const documentsQueries = {
   documents_by_type: {
+    keywords: [
+      'document',
+      'type',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+      'catégorie',
+    ],
     questions: [
       'Quels sont les documents de type [TYPE] ?',
       'Liste des [TYPE]',
@@ -51,6 +60,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des documents filtrés par type',
     parameters: [
       {
@@ -61,6 +71,15 @@ export const documentsQueries = {
   },
 
   documents_by_status: {
+    keywords: [
+      'document',
+      'statut',
+      'état',
+      'filtre',
+      'status',
+      'rechercher',
+      'consulter',
+    ],
     questions: [
       'Quels sont les documents avec le statut [STATUS] ?',
       'Documents [STATUS]',
@@ -104,6 +123,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des documents filtrés par statut',
     parameters: [
       {
@@ -114,6 +134,15 @@ export const documentsQueries = {
   },
 
   documents_by_date_range: {
+    keywords: [
+      'document',
+      'date',
+      'période',
+      'intervalle',
+      'entre',
+      'plage',
+      'temporel',
+    ],
     questions: [
       'Quels sont les documents entre [START_DATE] et [END_DATE] ?',
       'Documents entre [START_DATE] et [END_DATE]',
@@ -161,6 +190,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des documents créés dans une période donnée',
     parameters: [
       {
@@ -175,6 +205,15 @@ export const documentsQueries = {
   },
 
   document_details: {
+    keywords: [
+      'document',
+      'détail',
+      'information',
+      'voir',
+      'afficher',
+      'consulter',
+      'référence',
+    ],
     questions: [
       'Détails du document [REFERENCE]',
       'Informations document [REFERENCE]',
@@ -255,6 +294,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'object',
     description: "Détails complets d'un document spécifique",
     parameters: [
       {
@@ -265,6 +305,15 @@ export const documentsQueries = {
   },
 
   documents_by_client: {
+    keywords: [
+      'document',
+      'client',
+      'associé',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels sont les documents du client [CLIENT] ?',
       'Documents client [CLIENT]',
@@ -315,6 +364,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des documents associés à un client spécifique',
     parameters: [
       {
@@ -325,6 +375,15 @@ export const documentsQueries = {
   },
 
   invoices_to_be_paid: {
+    keywords: [
+      'facture',
+      'paiement',
+      'impayé',
+      'en attente',
+      'solde',
+      'dû',
+      'non réglé',
+    ],
     questions: [
       'Quelles sont les factures à payer ?',
       'Factures en attente de paiement',
@@ -370,10 +429,20 @@ export const documentsQueries = {
         ],
       });
     },
+    response_format: 'table',
     description: 'Liste des factures en attente de paiement',
   },
 
   invoices_overdue: {
+    keywords: [
+      'facture',
+      'retard',
+      'échéance',
+      'impayé',
+      'dépassé',
+      'en retard',
+      'échu',
+    ],
     questions: [
       'Quelles sont les factures en retard ?',
       'Factures en retard de paiement',
@@ -426,11 +495,21 @@ export const documentsQueries = {
         ],
       });
     },
+    response_format: 'table',
     description:
       "Liste des factures dont la date d'échéance est dépassée et qui ne sont pas payées",
   },
 
   documents_due_this_month: {
+    keywords: [
+      'document',
+      'échéance',
+      'mois',
+      'paiement',
+      'attente',
+      'calendrier',
+      'date limite',
+    ],
     questions: [
       'Quels documents sont dus ce mois-ci ?',
       'Échéances du mois',
@@ -491,11 +570,21 @@ export const documentsQueries = {
         ],
       });
     },
+    response_format: 'table',
     description:
       "Liste des documents dont la date d'échéance est dans le mois courant",
   },
 
   documents_recently_created: {
+    keywords: [
+      'document',
+      'récent',
+      'créé',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels sont les documents récemment créés ?',
       'Derniers documents ajoutés',
@@ -536,10 +625,19 @@ export const documentsQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description: 'Liste des 10 documents les plus récemment créés',
   },
 
   documents_by_project: {
+    keywords: [
+      'document',
+      'projet',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels sont les documents du projet [PROJECT] ?',
       'Documents du projet [PROJECT]',
@@ -594,6 +692,7 @@ export const documentsQueries = {
         ],
       });
     },
+    response_format: 'table',
     description: 'Liste des documents associés à un projet spécifique',
     parameters: [
       {
@@ -604,6 +703,15 @@ export const documentsQueries = {
   },
 
   quotations_waiting_approval: {
+    keywords: [
+      'devis',
+      'attente',
+      'validation',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels devis sont en attente de validation ?',
       "Devis en attente d'approbation",
@@ -651,10 +759,23 @@ export const documentsQueries = {
         ],
       });
     },
+    response_format: 'table',
     description: 'Liste des devis en attente de validation client',
   },
 
   invoices_total_by_month: {
+    keywords: [
+      'facture',
+      'montant',
+      'total',
+      'mois',
+      'chiffre',
+      'affaires',
+      'bilan',
+      'somme',
+      'revenu',
+      'facturation',
+    ],
     questions: [
       'Quel est le montant total des factures par mois ?',
       'Total des factures mensuelles',
@@ -734,11 +855,13 @@ export const documentsQueries = {
 
       return monthlyTotals;
     },
+    response_format: 'table',
     description:
       "Montant total des factures regroupé par mois pour l'année en cours",
   },
 
   document_by_reference: {
+    keywords: ['document', 'référence', 'rechercher', 'chercher', 'trouver'],
     questions: [
       'Chercher document [REFERENCE]',
       'Trouver document [REFERENCE]',
@@ -783,6 +906,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'object',
     description:
       'Recherche un document par sa référence (recherche partielle possible)',
     parameters: [
@@ -794,6 +918,18 @@ export const documentsQueries = {
   },
 
   quotations_conversion_rate: {
+    keywords: [
+      'devis',
+      'conversion',
+      'taux',
+      'accepté',
+      'refusé',
+      'statistiques',
+      'performance',
+      'combien',
+      'ratio',
+      'efficacité',
+    ],
     questions: [
       'Quel est le taux de conversion des devis ?',
       'Pourcentage de devis acceptés',
@@ -884,10 +1020,20 @@ export const documentsQueries = {
             : 0,
       };
     },
+    response_format: 'object',
     description: 'Statistiques sur le taux de conversion des devis en factures',
   },
 
   documents_by_tag: {
+    keywords: [
+      'document',
+      'tag',
+      'étiquette',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels documents ont le tag [TAG] ?',
       'Documents avec tag [TAG]',
@@ -950,6 +1096,7 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des documents associés à un tag spécifique',
     parameters: [
       {
@@ -960,6 +1107,14 @@ export const documentsQueries = {
   },
 
   expiring_quotations: {
+    keywords: [
+      'devis',
+      'expiration',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels devis arrivent à expiration ?',
       'Devis bientôt expirés',
@@ -984,12 +1139,12 @@ export const documentsQueries = {
           AND: [
             {
               issue_date: {
-                not: null,
+                not: undefined,
               },
             },
             {
               validity_period: {
-                not: null,
+                not: undefined,
               },
             },
           ],
@@ -1017,11 +1172,21 @@ export const documentsQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste des devis qui arrivent bientôt à expiration (dans les 14 jours)',
   },
 
   highest_value_documents: {
+    keywords: [
+      'document',
+      'montant',
+      'élevé',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
     questions: [
       'Quels sont les documents avec les montants les plus élevés ?',
       'Documents de grande valeur',
@@ -1068,6 +1233,7 @@ export const documentsQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description: 'Liste des 10 documents avec les montants les plus élevés',
   },
 };

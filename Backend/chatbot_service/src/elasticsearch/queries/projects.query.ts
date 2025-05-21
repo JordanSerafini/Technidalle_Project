@@ -4,6 +4,15 @@ const prisma = new PrismaClient();
 
 export const projectsQueries = {
   active_projects: {
+    keywords: [
+      'projet',
+      'chantier',
+      'actif',
+      'cours',
+      'travail',
+      'réalisation',
+      'activité',
+    ],
     questions: [
       'Quels sont les projets en cours ?',
       'Liste des chantiers actifs',
@@ -58,10 +67,21 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des projets actuellement en cours avec leurs détails',
   },
 
   project_details: {
+    keywords: [
+      'détail',
+      'projet',
+      'information',
+      'chantier',
+      'avancement',
+      'état',
+      'statut',
+      'progression',
+    ],
     questions: [
       'Détails du projet [PROJECT]',
       'Informations sur le projet [PROJECT]',
@@ -146,6 +166,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'object',
     description: "Détails complets d'un projet spécifique",
     parameters: [
       {
@@ -156,6 +177,16 @@ export const projectsQueries = {
   },
 
   project_stages_status: {
+    keywords: [
+      'étape',
+      'phase',
+      'projet',
+      'chantier',
+      'avancement',
+      'progression',
+      'construction',
+      'travail',
+    ],
     questions: [
       'Quelles sont les étapes du projet [PROJECT] ?',
       'Phases du chantier [PROJECT]',
@@ -215,6 +246,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       "Détails des étapes d'un projet spécifique avec leur statut et les tâches associées",
     parameters: [
@@ -226,6 +258,16 @@ export const projectsQueries = {
   },
 
   project_materials: {
+    keywords: [
+      'matériau',
+      'projet',
+      'chantier',
+      'liste',
+      'stock',
+      'utilisé',
+      'prévu',
+      'inventaire',
+    ],
     questions: [
       'Quels sont les matériaux du projet [PROJECT] ?',
       'Matériaux du chantier [PROJECT]',
@@ -272,6 +314,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste des matériaux prévus et utilisés pour un projet spécifique',
     parameters: [
@@ -283,6 +326,16 @@ export const projectsQueries = {
   },
 
   project_documents: {
+    keywords: [
+      'document',
+      'projet',
+      'chantier',
+      'fichier',
+      'papier',
+      'archive',
+      'technique',
+      'administratif',
+    ],
     questions: [
       'Quels sont les documents du projet [PROJECT] ?',
       'Documents du chantier [PROJECT]',
@@ -330,6 +383,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste de tous les documents associés à un projet',
     parameters: [
       {
@@ -340,6 +394,18 @@ export const projectsQueries = {
   },
 
   project_reports: {
+    keywords: [
+      'rapport',
+      'projet',
+      'chantier',
+      'compte rendu',
+      'technique',
+      'avancement',
+      'intervention',
+      'visite',
+      'suivi',
+      'contrôle',
+    ],
     questions: [
       'Quels sont les rapports du projet [PROJECT] ?',
       'Rapports de chantier [PROJECT]',
@@ -384,6 +450,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des rapports de chantier pour un projet spécifique',
     parameters: [
       {
@@ -394,6 +461,17 @@ export const projectsQueries = {
   },
 
   project_costs: {
+    keywords: [
+      'coût',
+      'budget',
+      'projet',
+      'dépense',
+      'total',
+      'réel',
+      'prévu',
+      'construction',
+      'consommé',
+    ],
     questions: [
       'Quels sont les coûts du projet [PROJECT] ?',
       'Budget du projet [PROJECT]',
@@ -446,6 +524,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'object',
     description: "Détails des coûts et du budget d'un projet",
     parameters: [
       {
@@ -456,6 +535,17 @@ export const projectsQueries = {
   },
 
   project_statistics: {
+    keywords: [
+      'statistique',
+      'projet',
+      'indicateur',
+      'métrique',
+      'chiffre',
+      'progression',
+      'performance',
+      'suivi',
+      'avancement',
+    ],
     questions: [
       'Quelles sont les statistiques du projet [PROJECT] ?',
       'Statistiques du chantier [PROJECT]',
@@ -562,6 +652,7 @@ export const projectsQueries = {
 
       return stats;
     },
+    response_format: 'object',
     description:
       "Statistiques détaillées sur l'avancement et les performances d'un projet",
     parameters: [
@@ -573,6 +664,18 @@ export const projectsQueries = {
   },
 
   project_timeline: {
+    keywords: [
+      'chronologie',
+      'projet',
+      'historique',
+      'timeline',
+      'événement',
+      'étape',
+      'phase',
+      'intervention',
+      'travaux',
+      'réalisation',
+    ],
     questions: [
       'Quelle est la chronologie du projet [PROJECT] ?',
       'Historique du projet [PROJECT]',
@@ -619,6 +722,7 @@ export const projectsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: "Chronologie complète des événements et actions d'un projet",
     parameters: [
       {

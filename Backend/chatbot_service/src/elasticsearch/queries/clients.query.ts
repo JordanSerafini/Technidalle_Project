@@ -4,6 +4,15 @@ const prisma = new PrismaClient();
 
 export const clientsQueries = {
   clients_list: {
+    keywords: [
+      'client',
+      'liste',
+      'tous',
+      'répertoire',
+      'annuaire',
+      'afficher',
+      'clientèle',
+    ],
     questions: [
       'Liste des clients',
       'Tous les clients',
@@ -34,10 +43,20 @@ export const clientsQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste complète des clients',
   },
 
   client_details: {
+    keywords: [
+      'détail',
+      'information',
+      'fiche',
+      'profil',
+      'coordonnées',
+      'client',
+      'dossier',
+    ],
     questions: [
       'Détails du client [CLIENT]',
       'Informations sur [CLIENT]',
@@ -111,6 +130,7 @@ export const clientsQueries = {
         },
       });
     },
+    response_format: 'object',
     description: 'Informations détaillées sur un client spécifique',
     parameters: [
       {
@@ -121,6 +141,14 @@ export const clientsQueries = {
   },
 
   clients_with_unpaid_invoices: {
+    keywords: [
+      'facture',
+      'impayé',
+      'retard',
+      'paiement',
+      'non réglé',
+      'débiteur',
+    ],
     questions: [
       'Clients avec factures impayées',
       'Factures non réglées par client',
@@ -168,10 +196,20 @@ export const clientsQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste des clients avec des factures impayées et en retard',
   },
 
   clients_by_city: {
+    keywords: [
+      'ville',
+      'localité',
+      'client',
+      'habiter',
+      'localiser',
+      'résider',
+      'domicile',
+    ],
     questions: [
       'Clients à [CITY]',
       'Quels clients à [CITY] ?',
@@ -241,6 +279,7 @@ export const clientsQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description: 'Liste des clients filtrés par ville',
     parameters: [
       {
@@ -251,6 +290,15 @@ export const clientsQueries = {
   },
 
   recently_active_clients: {
+    keywords: [
+      'récent',
+      'actif',
+      'activité',
+      'client',
+      'dernièrement',
+      'récemment',
+      'interaction',
+    ],
     questions: [
       'Clients récemment actifs',
       'Clients actifs',
@@ -359,11 +407,21 @@ export const clientsQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste des clients ayant eu une activité récente (projets, documents ou événements dans les 3 derniers mois)',
   },
 
   inactive_clients: {
+    keywords: [
+      'inactif',
+      'dormant',
+      'perdu',
+      'sans activité',
+      'relancer',
+      'client',
+      'ancien',
+    ],
     questions: [
       'Clients inactifs',
       'Clients sans activité récente',
@@ -451,10 +509,20 @@ export const clientsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste des clients sans activité depuis plus de 6 mois',
   },
 
   clients_recent: {
+    keywords: [
+      'récent',
+      'nouveau',
+      'dernière acquisition',
+      'ajouté',
+      'créé',
+      'enregistré',
+      'client',
+    ],
     questions: [
       'Quels sont les clients récents ?',
       'Derniers clients ajoutés',
@@ -488,10 +556,20 @@ export const clientsQueries = {
         take: 10,
       });
     },
+    response_format: 'table',
     description: 'Liste des 10 clients les plus récemment ajoutés',
   },
 
   client_projects: {
+    keywords: [
+      'projet',
+      'chantier',
+      'travail',
+      'mission',
+      'client',
+      'associé',
+      'activité',
+    ],
     questions: [
       'Quels projets a le client [CLIENT] ?',
       'Liste des chantiers du client [CLIENT]',
@@ -529,6 +607,7 @@ export const clientsQueries = {
         },
       });
     },
+    response_format: 'table',
     description: 'Liste de tous les projets associés à un client spécifique',
     parameters: [
       {
@@ -539,6 +618,15 @@ export const clientsQueries = {
   },
 
   client_invoices: {
+    keywords: [
+      'facture',
+      'paiement',
+      'client',
+      'facturation',
+      'historique',
+      'règlement',
+      'émis',
+    ],
     questions: [
       'Quelles factures a le client [CLIENT] ?',
       'Liste des factures du client [CLIENT]',
@@ -586,6 +674,7 @@ export const clientsQueries = {
         },
       });
     },
+    response_format: 'table',
     description:
       'Liste de toutes les factures associées à un client spécifique',
     parameters: [
@@ -597,6 +686,15 @@ export const clientsQueries = {
   },
 
   clients_with_active_projects: {
+    keywords: [
+      'projet',
+      'actif',
+      'en cours',
+      'engagé',
+      'chantier',
+      'client',
+      'travaux',
+    ],
     questions: [
       'Quels clients ont des projets en cours ?',
       'Clients avec chantiers actifs',
@@ -645,6 +743,7 @@ export const clientsQueries = {
         ],
       });
     },
+    response_format: 'table',
     description:
       'Liste des clients ayant au moins un projet actif, avec le nombre de projets actifs',
   },
@@ -1058,6 +1157,15 @@ export const clientsQueries = {
   },
 
   clients_all: {
+    keywords: [
+      'tous',
+      'liste',
+      'client',
+      'complet',
+      'intégral',
+      'totalité',
+      'ensemble',
+    ],
     questions: [
       'Liste de tous les clients',
       'Récupérer tous les clients',
@@ -1087,6 +1195,7 @@ export const clientsQueries = {
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
     },
+    response_format: 'table',
     description:
       'Liste complète de tous les clients enregistrés dans le système',
   },
