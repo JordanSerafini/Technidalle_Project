@@ -1009,4 +1009,188 @@ export class AnalyzeEmailController {
       );
     }
   }
+
+  /**
+   * Endpoint dédié au résumé WhatsApp des emails journaliers
+   * @param limit Nombre maximum d'emails à analyser (optionnel)
+   * @param fastMode Si true, utilise un mode rapide avec analyse optimisée (optionnel, par défaut: false)
+   */
+  @Get('whatsapp-daily-summary')
+  async getWhatsappDailySummary(
+    @Query('limit') limit?: string,
+    @Query('fastMode') fastMode?: string,
+  ): Promise<{
+    status: string;
+    message: string;
+    summary: {
+      overview: string;
+      totalEmails: number;
+      highPriorityCount: number;
+      actionRequiredCount: number;
+      topPriorityEmails: Array<{
+        subject: string;
+        from: string;
+        summary: string;
+        priority: string;
+      }>;
+      actionItems: string[];
+      formattedMessage: string;
+    };
+    performanceMetrics?: {
+      totalDuration: number;
+      emailFetchDuration: number;
+      analysisDuration: number;
+      summaryDuration: number;
+    };
+  }> {
+    try {
+      const startTime = Date.now();
+      const isFastMode = fastMode === 'true';
+      const limitValue = limit ? parseInt(limit, 10) : 5; // Par défaut, limiter à 5 emails
+
+      this.logger.log(
+        `Génération du résumé WhatsApp des emails journaliers (limite: ${limitValue}, mode rapide: ${isFastMode})`,
+      );
+
+      // Récupération des emails
+      const fetchStartTime = Date.now();
+      const emails = await this.analyzeEmailService.getTodayEmails();
+      const fetchEndTime = Date.now();
+
+      if (emails.length === 0) {
+        return {
+          status: 'success',
+          message: "Aucun email non lu trouvé aujourd'hui",
+          summary: {
+            overview: 'Aucun email à analyser',
+            totalEmails: 0,
+            highPriorityCount: 0,
+            actionRequiredCount: 0,
+            topPriorityEmails: [],
+            actionItems: [],
+            formattedMessage:
+              "📧 Aucun email non lu aujourd'hui. Tout est à jour! 📅",
+          },
+          performanceMetrics: {
+            totalDuration: Date.now() - startTime,
+            emailFetchDuration: fetchEndTime - fetchStartTime,
+            analysisDuration: 0,
+            summaryDuration: 0,
+          },
+        };
+      }
+
+      // Analyse des emails
+      const analysisStartTime = Date.now();
+      const analyzedEmails = await this.analyzeEmailService.analyzeEmails(
+        emails.slice(0, limitValue),
+        isFastMode,
+      );
+      const analysisEndTime = Date.now();
+
+      // Génération du résumé
+      const summaryStartTime = Date.now();
+      const overallSummary = await this.analyzeEmailService.generateOverallSummary(
+        analyzedEmails,
+        isFastMode,
+      );
+      const summaryEndTime = Date.now();
+
+      // Formatage du message pour WhatsApp
+      const formattedMessage = this.formatWhatsappMessage(overallSummary);
+
+      // Calcul des métriques de performance
+      const performanceMetrics = {
+        totalDuration: Date.now() - startTime,
+        emailFetchDuration: fetchEndTime - fetchStartTime,
+        analysisDuration: analysisEndTime - analysisStartTime,
+        summaryDuration: summaryEndTime - summaryStartTime,
+      };
+
+      return {
+        status: 'success',
+        message: `Résumé WhatsApp généré pour ${analyzedEmails.length} emails`,
+        summary: {
+          overview: overallSummary.summary,
+          totalEmails: overallSummary.totalEmails,
+          highPriorityCount: overallSummary.highPriorityCount,
+          actionRequiredCount: overallSummary.actionRequiredCount,
+          topPriorityEmails: overallSummary.topPriorityEmails.map(email => ({
+            subject: email.subject,
+            from: email.from,
+            summary: email.analysis?.summary || '',
+            priority: email.analysis?.priority || 'medium'
+          })),
+          actionItems: overallSummary.actionItems,
+          formattedMessage
+        },
+        performanceMetrics
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`);
+      throw new HttpException(
+        {
+          status: 'error',
+          message: `Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Formate le message pour WhatsApp avec des emojis et une structure claire
+   */
+  private formatWhatsappMessage(summary: {
+    summary: string;
+    totalEmails: number;
+    highPriorityCount: number;
+    actionRequiredCount: number;
+    topPriorityEmails: EmailContent[];
+    actionItems: string[];
+  }): string {
+    let message = '📧 *Résumé de vos emails du jour*\n\n';
+
+    // Aperçu général
+    message += `📊 *Aperçu:*\n`;
+    message += `• ${summary.totalEmails} email${summary.totalEmails > 1 ? 's' : ''} analysé${summary.totalEmails > 1 ? 's' : ''}\n`;
+    if (summary.highPriorityCount > 0) {
+      message += `• ${summary.highPriorityCount} prioritaire${summary.highPriorityCount > 1 ? 's' : ''}\n`;
+    }
+    if (summary.actionRequiredCount > 0) {
+      message += `• ${summary.actionRequiredCount} action${summary.actionRequiredCount > 1 ? 's' : ''} requise${summary.actionRequiredCount > 1 ? 's' : ''}\n`;
+    }
+    message += '\n';
+
+    // Emails prioritaires
+    if (summary.topPriorityEmails.length > 0) {
+      message += `🔴 *Emails prioritaires:*\n`;
+      summary.topPriorityEmails.forEach((email, index) => {
+        message += `${index + 1}. *${email.subject}*\n`;
+        message += `   De: ${email.from.split('<')[0].replace(/"/g, '')}\n`;
+        if (email.analysis?.summary) {
+          message += `   📝 ${email.analysis.summary}\n`;
+        }
+        message += '\n';
+      });
+    }
+
+    // Actions requises
+    if (summary.actionItems.length > 0) {
+      message += `✅ *Actions requises:*\n`;
+      summary.actionItems.slice(0, 5).forEach((action, index) => {
+        message += `${index + 1}. ${action}\n`;
+      });
+      if (summary.actionItems.length > 5) {
+        message += `... et ${summary.actionItems.length - 5} autre${summary.actionItems.length - 5 > 1 ? 's' : ''} action${summary.actionItems.length - 5 > 1 ? 's' : ''}\n`;
+      }
+      message += '\n';
+    }
+
+    // Résumé général
+    message += `📝 *Résumé général:*\n${summary.summary}`;
+
+    return message;
+  }
 }
