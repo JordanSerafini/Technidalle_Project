@@ -58,6 +58,20 @@ interface ScheduleItemData {
   eventType?: string;
 }
 
+interface StaffData {
+  id: number;
+  staff_id?: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  role_id: number;
+  phone?: string;
+  mobile?: string;
+  address_id?: number;
+  hire_date: string;
+  is_available?: boolean;
+}
+
 interface ClientCardProps {
   client: ClientData;
   onPress?: (client: ClientData) => void;
@@ -407,6 +421,51 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({ scheduleItem, onPress }) =>
   );
 };
 
+const StaffCard: React.FC<{ staff: StaffData }> = ({ staff }) => {
+  const fullName = `${staff.firstname} ${staff.lastname}`.trim();
+  
+  return (
+    <View className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200">
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1">
+          <Text className="text-lg font-bold">
+            {fullName}
+          </Text>
+          {staff.staff_id && (
+            <Text className="text-gray-500 text-sm">ID: {staff.staff_id}</Text>
+          )}
+        </View>
+        <View className="bg-blue-100 rounded-full p-2">
+          <Ionicons name="person" size={24} color="#3b82f6" />
+        </View>
+      </View>
+
+      <View className="mt-3 pt-3 border-t border-gray-100">
+        {staff.email && (
+          <View className="flex-row items-center mb-1">
+            <Ionicons name="mail-outline" size={16} color="#6b7280" />
+            <Text className="text-gray-700 ml-2 text-sm">{staff.email}</Text>
+          </View>
+        )}
+        
+        {staff.phone && (
+          <View className="flex-row items-center mb-1">
+            <Ionicons name="call-outline" size={16} color="#6b7280" />
+            <Text className="text-gray-700 ml-2 text-sm">{staff.phone}</Text>
+          </View>
+        )}
+
+        {staff.mobile && (
+          <View className="flex-row items-center">
+            <Ionicons name="phone-portrait-outline" size={16} color="#6b7280" />
+            <Text className="text-gray-700 ml-2 text-sm">{staff.mobile}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
 // Composant générique qui sélectionne le bon type d'affichage en fonction du format
 const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress }) => {
   if (!data || data.length === 0) {
@@ -461,50 +520,111 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
   const isDocumentData = format === 'table' && data[0] && 'reference' in data[0] && 'issue_date' in data[0] && !('start_date' in data[0]);
   const isScheduleData = format === 'table' && data[0] && 'title' in data[0] && ('type' in data[0]) && (data[0].type === 'event' || data[0].type === 'assignment');
 
-  // Rendu pour le format client
-  if (isClientData) {
-    return (
-      <View className="mt-2">
-        {title && (
-          <Text className="text-lg font-semibold mb-2">{title}</Text>
-        )}
-        <FlatList
-          data={data}
-          keyExtractor={(item: ClientData) => item.id.toString()}
-          renderItem={({ item }: { item: ClientData }) => (
-            <ClientCard client={item} onPress={onItemPress} />
-          )}
-          scrollEnabled={true}
-          nestedScrollEnabled={true}
-          style={{ maxHeight: 400 }}
-        />
-      </View>
-    );
-  }
-  
-  // Rendu pour le format projet
-  if (isProjectData) {
-    return (
-      <View className="mt-2">
-        {title && (
-          <Text className="text-lg font-semibold mb-2">{title}</Text>
-        )}
-        <FlatList
-          data={data}
-          keyExtractor={(item: ProjectData) => item.id.toString()}
-          renderItem={({ item }: { item: ProjectData }) => (
-            <ProjectCard project={item} onPress={onItemPress} />
-          )}
-          scrollEnabled={true}
-          nestedScrollEnabled={true}
-          style={{ maxHeight: 400 }}
-        />
-      </View>
-    );
-  }
+  const renderContent = () => {
+    if (!data || data.length === 0) {
+      return (
+        <View className="p-4 bg-gray-50 rounded-lg">
+          <Text className="text-gray-500 text-center">Aucune donnée disponible</Text>
+        </View>
+      );
+    }
 
-  // Rendu pour le format document
-  if (isDocumentData) {
+    // Vérifier si c'est une liste de personnel
+    if (data[0] && 'firstname' in data[0] && 'lastname' in data[0]) {
+      return (
+        <View>
+          {data.map((staff, index) => (
+            <StaffCard key={index} staff={staff as StaffData} />
+          ))}
+        </View>
+      );
+    }
+
+    // Rendu pour le format client
+    if (isClientData) {
+      return (
+        <View className="mt-2">
+          {title && (
+            <Text className="text-lg font-semibold mb-2">{title}</Text>
+          )}
+          <FlatList
+            data={data}
+            keyExtractor={(item: ClientData) => item.id.toString()}
+            renderItem={({ item }: { item: ClientData }) => (
+              <ClientCard client={item} onPress={onItemPress} />
+            )}
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
+            style={{ maxHeight: 400 }}
+          />
+        </View>
+      );
+    }
+    
+    // Rendu pour le format projet
+    if (isProjectData) {
+      return (
+        <View className="mt-2">
+          {title && (
+            <Text className="text-lg font-semibold mb-2">{title}</Text>
+          )}
+          <FlatList
+            data={data}
+            keyExtractor={(item: ProjectData) => item.id.toString()}
+            renderItem={({ item }: { item: ProjectData }) => (
+              <ProjectCard project={item} onPress={onItemPress} />
+            )}
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
+            style={{ maxHeight: 400 }}
+          />
+        </View>
+      );
+    }
+
+    // Rendu pour le format document
+    if (isDocumentData) {
+      return (
+        <View className="mt-2">
+          {title && (
+            <Text className="text-lg font-semibold mb-2">{title}</Text>
+          )}
+          <FlatList
+            data={data}
+            keyExtractor={(item: DocumentData) => item.id.toString()}
+            renderItem={({ item }: { item: DocumentData }) => (
+              <DocumentCard document={item} onPress={onItemPress} />
+            )}
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
+            style={{ maxHeight: 400 }}
+          />
+        </View>
+      );
+    }
+
+    // Rendu pour le format planning/événements
+    if (isScheduleData) {
+      return (
+        <View className="mt-2">
+          {title && (
+            <Text className="text-lg font-semibold mb-2">{title}</Text>
+          )}
+          <FlatList
+            data={data}
+            keyExtractor={(item: ScheduleItemData) => item.id.toString()}
+            renderItem={({ item }: { item: ScheduleItemData }) => (
+              <ScheduleCard scheduleItem={item} onPress={onItemPress} />
+            )}
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
+            style={{ maxHeight: 400 }}
+          />
+        </View>
+      );
+    }
+
+    // Format générique pour d'autres types de données
     return (
       <View className="mt-2">
         {title && (
@@ -512,95 +632,64 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
         )}
         <FlatList
           data={data}
-          keyExtractor={(item: DocumentData) => item.id.toString()}
-          renderItem={({ item }: { item: DocumentData }) => (
-            <DocumentCard document={item} onPress={onItemPress} />
-          )}
-          scrollEnabled={true}
-          nestedScrollEnabled={true}
-          style={{ maxHeight: 400 }}
-        />
-      </View>
-    );
-  }
-
-  // Rendu pour le format planning/événements
-  if (isScheduleData) {
-    return (
-      <View className="mt-2">
-        {title && (
-          <Text className="text-lg font-semibold mb-2">{title}</Text>
-        )}
-        <FlatList
-          data={data}
-          keyExtractor={(item: ScheduleItemData) => item.id.toString()}
-          renderItem={({ item }: { item: ScheduleItemData }) => (
-            <ScheduleCard scheduleItem={item} onPress={onItemPress} />
-          )}
-          scrollEnabled={true}
-          nestedScrollEnabled={true}
-          style={{ maxHeight: 400 }}
-        />
-      </View>
-    );
-  }
-
-  // Format générique pour d'autres types de données
-  return (
-    <View className="mt-2">
-      {title && (
-        <Text className="text-lg font-semibold mb-2">{title}</Text>
-      )}
-      <FlatList
-        data={data}
-        keyExtractor={(_: any, index: number) => index.toString()}
-        renderItem={({ item }: { item: any }) => (
-          <TouchableOpacity 
-            className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
-            onPress={() => navigateToDetailPage(item)}
-          >
-            {Object.entries(item).map(([key, value]) => {
-              // Ne pas afficher les objets complexes ou les tableaux directement
-              if (typeof value === 'object' && value !== null) {
-                if (Array.isArray(value)) {
+          keyExtractor={(_: any, index: number) => index.toString()}
+          renderItem={({ item }: { item: any }) => (
+            <TouchableOpacity 
+              className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
+              onPress={() => navigateToDetailPage(item)}
+            >
+              {Object.entries(item).map(([key, value]) => {
+                // Ne pas afficher les objets complexes ou les tableaux directement
+                if (typeof value === 'object' && value !== null) {
+                  if (Array.isArray(value)) {
+                    return (
+                      <View key={key} className="flex-row mb-1">
+                        <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
+                        <Text className="text-gray-600">{value.length} éléments</Text>
+                      </View>
+                    );
+                  }
                   return (
                     <View key={key} className="flex-row mb-1">
                       <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                      <Text className="text-gray-600">{value.length} éléments</Text>
+                      <Text className="text-gray-600">Objet</Text>
                     </View>
                   );
                 }
-                return (
-                  <View key={key} className="flex-row mb-1">
-                    <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                    <Text className="text-gray-600">Objet</Text>
-                  </View>
-                );
-              }
-              
-              // Pour les dates, afficher simplement la valeur telle quelle
-              if (key.includes('date') && value) {
+                
+                // Pour les dates, afficher simplement la valeur telle quelle
+                if (key.includes('date') && value) {
+                  return (
+                    <View key={key} className="flex-row mb-1">
+                      <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
+                      <Text className="text-gray-600">{String(value)}</Text>
+                    </View>
+                  );
+                }
+                
                 return (
                   <View key={key} className="flex-row mb-1">
                     <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
                     <Text className="text-gray-600">{String(value)}</Text>
                   </View>
                 );
-              }
-              
-              return (
-                <View key={key} className="flex-row mb-1">
-                  <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                  <Text className="text-gray-600">{String(value)}</Text>
-                </View>
-              );
-            })}
-          </TouchableOpacity>
-        )}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-        style={{ maxHeight: 400 }}
-      />
+              })}
+            </TouchableOpacity>
+          )}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          style={{ maxHeight: 400 }}
+        />
+      </View>
+    );
+  };
+
+  return (
+    <View className="mt-2">
+      {title && (
+        <Text className="text-lg font-semibold mb-2">{title}</Text>
+      )}
+      {renderContent()}
     </View>
   );
 };

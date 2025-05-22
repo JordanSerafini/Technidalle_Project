@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator, Alert, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -14,8 +14,11 @@ import DataCards from '@/app/components/chatbot/DataCards';
 // Suggestions de démarrage pour la conversation
 const INITIAL_SUGGESTIONS = [
   "Quels sont les chantiers de cette année ?",
-  "Qui sont les 10 derniers clients ?",
+  "Quels clients n'ont jamais payé une facture ?",
   "Quel sont les projets les plus rentables ?",
+  "Personnel disponible demain",
+  "Quels sont les prochains événements ?",
+  "Quelle est la timeline des projets en cours ?",
   "Quel est le planning de travail du mois ?",
 ];
 
@@ -208,30 +211,6 @@ export default function ChatbotScreen() {
     }
   };
 
-  const renderAttachmentPreview = () => {
-    if (currentAttachments.length === 0) return null;
-
-    return (
-      <View className="flex-row flex-wrap p-2 bg-gray-50 border-t border-gray-200">
-        {currentAttachments.map((attachment, index) => (
-          <View key={index} className="bg-white rounded-md p-1 m-1 flex-row items-center">
-            <Ionicons 
-              name={attachment.type.startsWith('image') ? "image-outline" : "document-outline"} 
-              size={16} 
-              color="#4b5563" 
-            />
-            <Text className="text-xs ml-1 mr-1 max-w-[100px]" numberOfLines={1}>
-              {attachment.name}
-            </Text>
-            <TouchableOpacity onPress={() => removeAttachment(index)}>
-              <Ionicons name="close-circle" size={16} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
@@ -248,61 +227,94 @@ export default function ChatbotScreen() {
         )}
       </View>
 
-      <KeyboardAvoidingView
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item: Message) => item.id}
+        renderItem={({ item }: { item: Message }) => (
+          <ChatMessage message={item} />
+        )}
+        contentContainerStyle={{ padding: 16 }}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        showsVerticalScrollIndicator={false}
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="border-t border-gray-200 bg-white p-4"
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item: Message) => item.id}
-          renderItem={({ item }: { item: Message }) => <ChatMessage message={item} />}
-          contentContainerStyle={{ padding: 16 }}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        <QuickReply
+          suggestions={quickReplies}
+          onPress={handleQuickReply}
         />
 
-        {isLoading && (
-          <View className="p-3 items-center justify-center">
-            <ActivityIndicator size="small" color="#2563eb" />
+        <View className="flex-row items-center mt-2">
+          <View className="flex-1 flex-row items-center bg-gray-100 rounded-full px-4 py-2">
+            <TextInput
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Écrivez votre message..."
+              className="flex-1 mr-2"
+              multiline
+              maxLength={500}
+            />
+            <AttachmentButton onFileSelected={handleAttachment} />
+            <SpeechButton onSpeechResult={setInputText} />
           </View>
-        )}
-
-        {quickReplies.length > 0 && !isLoading && (
-          <QuickReply 
-            suggestions={quickReplies} 
-            onPress={handleQuickReply}
-          />
-        )}
-
-        {renderAttachmentPreview()}
-
-        <View className="p-2 border-t border-gray-200 bg-white flex-row items-center">
-          <AttachmentButton onFileSelected={handleAttachment} />
           
-          <SpeechButton onSpeechResult={setInputText} />
-          
-          <TextInput
-            className="flex-1 bg-gray-100 p-3 rounded-full mr-2"
-            placeholder="Tapez votre message..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={sendMessage}
-            className={`p-3 rounded-full ${
-              (inputText.trim() === '' && currentAttachments.length === 0) || !isServiceAvailable
-                ? 'bg-gray-300' 
+            disabled={isLoading || (!inputText.trim() && currentAttachments.length === 0)}
+            className={`ml-2 p-3 rounded-full ${
+              isLoading || (!inputText.trim() && currentAttachments.length === 0)
+                ? 'bg-gray-300'
                 : 'bg-blue-600'
             }`}
-            disabled={(inputText.trim() === '' && currentAttachments.length === 0) || !isServiceAvailable}
           >
-            <Ionicons name="send" size={20} color="white" />
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Ionicons name="send" size={24} color="white" />
+            )}
           </TouchableOpacity>
         </View>
+
+        {currentAttachments.length > 0 && (
+          <View className="mt-2 flex-row flex-wrap">
+            {currentAttachments.map((attachment, index) => (
+              <View key={index} className="mr-2 mb-2">
+                {attachment.type.startsWith('image') ? (
+                  <View className="relative">
+                    <Image
+                      source={{ uri: attachment.uri }}
+                      className="w-20 h-20 rounded-md"
+                    />
+                    <TouchableOpacity
+                      onPress={() => removeAttachment(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                    >
+                      <Ionicons name="close" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View className="relative bg-gray-100 rounded-md p-2">
+                    <Text className="text-sm text-gray-700" numberOfLines={1}>
+                      {attachment.name}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => removeAttachment(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                    >
+                      <Ionicons name="close" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
