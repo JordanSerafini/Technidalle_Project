@@ -5,11 +5,25 @@ import { HttpService as AxiosHttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
 // Fonction utilitaire pour découper les messages longs
-function splitIntoChunks(text: string, chunkSize = 4096): string[] {
+function splitIntoChunks(text: string, maxLength = 3000): string[] {
   const chunks: string[] = [];
-  for (let i = 0; i < text.length; i += chunkSize) {
-    chunks.push(text.slice(i, i + chunkSize));
+
+  while (text.length > 0) {
+    let chunk = text.slice(0, maxLength);
+
+    // Essayer de couper à la fin d'une phrase si possible
+    const lastPeriod = chunk.lastIndexOf('. ');
+    const lastNewLine = chunk.lastIndexOf('\n');
+    const cutIndex = Math.max(lastPeriod, lastNewLine);
+
+    if (cutIndex > 2000) {
+      chunk = chunk.slice(0, cutIndex + 1);
+    }
+
+    chunks.push(chunk.trim());
+    text = text.slice(chunk.length);
   }
+
   return chunks;
 }
 
@@ -67,8 +81,16 @@ export class WhatsappController {
             
             // Découper et envoyer le message par morceaux
             const chunks = splitIntoChunks(responseText);
-            for (const chunk of chunks) {
-              await this.whatsappService.sendTextMessage(from, chunk);
+            for (let i = 0; i < chunks.length; i++) {
+              const partMessage = chunks.length > 1
+                ? `📄 Partie ${i + 1}/${chunks.length}\n\n${chunks[i]}`
+                : chunks[i];
+
+              await this.whatsappService.sendTextMessage(from, partMessage);
+              
+              if (i < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
             }
             console.log(`Réponse envoyée en ${chunks.length} parties`);
           } catch (error) {
@@ -104,13 +126,17 @@ export class WhatsappController {
               console.log(`Message à envoyer (${formattedMessage.length} caractères)`);
               
               // Découper le message en morceaux plus petits (3000 caractères au lieu de 4096)
-              const chunks = splitIntoChunks(formattedMessage, 3000);
+              const chunks = splitIntoChunks(formattedMessage);
               console.log(`Message découpé en ${chunks.length} parties`);
               
               // Envoyer chaque partie avec un délai entre chaque envoi
               for (let i = 0; i < chunks.length; i++) {
+                const partMessage = chunks.length > 1
+                  ? `📄 Partie ${i + 1}/${chunks.length}\n\n${chunks[i]}`
+                  : chunks[i];
+
                 console.log(`Envoi de la partie ${i + 1}/${chunks.length}`);
-                await this.whatsappService.sendTextMessage(from, chunks[i]);
+                await this.whatsappService.sendTextMessage(from, partMessage);
                 
                 // Ajouter un délai de 1 seconde entre chaque message
                 if (i < chunks.length - 1) {
@@ -137,7 +163,7 @@ export class WhatsappController {
         
         // Cas par défaut: message non reconnu
         else {
-          this.whatsappService.sendTextMessage(
+          await this.whatsappService.sendTextMessage(
             from, 
             "Commande non reconnue. Utilisez:\n-analyse: [votre question]\nou\n-email_summary"
           );
