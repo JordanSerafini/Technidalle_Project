@@ -1459,17 +1459,24 @@ export const projectsQueries = {
   },
 
   projects_this_year: {
-    keywords: ['chantier', 'projet', 'année', 'courant', 'actuel'],
+    keywords: [
+      'projet',
+      'chantier',
+      'année',
+      'courant',
+      'actuel',
+      '2024',
+    ],
     questions: [
       'Quels sont les chantiers de cette année ?',
       'Projets de l\'année en cours',
       'Chantiers en cours cette année',
-      'Liste des projets de l\'année'
+      'Liste des projets de l\'année',
     ],
     prisma: async () => {
-      const currentYear = new Date().getFullYear();
-      const startOfYear = new Date(currentYear, 0, 1);
-      const endOfYear = new Date(currentYear, 11, 31);
+      const now = new Date();
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const endOfYear = new Date(now.getFullYear(), 11, 31);
 
       return await prisma.projects.findMany({
         where: {
@@ -1477,42 +1484,38 @@ export const projectsQueries = {
             {
               start_date: {
                 gte: startOfYear,
-                lte: endOfYear
-              }
+                lte: endOfYear,
+              },
             },
             {
               end_date: {
                 gte: startOfYear,
-                lte: endOfYear
-              }
-            }
-          ]
+                lte: endOfYear,
+              },
+            },
+          ],
         },
-        select: {
-          id: true,
-          name: true,
-          reference: true,
-          status: true,
-          start_date: true,
-          end_date: true,
+        include: {
           clients: {
             select: {
               firstname: true,
               lastname: true,
-              company_name: true
-            }
+              company_name: true,
+            },
           },
           project_stages: {
             select: {
               name: true,
               status: true,
-              completion_percentage: true
-            }
-          }
+              start_date: true,
+              end_date: true,
+              completion_percentage: true,
+            },
+          },
         },
         orderBy: {
-          start_date: 'desc'
-        }
+          start_date: 'desc',
+        },
       });
     },
     response_format: 'table',
