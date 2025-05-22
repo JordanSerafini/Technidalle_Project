@@ -147,10 +147,26 @@ export class AnalyzeEmailService {
         return;
       }
 
-      // Réinitialiser les gestionnaires d'événements
-      this.imap.removeAllListeners('ready');
-      this.imap.removeAllListeners('error');
-      this.imap.removeAllListeners('end');
+      // Créer une nouvelle instance IMAP si nécessaire
+      if (this.imap.state === 'disconnected') {
+        const imapUser = this.configService.get<string>('EMAIL_USER') ?? '';
+        const imapPassword = this.configService.get<string>('EMAIL_PASSWORD') ?? '';
+        const imapHost = this.configService.get<string>('IMAP_HOST') ?? '';
+        const imapPortConfig = this.configService.get<string>('IMAP_PORT');
+        const imapPort = imapPortConfig ? parseInt(imapPortConfig, 10) : 993;
+
+        const imapConfig: Imap.Config = {
+          user: imapUser,
+          password: imapPassword,
+          host: imapHost,
+          port: imapPort,
+          tls: true,
+          tlsOptions: { rejectUnauthorized: false },
+          debug: (info: string) => this.logger.debug(`IMAP Debug: ${info}`),
+        };
+
+        this.imap = new Imap(imapConfig) as TypedImap;
+      }
 
       this.imap.once('ready', () => {
         this.logger.log('Connexion IMAP établie avec succès');
@@ -764,7 +780,8 @@ export class AnalyzeEmailService {
         messages: [
           {
             role: 'system',
-            content: 'Vous êtes un assistant spécialisé dans l\'analyse d\'emails professionnels.',
+            content:
+              "Vous êtes un assistant spécialisé dans l'analyse d'emails professionnels.",
           },
           {
             role: 'user',
@@ -777,7 +794,7 @@ export class AnalyzeEmailService {
 
       const analysis = response.choices[0]?.message?.content;
       if (!analysis) {
-        throw new Error('Pas de réponse de l\'API OpenAI');
+        throw new Error("Pas de réponse de l'API OpenAI");
       }
 
       return this.parseAnalysisResponse(analysis);
@@ -786,7 +803,7 @@ export class AnalyzeEmailService {
         `Erreur lors de l'analyse de l'email "${email.subject}": ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
-        summary: 'Erreur lors de l\'analyse',
+        summary: "Erreur lors de l'analyse",
         priority: 'low',
         category: 'error',
         actionRequired: false,
@@ -842,7 +859,7 @@ export class AnalyzeEmailService {
         `Erreur lors du parsing de la réponse: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
-        summary: 'Erreur lors de l\'analyse',
+        summary: "Erreur lors de l'analyse",
         priority: 'low',
         category: 'error',
         actionRequired: false,
@@ -1636,8 +1653,7 @@ export class AnalyzeEmailService {
                               this.logger.debug(
                                 `Parsing du contenu de l'email #${seqno} dans ${folder}`,
                               );
-                              const bufferContent: Buffer =
-                                Buffer.from(buffer);
+                              const bufferContent: Buffer = Buffer.from(buffer);
                               const parsedEmail: ParsedMail =
                                 await simpleParser(bufferContent);
                               const parsed: ParsedEmail =
