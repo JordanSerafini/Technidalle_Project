@@ -148,6 +148,11 @@ export const formatChatbotResponse = (response: ChatbotResponse): string => {
       try {
         // Fonction récursive pour transformer [object Object] en valeurs plus lisibles
         const replacer = (key: string, value: any) => {
+          // Gérer les valeurs undefined ou null
+          if (value === undefined || value === null) {
+            return 'Non spécifié';
+          }
+          
           // Gérer les objets spéciaux comme les dates
           if (value instanceof Date) {
             return value.toISOString();
@@ -164,7 +169,7 @@ export const formatChatbotResponse = (response: ChatbotResponse): string => {
                     // Format simplifié pour les objets avec ID et nom
                     const name = 'name' in item ? item.name : 
                                  ('firstname' in item && 'lastname' in item) ? 
-                                 `${item.firstname} ${item.lastname}` : 'Sans nom';
+                                 `${item.firstname || ''} ${item.lastname || ''}`.trim() : 'Sans nom';
                     return `#${item.id} ${name}`;
                   }
                 }
@@ -175,9 +180,9 @@ export const formatChatbotResponse = (response: ChatbotResponse): string => {
             // Si c'est un objet avec des propriétés importantes, on les met en avant
             if ('id' in value) {
               if ('name' in value) {
-                return `${value.name} (ID: ${value.id})`;
+                return `${value.name || 'Sans nom'} (ID: ${value.id})`;
               } else if ('firstname' in value && 'lastname' in value) {
-                return `${value.firstname} ${value.lastname} (ID: ${value.id})`;
+                return `${value.firstname || ''} ${value.lastname || ''}`.trim() + ` (ID: ${value.id})`;
               }
             }
           }

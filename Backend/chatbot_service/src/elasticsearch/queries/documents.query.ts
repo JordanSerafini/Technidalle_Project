@@ -1236,4 +1236,1521 @@ export const documentsQueries = {
     response_format: 'table',
     description: 'Liste des 10 documents avec les montants les plus élevés',
   },
+
+  documents_recently_modified: {
+    keywords: [
+      'document',
+      'modifié',
+      'récent',
+      'mise à jour',
+      'changement',
+      'actualisé',
+      'édité',
+    ],
+    questions: [
+      'Quels documents ont été récemment modifiés ?',
+      'Documents récemment mis à jour',
+      'Dernières modifications de documents',
+      'Documents modifiés récemment',
+      'Changements récents dans les documents',
+      'Documents actualisés récemment',
+      'Dernières mises à jour documentaires',
+      'Documents édités récemment',
+      'Modifications récentes',
+      'Derniers documents modifiés',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        select: {
+          type: true,
+          reference: true,
+          status: true,
+          issue_date: true,
+          amount: true,
+          updated_at: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          updated_at: 'desc',
+        },
+        take: 10,
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des 10 documents les plus récemment modifiés',
+  },
+
+  payments_received_by_period: {
+    keywords: [
+      'paiement',
+      'reçu',
+      'période',
+      'encaissement',
+      'règlement',
+      'facture payée',
+      'recette',
+      'entrée',
+      'trésorerie',
+    ],
+    questions: [
+      'Quels paiements ont été reçus entre [START_DATE] et [END_DATE] ?',
+      'Paiements reçus de [START_DATE] à [END_DATE]',
+      'Règlements entre [START_DATE] et [END_DATE]',
+      'Factures payées période [START_DATE] [END_DATE]',
+      'Encaissements de [START_DATE] à [END_DATE]',
+      'Recettes entre [START_DATE] et [END_DATE]',
+      'Entrées de trésorerie [START_DATE] [END_DATE]',
+      'Liste des paiements [START_DATE] [END_DATE]',
+      'Montants reçus période [START_DATE] [END_DATE]',
+      'Argent encaissé entre [START_DATE] et [END_DATE]',
+    ],
+    prisma: async (startDate: string, endDate: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          type: 'facture',
+          payment_status: 'paye',
+          payment_date: {
+            gte: new Date(startDate),
+            lte: new Date(endDate),
+          },
+        },
+        select: {
+          reference: true,
+          issue_date: true,
+          payment_date: true,
+          amount: true,
+          payment_method: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          payment_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des paiements reçus pendant une période donnée',
+    parameters: [
+      {
+        name: 'START_DATE',
+        description: 'Date de début (YYYY-MM-DD)',
+      },
+      {
+        name: 'END_DATE',
+        description: 'Date de fin (YYYY-MM-DD)',
+      },
+    ],
+  },
+
+  documents_with_multiple_tags: {
+    keywords: [
+      'document',
+      'tags',
+      'étiquettes',
+      'multiples',
+      'plusieurs',
+      'combinaison',
+      'recherche avancée',
+    ],
+    questions: [
+      'Quels documents ont les tags [TAG1] et [TAG2] ?',
+      'Documents avec tags [TAG1] et [TAG2]',
+      'Rechercher documents tags [TAG1] [TAG2]',
+      'Documents étiquetés [TAG1] et [TAG2]',
+      'Filtrer par tags [TAG1] [TAG2]',
+      'Documents avec plusieurs tags [TAG1] [TAG2]',
+      'Recherche avancée tags [TAG1] [TAG2]',
+      'Combinaison de tags [TAG1] [TAG2]',
+      'Documents multitags [TAG1] [TAG2]',
+      'Trouver documents tags [TAG1] et [TAG2]',
+    ],
+    prisma: async (tag1: string, tag2: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          AND: [
+            {
+              document_tags: {
+                some: {
+                  tags: {
+                    label: {
+                      contains: tag1,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              },
+            },
+            {
+              document_tags: {
+                some: {
+                  tags: {
+                    label: {
+                      contains: tag2,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          type: true,
+          reference: true,
+          status: true,
+          issue_date: true,
+          amount: true,
+          payment_status: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+          document_tags: {
+            select: {
+              tags: {
+                select: {
+                  label: true,
+                  color: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          issue_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des documents possédant deux tags spécifiques',
+    parameters: [
+      {
+        name: 'TAG1',
+        description: 'Premier tag à rechercher',
+      },
+      {
+        name: 'TAG2',
+        description: 'Second tag à rechercher',
+      },
+    ],
+  },
+
+  partially_paid_invoices: {
+    keywords: [
+      'facture',
+      'partiellement',
+      'payée',
+      'acompte',
+      'paiement partiel',
+      'règlement incomplet',
+      'solde restant',
+    ],
+    questions: [
+      'Quelles factures sont partiellement payées ?',
+      'Factures avec paiement partiel',
+      'Factures réglées partiellement',
+      'Liste des factures avec acompte',
+      'Factures avec règlement incomplet',
+      'Paiements partiels',
+      'Factures en cours de règlement',
+      'Factures avec solde restant',
+      'Acomptes versés',
+      'Factures avec reste à payer',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          type: 'facture',
+          payment_status: 'partiel',
+        },
+        select: {
+          reference: true,
+          issue_date: true,
+          due_date: true,
+          amount: true,
+          amount_paid: true,
+          balance_due: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: [
+          {
+            due_date: 'asc',
+          },
+        ],
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des factures partiellement payées avec montant restant dû',
+  },
+
+  documents_by_payment_method: {
+    keywords: [
+      'document',
+      'paiement',
+      'moyen',
+      'méthode',
+      'mode',
+      'règlement',
+      'type paiement',
+    ],
+    questions: [
+      'Quels documents ont été payés par [PAYMENT_METHOD] ?',
+      'Paiements par [PAYMENT_METHOD]',
+      'Documents réglés en [PAYMENT_METHOD]',
+      'Factures payées par [PAYMENT_METHOD]',
+      'Liste des règlements par [PAYMENT_METHOD]',
+      'Transactions par [PAYMENT_METHOD]',
+      'Mode de paiement [PAYMENT_METHOD]',
+      'Méthode de règlement [PAYMENT_METHOD]',
+      'Documents avec paiement [PAYMENT_METHOD]',
+      'Rechercher paiements [PAYMENT_METHOD]',
+    ],
+    prisma: async (paymentMethod: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          payment_method: {
+            contains: paymentMethod,
+            mode: 'insensitive',
+          },
+          payment_status: {
+            in: ['paye', 'partiel'],
+          },
+        },
+        select: {
+          type: true,
+          reference: true,
+          issue_date: true,
+          payment_date: true,
+          amount: true,
+          amount_paid: true,
+          payment_method: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          payment_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des documents payés avec une méthode de paiement spécifique',
+    parameters: [
+      {
+        name: 'PAYMENT_METHOD',
+        description: 'Méthode de paiement (virement, carte, chèque, espèces, etc.)',
+      },
+    ],
+  },
+
+  documents_by_small_projects: {
+    keywords: [
+      'document',
+      'petit',
+      'projet',
+      'mini',
+      'court',
+      'rapide',
+      'simple',
+    ],
+    questions: [
+      'Quels documents sont associés à de petits projets ?',
+      'Documents des petits projets',
+      'Documents projets simples',
+      'Liste des documents pour petits chantiers',
+      'Documents des mini-projets',
+      'Facturation petits projets',
+      'Devis pour petits travaux',
+      'Documents des travaux rapides',
+      'Projets courts documents',
+      'Petites interventions documents',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          projects: {
+            estimated_duration: {
+              lt: 7 // Projets de moins d'une semaine
+            }
+          }
+        },
+        select: {
+          type: true,
+          reference: true,
+          status: true,
+          issue_date: true,
+          amount: true,
+          payment_status: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+              estimated_duration: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          issue_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des documents associés à des projets de courte durée (moins d\'une semaine)',
+  },
+
+  documents_by_payment_amount_range: {
+    keywords: [
+      'document',
+      'montant',
+      'intervalle',
+      'entre',
+      'prix',
+      'fourchette',
+      'coût',
+      'plage',
+      'valeur',
+    ],
+    questions: [
+      'Quels documents ont un montant entre [MIN_AMOUNT] et [MAX_AMOUNT] ?',
+      'Documents entre [MIN_AMOUNT] et [MAX_AMOUNT] euros',
+      'Factures de [MIN_AMOUNT] à [MAX_AMOUNT] euros',
+      'Devis entre [MIN_AMOUNT] et [MAX_AMOUNT] euros',
+      'Documents dans la fourchette [MIN_AMOUNT]-[MAX_AMOUNT] euros',
+      'Trouver documents de [MIN_AMOUNT] à [MAX_AMOUNT] euros',
+      'Liste des documents entre [MIN_AMOUNT] et [MAX_AMOUNT] euros',
+      'Facturations de [MIN_AMOUNT] à [MAX_AMOUNT] euros',
+      'Montants entre [MIN_AMOUNT] et [MAX_AMOUNT] euros',
+      'Rechercher documents entre [MIN_AMOUNT] et [MAX_AMOUNT] euros',
+    ],
+    prisma: async (minAmount: string, maxAmount: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          amount: {
+            gte: parseFloat(minAmount),
+            lte: parseFloat(maxAmount),
+          },
+        },
+        select: {
+          type: true,
+          reference: true,
+          status: true,
+          issue_date: true,
+          amount: true,
+          payment_status: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          amount: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des documents dont le montant est compris dans une fourchette spécifique',
+    parameters: [
+      {
+        name: 'MIN_AMOUNT',
+        description: 'Montant minimum en euros',
+      },
+      {
+        name: 'MAX_AMOUNT',
+        description: 'Montant maximum en euros',
+      },
+    ],
+  },
+
+  client_document_statistics: {
+    keywords: [
+      'client',
+      'statistique',
+      'document',
+      'résumé',
+      'bilan',
+      'synthèse',
+      'récapitulatif',
+    ],
+    questions: [
+      'Quelles sont les statistiques de documents pour le client [CLIENT] ?',
+      'Bilan documentaire client [CLIENT]',
+      'Résumé des documents client [CLIENT]',
+      'Synthèse client [CLIENT]',
+      'Statistiques client [CLIENT]',
+      'Récapitulatif documents [CLIENT]',
+      'Analyse documents client [CLIENT]',
+      'Résumé activité client [CLIENT]',
+      'Chiffres client [CLIENT]',
+      'Activité documentaire [CLIENT]',
+    ],
+    prisma: async (client: string) => {
+      // Trouver le client d'abord
+      const clientData = await prisma.clients.findFirst({
+        where: {
+          OR: [
+            { firstname: { contains: client, mode: 'insensitive' } },
+            { lastname: { contains: client, mode: 'insensitive' } },
+            { company_name: { contains: client, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+        },
+      });
+
+      if (!clientData) {
+        return { error: 'Client non trouvé' };
+      }
+
+      // Requête pour tous les documents du client
+      const documents = await prisma.documents.findMany({
+        where: {
+          client_id: clientData.id,
+        },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          amount: true,
+          payment_status: true,
+          issue_date: true,
+        },
+      });
+
+      // Analyser les données
+      const currentYear = new Date().getFullYear();
+      
+      // Initialiser les statistiques
+      const stats = {
+        client_name: clientData.company_name || `${clientData.firstname} ${clientData.lastname}`,
+        total_documents: documents.length,
+        total_amount: 0,
+        paid_amount: 0,
+        unpaid_amount: 0,
+        documents_by_type: {} as Record<string, number>,
+        documents_by_status: {} as Record<string, number>,
+        documents_current_year: 0,
+        invoices_paid_on_time: 0,
+        invoices_paid_late: 0,
+        average_payment_time: 0, // Jours moyens pour payer
+      };
+
+      // Calculer les statistiques
+      let totalPaymentDays = 0;
+      let paidInvoicesCount = 0;
+
+      documents.forEach(doc => {
+        // Montants
+        const amount = Number(doc.amount || 0);
+        stats.total_amount += amount;
+
+        if (doc.payment_status === 'paye') {
+          stats.paid_amount += amount;
+          paidInvoicesCount++;
+        } else {
+          stats.unpaid_amount += amount;
+        }
+
+        // Compter par type
+        if (doc.type && !stats.documents_by_type[doc.type]) {
+          stats.documents_by_type[doc.type] = 0;
+        }
+        if (doc.type) {
+          stats.documents_by_type[doc.type]++;
+        }
+
+        // Compter par statut
+        if (doc.status && !stats.documents_by_status[doc.status]) {
+          stats.documents_by_status[doc.status] = 0;
+        }
+        if (doc.status) {
+          stats.documents_by_status[doc.status]++;
+        }
+
+        // Documents de l'année en cours
+        if (doc.issue_date && new Date(doc.issue_date).getFullYear() === currentYear) {
+          stats.documents_current_year++;
+        }
+      });
+
+      return stats;
+    },
+    response_format: 'object',
+    description: 'Statistiques et résumé des documents pour un client spécifique',
+    parameters: [
+      {
+        name: 'CLIENT',
+        description: 'Nom ou raison sociale du client',
+      },
+    ],
+  },
+
+  document_history_for_project: {
+    keywords: [
+      'document',
+      'historique',
+      'projet',
+      'chronologie',
+      'timeline',
+      'évolution',
+      'suivi',
+    ],
+    questions: [
+      'Quel est l\'historique des documents pour le projet [PROJECT] ?',
+      'Chronologie documents projet [PROJECT]',
+      'Timeline projet [PROJECT]',
+      'Historique documentaire [PROJECT]',
+      'Évolution documents [PROJECT]',
+      'Suivi documents projet [PROJECT]',
+      'Documents projet [PROJECT] par date',
+      'Historique projet [PROJECT]',
+      'Progression documentaire [PROJECT]',
+      'Documents créés pour [PROJECT]',
+    ],
+    prisma: async (project: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          projects: {
+            OR: [
+              { name: { contains: project, mode: 'insensitive' } },
+              { reference: { contains: project, mode: 'insensitive' } },
+            ],
+          },
+        },
+        select: {
+          type: true,
+          reference: true,
+          status: true,
+          issue_date: true,
+          amount: true,
+          payment_status: true,
+          created_at: true,
+          updated_at: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+        },
+        orderBy: [
+          {
+            issue_date: 'asc',
+          },
+        ],
+      });
+    },
+    response_format: 'timeline',
+    description: 'Chronologie des documents créés pour un projet spécifique',
+    parameters: [
+      {
+        name: 'PROJECT',
+        description: 'Nom ou référence du projet',
+      },
+    ],
+  },
+
+  documents_requiring_action: {
+    keywords: [
+      'document',
+      'action',
+      'requise',
+      'nécessaire',
+      'intervention',
+      'urgent',
+      'attention',
+      'traiter',
+    ],
+    questions: [
+      'Quels documents nécessitent une action ?',
+      'Documents requérant attention',
+      'Documents à traiter',
+      'Actions nécessaires sur documents',
+      'Documents avec action requise',
+      'Liste des documents urgents',
+      'Documents nécessitant intervention',
+      'Actions en attente sur documents',
+      'Documents prioritaires',
+      'Documents à gérer',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      
+      // Requête combinant plusieurs critères de documents nécessitant action
+      const results = await Promise.all([
+        // Devis en attente de validation
+        prisma.documents.findMany({
+          where: {
+            type: 'devis',
+            status: 'en_attente',
+          },
+          select: {
+            id: true,
+            type: true,
+            reference: true,
+            issue_date: true,
+            due_date: true,
+            amount: true,
+            projects: {
+              select: {
+                name: true,
+              },
+            },
+            clients: {
+              select: {
+                firstname: true,
+                lastname: true,
+                company_name: true,
+              },
+            },
+          },
+        }),
+        
+        // Factures échues non payées
+        prisma.documents.findMany({
+          where: {
+            type: 'facture',
+            payment_status: 'non_payé',
+            due_date: {
+              lt: today,
+            },
+          },
+          select: {
+            id: true,
+            type: true,
+            reference: true,
+            issue_date: true,
+            due_date: true,
+            amount: true,
+            projects: {
+              select: {
+                name: true,
+              },
+            },
+            clients: {
+              select: {
+                firstname: true,
+                lastname: true,
+                company_name: true,
+              },
+            },
+          },
+        }),
+        
+        // Documents brouillons à finaliser
+        prisma.documents.findMany({
+          where: {
+            status: 'brouillon',
+          },
+          select: {
+            id: true,
+            type: true,
+            reference: true,
+            issue_date: true,
+            due_date: true,
+            amount: true,
+            projects: {
+              select: {
+                name: true,
+              },
+            },
+            clients: {
+              select: {
+                firstname: true,
+                lastname: true,
+                company_name: true,
+              },
+            },
+          },
+        }),
+      ]);
+      
+      // Combiner les résultats et ajouter un champ action_required
+      const devisEnAttente = results[0].map(doc => ({
+        ...doc,
+        action_required: 'Relance client',
+      }));
+      
+      const facturesEchues = results[1].map(doc => ({
+        ...doc,
+        action_required: 'Relance paiement',
+      }));
+      
+      const brouillons = results[2].map(doc => ({
+        ...doc,
+        action_required: 'Finaliser document',
+      }));
+      
+      // Combiner tous les résultats
+      return [...devisEnAttente, ...facturesEchues, ...brouillons];
+    },
+    response_format: 'table',
+    description: 'Liste des documents nécessitant une action (relance, finalisation, etc.)',
+  },
+
+  cancelled_or_refused_documents: {
+    keywords: ['annulé', 'refusé', 'abandon', 'rejeté'],
+    questions: [
+      'Quels documents ont été annulés ou refusés ?',
+      'Documents rejetés',
+      'Liste des refus ou annulations',
+    ],
+    description: 'Liste des documents dont le statut est annulé ou refusé',
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          status: { in: ['refuse', 'annule'] },
+        },
+        select: {
+          type: true,
+          reference: true,
+          status: true,
+          issue_date: true,
+          clients: {
+            select: { firstname: true, lastname: true },
+          },
+        },
+        orderBy: { issue_date: 'desc' },
+      });
+    },
+    response_format: 'table',
+  },
+  documents_signed: {
+    keywords: ['document', 'signé', 'signature', 'électronique'],
+    questions: [
+      'Quels documents ont été signés ?',
+      'Documents avec signature électronique',
+      'Documents signés par le client',
+      'Liste des documents signés',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          signed_by_client: true,
+        },
+        select: {
+          type: true,
+          reference: true,
+          signed_date: true,
+          electronic_signature_path: true,
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+          projects: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          signed_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Documents signés électroniquement par les clients',
+  },
+  documents_without_lines: {
+    keywords: ['vide', 'document', 'sans ligne', 'incomplet'],
+    questions: [
+      'Quels documents n\'ont pas de ligne ?',
+      'Documents vides',
+      'Documents sans contenu',
+      'Liste des documents incomplets',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          document_lines: {
+            none: {},
+          },
+        },
+        select: {
+          reference: true,
+          type: true,
+          issue_date: true,
+          amount: true,
+          clients: {
+            select: {
+              company_name: true,
+              firstname: true,
+              lastname: true,
+            },
+          },
+          projects: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Documents créés sans lignes associées',
+  },
+  documents_with_discount: {
+    keywords: ['remise', 'réduction', 'rabais', 'discount'],
+    questions: [
+      'Quels documents ont des remises ?',
+      'Documents avec rabais',
+      'Remises appliquées',
+      'Réductions sur documents',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          OR: [
+            { discount_rate: { gt: 0 } },
+            { discount_amount: { gt: 0 } },
+          ],
+        },
+        select: {
+          reference: true,
+          type: true,
+          issue_date: true,
+          discount_rate: true,
+          discount_amount: true,
+          amount: true,
+          clients: {
+            select: {
+              company_name: true,
+              firstname: true,
+              lastname: true,
+            },
+          },
+        },
+        orderBy: {
+          issue_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des documents avec remises ou réductions',
+  },
+  documents_by_project_and_type: {
+    keywords: [
+      'document',
+      'projet',
+      'type',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
+    questions: [
+      'Quels sont les documents de type [TYPE] pour le projet [PROJECT] ?',
+      'Liste des [TYPE] du projet [PROJECT]',
+      'Documents [TYPE] du projet [PROJECT]',
+      'Rechercher [TYPE] du projet [PROJECT]',
+      'Voir les [TYPE] du projet [PROJECT]',
+      'Afficher [TYPE] du projet [PROJECT]',
+      'Consulter [TYPE] du projet [PROJECT]',
+      'Lister [TYPE] du projet [PROJECT]',
+      'Trouver [TYPE] du projet [PROJECT]',
+    ],
+    description: 'Liste des documents filtrés par type et projet',
+    parameters: [
+      {
+        name: 'PROJECT',
+        description: 'Référence du projet',
+      },
+      {
+        name: 'TYPE',
+        description: 'Type de document (devis, facture, bon_de_commande, etc.)',
+      },
+    ],
+    prisma: async (project: string, type: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          type: type as document_type,
+          projects: {
+            reference: project,
+          },
+        },
+        select: {
+          reference: true,
+          status: true,
+          issue_date: true,
+          due_date: true,
+          amount: true,
+          payment_status: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            },
+          },
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          issue_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+  },
+  documents_with_material: {
+    keywords: [
+      'document',
+      'matériel',
+      'matériau',
+      'produit',
+      'élément',
+      'composant',
+      'rechercher',
+      'consulter',
+    ],
+    questions: [
+      'Quels documents contiennent le matériau [MATERIAL] ?',
+      'Documents avec matériau [MATERIAL]',
+      'Liste des documents contenant [MATERIAL]',
+      'Rechercher documents avec [MATERIAL]',
+      'Voir documents avec [MATERIAL]',
+      'Afficher documents avec [MATERIAL]',
+      'Consulter documents avec [MATERIAL]',
+      'Lister documents avec [MATERIAL]',
+      'Trouver documents avec [MATERIAL]',
+      'Documents associés à [MATERIAL]',
+    ],
+    description: 'Liste des documents contenant un matériau spécifique',
+    parameters: [
+      { name: 'MATERIAL', description: 'Nom ou référence du matériau' },
+    ],
+    prisma: async (material: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          document_lines: {
+            some: {
+              materials: {
+                OR: [
+                  { name: { contains: material, mode: 'insensitive' } },
+                  { reference: { contains: material, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        },
+        select: {
+          reference: true,
+          type: true,
+          issue_date: true,
+          amount: true,
+          document_lines: {
+            where: {
+              materials: {
+                OR: [
+                  { name: { contains: material, mode: 'insensitive' } },
+                  { reference: { contains: material, mode: 'insensitive' } },
+                ],
+              },
+            },
+            select: {
+              description: true,
+              quantity: true,
+              unit_price: true,
+              materials: {
+                select: {
+                  name: true,
+                  reference: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    },
+    response_format: 'table',
+  },
+  documents_by_material: {
+    keywords: ['document', 'matériel', 'matériau', 'produit', 'élément'],
+    questions: [
+      'Quels documents contiennent le matériau [MATERIAL] ?',
+      'Documents associés au produit [MATERIAL]',
+      'Liste des documents avec [MATERIAL]',
+    ],
+    prisma: async (material: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          document_lines: {
+            some: {
+              materials: {
+                name: {
+                  contains: material,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+        },
+        select: {
+          reference: true,
+          type: true,
+          amount: true,
+          issue_date: true,
+          projects: {
+            select: { name: true, reference: true },
+          },
+          clients: {
+            select: { firstname: true, lastname: true, company_name: true },
+          },
+        },
+        orderBy: { issue_date: 'desc' },
+      });
+    },
+    parameters: [
+      { name: 'MATERIAL', description: 'Nom du matériau recherché' },
+    ],
+    response_format: 'table',
+    description: 'Liste des documents contenant un matériau spécifique',
+  },
+  documents_approved_by_staff: {
+    keywords: ['validé', 'approuvé', 'staff', 'employé'],
+    questions: [
+      'Quels documents ont été validés par [STAFF] ?',
+      'Documents approuvés par [STAFF]',
+      'Liste des documents validés par [STAFF]',
+    ],
+    prisma: async (staff: string) => {
+      return await prisma.documents.findMany({
+        where: {
+          staff: {
+            OR: [
+              { firstname: { contains: staff, mode: 'insensitive' } },
+              { lastname: { contains: staff, mode: 'insensitive' } },
+            ],
+          },
+        },
+        select: {
+          reference: true,
+          type: true,
+          status: true,
+          issue_date: true,
+          projects: {
+            select: { name: true, reference: true },
+          },
+          staff: {
+            select: { firstname: true, lastname: true },
+          },
+        },
+        orderBy: { issue_date: 'desc' },
+      });
+    },
+    parameters: [
+      { name: 'STAFF', description: 'Nom ou prénom de l\'employé' },
+    ],
+    response_format: 'table',
+    description: 'Liste des documents approuvés par un membre du staff',
+  },
+  delivery_documents_by_month: {
+    keywords: ['livraison', 'mois', 'bon de livraison', 'documents logistique'],
+    questions: [
+      'Quels sont les bons de livraison du mois de [MONTH] ?',
+      'Livraisons effectuées en [MONTH]',
+    ],
+    prisma: async (month: string) => {
+      const monthIndex = new Date(`${month} 1, ${new Date().getFullYear()}`).getMonth();
+      const year = new Date().getFullYear();
+      const firstDay = new Date(year, monthIndex, 1);
+      const lastDay = new Date(year, monthIndex + 1, 0);
+  
+      return await prisma.documents.findMany({
+        where: {
+          type: 'bon_de_livraison',
+          delivery_date: {
+            gte: firstDay,
+            lte: lastDay,
+          },
+        },
+        select: {
+          reference: true,
+          delivery_date: true,
+          amount: true,
+          projects: { select: { name: true, reference: true } },
+        },
+        orderBy: { delivery_date: 'asc' },
+      });
+    },
+    parameters: [{ name: 'MONTH', description: 'Mois (ex: janvier)' }],
+    response_format: 'table',
+    description: 'Liste des documents de livraison par mois',
+  },
+  rejected_or_cancelled_documents: {
+    keywords: ['refusé', 'annulé', 'rejeté', 'abandon'],
+    questions: [
+      'Quels documents ont été annulés ou refusés ?',
+      'Liste des documents rejetés',
+      'Documents abandonnés',
+    ],
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          status: { in: ['refuse', 'annule'] },
+        },
+        select: {
+          reference: true,
+          type: true,
+          status: true,
+          issue_date: true,
+          amount: true,
+          projects: { select: { name: true, reference: true } },
+        },
+        orderBy: { issue_date: 'desc' },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des documents refusés ou annulés',
+  },
+  invoices_total_by_client: {
+    keywords: [
+      'facture',
+      'client',
+      'total',
+      'montant',
+      'chiffre',
+      'affaires',
+      'bilan',
+      'somme',
+      'revenu',
+      'facturation',
+    ],
+    questions: [
+      'Quel est le montant total des factures par client ?',
+      'Total des factures par client',
+      'Chiffre d\'affaires par client',
+      'Facturation totale par client',
+      'Bilan des factures par client',
+      'Somme des factures par client',
+      'Revenu par client',
+      'Total de la facturation par client',
+      'Statistiques de facturation par client',
+      'Factures cumulées par client',
+    ],
+    description: 'Montant total des factures par client',
+    prisma: async () => {
+      const results = await prisma.documents.groupBy({
+        by: ['client_id'],
+        where: {
+          type: 'facture',
+        },
+        _sum: {
+          amount: true,
+        },
+        _count: {
+          _all: true,
+        },
+      });
+  
+      const enriched = await Promise.all(results.map(async (r) => {
+        const client = await prisma.clients.findUnique({ where: { id: r.client_id ?? undefined } });
+        return {
+          client_name: client?.company_name || `${client?.firstname} ${client?.lastname}`,
+          total_amount: r._sum.amount ?? 0,
+          number_of_invoices: r._count._all,
+        };
+      }));
+  
+      return enriched;
+    },
+    response_format: 'table',
+  },
+  documents_due_this_week: {
+    keywords: [
+      'document',
+      'échéance',
+      'semaine',
+      'paiement',
+      'attente',
+      'calendrier',
+      'date limite',
+      'délai',
+      'urgent',
+      'prioritaire',
+    ],
+    questions: [
+      'Quels documents sont dus cette semaine ?',
+      'Échéances de la semaine',
+      'Documents à échéance cette semaine',
+      'Factures dues cette semaine',
+      'Paiements attendus cette semaine',
+      'Documents arrivant à échéance cette semaine',
+      'Factures à payer cette semaine',
+      'Échéances de la semaine en cours',
+      'Calendrier des paiements de la semaine',
+      'Documents avec date limite cette semaine',
+    ],
+    description: 'Documents dont l\'échéance est prévue cette semaine',
+    prisma: async () => {
+      const today = new Date();
+      const nextWeek = new Date();
+      nextWeek.setDate(today.getDate() + 7);
+  
+      return await prisma.documents.findMany({
+        where: {
+          due_date: {
+            gte: today,
+            lte: nextWeek,
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          reference: true,
+          due_date: true,
+          amount: true,
+          status: true,
+        },
+        orderBy: {
+          due_date: 'asc',
+        },
+      });
+    },
+    response_format: 'table',
+  },
+  average_payment_delay_by_client: {
+    keywords: [
+      'paiement',
+      'délai',
+      'retard',
+      'client',
+      'moyenne',
+      'délai moyen',
+      'temps',
+      'échéance',
+      'règlement',
+      'performance',
+    ],
+    questions: [
+      'Quel est le délai moyen de paiement par client ?',
+      'Délais de paiement moyens par client',
+      'Retards de paiement moyens par client',
+      'Temps moyen de règlement par client',
+      'Performance de paiement par client',
+      'Délais de règlement moyens',
+      'Retards moyens de paiement',
+      'Temps moyen avant paiement',
+      'Délais de paiement clients',
+      'Moyenne des retards de paiement',
+    ],
+    description: 'Délai moyen de paiement par client',
+    prisma: async () => {
+      const paidInvoices = await prisma.documents.findMany({
+        where: {
+          type: 'facture',
+          payment_status: 'paye',
+          payment_date: { not: null },
+          due_date: { not: null },
+        },
+        select: {
+          payment_date: true,
+          due_date: true,
+          client_id: true,
+        },
+      });
+  
+      const delays: Record<number, { total: number; count: number }> = {};
+  
+      paidInvoices.forEach((inv) => {
+        if (!inv.client_id) return;
+        const delay = (new Date(inv.payment_date!).getTime() - new Date(inv.due_date!).getTime()) / (1000 * 60 * 60 * 24);
+        if (!delays[inv.client_id]) delays[inv.client_id] = { total: 0, count: 0 };
+        delays[inv.client_id].total += delay;
+        delays[inv.client_id].count += 1;
+      });
+  
+      const enriched = await Promise.all(Object.entries(delays).map(async ([clientId, data]) => {
+        const client = await prisma.clients.findUnique({ where: { id: parseInt(clientId) } });
+        return {
+          client_name: client?.company_name || `${client?.firstname} ${client?.lastname}`,
+          average_delay: (data.total / data.count).toFixed(2),
+        };
+      }));
+  
+      return enriched;
+    },
+    response_format: 'table',
+  },
+  documents_from_projects_without_budget: {
+    keywords: [
+      'document',
+      'projet',
+      'budget',
+      'sans budget',
+      'non défini',
+      'manquant',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
+    questions: [
+      'Quels documents sont liés à des projets sans budget ?',
+      'Documents des projets sans budget',
+      'Liste des documents projets sans budget',
+      'Documents projets budget non défini',
+      'Rechercher documents projets sans budget',
+      'Voir documents projets sans budget',
+      'Afficher documents projets sans budget',
+      'Consulter documents projets sans budget',
+      'Lister documents projets sans budget',
+      'Trouver documents projets sans budget',
+    ],
+    description: 'Documents liés à des projets sans budget défini',
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          projects: {
+            budget: null,
+          },
+        },
+        select: {
+          reference: true,
+          type: true,
+          amount: true,
+          projects: { select: { name: true, reference: true } },
+        },
+        orderBy: { issue_date: 'desc' },
+      });
+    },
+    response_format: 'table',
+  },
+  documents_without_materials: {
+    keywords: [
+      'document',
+      'matériel',
+      'sans matériel',
+      'vide',
+      'incomplet',
+      'liste',
+      'rechercher',
+      'consulter',
+      'filtrer',
+    ],
+    questions: [
+      'Quels documents ne contiennent aucun matériau ?',
+      'Documents sans matériaux',
+      'Liste des documents sans matériaux',
+      'Documents vides de matériaux',
+      'Rechercher documents sans matériaux',
+      'Voir documents sans matériaux',
+      'Afficher documents sans matériaux',
+      'Consulter documents sans matériaux',
+      'Lister documents sans matériaux',
+      'Trouver documents sans matériaux',
+    ],
+    description: 'Documents qui ne contiennent aucune ligne de matériau',
+    prisma: async () => {
+      return await prisma.documents.findMany({
+        where: {
+          document_lines: {
+            none: {
+              material_id: {
+                not: null,
+              },
+            },
+          },
+        },
+        select: {
+          reference: true,
+          type: true,
+          issue_date: true,
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+        },
+        orderBy: {
+          issue_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+  },
 };
