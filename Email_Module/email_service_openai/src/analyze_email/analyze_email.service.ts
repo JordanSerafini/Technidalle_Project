@@ -1376,9 +1376,66 @@ export class AnalyzeEmailService {
   }
 
   /**
+   * Méthode combinée pour obtenir un résumé formaté des emails du jour
+   * @param limit Nombre maximum d'emails à analyser
+   * @param fastMode Si true, utilise le mode rapide pour l'analyse
+   */
+  async getDailyFormattedSummary(
+    limit: number,
+    fastMode: boolean = false,
+  ): Promise<{
+    formattedSummary: string;
+    tokensUsed: {
+      input: number;
+      output: number;
+      total: number;
+    };
+  }> {
+    this.logger.log(
+      `Début de l'analyse des emails du jour (limite: ${limit}, mode rapide: ${fastMode})`,
+    );
+
+    try {
+      // 1. Récupérer les emails du jour
+      const emails = await this.getTodayEmails();
+      this.logger.log(`${emails.length} emails récupérés aujourd'hui`);
+
+      // 2. Appliquer la limite
+      const emailsToAnalyze = emails.slice(0, limit);
+      this.logger.log(`${emailsToAnalyze.length} emails à analyser`);
+
+      // 3. Analyser les emails
+      const analyzedEmails = await this.analyzeEmails(
+        emailsToAnalyze,
+        fastMode,
+      );
+      this.logger.log(`${analyzedEmails.length} emails analysés`);
+
+      // 4. Générer le résumé global
+      const overallSummary = await this.generateOverallSummary(
+        analyzedEmails,
+        fastMode,
+      );
+      this.logger.log('Résumé global généré');
+
+      // 5. Formater le résumé pour l'affichage
+      const { formattedSummary, tokensUsed } =
+        await this.formatProfessionalSummary(overallSummary, fastMode);
+
+      return {
+        formattedSummary,
+        tokensUsed,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération du résumé quotidien: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Formate le résumé en un format professionnel structuré
-   * @param summaryData Données du résumé à formater
-   * @param fastMode Si true, crée un format plus simple et direct
    */
   async formatProfessionalSummary(
     summaryData: {
@@ -1405,16 +1462,6 @@ export class AnalyzeEmailService {
     };
   }> {
     try {
-      // Ajout d'une opération asynchrone pour satisfaire le linter
-      await Promise.resolve();
-
-      // Récupérer les tokens utilisés pour la génération du résumé initial
-      const initialTokensUsed = summaryData.tokensUsed || {
-        input: 0,
-        output: 0,
-        total: 0,
-      };
-
       // Obtenir la date du jour au format français
       const today = new Date();
       const options: Intl.DateTimeFormatOptions = {
@@ -1424,84 +1471,50 @@ export class AnalyzeEmailService {
       };
       const dateStr = today.toLocaleDateString('fr-FR', options);
 
-      // Créer un résumé conversationnel
-      let formattedSummary = `Bonjour, voici votre résumé d'emails du ${dateStr}.\n\n`;
+      // Créer un résumé conversationnel avec emojis
+      let formattedSummary = `📧 Résumé des emails du ${dateStr}\n\n`;
 
       // Aperçu du nombre d'emails
-      formattedSummary += `J'ai analysé ${summaryData.totalEmails} emails aujourd'hui`;
+      formattedSummary += `📊 J'ai analysé ${summaryData.totalEmails} emails aujourd'hui`;
 
       if (summaryData.highPriorityCount > 0) {
-        formattedSummary += `, dont ${summaryData.highPriorityCount} nécessitent votre attention prioritaire`;
+        formattedSummary += `, dont ${summaryData.highPriorityCount} ⚠️ prioritaires`;
       }
 
       if (summaryData.actionRequiredCount > 0) {
-        formattedSummary += ` et ${summaryData.actionRequiredCount} requièrent une action de votre part`;
+        formattedSummary += ` et ${summaryData.actionRequiredCount} 📝 nécessitent une action`;
       }
       formattedSummary += `.\n\n`;
 
-      // En mode rapide, simplifier la sortie
-      if (fastMode) {
-        // Liste des emails avec leurs résumés
-        formattedSummary += `Voici un aperçu de chaque email :\n\n`;
-
-        summaryData.topPriorityEmails.forEach((email) => {
-          const sender = email.from.split('<')[0].replace(/"/g, '').trim();
-          formattedSummary += `• [${email.subject || '(sans sujet)'}] de ${sender}\n`;
-          if (email.analysis?.summary) {
-            formattedSummary += `   ${email.analysis.summary}\n\n`;
-          } else {
-            formattedSummary += `   (Pas de résumé disponible)\n\n`;
-          }
-        });
-
-        // Actions requises
-        if (summaryData.actionItems && summaryData.actionItems.length > 0) {
-          formattedSummary += `Actions requises :\n`;
-          const uniqueActions = [...new Set(summaryData.actionItems)].slice(
-            0,
-            5,
-          );
-          uniqueActions.forEach((action, index) => {
-            formattedSummary += `${index + 1}. ${action}\n`;
-          });
-          formattedSummary += `\n`;
-        }
-
-        return {
-          formattedSummary,
-          tokensUsed: initialTokensUsed,
-        };
-      }
-
-      // Format standard (non rapide) avec plus de détails
       // Liste des emails avec leurs résumés
-      formattedSummary += `Voici un aperçu détaillé de chaque email :\n\n`;
+      formattedSummary += `📋 Aperçu des emails :\n\n`;
 
-      summaryData.topPriorityEmails.forEach((email) => {
+      summaryData.topPriorityEmails.forEach((email, index) => {
         const sender = email.from.split('<')[0].replace(/"/g, '').trim();
-        formattedSummary += `• [${email.subject || '(sans sujet)'}] de ${sender}\n`;
+        const priority = email.analysis?.priority || 'medium';
+        const priorityEmoji =
+          priority === 'high' ? '🔴' : priority === 'medium' ? '🟡' : '🟢';
+
+        formattedSummary += `${index + 1}. ${priorityEmoji} [${email.subject || '(sans sujet)'}] de ${sender}\n`;
         if (email.analysis?.summary) {
           formattedSummary += `   ${email.analysis.summary}\n`;
         } else {
           formattedSummary += `   (Pas de résumé disponible)\n`;
         }
 
-        // Ajouter la priorité et la catégorie si disponibles
-        if (email.analysis?.priority) {
-          formattedSummary += `   Priorité : ${email.analysis.priority}\n`;
-        }
+        // Ajouter la catégorie si disponible
         if (email.analysis?.category) {
-          formattedSummary += `   Catégorie : ${email.analysis.category}\n`;
+          formattedSummary += `   📌 Catégorie : ${email.analysis.category}\n`;
         }
         formattedSummary += `\n`;
       });
 
       // Actions requises
       if (summaryData.actionItems && summaryData.actionItems.length > 0) {
+        formattedSummary += `📝 Actions requises :\n`;
         const uniqueActions = [...new Set(summaryData.actionItems)];
-        formattedSummary += `Actions requises :\n`;
         uniqueActions.slice(0, 5).forEach((action, index) => {
-          formattedSummary += `${index + 1}. ${action}\n`;
+          formattedSummary += `${index + 1}. ✅ ${action}\n`;
         });
         if (uniqueActions.length > 5) {
           formattedSummary += `... et ${uniqueActions.length - 5} autres actions.\n`;
@@ -1514,7 +1527,7 @@ export class AnalyzeEmailService {
         summaryData.categoryCounts &&
         Object.keys(summaryData.categoryCounts).length > 0
       ) {
-        formattedSummary += `Répartition par catégories :\n`;
+        formattedSummary += `📊 Répartition par catégories :\n`;
         const categories = Object.entries(summaryData.categoryCounts)
           .sort((a, b) => b[1] - a[1])
           .map(
@@ -1525,22 +1538,22 @@ export class AnalyzeEmailService {
         categories.forEach((category) => {
           formattedSummary += `${category}\n`;
         });
-        formattedSummary += `\n`;
       }
 
       return {
         formattedSummary,
-        tokensUsed: initialTokensUsed,
+        tokensUsed: summaryData.tokensUsed || {
+          input: 0,
+          output: 0,
+          total: 0,
+        },
       };
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erreur inconnue';
+    } catch (error) {
       this.logger.error(
-        `Erreur lors du formatage professionnel du résumé: ${errorMessage}`,
+        `Erreur lors du formatage du résumé: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
-        formattedSummary:
-          'Impossible de générer le résumé conversationnel de vos emails.',
+        formattedSummary: '❌ Impossible de générer le résumé des emails.',
         tokensUsed: {
           input: 0,
           output: 0,
