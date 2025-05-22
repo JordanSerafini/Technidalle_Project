@@ -19,15 +19,23 @@ const MONTHS = {
 };
 
 export function extractDates(question: string): DateRange | null {
-  // Pattern pour l'année
-  const yearPattern = /année\s+(\d{4})/i;
-  const yearMatch = question.match(yearPattern);
-  if (yearMatch) {
-    const year = parseInt(yearMatch[1]);
-    return {
-      startDate: new Date(year, 0, 1),
-      endDate: new Date(year, 11, 31, 23, 59, 59)
-    };
+  // Pattern pour l'année (plus flexible)
+  const yearPatterns = [
+    /année\s+(\d{4})/i,
+    /(\d{4})/i  // Capture l'année directement si elle est mentionnée seule
+  ];
+
+  for (const pattern of yearPatterns) {
+    const yearMatch = question.match(pattern);
+    if (yearMatch) {
+      const year = parseInt(yearMatch[1]);
+      if (!isNaN(year) && year >= 1900 && year <= 2100) {  // Validation basique de l'année
+        return {
+          startDate: new Date(year, 0, 1),
+          endDate: new Date(year, 11, 31, 23, 59, 59)
+        };
+      }
+    }
   }
 
   // Pattern pour une date spécifique
