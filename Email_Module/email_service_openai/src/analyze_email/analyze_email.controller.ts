@@ -1026,129 +1026,32 @@ export class AnalyzeEmailController {
   async getWhatsappDailySummary(
     @Query('limit') limit?: string,
     @Query('fastMode') fastMode?: string,
-  ): Promise<{
-    status: string;
-    message: string;
-    summary: {
-      overview: string;
-      totalEmails: number;
-      highPriorityCount: number;
-      actionRequiredCount: number;
-      topPriorityEmails: Array<{
-        subject: string;
-        from: string;
-        summary: string;
-        priority: string;
-      }>;
-      actionItems: string[];
-      formattedMessage: string;
-    };
-    performanceMetrics?: {
-      totalDuration: number;
-      emailFetchDuration: number;
-      analysisDuration: number;
-      summaryDuration: number;
-    };
-  }> {
+  ) {
     try {
-      const startTime = Date.now();
+      const limitValue = limit ? parseInt(limit, 10) : 5;
       const isFastMode = fastMode === 'true';
-      const limitValue = limit ? parseInt(limit, 10) : 10;
 
       this.logger.log(
-        `Génération du résumé WhatsApp des emails journaliers (limite: ${limitValue}, mode rapide: ${isFastMode})`,
+        `Demande de résumé WhatsApp (limite: ${limitValue}, mode rapide: ${isFastMode})`,
       );
 
-      // Récupération des emails
-      const fetchStartTime = Date.now();
-      const emails = await this.analyzeEmailService.getTodayEmails();
-      const fetchEndTime = Date.now();
-
-      if (emails.length === 0) {
-        return {
-          status: 'success',
-          message: "Aucun email non lu trouvé aujourd'hui",
-          summary: {
-            overview: 'Aucun email à analyser',
-            totalEmails: 0,
-            highPriorityCount: 0,
-            actionRequiredCount: 0,
-            topPriorityEmails: [],
-            actionItems: [],
-            formattedMessage:
-              "📧 Aucun email non lu aujourd'hui. Tout est à jour! 📅",
-          },
-          performanceMetrics: {
-            totalDuration: Date.now() - startTime,
-            emailFetchDuration: fetchEndTime - fetchStartTime,
-            analysisDuration: 0,
-            summaryDuration: 0,
-          },
-        };
-      }
-
-      // Analyse des emails
-      const analysisStartTime = Date.now();
-      const analyzedEmails = await this.analyzeEmailService.analyzeEmails(
-        emails.slice(0, limitValue),
+      const { formattedSummary, tokensUsed } = await this.analyzeEmailService.getDailyFormattedSummary(
+        limitValue,
         isFastMode,
       );
-      const analysisEndTime = Date.now();
-
-      // Génération du résumé
-      const summaryStartTime = Date.now();
-      const overallSummary =
-        await this.analyzeEmailService.generateOverallSummary(
-          analyzedEmails,
-          isFastMode,
-        );
-      const summaryEndTime = Date.now();
-
-      // Formatage du message pour WhatsApp
-      const { formattedSummary } =
-        await this.analyzeEmailService.formatProfessionalSummary(
-          overallSummary,
-          isFastMode,
-        );
-
-      // Calcul des métriques de performance
-      const performanceMetrics = {
-        totalDuration: Date.now() - startTime,
-        emailFetchDuration: fetchEndTime - fetchStartTime,
-        analysisDuration: analysisEndTime - analysisStartTime,
-        summaryDuration: summaryEndTime - summaryStartTime,
-      };
 
       return {
-        status: 'success',
-        message: `Résumé WhatsApp généré pour ${analyzedEmails.length} emails`,
         summary: {
-          overview: overallSummary.summary,
-          totalEmails: overallSummary.totalEmails,
-          highPriorityCount: overallSummary.highPriorityCount,
-          actionRequiredCount: overallSummary.actionRequiredCount,
-          topPriorityEmails: overallSummary.topPriorityEmails.map((email) => ({
-            subject: email.subject,
-            from: email.from,
-            summary: email.analysis?.summary || '',
-            priority: email.analysis?.priority || 'medium',
-          })),
-          actionItems: overallSummary.actionItems,
           formattedMessage: formattedSummary,
+          tokensUsed,
         },
-        performanceMetrics,
       };
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+    } catch (error) {
       this.logger.error(
-        `Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`,
+        `Erreur lors de la génération du résumé WhatsApp: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw new HttpException(
-        {
-          status: 'error',
-          message: `Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`,
-        },
+        'Erreur lors de la génération du résumé',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
