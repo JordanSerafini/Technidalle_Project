@@ -1,0 +1,19 @@
+type: collection.insomnia.rest/5.0
+name: SportsPoint
+meta:
+  id: wrk_877a29a4d4664fc1be80421027d0dcad
+  created: 1733570188343
+  modified: 1735568264458
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_2e01d3a81ec6a84cd74ca551ba1fc3ce61611cac
+    created: 1735568264476
+    modified: 1735568264476
+environments:
+  name: Base Environment
+  meta:
+    id: env_2e01d3a81ec6a84cd74ca551ba1fc3ce61611cac
+    created: 1733570188344
+    modified: 1735568264457
+    isPrivate: false

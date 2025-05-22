@@ -1,0 +1,142 @@
+type: collection.insomnia.rest/5.0
+name: BTP_Module
+meta:
+  id: wrk_4a972ea6eb5440a3a1e2ea19b87e96b1
+  created: 1734092175886
+  modified: 1735568259561
+collection:
+  - name: Planing
+    meta:
+      id: fld_486946786700442a9a559b462fd4a2e8
+      created: 1740404210756
+      modified: 1740404218058
+      sortKey: -1740404210756
+    children:
+      - url: http://localhost:3000/planning/calendar/month?year=2025&month=3
+        name: New Request
+        meta:
+          id: req_23ee8c2361324a96a9970a0165bd9dcf
+          created: 1740404220273
+          modified: 1740404294517
+          isPrivate: false
+          sortKey: -1740404220273
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/10.3.1
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: AI
+    meta:
+      id: fld_5262bb3b727d4c5ba4ea7b63d91d643b
+      created: 1740410222494
+      modified: 1740410222494
+      sortKey: -1740410222494
+    children:
+      - url: http://localhost:4000/ai/analyse
+        name: New Request
+        meta:
+          id: req_52fdd7a1d5e04712a70118a3a28044fc
+          created: 1740410237929
+          modified: 1740660118272
+          isPrivate: false
+          sortKey: -1740410237929
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "prompt": "Quels est le montant de chantier de demain?"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/10.3.1
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - url: http://localhost:3000/projects/2
+    name: New Request
+    meta:
+      id: req_e831ccf840284902abc90243490672a9
+      created: 1735568283796
+      modified: 1739546607190
+      isPrivate: false
+      sortKey: -1735568283796
+    method: GET
+    headers:
+      - name: User-Agent
+        value: insomnia/10.3.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: "   http://localhost:3000/graphql"
+    name: New Request
+    meta:
+      id: req_a5694c54cbec401c824552c23afccfcc
+      created: 1735831143662
+      modified: 1738943966961
+      isPrivate: false
+      sortKey: -1735831143662
+    method: POST
+    body:
+      mimeType: application/graphql
+      text: '{"query":"query {\n  users
+        {\n    _id\n    firstname\n    lastname\n    role\n    phone\n  }\n  staff
+        {\n\t\tfirstname\n\t\tisActive\n\t\tlastname\n\t\t  }\n\tclients
+        {\n\t\temail\n\t}\n}"}'
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/10.3.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_0d614776b4505dad165b254ce465548ec8d1deed
+    created: 1735568259579
+    modified: 1735831155757
+  cookies:
+    - key: __cf_bm
+      value: Bg4c3A5QVYPydQ1yRuJsNv.4qbeDYR6fRHE7UozVJlE-1735831155-1.0.1.1-TItvKe7WKVIYvFz4tnPaJw9sEP5jjbV6jkOAq1_awD1HzYbpez9DjNOvMoRn9DeqiWBbOfnPZ6QhQrH8xmYUYMwDJ3h8_0jdWZrvl.fjdfs
+      domain: pagesjaunes.fr
+      path: /
+      secure: true
+      httpOnly: true
+      hostOnly: false
+      creation: 2025-01-02T15:19:15.754Z
+      lastAccessed: 2025-01-02T15:19:15.754Z
+      sameSite: none
+      id: c6a70c87-2b0c-4001-ad20-4e17e9e122c5
+environments:
+  name: Base Environment
+  meta:
+    id: env_0d614776b4505dad165b254ce465548ec8d1deed
+    created: 1734092175888
+    modified: 1735568259561
+    isPrivate: false
