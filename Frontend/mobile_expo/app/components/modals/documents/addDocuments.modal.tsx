@@ -194,7 +194,7 @@ const ClientSelectionModal: React.FC<ClientSelectionModalProps> = ({
   );
 };
 
-export const DocumentsModal: React.FC<DocumentsModalProps> = ({
+const DocumentsModal: React.FC<DocumentsModalProps> = ({
   visible,
   onClose,
   projectId,
@@ -472,7 +472,7 @@ export const DocumentsModal: React.FC<DocumentsModalProps> = ({
                   )}
                   {selectedClient.addresses && (
                     <Text className="text-sm text-gray-600 mt-1">
-                      {selectedClient.addresses.street}, {selectedClient.addresses.zipcode} {selectedClient.addresses.city}
+                      {selectedClient.addresses.street_name}, {selectedClient.addresses.zip_code} {selectedClient.addresses.city}
                     </Text>
                   )}
                 </View>

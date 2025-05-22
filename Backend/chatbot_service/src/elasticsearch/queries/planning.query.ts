@@ -2024,4 +2024,724 @@ export const planningQueries = {
     description:
       'Liste du personnel disponible pour le mois prochain (sans affectation à des projets pour cette période)',
   },
+
+  project_critical_deadlines: {
+    keywords: [
+      'échéance',
+      'critique',
+      'urgente',
+      'importante',
+      'prioritaire',
+      'limite',
+      'date',
+      'fin',
+    ],
+    questions: [
+      'Quelles sont les échéances critiques à venir ?',
+      'Dates limites critiques des projets',
+      'Échéances prioritaires',
+      'Deadlines urgentes à surveiller',
+      'Dates de fin critiques',
+      'Échéances imminentes importantes',
+      'Dates butoirs à ne pas manquer',
+      'Prochaines échéances critiques',
+      'Fins de projet urgentes',
+      'Dates limites importantes des chantiers',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      const twoWeeksLater = new Date();
+      twoWeeksLater.setDate(today.getDate() + 14);
+
+      return await prisma.project_stages.findMany({
+        where: {
+          end_date: {
+            gte: today,
+            lte: twoWeeksLater,
+          },
+          status: {
+            not: 'termine',
+          },
+          completion_percentage: {
+            lt: 80
+          }
+        },
+        select: {
+          name: true,
+          description: true,
+          end_date: true,
+          completion_percentage: true,
+          status: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+              clients: {
+                select: {
+                  firstname: true,
+                  lastname: true,
+                  company_name: true,
+                }
+              }
+            },
+          },
+        },
+        orderBy: [
+          { end_date: 'asc' },
+          { completion_percentage: 'asc' }
+        ],
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des échéances critiques approchant dans les deux prochaines semaines avec un avancement inférieur à 80%',
+  },
+
+  staff_workload_distribution: {
+    keywords: [
+      'charge',
+      'travail',
+      'répartition',
+      'personnel',
+      'équilibre',
+      'distribution',
+      'heures',
+    ],
+    questions: [
+      'Comment est répartie la charge de travail entre les employés ?',
+      'Distribution des heures par membre du personnel',
+      'Équilibre de charge entre employés',
+      'Répartition du travail dans l\'équipe',
+      'Qui est surchargé de travail ?',
+      'Distribution des tâches par employé',
+      'Analyse de la charge de travail par personne',
+      'Répartition des projets par employé',
+      'Équilibre des affectations',
+      'Charge de travail comparative',
+    ],
+    prisma: async () => {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const monthEnd = new Date(monthStart);
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+      monthEnd.setDate(0);
+      monthEnd.setHours(23, 59, 59, 999);
+
+      return await prisma.staff.findMany({
+        where: {
+          is_available: true,
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          roles: {
+            select: {
+              name: true,
+            },
+          },
+          _count: {
+            select: {
+              project_staff: true,
+              tasks: true,
+              events: true,
+            }
+          },
+          project_staff: {
+            select: {
+              projects: {
+                select: {
+                  name: true,
+                }
+              },
+              hours_planned: true,
+              hours_worked: true,
+            },
+          },
+          time_logs: {
+            where: {
+              check_in: {
+                gte: monthStart,
+                lte: monthEnd,
+              },
+              check_out: {
+                not: null,
+              },
+            },
+            select: {
+              check_in: true,
+              check_out: true,
+            },
+          },
+        },
+        orderBy: {
+          project_staff: {
+            _count: 'desc',
+          },
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Analyse de la distribution de la charge de travail entre les membres du personnel',
+  },
+
+  project_timeline_overview: {
+    keywords: [
+      'timeline',
+      'projet',
+      'planning',
+      'calendrier',
+      'chronologie',
+      'temps',
+      'progression',
+      'avancement',
+    ],
+    questions: [
+      'Quelle est la timeline des projets en cours ?',
+      'Vue d\'ensemble des plannings projet',
+      'Chronologie des projets actifs',
+      'Calendrier des projets en cours',
+      'Timeline des chantiers',
+      'Vue temporelle des projets',
+      'Progression dans le temps des projets',
+      'Planning temporel des chantiers',
+      'Avancement des projets dans le temps',
+      'Projets sur la ligne du temps',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      
+      return await prisma.projects.findMany({
+        where: {
+          status: {
+            in: ['devis_accepte', 'en_preparation', 'en_cours'],
+          },
+          start_date: {
+            not: null,
+          },
+          end_date: {
+            not: null,
+          },
+        },
+        select: {
+          name: true,
+          reference: true,
+          status: true,
+          start_date: true,
+          end_date: true,
+          estimated_duration: true,
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            }
+          },
+          project_stages: {
+            select: {
+              name: true,
+              start_date: true,
+              end_date: true,
+              status: true,
+              completion_percentage: true,
+            },
+            orderBy: {
+              order_index: 'asc',
+            }
+          }
+        },
+        orderBy: [
+          { start_date: 'asc' }
+        ],
+      });
+    },
+    response_format: 'timeline',
+    description: 'Vue chronologique des projets en cours avec leurs étapes',
+  },
+
+  resource_allocation_conflicts: {
+    keywords: [
+      'conflit',
+      'ressource',
+      'personnel',
+      'double',
+      'affectation',
+      'surréservation',
+      'planning',
+    ],
+    questions: [
+      'Y a-t-il des conflits d\'affectation de personnel ?',
+      'Quels employés sont affectés à plusieurs projets en même temps ?',
+      'Conflits de planning dans les ressources humaines',
+      'Surréservation du personnel',
+      'Double affectation d\'employés',
+      'Conflits dans le planning du personnel',
+      'Chevauchement d\'affectations',
+      'Personnel avec affectations conflictuelles',
+      'Problèmes d\'allocation de ressources',
+      'Conflits horaires du personnel',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(today.getMonth() + 1);
+      
+      // Récupérer tous les membres du personnel avec leurs affectations
+      const staffWithAssignments = await prisma.staff.findMany({
+        where: {
+          is_available: true,
+          project_staff: {
+            some: {
+              start_date: {
+                lte: nextMonth,
+              },
+              end_date: {
+                gte: today,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          project_staff: {
+            where: {
+              start_date: {
+                lte: nextMonth,
+              },
+              end_date: {
+                gte: today,
+              },
+            },
+            select: {
+              id: true,
+              start_date: true,
+              end_date: true,
+              projects: {
+                select: {
+                  name: true,
+                  reference: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      
+      // Analyser les conflits (plusieurs projets se chevauchant dans le temps)
+      const staffWithConflicts = staffWithAssignments.filter(staff => {
+        // Si moins de 2 affectations, pas de conflit possible
+        if (staff.project_staff.length < 2) return false;
+        
+        // Vérifier si des périodes d'affectation se chevauchent
+        for (let i = 0; i < staff.project_staff.length; i++) {
+          for (let j = i + 1; j < staff.project_staff.length; j++) {
+            const assignment1 = staff.project_staff[i];
+            const assignment2 = staff.project_staff[j];
+            
+            // Vérifier le chevauchement en tenant compte des valeurs potentiellement nulles
+            if (
+              assignment1.start_date && assignment2.end_date && assignment1.end_date && assignment2.start_date &&
+              assignment1.start_date <= assignment2.end_date &&
+              assignment1.end_date >= assignment2.start_date
+            ) {
+              return true; // Conflit détecté
+            }
+          }
+        }
+        
+        return false; // Pas de conflit
+      });
+      
+      return staffWithConflicts;
+    },
+    response_format: 'table',
+    description: 'Liste des membres du personnel ayant des affectations conflictuelles sur la même période',
+  },
+
+  upcoming_material_deliveries: {
+    keywords: [
+      'livraison',
+      'matériau',
+      'matériel',
+      'commande',
+      'arrivage',
+      'approvisionnement',
+    ],
+    questions: [
+      'Quand sont prévues les prochaines livraisons de matériel ?',
+      'Calendrier des livraisons de matériaux',
+      'Planning des arrivages de matériel',
+      'Prochaines livraisons sur chantier',
+      'Quand arrivent les matériaux ?',
+      'Dates de livraison matériel',
+      'Programmation des livraisons',
+      'Approvisionnement matériaux planning',
+      'Quand les commandes seront-elles livrées ?',
+      'Calendrier d\'approvisionnement',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      
+      return await prisma.events.findMany({
+        where: {
+          event_type: 'livraison_materiaux',
+          start_date: {
+            gte: today,
+          },
+        },
+        select: {
+          title: true,
+          description: true,
+          start_date: true,
+          location: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+            }
+          },
+          staff: {
+            select: {
+              firstname: true,
+              lastname: true,
+            }
+          },
+        },
+        orderBy: {
+          start_date: 'asc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Calendrier des prochaines livraisons de matériaux sur les chantiers',
+  },
+
+  vehicle_availability: {
+    keywords: [
+      'véhicule',
+      'disponible',
+      'voiture',
+      'camion',
+      'utilitaire',
+      'réservation',
+    ],
+    questions: [
+      'Quels véhicules sont disponibles ?',
+      'Disponibilité des véhicules',
+      'Véhicules libres pour réservation',
+      'Quelles voitures sont disponibles ?',
+      'Camions disponibles',
+      'Utilitaires libres',
+      'Véhicules non réservés',
+      'Quels véhicules puis-je réserver ?',
+      'État de disponibilité des véhicules',
+      'Véhicules disponibles à la réservation',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      
+      // Récupérer tous les véhicules
+      const vehicles = await prisma.vehicles.findMany({
+        where: {
+          status: 'disponible',
+        },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          brand: true,
+          model: true,
+          registration_number: true,
+          vehicle_reservations: {
+            where: {
+              start_date: {
+                lte: today,
+              },
+              end_date: {
+                gte: today,
+              },
+            },
+          },
+        },
+      });
+      
+      // Filtrer pour ne garder que les véhicules sans réservation active
+      const availableVehicles = vehicles.filter(
+        vehicle => vehicle.vehicle_reservations.length === 0
+      );
+      
+      return availableVehicles.map(vehicle => ({
+        id: vehicle.id,
+        name: vehicle.name,
+        type: vehicle.type,
+        model: `${vehicle.brand} ${vehicle.model}`,
+        registration_number: vehicle.registration_number,
+      }));
+    },
+    response_format: 'table',
+    description: 'Liste des véhicules actuellement disponibles pour réservation',
+  },
+
+  monthly_project_progress: {
+    keywords: [
+      'progression',
+      'projet',
+      'mensuel',
+      'avancement',
+      'mois',
+      'évolution',
+    ],
+    questions: [
+      'Quelle est la progression mensuelle des projets ?',
+      'Avancement des projets par mois',
+      'Évolution des chantiers sur le dernier mois',
+      'Progression mensuelle des travaux',
+      'Comment ont évolué les projets ce mois-ci ?',
+      'Suivi mensuel des projets',
+      'Avancée des chantiers ce mois',
+      'Bilan mensuel d\'avancement',
+      'Progression sur le mois courant',
+      'Évolution mensuelle des projets',
+    ],
+    prisma: async () => {
+      // Calculer le début du mois précédent et du mois courant
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      
+      // Récupérer les projets actifs
+      const activeProjects = await prisma.projects.findMany({
+        where: {
+          status: 'en_cours',
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          project_stages: {
+            select: {
+              id: true,
+              name: true,
+              completion_percentage: true,
+              updated_at: true,
+            },
+          },
+          // Prendre les logs d'activité pour estimer l'avancement
+          time_logs: {
+            where: {
+              check_in: {
+                gte: lastMonthStart,
+              },
+            },
+            select: {
+              check_in: true,
+              check_out: true,
+            },
+          },
+        },
+      });
+      
+      // Calculer la progression pour chaque projet
+      return activeProjects.map(project => {
+        // Calculer la moyenne de complétion des étapes
+        const totalCompletion = project.project_stages.reduce(
+          (sum, stage) => sum + (stage.completion_percentage || 0), 
+          0
+        );
+        const averageCompletion = project.project_stages.length > 0 
+          ? totalCompletion / project.project_stages.length 
+          : 0;
+        
+                 // Calculer les heures travaillées ce mois-ci
+         const currentMonthHours = project.time_logs
+           .filter(log => {
+             return log.check_in && log.check_out && 
+                    new Date(log.check_in) >= currentMonthStart;
+           })
+           .reduce((sum, log) => {
+             if (!log.check_out || !log.check_in) return sum;
+             const hours = (log.check_out.getTime() - log.check_in.getTime()) / (1000 * 60 * 60);
+             return sum + hours;
+           }, 0);
+         
+         // Calculer les heures travaillées le mois dernier
+         const lastMonthHours = project.time_logs
+           .filter(log => {
+             return log.check_in && log.check_out && 
+                    new Date(log.check_in) >= lastMonthStart && 
+                    new Date(log.check_in) < currentMonthStart;
+           })
+           .reduce((sum, log) => {
+             if (!log.check_out || !log.check_in) return sum;
+             const hours = (log.check_out.getTime() - log.check_in.getTime()) / (1000 * 60 * 60);
+             return sum + hours;
+           }, 0);
+        
+        return {
+          project_name: project.name,
+          project_reference: project.reference,
+          current_completion_percentage: Math.round(averageCompletion),
+          current_month_hours: Math.round(currentMonthHours * 10) / 10,
+          last_month_hours: Math.round(lastMonthHours * 10) / 10,
+          hour_variation: Math.round((currentMonthHours - lastMonthHours) * 10) / 10,
+        };
+      });
+    },
+    response_format: 'table',
+    description: 'Analyse de la progression mensuelle des projets en cours avec comparaison au mois précédent',
+  },
+
+  project_team_composition: {
+    keywords: [
+      'équipe',
+      'projet',
+      'composition',
+      'personnel',
+      'affecté',
+      'membre',
+    ],
+    questions: [
+      'Quelle est la composition des équipes par projet ?',
+      'Structure des équipes projet',
+      'Membres d\'équipe par projet',
+      'Composition des équipes chantier',
+      'Qui travaille sur quel projet ?',
+      'Constitution des équipes projet',
+      'Répartition du personnel par projet',
+      'Équipes projet détaillées',
+      'Composition des équipes de travail',
+      'Personnel affecté par projet',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          status: {
+            in: ['en_preparation', 'en_cours'],
+          },
+        },
+        select: {
+          name: true,
+          reference: true,
+          status: true,
+          _count: {
+            select: {
+              project_staff: true,
+            }
+          },
+          project_staff: {
+            select: {
+              role_description: true,
+              staff: {
+                select: {
+                  firstname: true,
+                  lastname: true,
+                  roles: {
+                    select: {
+                      name: true,
+                    }
+                  },
+                },
+              },
+              project_stages: {
+                select: {
+                  name: true,
+                }
+              },
+            },
+          },
+        },
+        orderBy: {
+          project_staff: {
+            _count: 'desc',
+          },
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Composition détaillée des équipes pour chaque projet en cours avec rôles et responsabilités',
+  },
+
+  staff_utilization_rate_this_week: {
+    keywords: [
+      'taux',
+      'occupation',
+      'engagement',
+      'personnel',
+      'employé',
+      'staff',
+      'travail',
+      'charge',
+      'heures',
+      'planning',
+    ],
+    questions: [
+      'Quel est le taux d\'occupation des employés cette semaine ?',
+      'Taux de charge du personnel cette semaine',
+      'Engagement des employés semaine en cours',
+      'Qui est le plus occupé cette semaine ?',
+      'Taux d\'occupation hebdomadaire du staff',
+      'Combien chaque employé travaille cette semaine ?',
+      'Charge de travail par employé cette semaine',
+      'Taux d\'engagement hebdomadaire',
+      'Occupation du personnel cette semaine',
+      'Répartition du temps travaillé cette semaine',
+    ],
+    prisma: async () => {
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+  
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+  
+      const staff = await prisma.staff.findMany({
+        where: { is_available: true },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          time_logs: {
+            where: {
+              check_in: { gte: weekStart, lte: weekEnd },
+              check_out: { not: null },
+            },
+            select: {
+              check_in: true,
+              check_out: true,
+            },
+          },
+        },
+      });
+  
+      return staff.map((s) => {
+        const workedHours = s.time_logs.reduce((sum, log) => {
+          if (!log.check_out || !log.check_in) return sum;
+          const diff =
+            (new Date(log.check_out).getTime() -
+              new Date(log.check_in).getTime()) /
+            (1000 * 60 * 60);
+          return sum + diff;
+        }, 0);
+  
+        const available = 35; // Heures hebdomadaires standard
+        const rate = available > 0 ? Math.round((workedHours / available) * 100) : 0;
+  
+        return {
+          firstname: s.firstname,
+          lastname: s.lastname,
+          hours_worked: Math.round(workedHours * 10) / 10,
+          available_hours: available,
+          utilization_rate: `${rate}%`,
+        };
+      });
+    },
+    response_format: 'table',
+    description:
+      'Taux d\'occupation du personnel cette semaine basé sur les heures planifiées vs disponibles',
+  },
+  
 };

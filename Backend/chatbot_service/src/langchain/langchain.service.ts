@@ -266,4 +266,53 @@ export class LangchainService {
       return {};
     }
   }
+  
+  /**
+   * Génère une réponse pour une question générale qui ne nécessite pas d'accès à la base de données
+   * @param question La question posée par l'utilisateur
+   * @param analysisResult Le résultat de l'analyse de la question
+   * @returns Une réponse textuelle générée
+   */
+  async generateGeneralResponse(
+    question: string,
+    analysisResult: any,
+  ): Promise<string> {
+    // Créer un prompt spécifique pour les questions générales
+    const promptTemplate = PromptTemplate.fromTemplate(`
+      Tu es un assistant intelligent pour une entreprise de bâtiment nommée TechniDalle.
+      
+      Tu dois répondre à une question générale qui ne nécessite pas d'accéder à la base de données.
+      
+      Question originale: {question}
+      Intention détectée: {intent}
+      
+      Instructions spécifiques:
+      - Donne une réponse concise et informative
+      - Concentre-toi sur les informations générales relatives au secteur du bâtiment
+      - Si la question concerne des spécificités de l'entreprise que tu ne connais pas, propose de rediriger vers une personne compétente
+      - N'invente pas de données spécifiques sur l'entreprise ou ses clients
+      - Utilise un ton professionnel mais accessible
+      
+      Réponds directement à la question sans répéter la question ou ajouter d'introduction inutile.
+    `);
+    
+    // Utiliser GPT-4 pour les réponses générales pour une meilleure qualité
+    const chain = promptTemplate.pipe(this.gpt4Model);
+    
+    try {
+      const result = await chain.invoke({
+        question: question,
+        intent: analysisResult?.analysis?.intent || 'Non spécifiée',
+      });
+      
+      return typeof result.content === 'string'
+        ? result.content
+        : JSON.stringify(result.content);
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération de réponse générale: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return "Je n'ai pas pu générer une réponse à votre question. Pourriez-vous reformuler ou préciser votre demande ?";
+    }
+  }
 }

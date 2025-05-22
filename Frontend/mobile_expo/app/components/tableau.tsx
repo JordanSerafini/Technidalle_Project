@@ -11,7 +11,7 @@ interface TableauProps {
     tvaRate?: number;  // Ajout d'une prop pour le taux de TVA
 }
 
-function Tableau({ tvaRate = 20 }: TableauProps) { 
+export default function Tableau({ tvaRate = 20 }: TableauProps) { 
     const { data: materials, loading, error } = useFetch<Material[]>('resources/materials');
     const { rows, addRow, updateRow, deleteRow, calculateTotal } = useDevisStore();
     
@@ -238,5 +238,3 @@ function Tableau({ tvaRate = 20 }: TableauProps) {
         </View>
     );
 }
-
-export default Tableau;
