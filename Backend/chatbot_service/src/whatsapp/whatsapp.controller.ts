@@ -5,23 +5,25 @@ import { HttpService as AxiosHttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
 // Fonction utilitaire pour découper les messages longs
-function splitIntoChunks(text: string, maxLength = 3000): string[] {
+function splitIntoChunks(text: string, maxLength = 1000): string[] {
   const chunks: string[] = [];
+  const sentences = text.split(/(?<=[.!?])\s+/);
 
-  while (text.length > 0) {
-    let chunk = text.slice(0, maxLength);
-
-    // Essayer de couper à la fin d'une phrase si possible
-    const lastPeriod = chunk.lastIndexOf('. ');
-    const lastNewLine = chunk.lastIndexOf('\n');
-    const cutIndex = Math.max(lastPeriod, lastNewLine);
-
-    if (cutIndex > 2000) {
-      chunk = chunk.slice(0, cutIndex + 1);
+  let currentChunk = '';
+  
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length <= maxLength) {
+      currentChunk += (currentChunk ? ' ' : '') + sentence;
+    } else {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = sentence;
     }
+  }
 
-    chunks.push(chunk.trim());
-    text = text.slice(chunk.length);
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
   }
 
   return chunks;
@@ -52,7 +54,7 @@ export class WhatsappController {
   // Réception des messages
   @Post()
   async receiveMessage(@Body() body: any): Promise<string> {
-    console.log('Nouveau message WhatsApp :', JSON.stringify(body, null, 2));
+    // //console.log('Nouveau message WhatsApp :', JSON.stringify(body, null, 2));
     
     try {
       // Extraire le message et le numéro de l'expéditeur
@@ -60,14 +62,16 @@ export class WhatsappController {
       const from = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from;
 
       if (message && from) {
-        console.log(`Message reçu de ${from}: ${message}`);
+        // //console.log(`Message reçu de ${from}: ${message}`);
 
         // Cas 1: -analyse:
         if (message.startsWith('-analyse:')) {
           const questionContent = message.substring('-analyse:'.length).trim();
-          console.log(`Analyse demandée: "${questionContent}"`);
-
+          
           try {
+            // Message de chargement
+            await this.whatsappService.sendTextMessage(from, "⌛ Analyse en cours...");
+
             // Appeler le contrôleur analyze/chatbot
             const analyzeResponse = await firstValueFrom(
               this.httpService.post('http://192.168.20.225:5599/analyze/chatbot', {
@@ -75,12 +79,22 @@ export class WhatsappController {
               })
             );
 
-            // Récupérer la réponse et l'envoyer sur WhatsApp
+            // Récupérer la réponse
             const responseText = analyzeResponse.data.response || 
-                                 "Je n'ai pas compris votre question.";
+                               "Je n'ai pas compris votre question.";
             
             // Découper et envoyer le message par morceaux
             const chunks = splitIntoChunks(responseText);
+            
+            // Envoyer un message indiquant le nombre de parties
+            if (chunks.length > 1) {
+              await this.whatsappService.sendTextMessage(
+                from, 
+                `📝 Réponse en ${chunks.length} parties :`
+              );
+            }
+
+            // Envoyer chaque partie avec un délai
             for (let i = 0; i < chunks.length; i++) {
               const partMessage = chunks.length > 1
                 ? `📄 Partie ${i + 1}/${chunks.length}\n\n${chunks[i]}`
@@ -88,23 +102,26 @@ export class WhatsappController {
 
               await this.whatsappService.sendTextMessage(from, partMessage);
               
+              // Délai entre les messages pour éviter le spam
               if (i < chunks.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 1500));
               }
             }
-            console.log(`Réponse envoyée en ${chunks.length} parties`);
           } catch (error) {
             console.error('Erreur lors de l\'analyse:', error);
-            this.whatsappService.sendTextMessage(
+            
+            // Message d'erreur plus détaillé
+            const errorMessage = error.response?.data?.message || error.message;
+            await this.whatsappService.sendTextMessage(
               from, 
-              "Désolé, une erreur s'est produite lors de l'analyse de votre question."
+              `❌ Désolé, une erreur s'est produite lors de l'analyse :\n${errorMessage || "Erreur inconnue"}`
             );
           }
         }
         
         // Cas 2: -email_summary
         else if (message.trim().startsWith('-email_summary')) {
-          console.log('Résumé d\'emails demandé');
+          //console.log('Résumé d\'emails demandé');
           
           try {
             // Extraire le paramètre limit s'il existe
@@ -119,15 +136,15 @@ export class WhatsappController {
               this.httpService.get(`http://192.168.20.225:4444/analyze-email/whatsapp-daily-summary?limit=${limit}&fastMode=true`)
             );
             
-            console.log('Réponse API Email reçue');
+            //console.log('Réponse API Email reçue');
             
             if (emailResponse.data?.summary?.formattedMessage) {
               const formattedMessage = emailResponse.data.summary.formattedMessage;
-              console.log(`Message à envoyer (${formattedMessage.length} caractères)`);
+              //console.log(`Message à envoyer (${formattedMessage.length} caractères)`);
               
               // Découper le message en morceaux plus petits (3000 caractères au lieu de 4096)
               const chunks = splitIntoChunks(formattedMessage);
-              console.log(`Message découpé en ${chunks.length} parties`);
+              //console.log(`Message découpé en ${chunks.length} parties`);
               
               // Envoyer chaque partie avec un délai entre chaque envoi
               for (let i = 0; i < chunks.length; i++) {
@@ -135,7 +152,7 @@ export class WhatsappController {
                   ? `📄 Partie ${i + 1}/${chunks.length}\n\n${chunks[i]}`
                   : chunks[i];
 
-                console.log(`Envoi de la partie ${i + 1}/${chunks.length}`);
+                //console.log(`Envoi de la partie ${i + 1}/${chunks.length}`);
                 await this.whatsappService.sendTextMessage(from, partMessage);
                 
                 // Ajouter un délai de 1 seconde entre chaque message
@@ -144,7 +161,7 @@ export class WhatsappController {
                 }
               }
               
-              console.log('Résumé des emails envoyé avec succès');
+              //console.log('Résumé des emails envoyé avec succès');
             } else {
               console.error('Format de réponse invalide:', emailResponse.data);
               await this.whatsappService.sendTextMessage(
