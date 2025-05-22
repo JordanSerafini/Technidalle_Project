@@ -1,5 +1,5 @@
 // whatsapp.controller.ts
-import { Controller, Get, Post, Query, Body, HttpService } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { HttpService as AxiosHttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -47,7 +47,7 @@ export class WhatsappController {
           try {
             // Appeler le contrôleur analyze/chatbot
             const analyzeResponse = await firstValueFrom(
-              this.httpService.post('http://localhost:5599/analyze/chatbot', {
+              this.httpService.post('http://192.168.20.225:5599/analyze/chatbot', {
                 question: questionContent
               })
             );
@@ -77,7 +77,7 @@ export class WhatsappController {
             const formattedToday = today.toISOString().split('T')[0]; // YYYY-MM-DD
             
             // Définir les paramètres pour l'API
-            const url = `http://localhost:4444/analyze-email/date-range?startDate=2022-01-31&endDate=${formattedToday}&unseenOnly=false&summary=true&limit=20`;
+            const url = `http://192.168.20.225:4444/analyze-email/date-range?startDate=2022-01-31&endDate=${formattedToday}&unseenOnly=false&summary=true&limit=5`;
             
             console.log(`Appel API: ${url}`);
             
