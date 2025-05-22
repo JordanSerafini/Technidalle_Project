@@ -4,6 +4,15 @@ import { WhatsappService } from './whatsapp.service';
 import { HttpService as AxiosHttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
+// Fonction utilitaire pour découper les messages longs
+function splitIntoChunks(text: string, chunkSize = 4096): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    chunks.push(text.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
 @Controller('webhook')
 export class WhatsappController {
     constructor(
@@ -56,8 +65,12 @@ export class WhatsappController {
             const responseText = analyzeResponse.data.response || 
                                  "Je n'ai pas compris votre question.";
             
-            this.whatsappService.sendTextMessage(from, responseText);
-            console.log(`Réponse envoyée: ${responseText}`);
+            // Découper et envoyer le message par morceaux
+            const chunks = splitIntoChunks(responseText);
+            for (const chunk of chunks) {
+              await this.whatsappService.sendTextMessage(from, chunk);
+            }
+            console.log(`Réponse envoyée en ${chunks.length} parties`);
           } catch (error) {
             console.error('Erreur lors de l\'analyse:', error);
             this.whatsappService.sendTextMessage(
@@ -72,47 +85,83 @@ export class WhatsappController {
           console.log('Résumé d\'emails demandé');
           
           try {
-            // Obtenir la date du jour
-            const today = new Date();
-            const formattedToday = today.toISOString().split('T')[0]; // YYYY-MM-DD
+            // Envoyer un message de chargement
+            await this.whatsappService.sendTextMessage(from, "⌛ Traitement en cours...");
             
-            // Définir les paramètres pour l'API
-            const url = `http://192.168.20.225:4444/analyze-email/date-range?startDate=2022-01-31&endDate=${formattedToday}&unseenOnly=false&summary=true&limit=5`;
-            
-            console.log(`Appel API: ${url}`);
-            
-            // Appeler l'API d'analyse d'emails
+            // Appeler l'API d'analyse d'emails avec le nouveau endpoint
             const emailResponse = await firstValueFrom(
-              this.httpService.get(url)
+              this.httpService.get('http://192.168.20.225:4444/analyze-email/today/all/summary?limit=5&fastMode=true')
             );
             
-            // Transformer la réponse en texte
-            let responseText = "📧 Résumé des emails:\n\n";
-            
-            if (emailResponse.data && Array.isArray(emailResponse.data)) {
-              // Si la réponse est un tableau d'emails
-              const emails = emailResponse.data;
+            if (emailResponse.data?.summary) {
+              // Vérifier si l'analyse a réussi
+              if (emailResponse.data.summary.totalEmails === 0) {
+                await this.whatsappService.sendTextMessage(
+                  from,
+                  "📧 *Aucun email à analyser*\n\nTout est à jour ! Aucun nouveau message à traiter."
+                );
+                return;
+              }
+
+              // Formater le message pour WhatsApp
+              let formattedMessage = '📧 *Résumé de vos emails du jour*\n\n';
               
-              if (emails.length === 0) {
-                responseText = "Aucun email trouvé pour cette période.";
-              } else {
-                emails.forEach((email, index) => {
-                  responseText += `${index + 1}. De: ${email.from || 'Inconnu'}\n`;
-                  responseText += `   Objet: ${email.subject || 'Sans objet'}\n`;
-                  if (email.summary) {
-                    responseText += `   Résumé: ${email.summary}\n`;
+              // Aperçu général
+              formattedMessage += `📊 *Aperçu:*\n`;
+              formattedMessage += `• ${emailResponse.data.summary.totalEmails} email${emailResponse.data.summary.totalEmails > 1 ? 's' : ''} analysé${emailResponse.data.summary.totalEmails > 1 ? 's' : ''}\n`;
+              if (emailResponse.data.summary.highPriorityCount > 0) {
+                formattedMessage += `• ${emailResponse.data.summary.highPriorityCount} prioritaire${emailResponse.data.summary.highPriorityCount > 1 ? 's' : ''}\n`;
+              }
+              if (emailResponse.data.summary.actionRequiredCount > 0) {
+                formattedMessage += `• ${emailResponse.data.summary.actionRequiredCount} action${emailResponse.data.summary.actionRequiredCount > 1 ? 's' : ''} requise${emailResponse.data.summary.actionRequiredCount > 1 ? 's' : ''}\n`;
+              }
+              formattedMessage += '\n';
+
+              // Emails prioritaires
+              if (emailResponse.data.summary.topPriorityEmails?.length > 0) {
+                formattedMessage += `🔴 *Emails prioritaires:*\n`;
+                emailResponse.data.summary.topPriorityEmails.forEach((email, index) => {
+                  formattedMessage += `${index + 1}. *${email.subject}*\n`;
+                  formattedMessage += `   De: ${email.from.split('<')[0].replace(/"/g, '')}\n`;
+                  if (email.analysis?.summary) {
+                    formattedMessage += `   📝 ${email.analysis.summary}\n`;
                   }
-                  responseText += '\n';
+                  formattedMessage += '\n';
                 });
               }
+
+              // Actions requises
+              if (emailResponse.data.summary.actionItems?.length > 0) {
+                formattedMessage += `✅ *Actions requises:*\n`;
+                emailResponse.data.summary.actionItems.slice(0, 5).forEach((action, index) => {
+                  formattedMessage += `${index + 1}. ${action}\n`;
+                });
+                if (emailResponse.data.summary.actionItems.length > 5) {
+                  formattedMessage += `... et ${emailResponse.data.summary.actionItems.length - 5} autre${emailResponse.data.summary.actionItems.length - 5 > 1 ? 's' : ''} action${emailResponse.data.summary.actionItems.length - 5 > 1 ? 's' : ''}\n`;
+                }
+                formattedMessage += '\n';
+              }
+
+              // Résumé général
+              if (emailResponse.data.summary.overview) {
+                formattedMessage += `📝 *Résumé général:*\n${emailResponse.data.summary.overview}`;
+              }
+              
+              // Découper et envoyer le message par morceaux
+              const chunks = splitIntoChunks(formattedMessage);
+              for (const chunk of chunks) {
+                await this.whatsappService.sendTextMessage(from, chunk);
+              }
+              console.log(`Résumé des emails envoyé en ${chunks.length} parties`);
             } else {
-              // Si le format de réponse est différent
-              responseText += JSON.stringify(emailResponse.data);
+              // Message d'erreur plus explicite
+              await this.whatsappService.sendTextMessage(
+                from,
+                "⚠️ *Erreur lors de l'analyse des emails*\n\n" +
+                "Je n'ai pas pu analyser correctement vos emails. Veuillez réessayer dans quelques instants.\n\n" +
+                "Si le problème persiste, contactez l'administrateur système."
+              );
             }
-            
-            // Envoyer la réponse à l'utilisateur
-            this.whatsappService.sendTextMessage(from, responseText);
-            console.log('Résumé des emails envoyé');
           } catch (error) {
             console.error('Erreur lors de la récupération des emails:', error);
             this.whatsappService.sendTextMessage(
