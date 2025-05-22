@@ -88,78 +88,24 @@ export class WhatsappController {
             // Envoyer un message de chargement
             await this.whatsappService.sendTextMessage(from, "⌛ Traitement en cours...");
             
-            // Appeler l'API d'analyse d'emails avec le nouveau endpoint
+            // Appeler l'API d'analyse d'emails avec le bon endpoint WhatsApp
             const emailResponse = await firstValueFrom(
-              this.httpService.get('http://192.168.20.225:4444/analyze-email/today/all/summary?limit=5&fastMode=true')
+              this.httpService.get('http://192.168.20.225:4444/analyze-email/whatsapp-daily-summary?limit=5&fastMode=true')
             );
             
-            if (emailResponse.data?.summary) {
-              // Vérifier si l'analyse a réussi
-              if (emailResponse.data.summary.totalEmails === 0) {
-                await this.whatsappService.sendTextMessage(
-                  from,
-                  "📧 *Aucun email à analyser*\n\nTout est à jour ! Aucun nouveau message à traiter."
-                );
-                return;
-              }
-
-              // Formater le message pour WhatsApp
-              let formattedMessage = '📧 *Résumé de vos emails du jour*\n\n';
-              
-              // Aperçu général
-              formattedMessage += `📊 *Aperçu:*\n`;
-              formattedMessage += `• ${emailResponse.data.summary.totalEmails} email${emailResponse.data.summary.totalEmails > 1 ? 's' : ''} analysé${emailResponse.data.summary.totalEmails > 1 ? 's' : ''}\n`;
-              if (emailResponse.data.summary.highPriorityCount > 0) {
-                formattedMessage += `• ${emailResponse.data.summary.highPriorityCount} prioritaire${emailResponse.data.summary.highPriorityCount > 1 ? 's' : ''}\n`;
-              }
-              if (emailResponse.data.summary.actionRequiredCount > 0) {
-                formattedMessage += `• ${emailResponse.data.summary.actionRequiredCount} action${emailResponse.data.summary.actionRequiredCount > 1 ? 's' : ''} requise${emailResponse.data.summary.actionRequiredCount > 1 ? 's' : ''}\n`;
-              }
-              formattedMessage += '\n';
-
-              // Emails prioritaires
-              if (emailResponse.data.summary.topPriorityEmails?.length > 0) {
-                formattedMessage += `🔴 *Emails prioritaires:*\n`;
-                emailResponse.data.summary.topPriorityEmails.forEach((email, index) => {
-                  formattedMessage += `${index + 1}. *${email.subject}*\n`;
-                  formattedMessage += `   De: ${email.from.split('<')[0].replace(/"/g, '')}\n`;
-                  if (email.analysis?.summary) {
-                    formattedMessage += `   📝 ${email.analysis.summary}\n`;
-                  }
-                  formattedMessage += '\n';
-                });
-              }
-
-              // Actions requises
-              if (emailResponse.data.summary.actionItems?.length > 0) {
-                formattedMessage += `✅ *Actions requises:*\n`;
-                emailResponse.data.summary.actionItems.slice(0, 5).forEach((action, index) => {
-                  formattedMessage += `${index + 1}. ${action}\n`;
-                });
-                if (emailResponse.data.summary.actionItems.length > 5) {
-                  formattedMessage += `... et ${emailResponse.data.summary.actionItems.length - 5} autre${emailResponse.data.summary.actionItems.length - 5 > 1 ? 's' : ''} action${emailResponse.data.summary.actionItems.length - 5 > 1 ? 's' : ''}\n`;
-                }
-                formattedMessage += '\n';
-              }
-
-              // Résumé général
-              if (emailResponse.data.summary.overview) {
-                formattedMessage += `📝 *Résumé général:*\n${emailResponse.data.summary.overview}`;
-              }
-              
-              // Découper et envoyer le message par morceaux
+            console.log('Réponse API Email:', JSON.stringify(emailResponse.data, null, 2));
+            
+            if (emailResponse.data?.summary?.formattedMessage) {
+              const formattedMessage = emailResponse.data.summary.formattedMessage;
               const chunks = splitIntoChunks(formattedMessage);
               for (const chunk of chunks) {
                 await this.whatsappService.sendTextMessage(from, chunk);
               }
               console.log(`Résumé des emails envoyé en ${chunks.length} parties`);
             } else {
-              // Message d'erreur plus explicite
               await this.whatsappService.sendTextMessage(
                 from,
-                "⚠️ *Erreur lors de l'analyse des emails*\n\n" +
-                "Je n'ai pas pu analyser correctement vos emails. Veuillez réessayer dans quelques instants.\n\n" +
-                "Si le problème persiste, contactez l'administrateur système."
+                "Désolé, je n'ai pas pu formater correctement le résumé des emails."
               );
             }
           } catch (error) {
