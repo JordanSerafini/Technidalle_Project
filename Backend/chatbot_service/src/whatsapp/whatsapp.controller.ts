@@ -81,28 +81,46 @@ export class WhatsappController {
         }
         
         // Cas 2: -email_summary
-        else if (message.trim() === '-email_summary') {
+        else if (message.trim().startsWith('-email_summary')) {
           console.log('Résumé d\'emails demandé');
           
           try {
+            // Extraire le paramètre limit s'il existe
+            const limitMatch = message.match(/:limit=(\d+)/);
+            const limit = limitMatch ? parseInt(limitMatch[1], 10) : 5;
+            
             // Envoyer un message de chargement
             await this.whatsappService.sendTextMessage(from, "⌛ Traitement en cours...");
             
-            // Appeler l'API d'analyse d'emails avec le bon endpoint WhatsApp
+            // Appeler l'API d'analyse d'emails avec le paramètre limit
             const emailResponse = await firstValueFrom(
-              this.httpService.get('http://192.168.20.225:4444/analyze-email/whatsapp-daily-summary?limit=5&fastMode=true')
+              this.httpService.get(`http://192.168.20.225:4444/analyze-email/whatsapp-daily-summary?limit=${limit}&fastMode=true`)
             );
             
-            console.log('Réponse API Email:', JSON.stringify(emailResponse.data, null, 2));
+            console.log('Réponse API Email reçue');
             
             if (emailResponse.data?.summary?.formattedMessage) {
               const formattedMessage = emailResponse.data.summary.formattedMessage;
-              const chunks = splitIntoChunks(formattedMessage);
-              for (const chunk of chunks) {
-                await this.whatsappService.sendTextMessage(from, chunk);
+              console.log(`Message à envoyer (${formattedMessage.length} caractères)`);
+              
+              // Découper le message en morceaux plus petits (3000 caractères au lieu de 4096)
+              const chunks = splitIntoChunks(formattedMessage, 3000);
+              console.log(`Message découpé en ${chunks.length} parties`);
+              
+              // Envoyer chaque partie avec un délai entre chaque envoi
+              for (let i = 0; i < chunks.length; i++) {
+                console.log(`Envoi de la partie ${i + 1}/${chunks.length}`);
+                await this.whatsappService.sendTextMessage(from, chunks[i]);
+                
+                // Ajouter un délai de 1 seconde entre chaque message
+                if (i < chunks.length - 1) {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                }
               }
-              console.log(`Résumé des emails envoyé en ${chunks.length} parties`);
+              
+              console.log('Résumé des emails envoyé avec succès');
             } else {
+              console.error('Format de réponse invalide:', emailResponse.data);
               await this.whatsappService.sendTextMessage(
                 from,
                 "Désolé, je n'ai pas pu formater correctement le résumé des emails."
@@ -110,7 +128,7 @@ export class WhatsappController {
             }
           } catch (error) {
             console.error('Erreur lors de la récupération des emails:', error);
-            this.whatsappService.sendTextMessage(
+            await this.whatsappService.sendTextMessage(
               from, 
               "Désolé, une erreur s'est produite lors de la récupération du résumé des emails."
             );

@@ -19,11 +19,13 @@ export class AnalyzeEmailController {
    * Récupère et analyse les emails non lus d'aujourd'hui avec un résumé général
    * @param summary Si true, inclut un résumé général des emails (optionnel, par défaut: false)
    * @param fastMode Si true, effectue une analyse rapide avec moins de détails (optionnel, par défaut: false)
+   * @param limit Nombre maximum d'emails à analyser (optionnel)
    */
   @Get('today')
   async analyzeTodayEmails(
     @Query('summary') summary?: string,
     @Query('fastMode') fastMode?: string,
+    @Query('limit') limit?: string,
   ): Promise<{
     status: string;
     message: string;
@@ -64,10 +66,14 @@ export class AnalyzeEmailController {
         };
       }
 
+      // Conversion de la limite en nombre si spécifiée
+      const limitNumber = limit ? parseInt(limit, 10) : undefined;
+
       // Analyse des emails récupérés (mode rapide si spécifié)
       const analyzedEmails = await this.analyzeEmailService.analyzeEmails(
         todayEmails,
         fastMode === 'true',
+        limitNumber,
       );
 
       // Si résumé demandé, générer un résumé global
@@ -96,7 +102,7 @@ export class AnalyzeEmailController {
 
         return {
           status: 'success',
-          message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}`,
+          message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}${limitNumber ? ` (limite: ${limitNumber})` : ''}`,
           data: analyzedEmails,
           summary: {
             overview: overallSummary.summary,
@@ -129,7 +135,7 @@ export class AnalyzeEmailController {
 
       return {
         status: 'success',
-        message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}`,
+        message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}${limitNumber ? ` (limite: ${limitNumber})` : ''}`,
         data: analyzedEmails,
         tokensUsed: totalTokensUsed,
       };
