@@ -1662,13 +1662,6 @@ export const projectsQueries = {
       });
     },
     response_format: 'table',
-    description: 'Liste des projets et chantiers prévus pour une année spécifique',
-    parameters: [
-      {
-        name: 'ANNEE',
-        description: 'Année spécifique (ex: "2024")',
-        required: false
-      }
-    ]
+    description: 'Liste des projets et chantiers prévus pour une année spécifique'
   },
 };
