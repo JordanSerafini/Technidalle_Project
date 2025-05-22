@@ -35,19 +35,11 @@ export interface ConversationMessage {
 export class LangchainService {
   private readonly logger = new Logger(LangchainService.name);
   private readonly chatModel: ChatOpenAI;
-  private readonly gpt4Model: ChatOpenAI;
 
   constructor(private readonly configService: ConfigService) {
     this.chatModel = new ChatOpenAI({
       modelName: 'gpt-3.5-turbo',
       temperature: 0,
-      openAIApiKey: this.configService.get<string>('OPENAI_API_KEY'),
-    });
-    
-    // Initialiser un modèle GPT-4 pour les tâches plus complexes
-    this.gpt4Model = new ChatOpenAI({
-      modelName: 'gpt-4',
-      temperature: 0.2,
       openAIApiKey: this.configService.get<string>('OPENAI_API_KEY'),
     });
   }
@@ -93,7 +85,7 @@ export class LangchainService {
         format_instructions: async () => parser.getFormatInstructions(),
       },
       prompt,
-      this.gpt4Model,
+      this.chatModel,
       parser,
     ]);
 
@@ -143,7 +135,7 @@ export class LangchainService {
         .map((msg: ConversationMessage) => `${msg.role === 'user' ? 'Utilisateur' : 'Assistant'}: ${msg.content}`)
         .join('\n');
       
-      const chain = promptTemplate.pipe(this.gpt4Model);
+      const chain = promptTemplate.pipe(this.chatModel);
       
       try {
         const result = await chain.invoke({
@@ -251,7 +243,7 @@ export class LangchainService {
         format_instructions: async () => parser.getFormatInstructions(),
       },
       promptTemplate,
-      this.gpt4Model,
+      this.chatModel,
       parser,
     ]);
     
@@ -296,8 +288,8 @@ export class LangchainService {
       Réponds directement à la question sans répéter la question ou ajouter d'introduction inutile.
     `);
     
-    // Utiliser GPT-4 pour les réponses générales pour une meilleure qualité
-    const chain = promptTemplate.pipe(this.gpt4Model);
+    // Utiliser GPT-3.5 Turbo pour les réponses générales
+    const chain = promptTemplate.pipe(this.chatModel);
     
     try {
       const result = await chain.invoke({
