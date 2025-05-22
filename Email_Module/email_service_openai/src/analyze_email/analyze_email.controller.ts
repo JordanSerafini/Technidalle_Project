@@ -973,11 +973,12 @@ export class AnalyzeEmailController {
         `Récupération de l'email ${emailId} dans ${mailbox}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,
       );
 
-      const email = await this.analyzeEmailService.getSpecificEmailById(
-        mailbox,
-        emailId,
-        shouldForceRefresh,
-      );
+      const email: EmailContent | null =
+        await this.analyzeEmailService.getSpecificEmailById(
+          mailbox,
+          emailId,
+          shouldForceRefresh,
+        );
 
       if (!email) {
         return {
@@ -1046,7 +1047,7 @@ export class AnalyzeEmailController {
     try {
       const startTime = Date.now();
       const isFastMode = fastMode === 'true';
-      const limitValue = limit ? parseInt(limit, 10) : 5; // Par défaut, limiter à 5 emails
+      const limitValue = limit ? parseInt(limit, 10) : 10;
 
       this.logger.log(
         `Génération du résumé WhatsApp des emails journaliers (limite: ${limitValue}, mode rapide: ${isFastMode})`,
@@ -1090,14 +1091,19 @@ export class AnalyzeEmailController {
 
       // Génération du résumé
       const summaryStartTime = Date.now();
-      const overallSummary = await this.analyzeEmailService.generateOverallSummary(
-        analyzedEmails,
-        isFastMode,
-      );
+      const overallSummary =
+        await this.analyzeEmailService.generateOverallSummary(
+          analyzedEmails,
+          isFastMode,
+        );
       const summaryEndTime = Date.now();
 
       // Formatage du message pour WhatsApp
-      const formattedMessage = this.formatWhatsappMessage(overallSummary);
+      const { formattedSummary } =
+        await this.analyzeEmailService.formatProfessionalSummary(
+          overallSummary,
+          isFastMode,
+        );
 
       // Calcul des métriques de performance
       const performanceMetrics = {
@@ -1115,82 +1121,30 @@ export class AnalyzeEmailController {
           totalEmails: overallSummary.totalEmails,
           highPriorityCount: overallSummary.highPriorityCount,
           actionRequiredCount: overallSummary.actionRequiredCount,
-          topPriorityEmails: overallSummary.topPriorityEmails.map(email => ({
+          topPriorityEmails: overallSummary.topPriorityEmails.map((email) => ({
             subject: email.subject,
             from: email.from,
             summary: email.analysis?.summary || '',
-            priority: email.analysis?.priority || 'medium'
+            priority: email.analysis?.priority || 'medium',
           })),
           actionItems: overallSummary.actionItems,
-          formattedMessage
+          formattedMessage: formattedSummary,
         },
-        performanceMetrics
+        performanceMetrics,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`,
+      );
       throw new HttpException(
         {
           status: 'error',
-          message: `Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`
+          message: `Erreur lors de la génération du résumé WhatsApp: ${errorMessage}`,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-  }
-
-  /**
-   * Formate le message pour WhatsApp avec des emojis et une structure claire
-   */
-  private formatWhatsappMessage(summary: {
-    summary: string;
-    totalEmails: number;
-    highPriorityCount: number;
-    actionRequiredCount: number;
-    topPriorityEmails: EmailContent[];
-    actionItems: string[];
-  }): string {
-    let message = '📧 *Résumé de vos emails du jour*\n\n';
-
-    // Aperçu général
-    message += `📊 *Aperçu:*\n`;
-    message += `• ${summary.totalEmails} email${summary.totalEmails > 1 ? 's' : ''} analysé${summary.totalEmails > 1 ? 's' : ''}\n`;
-    if (summary.highPriorityCount > 0) {
-      message += `• ${summary.highPriorityCount} prioritaire${summary.highPriorityCount > 1 ? 's' : ''}\n`;
-    }
-    if (summary.actionRequiredCount > 0) {
-      message += `• ${summary.actionRequiredCount} action${summary.actionRequiredCount > 1 ? 's' : ''} requise${summary.actionRequiredCount > 1 ? 's' : ''}\n`;
-    }
-    message += '\n';
-
-    // Emails prioritaires
-    if (summary.topPriorityEmails.length > 0) {
-      message += `🔴 *Emails prioritaires:*\n`;
-      summary.topPriorityEmails.forEach((email, index) => {
-        message += `${index + 1}. *${email.subject}*\n`;
-        message += `   De: ${email.from.split('<')[0].replace(/"/g, '')}\n`;
-        if (email.analysis?.summary) {
-          message += `   📝 ${email.analysis.summary}\n`;
-        }
-        message += '\n';
-      });
-    }
-
-    // Actions requises
-    if (summary.actionItems.length > 0) {
-      message += `✅ *Actions requises:*\n`;
-      summary.actionItems.slice(0, 5).forEach((action, index) => {
-        message += `${index + 1}. ${action}\n`;
-      });
-      if (summary.actionItems.length > 5) {
-        message += `... et ${summary.actionItems.length - 5} autre${summary.actionItems.length - 5 > 1 ? 's' : ''} action${summary.actionItems.length - 5 > 1 ? 's' : ''}\n`;
-      }
-      message += '\n';
-    }
-
-    // Résumé général
-    message += `📝 *Résumé général:*\n${summary.summary}`;
-
-    return message;
   }
 }
