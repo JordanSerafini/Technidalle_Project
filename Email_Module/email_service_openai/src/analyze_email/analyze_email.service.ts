@@ -150,7 +150,8 @@ export class AnalyzeEmailService {
       // Créer une nouvelle instance IMAP si nécessaire
       if (this.imap.state === 'disconnected') {
         const imapUser = this.configService.get<string>('EMAIL_USER') ?? '';
-        const imapPassword = this.configService.get<string>('EMAIL_PASSWORD') ?? '';
+        const imapPassword =
+          this.configService.get<string>('EMAIL_PASSWORD') ?? '';
         const imapHost = this.configService.get<string>('IMAP_HOST') ?? '';
         const imapPortConfig = this.configService.get<string>('IMAP_PORT');
         const imapPort = imapPortConfig ? parseInt(imapPortConfig, 10) : 993;
@@ -636,20 +637,28 @@ export class AnalyzeEmailService {
    * Analyse le contenu des emails avec OpenAI
    * @param emails Liste des emails à analyser
    * @param fastMode Si true, effectue une analyse accélérée avec moins de détails
+   * @param limit Si spécifié, limite le nombre d'emails à analyser
    */
   async analyzeEmails(
     emails: EmailContent[],
     fastMode = false,
+    limit?: number,
   ): Promise<EmailContent[]> {
     this.logger.log(
-      `Début de l'analyse de ${emails.length} emails${fastMode ? ' (mode rapide)' : ''}`,
+      `Début de l'analyse de ${emails.length} emails${fastMode ? ' (mode rapide)' : ''}${limit ? ` (limite: ${limit})` : ''}`,
     );
+
+    // Appliquer la limite si spécifiée
+    const emailsToAnalyze = limit ? emails.slice(0, limit) : emails;
 
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
     // Traiter les emails par lots pour éviter de surcharger l'API
-    const analyzedEmails = await this.processEmailsInBatches(emails, fastMode);
+    const analyzedEmails = await this.processEmailsInBatches(
+      emailsToAnalyze,
+      fastMode,
+    );
 
     // Calculer le total des tokens utilisés
     analyzedEmails.forEach((email) => {
@@ -660,7 +669,7 @@ export class AnalyzeEmailService {
     });
 
     this.logger.log(
-      `Analyse terminée pour ${emails.length} emails. Tokens utilisés: ${totalInputTokens} (entrée), ${totalOutputTokens} (sortie)`,
+      `Analyse terminée pour ${analyzedEmails.length} emails. Tokens utilisés: ${totalInputTokens} (entrée), ${totalOutputTokens} (sortie)`,
     );
     return analyzedEmails;
   }
@@ -773,6 +782,23 @@ export class AnalyzeEmailService {
       const maxTokens = fastMode ? 150 : 300;
       const temperature = fastMode ? 0.3 : 0.7;
 
+      // Vérifier si le contenu de l'email est valide
+      if (!email.body || email.body.trim() === '') {
+        this.logger.warn(`Email sans contenu: ${email.subject}`);
+        return {
+          summary: 'Email sans contenu',
+          priority: 'low',
+          category: 'autre',
+          actionRequired: false,
+          actionItems: [],
+          tokensUsed: {
+            input: 0,
+            output: 0,
+            total: 0,
+          },
+        };
+      }
+
       const prompt = this.buildAnalysisPrompt(email, fastMode);
 
       const response = await this.openai.chat.completions.create({
@@ -781,7 +807,7 @@ export class AnalyzeEmailService {
           {
             role: 'system',
             content:
-              "Vous êtes un assistant spécialisé dans l'analyse d'emails professionnels.",
+              "Vous êtes un assistant spécialisé dans l'analyse d'emails professionnels. Votre tâche est d'analyser le contenu de l'email et de fournir un résumé concis et pertinent. Répondez UNIQUEMENT au format JSON, sans aucun autre texte ou marqueur de code.",
           },
           {
             role: 'user',
@@ -790,6 +816,7 @@ export class AnalyzeEmailService {
         ],
         max_tokens: maxTokens,
         temperature,
+        response_format: { type: 'json_object' },
       });
 
       const analysis = response.choices[0]?.message?.content;
@@ -802,10 +829,22 @@ export class AnalyzeEmailService {
       this.logger.error(
         `Erreur lors de l'analyse de l'email "${email.subject}": ${error instanceof Error ? error.message : String(error)}`,
       );
-      
+
       // Générer un résumé basique à partir du contenu de l'email
-      const basicSummary = email.body.substring(0, 200).trim() + '...';
-      
+      let basicSummary = '';
+      if (email.body) {
+        // Extraire les premières phrases significatives
+        const sentences = email.body
+          .split(/[.!?]+/)
+          .filter((s) => s.trim().length > 0);
+        basicSummary = sentences.slice(0, 2).join('. ').trim();
+        if (basicSummary.length > 200) {
+          basicSummary = basicSummary.substring(0, 197) + '...';
+        }
+      } else {
+        basicSummary = "Impossible d'analyser le contenu de l'email";
+      }
+
       return {
         summary: basicSummary,
         priority: 'medium',
@@ -841,13 +880,39 @@ export class AnalyzeEmailService {
 
   private parseAnalysisResponse(analysis: string): EmailAnalysis {
     try {
-      const parsedResult = JSON.parse(analysis) as {
+      // Nettoyer la réponse pour enlever les marqueurs de code
+      let cleanedAnalysis = analysis
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      // Si la réponse commence par un retour à la ligne, le supprimer
+      if (cleanedAnalysis.startsWith('\n')) {
+        cleanedAnalysis = cleanedAnalysis.substring(1);
+      }
+
+      // Essayer de parser la réponse nettoyée
+      const parsedResult = JSON.parse(cleanedAnalysis) as {
         summary: string;
         priority: 'high' | 'medium' | 'low';
         category: string;
         actionRequired: boolean;
         actionItems?: string[];
       };
+
+      // Valider les champs requis
+      if (
+        !parsedResult.summary ||
+        !parsedResult.priority ||
+        !parsedResult.category
+      ) {
+        throw new Error('Champs requis manquants dans la réponse');
+      }
+
+      // Valider la priorité
+      if (!['high', 'medium', 'low'].includes(parsedResult.priority)) {
+        parsedResult.priority = 'medium';
+      }
 
       return {
         ...parsedResult,
@@ -862,10 +927,12 @@ export class AnalyzeEmailService {
       this.logger.error(
         `Erreur lors du parsing de la réponse: ${error instanceof Error ? error.message : String(error)}`,
       );
+
+      // Générer un résumé basique à partir du contenu de l'email
       return {
         summary: "Erreur lors de l'analyse",
-        priority: 'low',
-        category: 'error',
+        priority: 'medium',
+        category: 'autre',
         actionRequired: false,
         actionItems: [],
         tokensUsed: {
@@ -1374,21 +1441,22 @@ export class AnalyzeEmailService {
 
       // En mode rapide, simplifier la sortie
       if (fastMode) {
-        // Emails prioritaires sous forme de liste
-        if (
-          summaryData.topPriorityEmails &&
-          summaryData.topPriorityEmails.length > 0
-        ) {
-          formattedSummary += `Emails prioritaires:\n`;
-          summaryData.topPriorityEmails.slice(0, 3).forEach((email, index) => {
-            formattedSummary += `${index + 1}. "${email.subject}" de ${email.from.split('<')[0].replace(/"/g, '')}\n`;
-          });
-          formattedSummary += `\n`;
-        }
+        // Liste des emails avec leurs résumés
+        formattedSummary += `Voici un aperçu de chaque email :\n\n`;
+
+        summaryData.topPriorityEmails.forEach((email) => {
+          const sender = email.from.split('<')[0].replace(/"/g, '').trim();
+          formattedSummary += `• [${email.subject || '(sans sujet)'}] de ${sender}\n`;
+          if (email.analysis?.summary) {
+            formattedSummary += `   ${email.analysis.summary}\n\n`;
+          } else {
+            formattedSummary += `   (Pas de résumé disponible)\n\n`;
+          }
+        });
 
         // Actions requises
         if (summaryData.actionItems && summaryData.actionItems.length > 0) {
-          formattedSummary += `Actions requises:\n`;
+          formattedSummary += `Actions requises :\n`;
           const uniqueActions = [...new Set(summaryData.actionItems)].slice(
             0,
             5,
@@ -1399,9 +1467,6 @@ export class AnalyzeEmailService {
           formattedSummary += `\n`;
         }
 
-        // Résumé succinct
-        formattedSummary += `En résumé: ${summaryData.summary}`;
-
         return {
           formattedSummary,
           tokensUsed: initialTokensUsed,
@@ -1409,44 +1474,39 @@ export class AnalyzeEmailService {
       }
 
       // Format standard (non rapide) avec plus de détails
-      // Emails prioritaires
-      if (
-        summaryData.topPriorityEmails &&
-        summaryData.topPriorityEmails.length > 0
-      ) {
-        formattedSummary += `Les emails les plus importants concernent `;
+      // Liste des emails avec leurs résumés
+      formattedSummary += `Voici un aperçu détaillé de chaque email :\n\n`;
 
-        const emailSubjects = summaryData.topPriorityEmails.map(
-          (email) =>
-            `"${email.subject}" de ${email.from.split('<')[0].replace(/"/g, '')}`,
-        );
-
-        if (emailSubjects.length === 1) {
-          formattedSummary += `${emailSubjects[0]}`;
-        } else if (emailSubjects.length === 2) {
-          formattedSummary += `${emailSubjects[0]} et ${emailSubjects[1]}`;
+      summaryData.topPriorityEmails.forEach((email) => {
+        const sender = email.from.split('<')[0].replace(/"/g, '').trim();
+        formattedSummary += `• [${email.subject || '(sans sujet)'}] de ${sender}\n`;
+        if (email.analysis?.summary) {
+          formattedSummary += `   ${email.analysis.summary}\n`;
         } else {
-          const lastSubject = emailSubjects.pop();
-          formattedSummary += `${emailSubjects.join(', ')} et ${lastSubject}`;
+          formattedSummary += `   (Pas de résumé disponible)\n`;
         }
-        formattedSummary += `.\n\n`;
-      }
+
+        // Ajouter la priorité et la catégorie si disponibles
+        if (email.analysis?.priority) {
+          formattedSummary += `   Priorité : ${email.analysis.priority}\n`;
+        }
+        if (email.analysis?.category) {
+          formattedSummary += `   Catégorie : ${email.analysis.category}\n`;
+        }
+        formattedSummary += `\n`;
+      });
 
       // Actions requises
       if (summaryData.actionItems && summaryData.actionItems.length > 0) {
         const uniqueActions = [...new Set(summaryData.actionItems)];
-        if (uniqueActions.length === 1) {
-          formattedSummary += `L'action principale à effectuer est de ${uniqueActions[0].toLowerCase()}.\n\n`;
-        } else if (uniqueActions.length > 1) {
-          formattedSummary += `Voici les actions principales à effectuer :\n`;
-          uniqueActions.slice(0, 5).forEach((action, index) => {
-            formattedSummary += `${index + 1}. ${action}\n`;
-          });
-          if (uniqueActions.length > 5) {
-            formattedSummary += `... et ${uniqueActions.length - 5} autres actions.\n`;
-          }
-          formattedSummary += `\n`;
+        formattedSummary += `Actions requises :\n`;
+        uniqueActions.slice(0, 5).forEach((action, index) => {
+          formattedSummary += `${index + 1}. ${action}\n`;
+        });
+        if (uniqueActions.length > 5) {
+          formattedSummary += `... et ${uniqueActions.length - 5} autres actions.\n`;
         }
+        formattedSummary += `\n`;
       }
 
       // Résumé des catégories d'emails
@@ -1454,25 +1514,19 @@ export class AnalyzeEmailService {
         summaryData.categoryCounts &&
         Object.keys(summaryData.categoryCounts).length > 0
       ) {
-        formattedSummary += `Vos emails se répartissent principalement entre `;
-
+        formattedSummary += `Répartition par catégories :\n`;
         const categories = Object.entries(summaryData.categoryCounts)
           .sort((a, b) => b[1] - a[1])
-          .map(([category, count]) => `${count} emails ${category}s`);
+          .map(
+            ([category, count]) =>
+              `- ${count} email${count > 1 ? 's' : ''} ${category}`,
+          );
 
-        if (categories.length === 1) {
-          formattedSummary += `${categories[0]}`;
-        } else if (categories.length === 2) {
-          formattedSummary += `${categories[0]} et ${categories[1]}`;
-        } else {
-          const lastCategory = categories.pop();
-          formattedSummary += `${categories.join(', ')} et ${lastCategory}`;
-        }
-        formattedSummary += `.\n\n`;
+        categories.forEach((category) => {
+          formattedSummary += `${category}\n`;
+        });
+        formattedSummary += `\n`;
       }
-
-      // Résumé général
-      formattedSummary += `En résumé : ${summaryData.summary}\n\n`;
 
       return {
         formattedSummary,
