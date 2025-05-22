@@ -546,4 +546,47 @@ export class DataLoaderService implements OnModuleInit {
       );
     }
   }
+
+  async getEmbeddingStatus() {
+    try {
+      const status = {
+        total: 0,
+        byType: {},
+        lastUpdate: null as Date | null
+      };
+
+      // Récupérer le nombre total d'embeddings
+      const totalCount = await this.prisma.vector_embeddings.count();
+      status.total = totalCount;
+
+      // Récupérer le nombre d'embeddings par type
+      const embeddingsByType = await this.prisma.vector_embeddings.groupBy({
+        by: ['source_type'],
+        _count: true,
+      });
+
+      embeddingsByType.forEach(({ source_type, _count }) => {
+        status.byType[source_type] = _count;
+      });
+
+      // Récupérer la date de dernière mise à jour
+      const lastUpdate = await this.prisma.vector_embeddings.findFirst({
+        orderBy: {
+          updated_at: 'desc'
+        },
+        select: {
+          updated_at: true
+        }
+      });
+
+      status.lastUpdate = lastUpdate?.updated_at || null;
+
+      return status;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération du statut des embeddings: ${error.message}`,
+      );
+      throw error;
+    }
+  }
 }

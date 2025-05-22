@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../../../generated/prisma';
+import { extractDates, validateDateRange } from '../../utils/date-extractor';
 
 const prisma = new PrismaClient();
 
@@ -1520,5 +1521,124 @@ export const projectsQueries = {
     },
     response_format: 'table',
     description: 'Liste des projets et chantiers de l\'année en cours'
+  },
+
+  projects_by_date: {
+    keywords: [
+      'projet',
+      'chantier',
+      'date',
+      'période',
+      'entre',
+      'du',
+      'au',
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+      'année',
+      'mois',
+      'jour'
+    ],
+    questions: [
+      'Quels sont les chantiers de [DATE] ?',
+      'Projets du [DATE]',
+      'Chantiers en [DATE]',
+      'Liste des projets de [DATE]',
+      'Quels chantiers sont prévus [DATE] ?',
+      'Projets planifiés [DATE]',
+      'Quels sont les chantiers entre [DATE_DEBUT] et [DATE_FIN] ?',
+      'Projets du [DATE_DEBUT] au [DATE_FIN]',
+      'Chantiers sur la période [DATE_DEBUT] - [DATE_FIN]'
+    ],
+    prisma: async (question: string) => {
+      let dateRange = extractDates(question);
+      
+      if (!dateRange) {
+        // Si aucune date n'est trouvée, utiliser l'année en cours
+        const now = new Date();
+        dateRange = {
+          startDate: new Date(now.getFullYear(), 0, 1),
+          endDate: new Date(now.getFullYear(), 11, 31, 23, 59, 59)
+        };
+      }
+
+      if (!validateDateRange(dateRange.startDate, dateRange.endDate)) {
+        throw new Error('La date de début doit être antérieure à la date de fin');
+      }
+
+      return await prisma.projects.findMany({
+        where: {
+          OR: [
+            // Projets commençant dans la période
+            {
+              start_date: {
+                gte: dateRange.startDate,
+                lte: dateRange.endDate,
+              },
+            },
+            // Projets se terminant dans la période
+            {
+              end_date: {
+                gte: dateRange.startDate,
+                lte: dateRange.endDate,
+              },
+            },
+            // Projets en cours qui chevauchent la période
+            {
+              AND: [
+                { start_date: { lte: dateRange.endDate } },
+                { end_date: { gte: dateRange.startDate } }
+              ]
+            }
+          ],
+        },
+        include: {
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+          project_stages: {
+            select: {
+              name: true,
+              status: true,
+              start_date: true,
+              end_date: true,
+              completion_percentage: true,
+            },
+          },
+        },
+        orderBy: {
+          start_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets et chantiers sur une période donnée',
+    parameters: [
+      {
+        name: 'DATE',
+        description: 'Date spécifique (ex: "7 février 2022") ou période (ex: "année 2024")',
+      },
+      {
+        name: 'DATE_DEBUT',
+        description: 'Date de début de la période',
+      },
+      {
+        name: 'DATE_FIN',
+        description: 'Date de fin de la période',
+      }
+    ]
   },
 };
