@@ -5,7 +5,7 @@ import { HttpService as AxiosHttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
 // Fonction utilitaire pour découper les messages longs
-function splitIntoChunks(text: string, maxLength = 1000): string[] {
+function splitIntoChunks(text: string, maxLength = 800): string[] {
   const chunks: string[] = [];
   const sentences = text.split(/(?<=[.!?])\s+/);
 
@@ -72,6 +72,15 @@ export class WhatsappController {
             // Message de chargement
             await this.whatsappService.sendTextMessage(from, "⌛ Analyse en cours...");
 
+            // Vérifier la taille de la question
+            if (questionContent.length > 4000) {
+              await this.whatsappService.sendTextMessage(
+                from,
+                "❌ Votre question est trop longue. Veuillez la diviser en plusieurs questions plus courtes."
+              );
+              return 'EVENT_RECEIVED';
+            }
+
             // Appeler le contrôleur analyze/chatbot
             const analyzeResponse = await firstValueFrom(
               this.httpService.post('http://192.168.20.225:5599/analyze/chatbot', {
@@ -83,8 +92,8 @@ export class WhatsappController {
             const responseText = analyzeResponse.data.response || 
                                "Je n'ai pas compris votre question.";
             
-            // Découper et envoyer le message par morceaux
-            const chunks = splitIntoChunks(responseText);
+            // Découper la réponse en morceaux plus petits (environ 1500 tokens)
+            const chunks = splitIntoChunks(responseText, 600);
             
             // Envoyer un message indiquant le nombre de parties
             if (chunks.length > 1) {
