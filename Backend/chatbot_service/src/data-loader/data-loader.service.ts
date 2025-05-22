@@ -2,9 +2,15 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VectorStoreService } from '../embedding/vector-store.service';
 
+interface LoadOptions {
+  forceReload?: boolean;  // Force le rechargement complet
+  batchSize?: number;     // Taille des lots pour le traitement
+}
+
 @Injectable()
 export class DataLoaderService implements OnModuleInit {
   private readonly logger = new Logger(DataLoaderService.name);
+  private readonly DEFAULT_BATCH_SIZE = 50;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -20,26 +26,87 @@ export class DataLoaderService implements OnModuleInit {
     // await this.loadAllData();
   }
 
-  async loadAllData() {
+  async loadAllData(options: LoadOptions = {}) {
     this.logger.log('Chargement des données pour indexation...');
 
     // Entités principales
-    await this.loadProjects();
-    await this.loadClients();
-    await this.loadStaff();
+    await this.loadProjects(options);
+    await this.loadClients(options);
+    await this.loadStaff(options);
 
     // Entités secondaires
-    await this.loadDocuments();
-    await this.loadProjectStages();
-    await this.loadMaterials();
-    await this.loadEvents();
-    await this.loadSiteReports();
-    await this.loadTasks();
+    await this.loadDocuments(options);
+    await this.loadProjectStages(options);
+    await this.loadMaterials(options);
+    await this.loadEvents(options);
+    await this.loadSiteReports(options);
+    await this.loadTasks(options);
 
     this.logger.log('Chargement des données terminé.');
   }
 
-  async loadProjects() {
+  private async checkExistingEmbedding(sourceType: string, sourceId: number): Promise<boolean> {
+    const existing = await this.prisma.vector_embeddings.findFirst({
+      where: {
+        source_type: sourceType,
+        source_id: sourceId,
+      },
+    });
+    return !!existing;
+  }
+
+  private async processBatch<T>(
+    items: T[],
+    sourceType: string,
+    textGenerator: (item: T) => string,
+    metadataGenerator: (item: T) => any,
+    options: LoadOptions = {},
+  ) {
+    const batchSize = options.batchSize || this.DEFAULT_BATCH_SIZE;
+    let processed = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      
+      for (const item of batch) {
+        try {
+          const sourceId = (item as any).id;
+          
+          // Vérifier si l'embedding existe déjà
+          if (!options.forceReload && await this.checkExistingEmbedding(sourceType, sourceId)) {
+            skipped++;
+            continue;
+          }
+
+          const text = textGenerator(item);
+          const embedding = await this.vectorStore.generateEmbedding(text);
+          await this.vectorStore.storeEmbedding(
+            sourceType,
+            sourceId,
+            text,
+            embedding,
+            metadataGenerator(item),
+          );
+          processed++;
+        } catch (error) {
+          this.logger.error(
+            `Erreur lors du traitement de ${sourceType} #${(item as any).id}: ${error.message}`,
+          );
+          errors++;
+        }
+      }
+
+      this.logger.log(
+        `Progression ${sourceType}: ${i + batch.length}/${items.length} (${processed} traités, ${skipped} ignorés, ${errors} erreurs)`,
+      );
+    }
+
+    return { processed, skipped, errors };
+  }
+
+  async loadProjects(options: LoadOptions = {}) {
     try {
       const projects = await this.prisma.projects.findMany({
         include: {
@@ -50,32 +117,35 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${projects.length} projets.`);
 
-      for (const project of projects) {
-        // Créer un texte descriptif du projet
-        const projectText = `
-          Projet: ${project.name}
-          Référence: ${project.reference}
-          Description: ${project.description || 'Non spécifiée'}
-          Client: ${project.clients ? project.clients.company_name || `${project.clients.firstname} ${project.clients.lastname}` : 'Non spécifié'}
-          Statut: ${project.status || 'Non spécifié'}
-          Date de début: ${project.start_date ? project.start_date.toISOString() : 'Non spécifiée'}
-          Date de fin: ${project.end_date ? project.end_date.toISOString() : 'Non spécifiée'}
-          Budget: ${project.budget || 'Non spécifié'}
-          Notes: ${project.notes || 'Aucune'}
-        `;
+      const textGenerator = (project: any) => `
+        Projet: ${project.name}
+        Référence: ${project.reference}
+        Description: ${project.description || 'Non spécifiée'}
+        Client: ${project.clients ? project.clients.company_name || `${project.clients.firstname} ${project.clients.lastname}` : 'Non spécifié'}
+        Statut: ${project.status || 'Non spécifié'}
+        Date de début: ${project.start_date ? project.start_date.toISOString() : 'Non spécifiée'}
+        Date de fin: ${project.end_date ? project.end_date.toISOString() : 'Non spécifiée'}
+        Budget: ${project.budget || 'Non spécifié'}
+        Notes: ${project.notes || 'Aucune'}
+      `;
 
-        // Générer et stocker l'embedding
-        const embedding = await this.vectorStore.generateEmbedding(projectText);
-        await this.vectorStore.storeEmbedding(
-          'projects',
-          project.id,
-          projectText,
-          embedding,
-          { projectId: project.id, projectName: project.name },
-        );
-      }
+      const metadataGenerator = (project: any) => ({
+        projectId: project.id,
+        projectName: project.name,
+        projectReference: project.reference,
+      });
 
-      this.logger.log(`${projects.length} projets indexés avec succès.`);
+      const result = await this.processBatch(
+        projects,
+        'projects',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
+
+      this.logger.log(
+        `Projets indexés: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
+      );
     } catch (error) {
       this.logger.error(
         `Erreur lors du chargement des projets: ${error.message}`,
@@ -83,7 +153,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadClients() {
+  async loadClients(options: LoadOptions = {}) {
     try {
       const clients = await this.prisma.clients.findMany({
         include: {
@@ -93,36 +163,36 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${clients.length} clients.`);
 
-      for (const client of clients) {
-        const clientText = `
-          Client: ${client.company_name || `${client.firstname} ${client.lastname}`}
-          Email: ${client.email || 'Non spécifié'}
-          Téléphone: ${client.phone || 'Non spécifié'}
-          Mobile: ${client.mobile || 'Non spécifié'}
-          SIRET: ${client.siret || 'Non spécifié'}
-          Adresse: ${
-            client.addresses
-              ? `${client.addresses.street_number || ''} ${client.addresses.street_name || ''}, ${client.addresses.city || ''}, ${client.addresses.zip_code || ''}`
-              : 'Non spécifiée'
-          }
-          Notes: ${client.notes || 'Aucune'}
-        `;
+      const textGenerator = (client: any) => `
+        Client: ${client.company_name || `${client.firstname} ${client.lastname}`}
+        Email: ${client.email || 'Non spécifié'}
+        Téléphone: ${client.phone || 'Non spécifié'}
+        Mobile: ${client.mobile || 'Non spécifié'}
+        SIRET: ${client.siret || 'Non spécifié'}
+        Adresse: ${
+          client.addresses
+            ? `${client.addresses.street_number || ''} ${client.addresses.street_name || ''}, ${client.addresses.city || ''}, ${client.addresses.zip_code || ''}`
+            : 'Non spécifiée'
+        }
+        Notes: ${client.notes || 'Aucune'}
+      `;
 
-        const embedding = await this.vectorStore.generateEmbedding(clientText);
-        await this.vectorStore.storeEmbedding(
-          'clients',
-          client.id,
-          clientText,
-          embedding,
-          {
-            clientId: client.id,
-            clientName:
-              client.company_name || `${client.firstname} ${client.lastname}`,
-          },
-        );
-      }
+      const metadataGenerator = (client: any) => ({
+        clientId: client.id,
+        clientName: client.company_name || `${client.firstname} ${client.lastname}`,
+      });
 
-      this.logger.log(`${clients.length} clients indexés avec succès.`);
+      const result = await this.processBatch(
+        clients,
+        'clients',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
+
+      this.logger.log(
+        `Clients indexés: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
+      );
     } catch (error) {
       this.logger.error(
         `Erreur lors du chargement des clients: ${error.message}`,
@@ -130,7 +200,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadStaff() {
+  async loadStaff(options: LoadOptions = {}) {
     try {
       const staffMembers = await this.prisma.staff.findMany({
         include: {
@@ -143,37 +213,37 @@ export class DataLoaderService implements OnModuleInit {
         `Chargement de ${staffMembers.length} membres du personnel.`,
       );
 
-      for (const staff of staffMembers) {
-        const staffText = `
-          Personnel: ${staff.firstname} ${staff.lastname}
-          Email: ${staff.email || 'Non spécifié'}
-          Rôle: ${staff.roles?.name || 'Non spécifié'}
-          Téléphone: ${staff.phone || 'Non spécifié'}
-          Mobile: ${staff.mobile || 'Non spécifié'}
-          Date d'embauche: ${staff.hire_date ? staff.hire_date.toISOString() : 'Non spécifiée'}
-          Disponible: ${staff.is_available ? 'Oui' : 'Non'}
-          Adresse: ${
-            staff.addresses
-              ? `${staff.addresses.street_number || ''} ${staff.addresses.street_name || ''}, ${staff.addresses.city || ''}, ${staff.addresses.zip_code || ''}`
-              : 'Non spécifiée'
-          }
-        `;
+      const textGenerator = (staff: any) => `
+        Personnel: ${staff.firstname} ${staff.lastname}
+        Email: ${staff.email || 'Non spécifié'}
+        Rôle: ${staff.roles?.name || 'Non spécifié'}
+        Téléphone: ${staff.phone || 'Non spécifié'}
+        Mobile: ${staff.mobile || 'Non spécifié'}
+        Date d'embauche: ${staff.hire_date ? staff.hire_date.toISOString() : 'Non spécifiée'}
+        Disponible: ${staff.is_available ? 'Oui' : 'Non'}
+        Adresse: ${
+          staff.addresses
+            ? `${staff.addresses.street_number || ''} ${staff.addresses.street_name || ''}, ${staff.addresses.city || ''}, ${staff.addresses.zip_code || ''}`
+            : 'Non spécifiée'
+        }
+      `;
 
-        const embedding = await this.vectorStore.generateEmbedding(staffText);
-        await this.vectorStore.storeEmbedding(
-          'staff',
-          staff.id,
-          staffText,
-          embedding,
-          {
-            staffId: staff.id,
-            staffName: `${staff.firstname} ${staff.lastname}`,
-          },
-        );
-      }
+      const metadataGenerator = (staff: any) => ({
+        staffId: staff.id,
+        staffName: `${staff.firstname} ${staff.lastname}`,
+        staffRole: staff.roles?.name,
+      });
+
+      const result = await this.processBatch(
+        staffMembers,
+        'staff',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
 
       this.logger.log(
-        `${staffMembers.length} membres du personnel indexés avec succès.`,
+        `Personnel indexé: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
       );
     } catch (error) {
       this.logger.error(
@@ -182,7 +252,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadDocuments() {
+  async loadDocuments(options: LoadOptions = {}) {
     try {
       const documents = await this.prisma.documents.findMany({
         include: {
@@ -193,41 +263,41 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${documents.length} documents.`);
 
-      for (const document of documents) {
-        const documentText = `
-          Document: ${document.reference}
-          Type: ${document.type || 'Non spécifié'}
-          Projet: ${document.projects?.name || 'Non spécifié'}
-          Client: ${document.clients?.company_name || document.clients?.firstname + ' ' + document.clients?.lastname || 'Non spécifié'}
-          Statut: ${document.status || 'Non spécifié'}
-          Montant: ${document.amount || 'Non spécifié'} €
-          TVA: ${document.tva_rate || '20'}%
-          Date d'émission: ${document.issue_date ? document.issue_date.toISOString() : 'Non spécifiée'}
-          Date d'échéance: ${document.due_date ? document.due_date.toISOString() : 'Non spécifiée'}
-          Moyen de paiement: ${document.payment_method || 'Non spécifié'}
-          Conditions de paiement: ${document.payment_terms || 'Non spécifiées'}
-          Statut de paiement: ${document.payment_status || 'Non spécifié'}
-          Notes: ${document.notes || 'Aucune'}
-        `;
+      const textGenerator = (document: any) => `
+        Document: ${document.reference}
+        Type: ${document.type || 'Non spécifié'}
+        Projet: ${document.projects?.name || 'Non spécifié'}
+        Client: ${document.clients?.company_name || document.clients?.firstname + ' ' + document.clients?.lastname || 'Non spécifié'}
+        Statut: ${document.status || 'Non spécifié'}
+        Montant: ${document.amount || 'Non spécifié'} €
+        TVA: ${document.tva_rate || '20'}%
+        Date d'émission: ${document.issue_date ? document.issue_date.toISOString() : 'Non spécifiée'}
+        Date d'échéance: ${document.due_date ? document.due_date.toISOString() : 'Non spécifiée'}
+        Moyen de paiement: ${document.payment_method || 'Non spécifié'}
+        Conditions de paiement: ${document.payment_terms || 'Non spécifiées'}
+        Statut de paiement: ${document.payment_status || 'Non spécifié'}
+        Notes: ${document.notes || 'Aucune'}
+      `;
 
-        const embedding =
-          await this.vectorStore.generateEmbedding(documentText);
-        await this.vectorStore.storeEmbedding(
-          'documents',
-          document.id,
-          documentText,
-          embedding,
-          {
-            documentId: document.id,
-            documentReference: document.reference,
-            documentType: document.type,
-            projectId: document.project_id,
-            projectName: document.projects?.name,
-          },
-        );
-      }
+      const metadataGenerator = (document: any) => ({
+        documentId: document.id,
+        documentReference: document.reference,
+        documentType: document.type,
+        projectId: document.project_id,
+        projectName: document.projects?.name,
+      });
 
-      this.logger.log(`${documents.length} documents indexés avec succès.`);
+      const result = await this.processBatch(
+        documents,
+        'documents',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
+
+      this.logger.log(
+        `Documents indexés: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
+      );
     } catch (error) {
       this.logger.error(
         `Erreur lors du chargement des documents: ${error.message}`,
@@ -235,7 +305,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadProjectStages() {
+  async loadProjectStages(options: LoadOptions = {}) {
     try {
       const stages = await this.prisma.project_stages.findMany({
         include: {
@@ -245,38 +315,37 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${stages.length} étapes de projet.`);
 
-      for (const stage of stages) {
-        const stageText = `
-          Étape: ${stage.name}
-          Projet: ${stage.projects?.name || 'Non spécifié'} (Réf: ${stage.projects?.reference || 'Non spécifiée'})
-          Description: ${stage.description || 'Non spécifiée'}
-          Statut: ${stage.status || 'Non spécifié'}
-          Date de début: ${stage.start_date ? stage.start_date.toISOString() : 'Non spécifiée'}
-          Date de fin: ${stage.end_date ? stage.end_date.toISOString() : 'Non spécifiée'}
-          Durée estimée: ${stage.estimated_duration || 'Non spécifiée'} jours
-          Heures estimées: ${stage.estimated_hours || 'Non spécifiées'} heures
-          Progression: ${stage.completion_percentage || '0'}%
-          Ordre: ${stage.order_index}
-          Notes: ${stage.notes || 'Aucune'}
-        `;
+      const textGenerator = (stage: any) => `
+        Étape: ${stage.name}
+        Projet: ${stage.projects?.name || 'Non spécifié'} (Réf: ${stage.projects?.reference || 'Non spécifiée'})
+        Description: ${stage.description || 'Non spécifiée'}
+        Statut: ${stage.status || 'Non spécifié'}
+        Date de début: ${stage.start_date ? stage.start_date.toISOString() : 'Non spécifiée'}
+        Date de fin: ${stage.end_date ? stage.end_date.toISOString() : 'Non spécifiée'}
+        Durée estimée: ${stage.estimated_duration || 'Non spécifiée'} jours
+        Heures estimées: ${stage.estimated_hours || 'Non spécifiées'} heures
+        Progression: ${stage.completion_percentage || '0'}%
+        Ordre: ${stage.order_index}
+        Notes: ${stage.notes || 'Aucune'}
+      `;
 
-        const embedding = await this.vectorStore.generateEmbedding(stageText);
-        await this.vectorStore.storeEmbedding(
-          'project_stages',
-          stage.id,
-          stageText,
-          embedding,
-          {
-            stageId: stage.id,
-            stageName: stage.name,
-            projectId: stage.project_id,
-            projectName: stage.projects?.name,
-          },
-        );
-      }
+      const metadataGenerator = (stage: any) => ({
+        stageId: stage.id,
+        stageName: stage.name,
+        projectId: stage.project_id,
+        projectName: stage.projects?.name,
+      });
+
+      const result = await this.processBatch(
+        stages,
+        'project_stages',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
 
       this.logger.log(
-        `${stages.length} étapes de projet indexées avec succès.`,
+        `Étapes de projet indexées: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
       );
     } catch (error) {
       this.logger.error(
@@ -285,41 +354,41 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadMaterials() {
+  async loadMaterials(options: LoadOptions = {}) {
     try {
       const materials = await this.prisma.materials.findMany();
 
       this.logger.log(`Chargement de ${materials.length} matériaux.`);
 
-      for (const material of materials) {
-        const materialText = `
-          Matériau: ${material.name}
-          Référence: ${material.reference || 'Non spécifiée'}
-          Description: ${material.description || 'Non spécifiée'}
-          Unité: ${material.unit}
-          Prix: ${material.price || 'Non spécifié'} €
-          Stock actuel: ${material.stock_quantity || '0'} ${material.unit}
-          Stock minimum: ${material.minimum_stock || '0'} ${material.unit}
-          Fournisseur: ${material.supplier || 'Non spécifié'}
-          Référence fournisseur: ${material.supplier_reference || 'Non spécifiée'}
-        `;
+      const textGenerator = (material: any) => `
+        Matériau: ${material.name}
+        Référence: ${material.reference || 'Non spécifiée'}
+        Description: ${material.description || 'Non spécifiée'}
+        Unité: ${material.unit}
+        Prix: ${material.price || 'Non spécifié'} €
+        Stock actuel: ${material.stock_quantity || '0'} ${material.unit}
+        Stock minimum: ${material.minimum_stock || '0'} ${material.unit}
+        Fournisseur: ${material.supplier || 'Non spécifié'}
+        Référence fournisseur: ${material.supplier_reference || 'Non spécifiée'}
+      `;
 
-        const embedding =
-          await this.vectorStore.generateEmbedding(materialText);
-        await this.vectorStore.storeEmbedding(
-          'materials',
-          material.id,
-          materialText,
-          embedding,
-          {
-            materialId: material.id,
-            materialName: material.name,
-            materialReference: material.reference,
-          },
-        );
-      }
+      const metadataGenerator = (material: any) => ({
+        materialId: material.id,
+        materialName: material.name,
+        materialReference: material.reference,
+      });
 
-      this.logger.log(`${materials.length} matériaux indexés avec succès.`);
+      const result = await this.processBatch(
+        materials,
+        'materials',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
+
+      this.logger.log(
+        `Matériaux indexés: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
+      );
     } catch (error) {
       this.logger.error(
         `Erreur lors du chargement des matériaux: ${error.message}`,
@@ -327,7 +396,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadEvents() {
+  async loadEvents(options: LoadOptions = {}) {
     try {
       const events = await this.prisma.events.findMany({
         include: {
@@ -339,38 +408,39 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${events.length} événements.`);
 
-      for (const event of events) {
-        const eventText = `
-          Événement: ${event.title}
-          Type: ${event.event_type || 'Non spécifié'}
-          Description: ${event.description || 'Non spécifiée'}
-          Date de début: ${event.start_date ? event.start_date.toISOString() : 'Non spécifiée'}
-          Date de fin: ${event.end_date ? event.end_date.toISOString() : 'Non spécifiée'}
-          Journée entière: ${event.all_day ? 'Oui' : 'Non'}
-          Lieu: ${event.location || 'Non spécifié'}
-          Projet: ${event.projects?.name || 'Non spécifié'}
-          Personnel impliqué: ${event.staff ? `${event.staff.firstname} ${event.staff.lastname}` : 'Non spécifié'}
-          Client: ${event.clients ? event.clients.company_name || `${event.clients.firstname} ${event.clients.lastname}` : 'Non spécifié'}
-          Statut: ${event.status || 'Non spécifié'}
-        `;
+      const textGenerator = (event: any) => `
+        Événement: ${event.title}
+        Type: ${event.event_type || 'Non spécifié'}
+        Description: ${event.description || 'Non spécifiée'}
+        Date de début: ${event.start_date ? event.start_date.toISOString() : 'Non spécifiée'}
+        Date de fin: ${event.end_date ? event.end_date.toISOString() : 'Non spécifiée'}
+        Journée entière: ${event.all_day ? 'Oui' : 'Non'}
+        Lieu: ${event.location || 'Non spécifié'}
+        Projet: ${event.projects?.name || 'Non spécifié'}
+        Personnel impliqué: ${event.staff ? `${event.staff.firstname} ${event.staff.lastname}` : 'Non spécifié'}
+        Client: ${event.clients ? event.clients.company_name || `${event.clients.firstname} ${event.clients.lastname}` : 'Non spécifié'}
+        Statut: ${event.status || 'Non spécifié'}
+      `;
 
-        const embedding = await this.vectorStore.generateEmbedding(eventText);
-        await this.vectorStore.storeEmbedding(
-          'events',
-          event.id,
-          eventText,
-          embedding,
-          {
-            eventId: event.id,
-            eventTitle: event.title,
-            eventType: event.event_type,
-            projectId: event.project_id,
-            projectName: event.projects?.name,
-          },
-        );
-      }
+      const metadataGenerator = (event: any) => ({
+        eventId: event.id,
+        eventTitle: event.title,
+        eventType: event.event_type,
+        projectId: event.project_id,
+        projectName: event.projects?.name,
+      });
 
-      this.logger.log(`${events.length} événements indexés avec succès.`);
+      const result = await this.processBatch(
+        events,
+        'events',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
+
+      this.logger.log(
+        `Événements indexés: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
+      );
     } catch (error) {
       this.logger.error(
         `Erreur lors du chargement des événements: ${error.message}`,
@@ -378,7 +448,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadSiteReports() {
+  async loadSiteReports(options: LoadOptions = {}) {
     try {
       const reports = await this.prisma.site_reports.findMany({
         include: {
@@ -389,34 +459,33 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${reports.length} rapports de chantier.`);
 
-      for (const report of reports) {
-        const reportText = `
-          Rapport: ${report.id}
-          Projet: ${report.projects?.name || 'Non spécifié'} (Réf: ${report.projects?.reference || 'Non spécifiée'})
-          Type: ${report.report_type || 'Non spécifié'}
-          Description: ${report.description}
-          Statut: ${report.status || 'Non spécifié'}
-          Personnel: ${report.staff ? `${report.staff.firstname} ${report.staff.lastname}` : 'Non spécifié'}
-          Date: ${report.created_at ? report.created_at.toISOString() : 'Non spécifiée'}
-        `;
+      const textGenerator = (report: any) => `
+        Rapport: ${report.id}
+        Projet: ${report.projects?.name || 'Non spécifié'} (Réf: ${report.projects?.reference || 'Non spécifiée'})
+        Type: ${report.report_type || 'Non spécifié'}
+        Description: ${report.description}
+        Statut: ${report.status || 'Non spécifié'}
+        Personnel: ${report.staff ? `${report.staff.firstname} ${report.staff.lastname}` : 'Non spécifié'}
+        Date: ${report.created_at ? report.created_at.toISOString() : 'Non spécifiée'}
+      `;
 
-        const embedding = await this.vectorStore.generateEmbedding(reportText);
-        await this.vectorStore.storeEmbedding(
-          'site_reports',
-          report.id,
-          reportText,
-          embedding,
-          {
-            reportId: report.id,
-            projectId: report.project_id,
-            projectName: report.projects?.name,
-            reportType: report.report_type,
-          },
-        );
-      }
+      const metadataGenerator = (report: any) => ({
+        reportId: report.id,
+        projectId: report.project_id,
+        projectName: report.projects?.name,
+        reportType: report.report_type,
+      });
+
+      const result = await this.processBatch(
+        reports,
+        'site_reports',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
 
       this.logger.log(
-        `${reports.length} rapports de chantier indexés avec succès.`,
+        `Rapports de chantier indexés: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
       );
     } catch (error) {
       this.logger.error(
@@ -425,7 +494,7 @@ export class DataLoaderService implements OnModuleInit {
     }
   }
 
-  async loadTasks() {
+  async loadTasks(options: LoadOptions = {}) {
     try {
       const tasks = await this.prisma.tasks.findMany({
         include: {
@@ -440,40 +509,84 @@ export class DataLoaderService implements OnModuleInit {
 
       this.logger.log(`Chargement de ${tasks.length} tâches.`);
 
-      for (const task of tasks) {
-        const taskText = `
-          Tâche: ${task.label}
-          Description: ${task.description || 'Non spécifiée'}
-          Étape: ${task.project_stages?.name || 'Non spécifiée'}
-          Projet: ${task.project_stages?.projects?.name || 'Non spécifié'} (Réf: ${task.project_stages?.projects?.reference || 'Non spécifiée'})
-          Assignée à: ${task.staff ? `${task.staff.firstname} ${task.staff.lastname}` : 'Non assignée'}
-          Date d'échéance: ${task.due_date ? task.due_date.toISOString() : 'Non spécifiée'}
-          Statut: ${task.status || 'Non spécifié'}
-          Priorité: ${task.priority || 'Non spécifiée'}
-        `;
+      const textGenerator = (task: any) => `
+        Tâche: ${task.label}
+        Description: ${task.description || 'Non spécifiée'}
+        Étape: ${task.project_stages?.name || 'Non spécifiée'}
+        Projet: ${task.project_stages?.projects?.name || 'Non spécifié'} (Réf: ${task.project_stages?.projects?.reference || 'Non spécifiée'})
+        Assignée à: ${task.staff ? `${task.staff.firstname} ${task.staff.lastname}` : 'Non assignée'}
+        Date d'échéance: ${task.due_date ? task.due_date.toISOString() : 'Non spécifiée'}
+        Statut: ${task.status || 'Non spécifié'}
+        Priorité: ${task.priority || 'Non spécifiée'}
+      `;
 
-        const embedding = await this.vectorStore.generateEmbedding(taskText);
-        await this.vectorStore.storeEmbedding(
-          'tasks',
-          task.id,
-          taskText,
-          embedding,
-          {
-            taskId: task.id,
-            taskLabel: task.label,
-            stageId: task.stage_id,
-            stageName: task.project_stages?.name,
-            projectId: task.project_stages?.project_id,
-            projectName: task.project_stages?.projects?.name,
-          },
-        );
-      }
+      const metadataGenerator = (task: any) => ({
+        taskId: task.id,
+        taskLabel: task.label,
+        stageId: task.stage_id,
+        stageName: task.project_stages?.name,
+        projectId: task.project_stages?.project_id,
+        projectName: task.project_stages?.projects?.name,
+      });
 
-      this.logger.log(`${tasks.length} tâches indexées avec succès.`);
+      const result = await this.processBatch(
+        tasks,
+        'tasks',
+        textGenerator,
+        metadataGenerator,
+        options,
+      );
+
+      this.logger.log(
+        `Tâches indexées: ${result.processed} traités, ${result.skipped} ignorés, ${result.errors} erreurs`,
+      );
     } catch (error) {
       this.logger.error(
         `Erreur lors du chargement des tâches: ${error.message}`,
       );
+    }
+  }
+
+  async getEmbeddingStatus() {
+    try {
+      const status = {
+        total: 0,
+        byType: {},
+        lastUpdate: null as Date | null
+      };
+
+      // Récupérer le nombre total d'embeddings
+      const totalCount = await this.prisma.vector_embeddings.count();
+      status.total = totalCount;
+
+      // Récupérer le nombre d'embeddings par type
+      const embeddingsByType = await this.prisma.vector_embeddings.groupBy({
+        by: ['source_type'],
+        _count: true,
+      });
+
+      embeddingsByType.forEach(({ source_type, _count }) => {
+        status.byType[source_type] = _count;
+      });
+
+      // Récupérer la date de dernière mise à jour
+      const lastUpdate = await this.prisma.vector_embeddings.findFirst({
+        orderBy: {
+          updated_at: 'desc'
+        },
+        select: {
+          updated_at: true
+        }
+      });
+
+      status.lastUpdate = lastUpdate?.updated_at || null;
+
+      return status;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération du statut des embeddings: ${error.message}`,
+      );
+      throw error;
     }
   }
 }

@@ -227,4 +227,83 @@ export class ElasticsearchController {
       );
     }
   }
+
+  @Post('queries/single')
+  async indexSingleQuery(@Body() queryData: { queryId: string, queryDetails: any }) {
+    try {
+      if (!queryData.queryId || !queryData.queryDetails) {
+        throw new HttpException(
+          'L\'identifiant de requête et les détails sont requis',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.elasticsearchService.indexSingleQuery(
+        queryData.queryId,
+        queryData.queryDetails
+      );
+
+      return {
+        success: true,
+        message: `Requête ${queryData.queryId} indexée avec succès`,
+        queryId: queryData.queryId
+      };
+    } catch (error) {
+      console.error("Erreur lors de l'indexation de la requête:", error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Erreur lors de l'indexation de la requête: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('queries/batch')
+  async indexMultipleQueries(@Body() queryData: { queries: Record<string, any> }) {
+    try {
+      if (!queryData.queries || Object.keys(queryData.queries).length === 0) {
+        throw new HttpException(
+          'Aucune requête fournie pour l\'indexation',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const result = await this.elasticsearchService.indexMultipleQueries(queryData.queries);
+
+      return {
+        success: true,
+        message: `${result.count} requêtes indexées avec succès`,
+        count: result.count
+      };
+    } catch (error) {
+      console.error("Erreur lors de l'indexation des requêtes:", error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Erreur lors de l'indexation des requêtes: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete('clear-all')
+  async clearAllDocuments() {
+    try {
+      const result = await this.elasticsearchService.deleteAllDocuments();
+      return result;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Erreur lors de la suppression de tous les documents',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

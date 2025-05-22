@@ -603,4 +603,155 @@ export class ElasticsearchService {
     // Trier par score de pertinence
     return merged.sort((a, b) => b.score - a.score);
   }
+
+  /**
+   * Indexe une requête prédéfinie individuelle
+   * @param queryId Identifiant de la requête
+   * @param queryDetails Détails de la requête
+   * @returns Un objet indiquant si l'opération a réussi
+   */
+  async indexSingleQuery(
+    queryId: string,
+    queryDetails: any,
+  ): Promise<{ success: boolean; queryId: string }> {
+    try {
+      this.logger.log(`Vérification/indexation de la requête: ${queryId}`);
+
+      // Vérifier si la requête existe déjà
+      const existingQuery = await this.client.search({
+        index: this.queriesIndexName,
+        body: {
+          query: {
+            match: {
+              query_id: queryId,
+            },
+          },
+        },
+      });
+
+      // Si la requête existe déjà, la supprimer
+      if (existingQuery.hits.hits.length > 0) {
+        const existingId = existingQuery.hits.hits[0]._id;
+        await this.client.delete({
+          index: this.queriesIndexName,
+          id: existingId,
+        });
+        this.logger.log(`Requête existante ${queryId} supprimée`);
+      }
+
+      // Générer l'embedding pour les questions
+      const questionsText = queryDetails.questions.join(' ');
+      const questionsVector = await this.vectorStoreService.generateEmbedding(
+        questionsText,
+      );
+
+      // Déterminer la catégorie à partir du query_id
+      const category = queryId.split('_')[0];
+
+      // Indexer la requête
+      await this.client.index({
+        index: this.queriesIndexName,
+        body: {
+          query_id: queryId,
+          category,
+          keywords: queryDetails.keywords || [],
+          questions: queryDetails.questions || [],
+          description: queryDetails.description || '',
+          parameters: queryDetails.parameters || [],
+          response_format: queryDetails.response_format || '',
+          questions_vector: questionsVector,
+          created_at: new Date(),
+        },
+        refresh: true,
+      });
+
+      this.logger.log(`Requête ${queryId} indexée avec succès`);
+      return { success: true, queryId };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de l'indexation de la requête ${queryId}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Indexe un ensemble spécifique de requêtes prédéfinies
+   * @param queries Les requêtes à indexer
+   * @returns Un objet indiquant si l'opération a réussi et combien de requêtes ont été indexées
+   */
+  async indexMultipleQueries(
+    queries: Record<string, any>,
+  ): Promise<{ success: boolean; count: number }> {
+    try {
+      this.logger.log(
+        `Indexation de ${Object.keys(queries).length} requêtes spécifiques...`,
+      );
+
+      let count = 0;
+      for (const [queryId, queryDetails] of Object.entries(queries)) {
+        try {
+          await this.indexSingleQuery(queryId, queryDetails);
+          count++;
+        } catch (error) {
+          this.logger.error(
+            `Erreur lors de l'indexation de ${queryId}: ${error.message}`,
+          );
+          // Continuer avec les autres requêtes même si une échoue
+        }
+      }
+
+      return { success: true, count };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de l'indexation multiple de requêtes: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async deleteAllDocuments() {
+    try {
+      console.log('🚀 Début de la suppression de tous les documents...');
+      
+      // Suppression des documents de l'index des questions
+      console.log('📝 Suppression des documents de l\'index des questions...');
+      const questionsResult = await this.client.deleteByQuery({
+        index: this.indexName,
+        body: {
+          query: {
+            match_all: {},
+          },
+        },
+      });
+      const questionsDeleted = questionsResult.deleted ?? 0;
+      console.log(`✅ ${questionsDeleted} documents supprimés de l'index des questions`);
+
+      // Suppression des documents de l'index des requêtes prédéfinies
+      console.log('📝 Suppression des documents de l\'index des requêtes prédéfinies...');
+      const queriesResult = await this.client.deleteByQuery({
+        index: this.queriesIndexName,
+        body: {
+          query: {
+            match_all: {},
+          },
+        },
+      });
+      const queriesDeleted = queriesResult.deleted ?? 0;
+      console.log(`✅ ${queriesDeleted} documents supprimés de l'index des requêtes prédéfinies`);
+
+      console.log('🎉 Suppression terminée avec succès !');
+      return {
+        message: 'Tous les documents ont été supprimés avec succès',
+        deleted: {
+          questions: questionsDeleted,
+          queries: queriesDeleted,
+          total: questionsDeleted + queriesDeleted
+        }
+      };
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression des documents:', error);
+      throw error;
+    }
+  }
 }

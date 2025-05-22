@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../../../generated/prisma';
+import { extractDates, validateDateRange } from '../../utils/date-extractor';
 
 const prisma = new PrismaClient();
 
@@ -730,5 +731,914 @@ export const projectsQueries = {
         description: 'Nom ou référence du projet',
       },
     ],
+  },
+
+  most_profitable_projects: {
+    keywords: ['rentable', 'profitable', 'marge', 'bénéfice', 'gain', 'rendement'],
+    questions: [
+      'Quels sont les projets les plus rentables ?',
+      'Projets avec la meilleure marge',
+      'Projets les plus profitables',
+      'Top projets par rentabilité',
+      'Projets avec le meilleur bénéfice',
+      'Classement des projets par profit'
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          budget: true,
+          actual_cost: true,
+          margin: true,
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true
+            }
+          }
+        },
+        orderBy: {
+          margin: 'desc'
+        },
+        take: 10
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des 10 projets les plus rentables par marge'
+  },
+
+   projects_without_documents: {
+    keywords: ['aucun document', 'manque', 'vide', 'sans papier'],
+    questions: [
+      'Projets sans documents',
+      'Chantiers sans fichier associé',
+      'Liste des projets sans documents liés',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          documents: { none: {} },
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          status: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets qui ne possèdent aucun document associé.'
+  },
+
+  projects_with_late_stages: {
+    keywords: ['retard', 'étape', 'non terminé', 'en attente'],
+    questions: [
+      'Projets avec des étapes en retard',
+      'Étapes dépassées non complètes',
+      'Chantiers dont les étapes sont en retard',
+    ],
+    prisma: async () => {
+      const today = new Date();
+      return await prisma.projects.findMany({
+        where: {
+          project_stages: {
+            some: {
+              end_date: { lt: today },
+              status: { not: 'termine' },
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          project_stages: {
+            where: {
+              end_date: { lt: today },
+              status: { not: 'termine' },
+            },
+            select: {
+              name: true,
+              end_date: true,
+              status: true,
+            },
+          },
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets ayant des étapes dont les dates de fin sont dépassées sans finalisation.'
+  },
+
+  projects_without_assigned_staff: {
+    keywords: ['aucun staff', 'sans employé', 'non attribué'],
+    questions: [
+      'Projets sans staff attribué',
+      'Chantiers sans intervenants',
+      'Qui n\'est pas encore assigné à un projet ?',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          project_staff: { none: {} },
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          status: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets n\'ayant encore aucun membre du personnel affecté.'
+  },
+
+  recently_finished_projects: {
+    keywords: ['terminé', 'achevé', 'clôturé', 'récemment'],
+    questions: [
+      'Projets terminés récemment',
+      'Chantiers clôturés dans le mois',
+      'Quels projets viennent d\'être terminés ?'
+    ],
+    prisma: async () => {
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return await prisma.projects.findMany({
+        where: {
+          status: 'termine',
+          end_date: { gte: monthAgo },
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          end_date: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets terminés dans le mois précédent.'
+  },
+
+  projects_with_high_staff_rotation: {
+    keywords: ['rotation', 'changement', 'turnover', 'personnel'],
+    questions: [
+      'Projets avec beaucoup de rotation de personnel',
+      'Chantiers avec nombreux changements d\'équipes',
+      'Liste des projets à forte instabilité RH',
+    ],
+    prisma: async () => {
+      const list = await prisma.projects.findMany({
+        include: {
+          project_staff: true,
+        },
+      });
+      return list
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          reference: p.reference,
+          staff_count: p.project_staff.length,
+        }))
+        .filter((p) => p.staff_count > 5);
+    },
+    response_format: 'table',
+    description: 'Projets où plus de 5 intervenants différents ont été affectés.'
+  },
+  projects_with_budget_overrun: {
+    keywords: ['dépassement', 'budget', 'surcoût', 'coût excessif'],
+    questions: [
+      'Projets avec dépassement de budget',
+      'Quels chantiers ont dépassé le budget prévu ?',
+      'Surcoût sur projet',
+      'Liste des projets en dépassement budgétaire'
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          actual_cost: {
+            gt: prisma.projects.fields.budget,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          budget: true,
+          actual_cost: true,
+          margin: true,
+        },
+        orderBy: {
+          actual_cost: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets dont le coût réel dépasse le budget initial.',
+  },
+
+  projects_with_most_materials: {
+    keywords: ['matériaux', 'quantité', 'consommation', 'stock'],
+    questions: [
+      'Quels projets utilisent le plus de matériaux ?',
+      'Projets à forte consommation de matériaux',
+      'Chantiers avec beaucoup de matériaux',
+    ],
+    prisma: async () => {
+      const projects = await prisma.projects.findMany({
+        include: {
+          project_materials: true,
+        },
+      });
+      return projects
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          material_count: p.project_materials.length,
+        }))
+        .sort((a, b) => b.material_count - a.material_count);
+    },
+    response_format: 'table',
+    description: 'Classement des projets selon la diversité des matériaux utilisés.',
+  },
+
+  long_duration_projects: {
+    keywords: ['durée', 'long', 'prolongé', 'temps'],
+    questions: [
+      'Quels sont les projets les plus longs ?',
+      'Chantiers à longue durée',
+      'Projets prolongés',
+    ],
+    prisma: async () => {
+      const list = await prisma.projects.findMany({
+        select: {
+          id: true,
+          name: true,
+          start_date: true,
+          end_date: true,
+        },
+      });
+      return list
+        .map((p) => ({
+          ...p,
+          duration_days: p.end_date && p.start_date ? Math.ceil((p.end_date.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24)) : null,
+        }))
+        .filter((p) => p.duration_days !== null)
+        .sort((a, b) => b.duration_days! - a.duration_days!);
+    },
+    response_format: 'table',
+    description: 'Liste des projets avec la durée la plus longue.',
+  },
+
+  projects_with_no_progress: {
+    keywords: ['aucun avancement', 'bloqué', 'immobile', 'gelé'],
+    questions: [
+      'Projets sans avancement',
+      'Chantiers bloqués',
+      'Quels projets sont à l\'arrêt ?',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          project_stages: {
+            every: {
+              completion_percentage: 0,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets avec aucune progression sur leurs étapes.',
+  },
+
+  projects_nearing_deadline: {
+    keywords: ['proche', 'deadline', 'fin', 'urgents'],
+    questions: [
+      'Projets proches de leur date de fin',
+      'Chantiers urgents à finaliser',
+      'Quels projets finissent bientôt ?'
+    ],
+    prisma: async () => {
+      const soon = new Date();
+      soon.setDate(soon.getDate() + 7);
+      return await prisma.projects.findMany({
+        where: {
+          end_date: {
+            lte: soon,
+            gte: new Date(),
+          },
+          status: {
+            not: 'termine',
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          end_date: true,
+          status: true,
+        },
+        orderBy: {
+          end_date: 'asc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets devant être terminés sous 7 jours.',
+  },
+
+  projects_by_client: {
+    keywords: ['client', 'répartir', 'regrouper'],
+    questions: [
+      'Projets par client',
+      'Quels projets pour [CLIENT] ?',
+      'Liste des chantiers de [CLIENT]'
+    ],
+    prisma: async (client: string) => {
+      return await prisma.projects.findMany({
+        where: {
+          clients: {
+            OR: [
+              { firstname: { contains: client, mode: 'insensitive' } },
+              { lastname: { contains: client, mode: 'insensitive' } },
+              { company_name: { contains: client, mode: 'insensitive' } },
+            ],
+          },
+        },
+        select: {
+          name: true,
+          reference: true,
+          status: true,
+          start_date: true,
+          end_date: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets attribués à un client spécifique.',
+    parameters: [
+      {
+        name: 'CLIENT',
+        description: 'Nom ou société du client',
+      },
+    ],
+  },
+
+  cancelled_projects: {
+    keywords: ['annulé', 'abandonné', 'stoppé', 'interrompu'],
+    questions: [
+      'Projets annulés',
+      'Chantiers abandonnés',
+      'Liste des projets interrompus'
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          status: 'annule',
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          end_date: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets officiellement annulés.',
+  },
+
+  projects_with_missing_info: {
+    keywords: ['manque', 'incomplet', 'donnée absente', 'erreur'],
+    questions: [
+      'Projets avec données manquantes',
+      'Quels projets ont des informations incomplètes ?',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          OR: [
+            { name: { equals: '' } },
+            { reference: { equals: '' } },
+            { status: null },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          reference: true,
+          status: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets dont certaines informations clés sont absentes.',
+  },
+
+  projects_with_inconsistent_dates: {
+    keywords: ['date invalide', 'erreur date', 'cohérence'],
+    questions: [
+      'Projets avec incohérences de dates',
+      'Début après fin de projet',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          start_date: {
+            gt: prisma.projects.fields.end_date,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          start_date: true,
+          end_date: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets avec incohérences entre date de début et de fin.',
+  },
+
+  project_tags_overview: {
+    keywords: ['tag', 'catégorie', 'type de projet'],
+    questions: [
+      'Répartition des projets par tags',
+      'Statistiques par type de projet',
+    ],
+    prisma: async () => {
+      const tags = await prisma.tags.findMany({
+        select: {
+          id: true,
+          label: true,
+          color: true,
+          project_tags: {
+            select: {
+              project_id: true
+            }
+          }
+        }
+      });
+      
+      return tags.map((tag) => ({
+        tag: tag.label,
+        color: tag.color,
+        count: tag.project_tags.length
+      })).sort((a, b) => b.count - a.count);
+    },
+    response_format: 'table',
+    description: "Vue d'ensemble de la répartition des projets par tag/catégorie.",
+  },
+  budget_overruns: {
+    keywords: ['dépassement', 'budget', 'coût', 'prévu', 'réel'],
+    questions: [
+      'Quels projets ont dépassé leur budget ?',
+      'Projets en dépassement de budget',
+      'Chantiers avec coûts supérieurs au budget',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          actual_cost: {
+            gt: prisma.projects.fields.budget,
+          },
+        },
+        select: {
+          name: true,
+          budget: true,
+          actual_cost: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets dont les coûts ont dépassé le budget initial.'
+  },
+
+  highest_material_consumption_projects: {
+    keywords: ['matériaux', 'quantité', 'consommation'],
+    questions: [
+      'Quels projets consomment le plus de matériaux ?',
+      'Projets avec la plus grande quantité de matériaux',
+    ],
+    prisma: async () => {
+      const all = await prisma.projects.findMany({
+        include: { project_materials: true },
+      });
+      return all.map((p) => ({
+        name: p.name,
+        material_count: p.project_materials.length,
+      })).sort((a, b) => b.material_count - a.material_count);
+    },
+    response_format: 'table',
+    description: 'Projets classés par volume de matériaux consommés.'
+  },
+
+  longest_projects: {
+    keywords: ['long', 'durée', 'chantier', 'étalé'],
+    questions: [
+      'Quels sont les projets les plus longs ?',
+      'Chantiers avec durée étalée',
+    ],
+    prisma: async () => {
+      const projects = await prisma.projects.findMany({
+        select: {
+          name: true,
+          start_date: true,
+          end_date: true,
+        },
+      });
+      return projects.map((p) => {
+        const duration = p.end_date && p.start_date ?
+          (p.end_date.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24) : 0;
+        return { name: p.name, duration_days: duration };
+      }).sort((a, b) => b.duration_days - a.duration_days);
+    },
+    response_format: 'table',
+    description: 'Classement des projets par durée totale estimée.'
+  },
+
+  stalled_projects: {
+    keywords: ['inactif', 'bloqué', 'aucun avancement'],
+    questions: [
+      'Quels projets sont bloqués ?',
+      'Projets sans progression',
+    ],
+    prisma: async () => {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      return await prisma.projects.findMany({
+        where: {
+          updated_at: { lt: threeMonthsAgo },
+          status: 'en_cours',
+        },
+        select: {
+          name: true,
+          updated_at: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Projets actifs sans mise à jour depuis plus de 3 mois.'
+  },
+
+  nearing_deadline_projects: {
+    keywords: ['échéance', 'deadline', 'bientôt terminé'],
+    questions: [
+      'Quels projets sont proches de leur échéance ?',
+      'Projets à terminer bientôt',
+    ],
+    prisma: async () => {
+      const in15Days = new Date();
+      in15Days.setDate(in15Days.getDate() + 15);
+      return await prisma.projects.findMany({
+        where: {
+          end_date: {
+            lte: in15Days,
+            gte: new Date(),
+          },
+        },
+        select: {
+          name: true,
+          end_date: true,
+        },
+        orderBy: {
+          end_date: 'asc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets dont la fin est prévue dans les 15 prochains jours.'
+  },
+
+  client_projects: {
+    keywords: ['client', 'chantier client', 'par entreprise'],
+    questions: [
+      'Quels projets pour le client [CLIENT] ?',
+      'Chantiers de [CLIENT]',
+    ],
+    prisma: async (client: string) => {
+      return await prisma.projects.findMany({
+        where: {
+          clients: {
+            OR: [
+              { firstname: { contains: client, mode: 'insensitive' } },
+              { lastname: { contains: client, mode: 'insensitive' } },
+              { company_name: { contains: client, mode: 'insensitive' } },
+            ],
+          },
+        },
+        select: {
+          name: true,
+          reference: true,
+          status: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets associés à un client spécifique.',
+    parameters: [
+      {
+        name: 'CLIENT',
+        description: 'Nom ou société du client',
+      },
+    ]
+  },
+
+  terminated_projects: {
+    keywords: ['annulé', 'projet terminé prématurément'],
+    questions: [
+      'Quels projets ont été annulés ?',
+      'Liste des projets annulés',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          status: 'annule',
+        },
+        select: {
+          name: true,
+          reference: true,
+          notes: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets annulés avec notes explicatives si disponibles.'
+  },
+
+  projects_missing_data: {
+    keywords: ['incomplet', 'données manquantes', 'champs vides'],
+    questions: [
+      'Quels projets ont des données manquantes ?',
+      'Projets incomplets',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          OR: [
+            { budget: null },
+            { actual_cost: null },
+            { start_date: null },
+            { end_date: null },
+          ],
+        },
+        select: {
+          name: true,
+          budget: true,
+          actual_cost: true,
+          start_date: true,
+          end_date: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets comportant des informations incomplètes.'
+  },
+
+  inconsistent_project_dates: {
+    keywords: ['date incohérente', 'problème de planning'],
+    questions: [
+      'Quels projets ont des dates incohérentes ?',
+      'Projets dont la date de fin est avant le début',
+    ],
+    prisma: async () => {
+      return await prisma.projects.findMany({
+        where: {
+          end_date: {
+            lt: prisma.projects.fields.start_date,
+          },
+        },
+        select: {
+          name: true,
+          start_date: true,
+          end_date: true,
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets où la date de fin est antérieure à la date de début.'
+  },
+
+  projects_tag_distribution: {
+    keywords: ['tags', 'répartition', 'catégorie'],
+    questions: [
+      'Répartition des projets par tag',
+      'Combien de projets par tag ?',
+    ],
+    prisma: async () => {
+      const all = await prisma.projects.findMany({
+        include: {
+          project_tags: {
+            select: {
+              tags: {
+                select: { label: true },
+              },
+            },
+          },
+        },
+      });
+      const tagMap = new Map();
+      for (const p of all) {
+        for (const pt of p.project_tags) {
+          const label = pt.tags.label;
+          tagMap.set(label, (tagMap.get(label) || 0) + 1);
+        }
+      }
+      return Array.from(tagMap.entries()).map(([tag, count]) => ({ tag, count }));
+    },
+    response_format: 'table',
+    description: 'Nombre de projets associés à chaque tag.'
+  },
+
+  projects_this_year: {
+    keywords: [
+      'projet',
+      'chantier',
+      'année',
+      'courant',
+      'actuel',
+      '2024',
+    ],
+    questions: [
+      'Quels sont les chantiers de cette année ?',
+      'Projets de l\'année en cours',
+      'Chantiers en cours cette année',
+      'Liste des projets de l\'année',
+    ],
+    prisma: async () => {
+      const now = new Date();
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const endOfYear = new Date(now.getFullYear(), 11, 31);
+
+      return await prisma.projects.findMany({
+        where: {
+          OR: [
+            {
+              start_date: {
+                gte: startOfYear,
+                lte: endOfYear,
+              },
+            },
+            {
+              end_date: {
+                gte: startOfYear,
+                lte: endOfYear,
+              },
+            },
+          ],
+        },
+        include: {
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+          project_stages: {
+            select: {
+              name: true,
+              status: true,
+              start_date: true,
+              end_date: true,
+              completion_percentage: true,
+            },
+          },
+        },
+        orderBy: {
+          start_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets et chantiers de l\'année en cours'
+  },
+
+  projects_by_date: {
+    keywords: [
+      'projet',
+      'chantier',
+      'date',
+      'période',
+      'entre',
+      'du',
+      'au',
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+      'année',
+      'mois',
+      'jour'
+    ],
+    questions: [
+      'Quels sont les chantiers de [DATE] ?',
+      'Projets du [DATE]',
+      'Chantiers en [DATE]',
+      'Liste des projets de [DATE]',
+      'Quels chantiers sont prévus [DATE] ?',
+      'Projets planifiés [DATE]',
+      'Quels sont les chantiers entre [DATE_DEBUT] et [DATE_FIN] ?',
+      'Projets du [DATE_DEBUT] au [DATE_FIN]',
+      'Chantiers sur la période [DATE_DEBUT] - [DATE_FIN]'
+    ],
+    prisma: async (question: string) => {
+      let dateRange = extractDates(question);
+      
+      if (!dateRange) {
+        // Si aucune date n'est trouvée, utiliser l'année en cours
+        const now = new Date();
+        dateRange = {
+          startDate: new Date(now.getFullYear(), 0, 1),
+          endDate: new Date(now.getFullYear(), 11, 31, 23, 59, 59)
+        };
+      }
+
+      if (!validateDateRange(dateRange.startDate, dateRange.endDate)) {
+        throw new Error('La date de début doit être antérieure à la date de fin');
+      }
+
+      return await prisma.projects.findMany({
+        where: {
+          OR: [
+            // Projets commençant dans la période
+            {
+              start_date: {
+                gte: dateRange.startDate,
+                lte: dateRange.endDate,
+              },
+            },
+            // Projets se terminant dans la période
+            {
+              end_date: {
+                gte: dateRange.startDate,
+                lte: dateRange.endDate,
+              },
+            },
+            // Projets en cours qui chevauchent la période
+            {
+              AND: [
+                { start_date: { lte: dateRange.endDate } },
+                { end_date: { gte: dateRange.startDate } }
+              ]
+            }
+          ],
+        },
+        include: {
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+          project_stages: {
+            select: {
+              name: true,
+              status: true,
+              start_date: true,
+              end_date: true,
+              completion_percentage: true,
+            },
+          },
+        },
+        orderBy: {
+          start_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets et chantiers sur une période donnée',
+    parameters: [
+      {
+        name: 'DATE',
+        description: 'Date spécifique (ex: "7 février 2022") ou période (ex: "année 2024")',
+      },
+      {
+        name: 'DATE_DEBUT',
+        description: 'Date de début de la période',
+      },
+      {
+        name: 'DATE_FIN',
+        description: 'Date de fin de la période',
+      }
+    ]
   },
 };
