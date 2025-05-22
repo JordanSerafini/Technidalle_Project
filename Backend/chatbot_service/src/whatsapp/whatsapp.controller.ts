@@ -66,19 +66,19 @@ export class WhatsappController {
 
         // Cas 1: -analyse:
         if (message.startsWith('-analyse:')) {
-          const questionContent = message.substring('-analyse:'.length).trim();
+          const MAX_CHARS = 6000;
+          const questionContent = message.substring('-analyse:'.length).trim().slice(0, MAX_CHARS);
           
           try {
             // Message de chargement
             await this.whatsappService.sendTextMessage(from, "⌛ Analyse en cours...");
 
-            // Vérifier la taille de la question
-            if (questionContent.length > 4000) {
+            // Vérifier si le message a été tronqué
+            if (message.length > MAX_CHARS) {
               await this.whatsappService.sendTextMessage(
                 from,
-                "❌ Votre question est trop longue. Veuillez la diviser en plusieurs questions plus courtes."
+                "⚠️ Votre message a été tronqué pour respecter la limite maximale autorisée par l'IA (6000 caractères)."
               );
-              return 'EVENT_RECEIVED';
             }
 
             // Appeler le contrôleur analyze/chatbot
