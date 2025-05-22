@@ -802,10 +802,14 @@ export class AnalyzeEmailService {
       this.logger.error(
         `Erreur lors de l'analyse de l'email "${email.subject}": ${error instanceof Error ? error.message : String(error)}`,
       );
+      
+      // Générer un résumé basique à partir du contenu de l'email
+      const basicSummary = email.body.substring(0, 200).trim() + '...';
+      
       return {
-        summary: "Erreur lors de l'analyse",
-        priority: 'low',
-        category: 'error',
+        summary: basicSummary,
+        priority: 'medium',
+        category: 'autre',
         actionRequired: false,
         actionItems: [],
         tokensUsed: {

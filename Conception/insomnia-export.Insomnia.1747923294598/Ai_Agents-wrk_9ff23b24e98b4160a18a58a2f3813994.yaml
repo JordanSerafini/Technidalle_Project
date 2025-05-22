@@ -1,0 +1,87 @@
+type: collection.insomnia.rest/5.0
+name: Ai_Agents
+meta:
+  id: wrk_9ff23b24e98b4160a18a58a2f3813994
+  created: 1744101607334
+  modified: 1744101607334
+collection:
+  - name: Rag
+    meta:
+      id: fld_f1476f021a1d4c8c91d2872cf2c674db
+      created: 1744101618430
+      modified: 1744104707865
+      sortKey: -1744101618430
+    children:
+      - url: " http://localhost:3003/rag/similar-questions"
+        name: Find Similar
+        meta:
+          id: req_7e33745b56594e87b91431039cd1bf59
+          created: 1744103099164
+          modified: 1744104773687
+          isPrivate: false
+          sortKey: -1744103099164
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+            	"query": "qui travail demain?",
+            	"limit": 5,
+            	"threshold": "0.2"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3003/rag/analyze-intent
+        name: Analyse intent
+        meta:
+          id: req_2642372741d3483a94f6f247bc04312a
+          created: 1744104787451
+          modified: 1744105103137
+          isPrivate: false
+          sortKey: -1744104787451
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            { 		
+            		"query": "quel sont les projets du mois?",
+                "limit": 5,
+                "threshold": 0.6
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.2
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_95f0806a018313a7e4095258492f3a1d0e96f30d
+    created: 1744101607342
+    modified: 1744101607342
+environments:
+  name: Base Environment
+  meta:
+    id: env_95f0806a018313a7e4095258492f3a1d0e96f30d
+    created: 1744101607340
+    modified: 1744101607340
+    isPrivate: false
