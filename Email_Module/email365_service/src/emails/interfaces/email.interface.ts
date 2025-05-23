@@ -27,6 +27,9 @@ export interface EmailMessage {
   ccRecipients?: Recipient[];
   bccRecipients?: Recipient[];
   attachments?: Attachment[];
+  bodyPreview?: string;
+  receivedDateTime?: string;
+  from?: Recipient;
 }
 
 export interface EmailOptions {
