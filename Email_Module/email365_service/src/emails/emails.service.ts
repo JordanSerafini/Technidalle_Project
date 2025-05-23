@@ -397,7 +397,13 @@ export class EmailsService {
   
   ${formattedMessages}
   
-  Résume ces emails de façon claire et concise en français. Organise le résumé par sujet ou par importance si pertinent. Ne répète pas les mêmes informations, et évite les détails inutiles. Termine par un court paragraphe global de synthèse si possible.`;
+  Pour chaque email, fais un résumé sous forme de liste numérotée, avec pour chaque point :
+  - Sujet
+  - Expéditeur
+  - Date
+  - Détails principaux
+  
+  Termine par une synthèse globale, bien séparée du reste. Utilise une mise en forme claire et aérée.`;
   
     try {
       const summary = await this.openai.chat.completions.create({
