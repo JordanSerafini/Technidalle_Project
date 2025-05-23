@@ -7,6 +7,7 @@ import { ChatbotModule } from './chatbot/chatbot.module';
 import { AnalyzeAgentModule } from './analyze_agent/analyze_agent.module';
 import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
 import { LangchainModule } from './langchain/langchain.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { LangchainModule } from './langchain/langchain.module';
     AnalyzeAgentModule,
     ElasticsearchModule,
     LangchainModule,
+    WhatsappModule,
   ],
 })
 export class AppModule {}

@@ -1,0 +1,524 @@
+type: collection.insomnia.rest/5.0
+name: Ai_Agents_old
+meta:
+  id: wrk_be9f9778a3804f83aa64e0530de0e623
+  created: 1742199841449
+  modified: 1744101592918
+collection:
+  - name: Analyse_Agent
+    meta:
+      id: fld_1567fb3bb2a6451191402dad5cbdf146
+      created: 1742199854299
+      modified: 1742199858182
+      sortKey: -1742199854299
+    children:
+      - url: http://localhost:3001/analyse/question
+        name: Question ChatBot
+        meta:
+          id: req_8d396a14b2574044a26d3e67ecfdb435
+          created: 1742199859970
+          modified: 1742550619424
+          isPrivate: false
+          sortKey: -1742199859970
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "question": " Qui travail ce mois ci? ? "
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/10.3.1
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: RAG
+    meta:
+      id: fld_5afbd7c2c94c40ecb21cfccead4923f8
+      created: 1742456450309
+      modified: 1742456450309
+      sortKey: -1742456450309
+    children:
+      - url: http://localhost:3001/rag/collection/sql_queries/cleanup
+        name: Clean collection
+        meta:
+          id: req_0e63f197e67340678a79fe373a9da010
+          created: 1742456452450
+          modified: 1742456613517
+          isPrivate: false
+          sortKey: -1742456452450
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3001/rag/collection/sql_queries/reset
+        name: Reset collection
+        meta:
+          id: req_9278da4ecd364d4aa0d0d530bea8d68d
+          created: 1742456494833
+          modified: 1742456852581
+          isPrivate: false
+          sortKey: -1742423584381
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3001/rag/reload-collection
+        name: Reset & Reload collection
+        meta:
+          id: req_446ecfad58754ba389574699598fab54
+          created: 1742456516500
+          modified: 1742476379370
+          isPrivate: false
+          sortKey: -1742407150346.5
+        method: POST
+        body:
+          mimeType: application/json
+          text: |2-
+             {
+                 "collection": "sql_queries"
+               }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3001/rag/cache/refresh
+        name: Refresh
+        meta:
+          id: req_d356dc16aca442799fe0f48a2fcbacef
+          created: 1742461188110
+          modified: 1742461199797
+          isPrivate: false
+          sortKey: -1742440018415.5
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3001/rag/update-query
+        name: Update Query
+        meta:
+          id: req_b117ae13c2f84c13a825666512bfcea7
+          created: 1742543586278
+          modified: 1742544211114
+          isPrivate: false
+          sortKey: -1742398933329.25
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "queryFile": "clients.query.json",
+              "queryId": "clients_recent_activity"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: Email
+    meta:
+      id: fld_a5d70f9edb784bea9de274c39412c5c8
+      created: 1742478422591
+      modified: 1742478422591
+      sortKey: -1742478422591
+    children:
+      - url: http://localhost:3011/invoice-parser/process
+        name: Invoices Parser
+        meta:
+          id: req_e0168f8ae68c41aba90ed30cf8b222f6
+          created: 1742478424921
+          modified: 1742486003167
+          isPrivate: false
+          sortKey: -1742478424921
+        method: POST
+        body:
+          mimeType: application/json
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/email/filter-unsubscribe
+        name: Subscribe Deleter
+        meta:
+          id: req_6bef9d5005194dc895fd737e5654fc31
+          created: 1742481540741
+          modified: 1742481681785
+          isPrivate: false
+          sortKey: -1742467438685.5
+        method: POST
+        body:
+          mimeType: application/json
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/email-sort/check-invoices
+        name: Invoices Checker
+        meta:
+          id: req_9370e59938ce46979fd6d59a05d7e078
+          created: 1742485967580
+          modified: 1742485967580
+          isPrivate: false
+          sortKey: -1742472931803.25
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "maxMessages": 20000,
+              "startIndex": 20000
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/analyze-pdf
+        name: PDF scanner AI
+        meta:
+          id: req_b8638f7e991e4fa9a51df27349f07e46
+          created: 1742487644011
+          modified: 1742548068723
+          isPrivate: false
+          sortKey: -1742470185244.375
+        method: POST
+        body:
+          mimeType: multipart/form-data
+          params:
+            - id: pair_8168c24210cc4b60b2ffe8fcaadd5555
+              name: file
+              disabled: false
+              type: file
+              fileName: C:\Users\j.serafini\Desktop\Jordan\Factures_1.pdf
+            - id: pair_ba73df20b3224422ba7d36761df610fe
+              disabled: false
+        headers:
+          - name: Content-Type
+            value: multipart/form-data
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/analyze-with-ai
+        name: Analyze Ai
+        meta:
+          id: req_f9dc5bdd9a274e0ca99a5f28959b34a2
+          created: 1742546497121
+          modified: 1742549675309
+          isPrivate: false
+          sortKey: -1742468811964.9375
+        method: POST
+        body:
+          mimeType: multipart/form-data
+        headers:
+          - name: Content-Type
+            value: multipart/form-data
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/analyze-persistence-folder
+        name: Analyze Combined
+        meta:
+          id: req_7b2d77e1df224c03b2ec373a0121408c
+          created: 1742548064114
+          modified: 1742549727231
+          isPrivate: false
+          sortKey: -1742468125325.2188
+        method: POST
+        body:
+          mimeType: multipart/form-data
+          params:
+            - id: pair_54fcf1fd75d046e6a8db5737f68783d7
+              name: file
+              disabled: false
+              type: file
+              fileName: C:\Users\j.serafini\Desktop\Jordan\Factures_1.pdf
+        headers:
+          - name: Content-Type
+            value: multipart/form-data
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/analyze-file?filePath=C:/Users/j.serafini/Desktop/Jordan/Factures_1.pdf&includePdf=true
+        name: Analyze Ai on System
+        meta:
+          id: req_7cf4ec4d40bc45ab9a5122ed2c1edb1e
+          created: 1742549780152
+          modified: 1742549787033
+          isPrivate: false
+          sortKey: -1742468468645.0781
+        method: POST
+        body:
+          mimeType: multipart/form-data
+        headers:
+          - name: Content-Type
+            value: multipart/form-data
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/analyze-combined-step1
+        name: Analyze Combined1
+        meta:
+          id: req_3ce12e5e34d24335a1a857fc8b011723
+          created: 1742550249146
+          modified: 1742550261764
+          isPrivate: false
+          sortKey: -1742467782005.3594
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/analyze-combined-step2
+        name: Analyze Combined2
+        meta:
+          id: req_97411428393146a5a3e8bbfa18c459f9
+          created: 1742550277967
+          modified: 1742550280599
+          isPrivate: false
+          sortKey: -1742467610345.4297
+        method: POST
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3011/invoice-parser/parse-with-donut
+        name: Parse with Donut
+        meta:
+          id: req_731746e79aae437cb44c906e54f4425b
+          created: 1742553389721
+          modified: 1742553415000
+          isPrivate: false
+          sortKey: -1742467524515.4648
+        method: POST
+        body:
+          mimeType: multipart/form-data
+          params:
+            - id: pair_2c63953cda54445ebb2edbdf0e49c0a3
+              name: file
+              disabled: false
+              type: file
+              fileName: C:\Users\j.serafini\Desktop\Jordan\Factures_1.pdf
+        headers:
+          - name: Content-Type
+            value: multipart/form-data
+          - name: User-Agent
+            value: insomnia/11.0.0
+            id: pair_812f0e3d95b94119978bcb2cc01cc66d
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: Invoices
+    meta:
+      id: fld_ccb6e5e5c5814a6990d0dc954f60671a
+      created: 1742560863575
+      modified: 1742560863575
+      sortKey: -1742560863575
+    children:
+      - url: http://localhost:3011/donut/analyze-folder
+        name: Donuts analyse
+        meta:
+          id: req_91035f98020143d59be8b1bb349af90b
+          created: 1742560867139
+          modified: 1742561824557
+          isPrivate: false
+          sortKey: -1742560867139
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: Invoice_Agent
+    meta:
+      id: fld_921a72bc93f54318b35a17412cb29ea0
+      created: 1742562499202
+      modified: 1742565966250
+      sortKey: -1742562499202
+    children:
+      - url: http://localhost:3000/model/analyze-factures
+        name: Analyse Model
+        meta:
+          id: req_61bee897d99b418592d2feab8746f813
+          created: 1742562501568
+          modified: 1742568308907
+          isPrivate: false
+          sortKey: -1742562501568
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: http://localhost:3000/ocr/analyze-all-invoices
+        name: Analyse OCR
+        meta:
+          id: req_dba5347ff8284cf28b50e48f1ba1ac96
+          created: 1742568314852
+          modified: 1742569062190
+          isPrivate: false
+          sortKey: -1742561684353.5
+        method: GET
+        headers:
+          - name: User-Agent
+            value: insomnia/11.0.0
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_81990b3f22212c65c3cbf9de24ce5c258177854a
+    created: 1742199841457
+    modified: 1742199841457
+environments:
+  name: Base Environment
+  meta:
+    id: env_81990b3f22212c65c3cbf9de24ce5c258177854a
+    created: 1742199841455
+    modified: 1742199841455
+    isPrivate: false

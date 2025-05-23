@@ -72,13 +72,13 @@ export class SortEmailController {
     try {
       this.logger.log('Démarrage du processus de tri optimisé des emails...');
       const limit = body?.limit;
-      
+
       // Obtenir les emails triés
       const sortedEmails = await this.sortEmailService.sortEmails(limit);
-      
+
       // Traiter les emails avec la méthode optimisée
       await this.sortEmailService.processSortedEmails(sortedEmails);
-      
+
       this.logger.log('Tri et déplacement des emails terminés avec succès');
 
       // Préparer une réponse avec des statistiques
@@ -94,7 +94,9 @@ export class SortEmailController {
       };
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
-      this.logger.error(`Erreur lors du tri optimisé des emails: ${errorMessage}`);
+      this.logger.error(
+        `Erreur lors du tri optimisé des emails: ${errorMessage}`,
+      );
       return {
         success: false,
         message: 'Erreur lors du tri optimisé des emails',
