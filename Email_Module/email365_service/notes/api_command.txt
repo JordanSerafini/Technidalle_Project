@@ -1,0 +1,40 @@
+📩 Lecture des emails
+Action	Endpoint	Description
+🔍 Lister les mails	GET /users/{user-id}/messages	Récupère tous les mails reçus (boîte de réception par défaut). Paramètres : $top, $filter, $select, $orderby, etc.
+📄 Lire un mail	GET /users/{user-id}/messages/{message-id}	Récupère les détails d’un message précis (objet, corps, expéditeur, etc.)
+📎 Récupérer les pièces jointes	GET /users/{user-id}/messages/{message-id}/attachments	Liste des fichiers attachés à un email
+📎 Télécharger une pièce jointe	GET /users/{user-id}/messages/{message-id}/attachments/{id}/$value	Récupère le contenu brut d’une pièce jointe
+✉️ Envoi et rédaction
+Action	Endpoint	Description
+📤 Envoyer un email	POST /users/{user-id}/sendMail	Envoie un email immédiatement. On passe un message dans le corps JSON.
+✍️ Créer un brouillon	POST /users/{user-id}/messages	Crée un email brouillon dans la boîte d’envoi
+✏️ Modifier un brouillon	PATCH /users/{user-id}/messages/{message-id}	Modifie un email brouillon (ajouter du contenu, fichiers, etc.)
+📬 Envoyer un brouillon	POST /users/{user-id}/messages/{message-id}/send	Envoie un email qui est en brouillon
+🗑️ Suppression et gestion
+Action	Endpoint	Description
+❌ Supprimer un mail	DELETE /users/{user-id}/messages/{message-id}	Supprime un message
+📂 Déplacer un mail	POST /users/{user-id}/messages/{message-id}/move	Déplace un mail vers un autre dossier (destinationId)
+🔄 Copier un mail	POST /users/{user-id}/messages/{message-id}/copy	Copie un mail dans un autre dossier
+📁 Dossiers (mail folders)
+Action	Endpoint	Description
+📁 Lister les dossiers	GET /users/{user-id}/mailFolders	Liste tous les dossiers mails (Inbox, SentItems, etc.)
+🔍 Messages d’un dossier	GET /users/{user-id}/mailFolders/{folder-id}/messages	Récupère les messages d’un dossier spécifique
+➕ Créer un dossier	POST /users/{user-id}/mailFolders	Crée un nouveau dossier personnalisé
+✏️ Modifier un dossier	PATCH /users/{user-id}/mailFolders/{folder-id}	Renomme ou modifie un dossier
+❌ Supprimer un dossier	DELETE /users/{user-id}/mailFolders/{folder-id}	Supprime un dossier (sauf Inbox/SentItems)
+🔔 Suivi, actions, drapeaux
+Action	Endpoint	Description
+🚩 Ajouter un flag	PATCH /users/{user-id}/messages/{message-id} avec flag	Ajoute un suivi (flagged) à un email
+⭐ Ajouter importance	PATCH /users/{user-id}/messages/{message-id} avec importance	Définit l’importance (Low / Normal / High)
+📥 Marquer comme lu/non lu	PATCH /users/{user-id}/messages/{message-id} avec isRead	Change l’état de lecture
+✅ Pour aller plus loin
+
+    Tu peux appliquer des filtres comme :
+
+        ?$filter=isRead eq false (messages non lus)
+
+        ?$orderby=receivedDateTime desc
+
+        ?$select=subject,from,receivedDateTime
+
+    Le champ @odata.nextLink dans la réponse permet de paginier les résultats.

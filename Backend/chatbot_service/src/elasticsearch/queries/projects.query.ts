@@ -1459,70 +1459,6 @@ export const projectsQueries = {
     description: 'Nombre de projets associés à chaque tag.'
   },
 
-  projects_this_year: {
-    keywords: [
-      'projet',
-      'chantier',
-      'année',
-      'courant',
-      'actuel',
-      '2024',
-    ],
-    questions: [
-      'Quels sont les chantiers de cette année ?',
-      'Projets de l\'année en cours',
-      'Chantiers en cours cette année',
-      'Liste des projets de l\'année',
-    ],
-    prisma: async () => {
-      const now = new Date();
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      const endOfYear = new Date(now.getFullYear(), 11, 31);
-
-      return await prisma.projects.findMany({
-        where: {
-          OR: [
-            {
-              start_date: {
-                gte: startOfYear,
-                lte: endOfYear,
-              },
-            },
-            {
-              end_date: {
-                gte: startOfYear,
-                lte: endOfYear,
-              },
-            },
-          ],
-        },
-        include: {
-          clients: {
-            select: {
-              firstname: true,
-              lastname: true,
-              company_name: true,
-            },
-          },
-          project_stages: {
-            select: {
-              name: true,
-              status: true,
-              start_date: true,
-              end_date: true,
-              completion_percentage: true,
-            },
-          },
-        },
-        orderBy: {
-          start_date: 'desc',
-        },
-      });
-    },
-    response_format: 'table',
-    description: 'Liste des projets et chantiers de l\'année en cours'
-  },
-
   projects_by_date: {
     keywords: [
       'projet',
@@ -1557,18 +1493,16 @@ export const projectsQueries = {
       'Projets planifiés [DATE]',
       'Quels sont les chantiers entre [DATE_DEBUT] et [DATE_FIN] ?',
       'Projets du [DATE_DEBUT] au [DATE_FIN]',
-      'Chantiers sur la période [DATE_DEBUT] - [DATE_FIN]'
+      'Chantiers sur la période [DATE_DEBUT] - [DATE_FIN]',
+      'Quels sont les chantiers de année [ANNEE] ?',
+      'Projets de l\'année [ANNEE]',
+      'Chantiers prévus en [ANNEE]'
     ],
     prisma: async (question: string) => {
-      let dateRange = extractDates(question);
+      const dateRange = extractDates(question);
       
       if (!dateRange) {
-        // Si aucune date n'est trouvée, utiliser l'année en cours
-        const now = new Date();
-        dateRange = {
-          startDate: new Date(now.getFullYear(), 0, 1),
-          endDate: new Date(now.getFullYear(), 11, 31, 23, 59, 59)
-        };
+        throw new Error('Impossible de déterminer la période de dates. Veuillez préciser une date ou une année.');
       }
 
       if (!validateDateRange(dateRange.startDate, dateRange.endDate)) {
@@ -1629,16 +1563,105 @@ export const projectsQueries = {
     parameters: [
       {
         name: 'DATE',
-        description: 'Date spécifique (ex: "7 février 2022") ou période (ex: "année 2024")',
-      },
-      {
-        name: 'DATE_DEBUT',
-        description: 'Date de début de la période',
-      },
-      {
-        name: 'DATE_FIN',
-        description: 'Date de fin de la période',
+        description: 'Date spécifique (ex: "7 février 2022") ou année (ex: "2023")',
       }
     ]
+  },
+
+  projects_by_year: {
+    keywords: [
+      'projet',
+      'chantier',
+      'année',
+      'prévu',
+      'planifié',
+      '2024',
+      '2025',
+      '2026'
+    ],
+    questions: [
+      'Quels sont les chantiers de année [ANNEE] ?',
+      'Projets de l\'année [ANNEE]',
+      'Chantiers prévus en [ANNEE]',
+      'Liste des projets de [ANNEE]',
+      'Quels chantiers sont prévus pour [ANNEE] ?',
+      'Projets planifiés pour [ANNEE]'
+    ],
+    prisma: async (question: string) => {
+      // Extraire l'année de la question avec plusieurs patterns possibles
+      const yearPatterns = [
+        /année\s+(\d{4})/i,
+        /en\s+(\d{4})/i, 
+        /pour\s+(\d{4})/i,
+        /(\d{4})/           
+      ];
+
+      let year: number | undefined = undefined;
+      for (const pattern of yearPatterns) {
+        const match = question.match(pattern);
+        if (match) {
+          year = parseInt(match[1]);
+          break;
+        }
+      }
+
+      if (!year) {
+        throw new Error('Impossible de déterminer l\'année. Veuillez préciser une année (ex: "2024").');
+      }
+
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+      return await prisma.projects.findMany({
+        where: {
+          OR: [
+            // Projets commençant dans l'année
+            {
+              start_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            // Projets se terminant dans l'année
+            {
+              end_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            // Projets en cours qui chevauchent l'année
+            {
+              AND: [
+                { start_date: { lte: endDate } },
+                { end_date: { gte: startDate } }
+              ]
+            }
+          ],
+        },
+        include: {
+          clients: {
+            select: {
+              firstname: true,
+              lastname: true,
+              company_name: true,
+            },
+          },
+          project_stages: {
+            select: {
+              name: true,
+              status: true,
+              start_date: true,
+              end_date: true,
+              completion_percentage: true,
+            },
+          },
+        },
+        orderBy: {
+          start_date: 'desc',
+        },
+      });
+    },
+    response_format: 'table',
+    description: 'Liste des projets et chantiers prévus pour une année spécifique'
   },
 };

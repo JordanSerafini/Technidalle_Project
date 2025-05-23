@@ -19,11 +19,13 @@ export class AnalyzeEmailController {
    * Récupère et analyse les emails non lus d'aujourd'hui avec un résumé général
    * @param summary Si true, inclut un résumé général des emails (optionnel, par défaut: false)
    * @param fastMode Si true, effectue une analyse rapide avec moins de détails (optionnel, par défaut: false)
+   * @param limit Nombre maximum d'emails à analyser (optionnel)
    */
   @Get('today')
   async analyzeTodayEmails(
     @Query('summary') summary?: string,
     @Query('fastMode') fastMode?: string,
+    @Query('limit') limit?: string,
   ): Promise<{
     status: string;
     message: string;
@@ -64,10 +66,14 @@ export class AnalyzeEmailController {
         };
       }
 
+      // Conversion de la limite en nombre si spécifiée
+      const limitNumber = limit ? parseInt(limit, 10) : undefined;
+
       // Analyse des emails récupérés (mode rapide si spécifié)
       const analyzedEmails = await this.analyzeEmailService.analyzeEmails(
         todayEmails,
         fastMode === 'true',
+        limitNumber,
       );
 
       // Si résumé demandé, générer un résumé global
@@ -96,7 +102,7 @@ export class AnalyzeEmailController {
 
         return {
           status: 'success',
-          message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}`,
+          message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}${limitNumber ? ` (limite: ${limitNumber})` : ''}`,
           data: analyzedEmails,
           summary: {
             overview: overallSummary.summary,
@@ -129,7 +135,7 @@ export class AnalyzeEmailController {
 
       return {
         status: 'success',
-        message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}`,
+        message: `${analyzedEmails.length} emails non lus analysés avec succès${fastMode === 'true' ? ' (mode rapide)' : ''}${limitNumber ? ` (limite: ${limitNumber})` : ''}`,
         data: analyzedEmails,
         tokensUsed: totalTokensUsed,
       };
@@ -973,11 +979,12 @@ export class AnalyzeEmailController {
         `Récupération de l'email ${emailId} dans ${mailbox}${shouldForceRefresh ? ' (forceRefresh)' : ''}`,
       );
 
-      const email = await this.analyzeEmailService.getSpecificEmailById(
-        mailbox,
-        emailId,
-        shouldForceRefresh,
-      );
+      const email: EmailContent | null =
+        await this.analyzeEmailService.getSpecificEmailById(
+          mailbox,
+          emailId,
+          shouldForceRefresh,
+        );
 
       if (!email) {
         return {
@@ -1005,6 +1012,46 @@ export class AnalyzeEmailController {
           status: 'error',
           message: `Erreur lors de la récupération de l'email: ${errorMessage}`,
         },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Endpoint dédié au résumé WhatsApp des emails journaliers
+   * @param limit Nombre maximum d'emails à analyser (optionnel)
+   * @param fastMode Si true, utilise un mode rapide avec analyse optimisée (optionnel, par défaut: false)
+   */
+  @Get('whatsapp-daily-summary')
+  async getWhatsappDailySummary(
+    @Query('limit') limit?: string,
+    @Query('fastMode') fastMode?: string,
+  ) {
+    try {
+      const limitValue = limit ? parseInt(limit, 10) : 5;
+      const isFastMode = fastMode === 'true';
+
+      this.logger.log(
+        `Demande de résumé WhatsApp (limite: ${limitValue}, mode rapide: ${isFastMode})`,
+      );
+
+      const { formattedSummary, tokensUsed } = await this.analyzeEmailService.getDailyFormattedSummary(
+        limitValue,
+        isFastMode,
+      );
+
+      return {
+        summary: {
+          formattedMessage: formattedSummary,
+          tokensUsed,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération du résumé WhatsApp: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new HttpException(
+        'Erreur lors de la génération du résumé',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

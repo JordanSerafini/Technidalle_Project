@@ -15,12 +15,7 @@ import {
 import { LangchainService } from '../langchain/langchain.service';
 import { AnalyzeQuestionDto, ExecuteQueryDto, ChatbotResponse, ConversationMessageDto } from './interface/interface';
 
-// Type de question
-enum QuestionType {
-  DATABASE = 'database',
-  GENERAL = 'general',
-  UNKNOWN = 'unknown',
-}
+
 
 @Controller('analyze')
 export class AnalyzeAgentController {
@@ -108,166 +103,145 @@ export class AnalyzeAgentController {
         );
       }
 
-      // Déterminer le type de question
-      const questionType = await this.determineQuestionType(analyzeQuestionDto.question);
-      
-      // Traiter selon le type de question
-      if (questionType === QuestionType.GENERAL) {
-        return this.processGeneralQuestion(analyzeQuestionDto.question);
-      } else {
-        // Continuer avec le traitement existant pour les questions liées à la base de données
-        return this.processDatabaseQuestion(analyzeQuestionDto);
+      // Détection spécifique pour des requêtes connues qui peuvent avoir des problèmes de matching
+      const questionLower = analyzeQuestionDto.question.toLowerCase().trim();
+      let forcedQueryId: string | null = null;
+
+      // Mappings directs pour certaines questions spécifiques qui peuvent avoir des problèmes de matching
+      const directMappings: Record<string, string> = {
+        'qui travaille la semaine prochaine': 'staff_schedule_next_week',
+        'qui travaille la semaine pro': 'staff_schedule_next_week',
+        'qui est prévu la semaine prochaine': 'staff_schedule_next_week',
+        'planning semaine prochaine': 'staff_schedule_next_week',
+        'qui travaille semaine prochaine': 'staff_schedule_next_week',
+        'travail semaine prochaine': 'staff_schedule_next_week',
+      };
+
+      // Si la question exacte est dans notre mapping, forcer la requête
+      if (directMappings[questionLower]) {
+        forcedQueryId = directMappings[questionLower];
+        this.logger.log(
+          `Forçage de la requête ${forcedQueryId} pour la question "${questionLower}"`,
+        );
       }
-    } catch (error) {
-      this.logger.error(
-        `Erreur lors du traitement de la question chatbot: ${error instanceof Error ? error.message : String(error)}`,
+
+      // Étape 1: Analyser la question
+      const analysisResult = await this.analyzeAgentService.analyzeQuestion(
+        analyzeQuestionDto.question,
       );
 
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException(
-        `Erreur lors du traitement de la question: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
+      // Si une année est détectée dans les entités, augmenter le score de projects_by_year
+      const yearEntity = analysisResult.analysis.entities?.find(
+        (e: any) => (e.type === 'sys.number' || e.type === 'sys.date') && e.name === 'year'
       );
-    }
-  }
-
-  /**
-   * Détermine le type de question posée par l'utilisateur
-   * @param question La question posée
-   * @returns Le type de question (base de données, général, inconnu)
-   */
-  private async determineQuestionType(question: string): Promise<QuestionType> {
-    try {
-      // Analyser la question
-      const analysisResult = await this.analyzeAgentService.analyzeQuestion(question);
-      
-      // Vérifier si l'analyse a trouvé des requêtes prédéfinies
-      if (
-        analysisResult.similarPredefinedQueries && 
-        analysisResult.similarPredefinedQueries.length > 0 &&
-        analysisResult.similarPredefinedQueries[0].score > 0.7
-      ) {
-        return QuestionType.DATABASE;
-      }
-      
-      // Mots-clés indicatifs de questions générales
-      const generalKeywords = [
-        'comment', 'pourquoi', 'explique', 'définis', 'qu\'est-ce que',
-        'qu\'est ce que', 'que signifie', 'raconte', 'informe', 'aide'
-      ];
-      
-      const questionLower = question.toLowerCase();
-      
-      // Vérifier la présence de mots-clés de questions générales
-      for (const keyword of generalKeywords) {
-        if (questionLower.includes(keyword)) {
-          return QuestionType.GENERAL;
+      if (yearEntity && analysisResult.similarPredefinedQueries) {
+        const projectsByYearQuery = analysisResult.similarPredefinedQueries.find(
+          query => query.query_id === 'projects_by_year'
+        );
+        if (projectsByYearQuery) {
+          // Augmenter significativement le score pour cette requête
+          projectsByYearQuery.score += 2.0;
+          // Réordonner les requêtes par score
+          analysisResult.similarPredefinedQueries.sort((a, b) => b.score - a.score);
+          this.logger.log(
+            `Score augmenté pour projects_by_year suite à la détection d'une année`,
+          );
         }
       }
-      
-      // Si l'intention est clairement identifiée comme générale
-      if (
-        analysisResult.analysis.intent && 
-        ['information_generale', 'definition', 'explication'].includes(analysisResult.analysis.intent.toLowerCase())
-      ) {
-        return QuestionType.GENERAL;
+
+      // Si on a un forçage de requête, l'appliquer
+      if (forcedQueryId) {
+        try {
+          // Exécuter la requête forcée
+          const queryResult = await this.queryExecutorService.executeQuery(
+            forcedQueryId,
+            {},
+          );
+
+          // Générer une réponse naturelle avec LangChain
+          const questionContext = {
+            originalQuestion: analyzeQuestionDto.question,
+            reformulatedQuestion: analysisResult.reformulatedQuestion,
+            intent: analysisResult.analysis.intent,
+            entities: analysisResult.analysis.entities,
+          };
+
+          const generatedResponse =
+            await this.langchainService.generateResponse(
+              questionContext,
+              queryResult.data,
+            );
+
+          return {
+            analysis: analysisResult,
+            query_executed: forcedQueryId,
+            query_description: queryResult.description,
+            data: queryResult.data,
+            response_format: queryResult.response_format,
+            response: generatedResponse,
+          };
+        } catch (forcedQueryError) {
+          this.logger.error(
+            `Erreur lors de l'exécution de la requête forcée ${forcedQueryId}: ${forcedQueryError.message}`,
+          );
+          // Si la requête forcée échoue, continuer avec le processus normal
+        }
       }
-      
-      // Par défaut, considérer comme question de base de données
-      return QuestionType.DATABASE;
-    } catch (error) {
-      this.logger.error(`Erreur lors de la détermination du type de question: ${error.message}`);
-      return QuestionType.UNKNOWN;
-    }
-  }
 
-  /**
-   * Traite les questions générales qui ne nécessitent pas d'accès à la base de données
-   * @param question La question générale
-   * @returns La réponse du chatbot
-   */
-  private async processGeneralQuestion(question: string): Promise<ChatbotResponse> {
-    try {
-      // Analyser la question pour comprendre l'intention et les entités
-      const analysisResult = await this.analyzeAgentService.analyzeQuestion(question);
-      
-      // Utiliser LangChain pour générer une réponse à une question générale
-      const response = await this.langchainService.generateGeneralResponse(question, analysisResult);
-      
-      return {
-        analysis: analysisResult,
-        response: response,
-        message: 'Question générale traitée avec succès',
-      };
-    } catch (error) {
-      this.logger.error(`Erreur lors du traitement de la question générale: ${error.message}`);
-      throw new HttpException(
-        `Erreur lors du traitement de la question générale: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  /**
-   * Traite les questions nécessitant un accès à la base de données
-   * (reprend la logique existante du processChatbotQuestion)
-   */
-  private async processDatabaseQuestion(analyzeQuestionDto: AnalyzeQuestionDto): Promise<ChatbotResponse> {
-    // Détection spécifique pour des requêtes connues qui peuvent avoir des problèmes de matching
-    const questionLower = analyzeQuestionDto.question.toLowerCase().trim();
-    let forcedQueryId: string | null = null;
-
-    // Mappings directs pour certaines questions spécifiques qui peuvent avoir des problèmes de matching
-    const directMappings: Record<string, string> = {
-      'qui travaille la semaine prochaine': 'staff_schedule_next_week',
-      'qui travaille la semaine pro': 'staff_schedule_next_week',
-      'qui est prévu la semaine prochaine': 'staff_schedule_next_week',
-      'planning semaine prochaine': 'staff_schedule_next_week',
-      'qui travaille semaine prochaine': 'staff_schedule_next_week',
-      'travail semaine prochaine': 'staff_schedule_next_week',
-    };
-
-    // Si la question exacte est dans notre mapping, forcer la requête
-    if (directMappings[questionLower]) {
-      forcedQueryId = directMappings[questionLower];
-      this.logger.log(
-        `Forçage de la requête ${forcedQueryId} pour la question "${questionLower}"`,
-      );
-    }
-
-    // Si aucun matching direct, vérifier par mots-clés
-    if (!forcedQueryId) {
+      // Étape 2: Vérifier si des requêtes prédéfinies ont été trouvées
       if (
-        (questionLower.includes('semaine prochaine') ||
-          questionLower.includes('semaine pro')) &&
-        (questionLower.includes('travail') ||
-          questionLower.includes('planning') ||
-          questionLower.includes('qui'))
+        !analysisResult.similarPredefinedQueries ||
+        analysisResult.similarPredefinedQueries.length === 0
       ) {
-        forcedQueryId = 'staff_schedule_next_week';
-        this.logger.log(
-          `Forçage de la requête ${forcedQueryId} par mots-clés pour la question "${questionLower}"`,
-        );
+        return {
+          analysis: analysisResult,
+          message: "Aucune requête prédéfinie correspondante n'a été trouvée.",
+          data: null,
+        };
       }
-    }
 
-    // Étape 1: Analyser la question
-    const analysisResult = await this.analyzeAgentService.analyzeQuestion(
-      analyzeQuestionDto.question,
-    );
+      // Étape 3: Exécuter la requête la plus pertinente
+      const topQuery = analysisResult.similarPredefinedQueries[0];
+      let queryResult;
+      let generatedResponse = '';
 
-    // Si on a un forçage de requête, l'appliquer
-    if (forcedQueryId) {
       try {
-        // Exécuter la requête forcée
-        const queryResult = await this.queryExecutorService.executeQuery(
-          forcedQueryId,
-          {},
+        // Extraction préalable des entités potentiellement utiles
+        const clientEntity = analysisResult.analysis.entities?.find(
+          (e: any) =>
+            e.type?.toLowerCase() === 'client' ||
+            e.name?.toLowerCase() === 'client',
         );
 
-        // Générer une réponse naturelle avec LangChain
+        const yearEntity = analysisResult.analysis.entities?.find(
+          (e: any) => (e.type === 'sys.number' || e.type === 'sys.date') && e.name === 'year'
+        );
+
+        // Préparation des paramètres de la requête
+        const queryParams: Record<string, unknown> = {};
+
+        // Si une entité client est détectée, l'ajouter aux paramètres
+        if (clientEntity && clientEntity.value) {
+          queryParams.CLIENT = clientEntity.value;
+        }
+
+        // Si une année est détectée, l'ajouter aux paramètres
+        if (yearEntity && yearEntity.value) {
+          queryParams.ANNEE = yearEntity.value;
+        }
+
+        // Extraire d'autres types de paramètres à partir des entités détectées
+        this.extractParametersFromEntities(
+          analysisResult.analysis.entities,
+          queryParams,
+        );
+
+        queryResult = await this.queryExecutorService.executeQuery(
+          topQuery.query_id,
+          queryParams,
+        );
+
+        // Étape 4: Générer une réponse naturelle avec LangChain
         const questionContext = {
           originalQuestion: analyzeQuestionDto.question,
           reformulatedQuestion: analysisResult.reformulatedQuestion,
@@ -275,198 +249,59 @@ export class AnalyzeAgentController {
           entities: analysisResult.analysis.entities,
         };
 
-        const generatedResponse =
-          await this.langchainService.generateResponse(
-            questionContext,
-            queryResult.data,
-          );
+        generatedResponse = await this.langchainService.generateResponse(
+          questionContext,
+          queryResult.data,
+        );
 
         return {
           analysis: analysisResult,
-          query_executed: forcedQueryId,
-          query_description: queryResult.description,
+          query_executed: topQuery.query_id,
+          query_description: topQuery.description,
           data: queryResult.data,
           response_format: queryResult.response_format,
           response: generatedResponse,
         };
-      } catch (forcedQueryError) {
-        this.logger.error(
-          `Erreur lors de l'exécution de la requête forcée ${forcedQueryId}: ${forcedQueryError.message}`,
-        );
-        // Si la requête forcée échoue, continuer avec le processus normal
-      }
-    }
+      } catch (queryError) {
+        // Gestion du cas CLIENT manquant dans la requête
+        if (
+          queryError instanceof Error &&
+          queryError.message &&
+          queryError.message.includes('Paramètre requis CLIENT non fourni')
+        ) {
+          // Tenter d'extraire le nom du client depuis la question
+          const question = analyzeQuestionDto.question.toLowerCase();
+          let clientName = '';
 
-    // Étape 2: Vérifier si des requêtes prédéfinies ont été trouvées
-    if (
-      !analysisResult.similarPredefinedQueries ||
-      analysisResult.similarPredefinedQueries.length === 0
-    ) {
-      return {
-        analysis: analysisResult,
-        message: "Aucune requête prédéfinie correspondante n'a été trouvée.",
-        data: null,
-      };
-    }
-
-    // Étape 3: Exécuter la requête la plus pertinente
-    const topQuery = analysisResult.similarPredefinedQueries[0];
-    let queryResult;
-    let generatedResponse = '';
-
-    try {
-      // Extraction préalable des entités potentiellement utiles
-      const clientEntity = analysisResult.analysis.entities?.find(
-        (e: any) =>
-          e.type?.toLowerCase() === 'client' ||
-          e.name?.toLowerCase() === 'client',
-      );
-
-      // Préparation des paramètres de la requête
-      const queryParams: Record<string, unknown> = {};
-
-      // Si une entité client est détectée, l'ajouter aux paramètres
-      if (clientEntity && clientEntity.value) {
-        queryParams.CLIENT = clientEntity.value;
-      }
-
-      // Extraire d'autres types de paramètres à partir des entités détectées
-      this.extractParametersFromEntities(
-        analysisResult.analysis.entities,
-        queryParams,
-      );
-
-      queryResult = await this.queryExecutorService.executeQuery(
-        topQuery.query_id,
-        queryParams,
-      );
-
-      // Étape 4: Générer une réponse naturelle avec LangChain
-      const questionContext = {
-        originalQuestion: analyzeQuestionDto.question,
-        reformulatedQuestion: analysisResult.reformulatedQuestion,
-        intent: analysisResult.analysis.intent,
-        entities: analysisResult.analysis.entities,
-      };
-
-      generatedResponse = await this.langchainService.generateResponse(
-        questionContext,
-        queryResult.data,
-      );
-
-      return {
-        analysis: analysisResult,
-        query_executed: topQuery.query_id,
-        query_description: topQuery.description,
-        data: queryResult.data,
-        response_format: queryResult.response_format,
-        response: generatedResponse,
-      };
-    } catch (queryError) {
-      // Gestion du cas CLIENT manquant dans la requête
-      if (
-        queryError instanceof Error &&
-        queryError.message &&
-        queryError.message.includes('Paramètre requis CLIENT non fourni')
-      ) {
-        // Tenter d'extraire le nom du client depuis la question
-        const question = analyzeQuestionDto.question.toLowerCase();
-        let clientName = '';
-
-        // Extractions basées sur des patterns courants
-        if (question.includes('client')) {
-          const clientPattern = /client\s+([a-zÀ-ÿ\s]+)/i;
-          const match = question.match(clientPattern);
-          if (match && match[1]) {
-            clientName = match[1].trim();
+          // Extractions basées sur des patterns courants
+          if (question.includes('client')) {
+            const clientPattern = /client\s+([a-zÀ-ÿ\s]+)/i;
+            const match = question.match(clientPattern);
+            if (match && match[1]) {
+              clientName = match[1].trim();
+            }
           }
-        }
 
-        // Si aucun client n'est trouvé par pattern, essayer l'extraction d'entité
-        if (!clientName) {
-          const clientEntity = analysisResult.analysis.entities?.find(
-            (e: any) =>
-              e.type?.toLowerCase() === 'client' ||
-              e.name?.toLowerCase() === 'client' ||
-              e.type?.toLowerCase() === 'person',
-          );
-          if (clientEntity && clientEntity.value) {
-            clientName = clientEntity.value;
-          }
-        }
-
-        if (clientName) {
-          try {
-            // Relancer la requête avec le nom du client trouvé
-            const queryResult2 = await this.queryExecutorService.executeQuery(
-              topQuery.query_id,
-              { CLIENT: clientName },
+          // Si aucun client n'est trouvé par pattern, essayer l'extraction d'entité
+          if (!clientName) {
+            const clientEntity = analysisResult.analysis.entities?.find(
+              (e: any) =>
+                e.type?.toLowerCase() === 'client' ||
+                e.name?.toLowerCase() === 'client' ||
+                e.type?.toLowerCase() === 'person',
             );
-
-            const questionContext = {
-              originalQuestion: analyzeQuestionDto.question,
-              reformulatedQuestion: analysisResult.reformulatedQuestion,
-              intent: analysisResult.analysis.intent,
-              entities: analysisResult.analysis.entities,
-            };
-
-            const generatedResponse2 =
-              await this.langchainService.generateResponse(
-                questionContext,
-                queryResult2.data,
-              );
-
-            return {
-              analysis: analysisResult,
-              query_executed: topQuery.query_id,
-              query_description: queryResult2.description,
-              data: queryResult2.data,
-              response_format: queryResult2.response_format,
-              response: generatedResponse2,
-            };
-          } catch (e2) {
-            return {
-              analysis: analysisResult,
-              message: `Erreur lors de la recherche des informations du client ${clientName}: ${e2 instanceof Error ? e2.message : e2}`,
-              data: null,
-            };
+            if (clientEntity && clientEntity.value) {
+              clientName = clientEntity.value;
+            }
           }
-        } else {
-          return {
-            analysis: analysisResult,
-            message:
-              'Veuillez préciser le nom du client dans votre question.',
-            data: null,
-          };
-        }
-      }
 
-      // Gestion générique des paramètres manquants
-      if (queryError instanceof Error && queryError.message) {
-        const missingParamMatch = queryError.message.match(
-          /Paramètre requis ([A-Z_]+) non fourni/,
-        );
-        if (missingParamMatch && missingParamMatch[1]) {
-          const paramName = missingParamMatch[1];
-
-          // Tentative d'extraction automatique du paramètre manquant
-          const extractedParam = this.tryExtractParameterFromText(
-            analyzeQuestionDto.question,
-            paramName,
-            analysisResult.analysis.entities,
-          );
-
-          if (extractedParam) {
+          if (clientName) {
             try {
-              // Relancer la requête avec le paramètre trouvé
-              const params: Record<string, unknown> = {};
-              params[paramName] = extractedParam;
-
-              const queryResult2 =
-                await this.queryExecutorService.executeQuery(
-                  topQuery.query_id,
-                  params,
-                );
+              // Relancer la requête avec le nom du client trouvé
+              const queryResult2 = await this.queryExecutorService.executeQuery(
+                topQuery.query_id,
+                { CLIENT: clientName },
+              );
 
               const questionContext = {
                 originalQuestion: analyzeQuestionDto.question,
@@ -492,131 +327,209 @@ export class AnalyzeAgentController {
             } catch (e2) {
               return {
                 analysis: analysisResult,
-                message: `Erreur lors de la recherche avec le paramètre ${paramName}: ${e2 instanceof Error ? e2.message : e2}`,
+                message: `Erreur lors de la recherche des informations du client ${clientName}: ${e2 instanceof Error ? e2.message : e2}`,
                 data: null,
               };
             }
           } else {
-            // Paramètre non trouvé, demander à l'utilisateur
-            let friendlyParamName = paramName;
-            switch (paramName) {
-              case 'CLIENT':
-                friendlyParamName = 'le nom du client';
-                break;
-              case 'DATE':
-                friendlyParamName = 'la date';
-                break;
-              case 'CITY':
-                friendlyParamName = 'la ville';
-                break;
-              case 'PROJECT':
-                friendlyParamName = 'le projet';
-                break;
-              case 'VEHICLE':
-                friendlyParamName = 'le véhicule';
-                break;
-              case 'MATERIAL':
-                friendlyParamName = 'le matériel';
-                break;
-              case 'TASK':
-                friendlyParamName = 'la tâche';
-                break;
-              case 'EMPLOYEE':
-                friendlyParamName = 'le nom de l\'employé';
-                break;
-              case 'PERIOD':
-                friendlyParamName = 'la période';
-                break;
-            }
-
             return {
               analysis: analysisResult,
-              message: `Veuillez préciser ${friendlyParamName} dans votre question.`,
+              message:
+                'Veuillez préciser le nom du client dans votre question.',
               data: null,
             };
           }
         }
-      }
 
-      // Ajout de la gestion du cas PROJECT manquant
-      if (
-        queryError instanceof Error &&
-        queryError.message &&
-        queryError.message.includes('Paramètre requis PROJECT non fourni')
-      ) {
-        // On tente d'extraire le nom du client depuis les entités détectées
-        const clientEntity = analysisResult.analysis.entities?.find(
-          (e: any) =>
-            e.name.toLowerCase() === 'client' ||
-            e.type.toLowerCase() === 'client',
-        );
-        if (clientEntity && clientEntity.value) {
-          const projets = await this.analyzeAgentService.getProjectsForClient(
-            clientEntity.value,
+        // Gestion générique des paramètres manquants
+        if (queryError instanceof Error && queryError.message) {
+          const missingParamMatch = queryError.message.match(
+            /Paramètre requis ([A-Z_]+) non fourni/,
           );
-          if (projets.length === 0) {
-            return {
-              analysis: analysisResult,
-              message: `Aucun projet trouvé pour le client ${clientEntity.value}.`,
-              data: null,
-            };
-          } else if (projets.length === 1) {
-            // Relancer la requête avec le nom du projet trouvé
-            try {
-              const projectName = projets[0].name || projets[0].reference;
-              const queryResult2 =
-                await this.queryExecutorService.executeQuery(
-                  topQuery.query_id,
-                  { PROJECT: projectName },
-                );
-              const questionContext = {
-                originalQuestion: analyzeQuestionDto.question,
-                reformulatedQuestion: analysisResult.reformulatedQuestion,
-                intent: analysisResult.analysis.intent,
-                entities: analysisResult.analysis.entities,
-              };
-              const generatedResponse2 =
-                await this.langchainService.generateResponse(
-                  questionContext,
-                  queryResult2.data,
-                );
+          if (missingParamMatch && missingParamMatch[1]) {
+            const paramName = missingParamMatch[1];
+
+            // Tentative d'extraction automatique du paramètre manquant
+            const extractedParam = this.tryExtractParameterFromText(
+              analyzeQuestionDto.question,
+              paramName,
+              analysisResult.analysis.entities,
+            );
+
+            if (extractedParam) {
+              try {
+                // Relancer la requête avec le paramètre trouvé
+                const params: Record<string, unknown> = {};
+                params[paramName] = extractedParam;
+
+                const queryResult2 =
+                  await this.queryExecutorService.executeQuery(
+                    topQuery.query_id,
+                    params,
+                  );
+
+                const questionContext = {
+                  originalQuestion: analyzeQuestionDto.question,
+                  reformulatedQuestion: analysisResult.reformulatedQuestion,
+                  intent: analysisResult.analysis.intent,
+                  entities: analysisResult.analysis.entities,
+                };
+
+                const generatedResponse2 =
+                  await this.langchainService.generateResponse(
+                    questionContext,
+                    queryResult2.data,
+                  );
+
+                return {
+                  analysis: analysisResult,
+                  query_executed: topQuery.query_id,
+                  query_description: queryResult2.description,
+                  data: queryResult2.data,
+                  response_format: queryResult2.response_format,
+                  response: generatedResponse2,
+                };
+              } catch (e2) {
+                return {
+                  analysis: analysisResult,
+                  message: `Erreur lors de la recherche avec le paramètre ${paramName}: ${e2 instanceof Error ? e2.message : e2}`,
+                  data: null,
+                };
+              }
+            } else {
+              // Paramètre non trouvé, demander à l'utilisateur
+              let friendlyParamName = paramName;
+              switch (paramName) {
+                case 'CLIENT':
+                  friendlyParamName = 'le nom du client';
+                  break;
+                case 'DATE':
+                  friendlyParamName = 'la date';
+                  break;
+                case 'CITY':
+                  friendlyParamName = 'la ville';
+                  break;
+                case 'PROJECT':
+                  friendlyParamName = 'le projet';
+                  break;
+                case 'VEHICLE':
+                  friendlyParamName = 'le véhicule';
+                  break;
+                case 'MATERIAL':
+                  friendlyParamName = 'le matériel';
+                  break;
+                case 'TASK':
+                  friendlyParamName = 'la tâche';
+                  break;
+                case 'EMPLOYEE':
+                  friendlyParamName = 'le nom de l\'employé';
+                  break;
+                case 'PERIOD':
+                  friendlyParamName = 'la période';
+                  break;
+              }
+
               return {
                 analysis: analysisResult,
-                query_executed: topQuery.query_id,
-                query_description: topQuery.description,
-                data: queryResult2.data,
-                response_format: queryResult2.response_format,
-                response: generatedResponse2,
-              };
-            } catch (e2) {
-              return {
-                analysis: analysisResult,
-                message: `Erreur lors de la récupération du projet du client : ${e2 instanceof Error ? e2.message : e2}`,
+                message: `Veuillez préciser ${friendlyParamName} dans votre question.`,
                 data: null,
               };
             }
-          } else {
-            // Plusieurs projets trouvés, demander à l'utilisateur de préciser
-            const listeProjets = projets
-              .map((p: any) => p.name || p.reference)
-              .join(', ');
-            return {
-              analysis: analysisResult,
-              message: `Le client ${clientEntity.value} a plusieurs projets : ${listeProjets}. Merci de préciser le projet souhaité dans votre prochaine question.`,
-              data: projets,
-            };
           }
         }
+
+        // Ajout de la gestion du cas PROJECT manquant
+        if (
+          queryError instanceof Error &&
+          queryError.message &&
+          queryError.message.includes('Paramètre requis PROJECT non fourni')
+        ) {
+          // On tente d'extraire le nom du client depuis les entités détectées
+          const clientEntity = analysisResult.analysis.entities?.find(
+            (e: any) =>
+              e.name.toLowerCase() === 'client' ||
+              e.type.toLowerCase() === 'client',
+          );
+          if (clientEntity && clientEntity.value) {
+            const projets = await this.analyzeAgentService.getProjectsForClient(
+              clientEntity.value,
+            );
+            if (projets.length === 0) {
+              return {
+                analysis: analysisResult,
+                message: `Aucun projet trouvé pour le client ${clientEntity.value}.`,
+                data: null,
+              };
+            } else if (projets.length === 1) {
+              // Relancer la requête avec le nom du projet trouvé
+              try {
+                const projectName = projets[0].name || projets[0].reference;
+                const queryResult2 =
+                  await this.queryExecutorService.executeQuery(
+                    topQuery.query_id,
+                    { PROJECT: projectName },
+                  );
+                const questionContext = {
+                  originalQuestion: analyzeQuestionDto.question,
+                  reformulatedQuestion: analysisResult.reformulatedQuestion,
+                  intent: analysisResult.analysis.intent,
+                  entities: analysisResult.analysis.entities,
+                };
+                const generatedResponse2 =
+                  await this.langchainService.generateResponse(
+                    questionContext,
+                    queryResult2.data,
+                  );
+                return {
+                  analysis: analysisResult,
+                  query_executed: topQuery.query_id,
+                  query_description: topQuery.description,
+                  data: queryResult2.data,
+                  response_format: queryResult2.response_format,
+                  response: generatedResponse2,
+                };
+              } catch (e2) {
+                return {
+                  analysis: analysisResult,
+                  message: `Erreur lors de la récupération du projet du client : ${e2 instanceof Error ? e2.message : e2}`,
+                  data: null,
+                };
+              }
+            } else {
+              // Plusieurs projets trouvés, demander à l'utilisateur de préciser
+              const listeProjets = projets
+                .map((p: any) => p.name || p.reference)
+                .join(', ');
+              return {
+                analysis: analysisResult,
+                message: `Le client ${clientEntity.value} a plusieurs projets : ${listeProjets}. Merci de préciser le projet souhaité dans votre prochaine question.`,
+                data: projets,
+              };
+            }
+          }
+        }
+        if (queryError instanceof NotFoundException) {
+          // Si la requête n'est pas trouvée, retourner seulement l'analyse
+          return {
+            analysis: analysisResult,
+            message: `La requête ${topQuery.query_id} n'a pas pu être exécutée: ${queryError.message}`,
+            data: null,
+          };
+        }
+        throw queryError;
       }
-      if (queryError instanceof NotFoundException) {
-        // Si la requête n'est pas trouvée, retourner seulement l'analyse
-        return {
-          analysis: analysisResult,
-          message: `La requête ${topQuery.query_id} n'a pas pu être exécutée: ${queryError.message}`,
-          data: null,
-        };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors du traitement de la question chatbot: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      if (error instanceof HttpException) {
+        throw error;
       }
-      throw queryError;
+      throw new HttpException(
+        `Erreur lors du traitement de la question: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

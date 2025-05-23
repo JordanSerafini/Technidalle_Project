@@ -34,6 +34,7 @@ interface TypedImap {
   state?: string;
   once(event: string, callback: (...args: any[]) => void): void;
   on(event: string, callback: (...args: any[]) => void): void;
+  removeAllListeners(event: string): void;
   connect(): void;
   openBox(
     name: string,
@@ -84,6 +85,19 @@ interface SearchError extends Error {
   message: string;
 }
 
+interface EmailAnalysis {
+  summary: string;
+  priority: 'high' | 'medium' | 'low';
+  category: string;
+  actionRequired: boolean;
+  actionItems: string[];
+  tokensUsed: {
+    input: number;
+    output: number;
+    total: number;
+  };
+}
+
 @Injectable()
 export class AnalyzeEmailService {
   private readonly logger = new Logger(AnalyzeEmailService.name);
@@ -126,6 +140,35 @@ export class AnalyzeEmailService {
    */
   private async connectToImap(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Vérifier si la connexion est déjà établie
+      if (this.imap.state === 'authenticated') {
+        this.logger.debug('Connexion IMAP déjà établie');
+        resolve();
+        return;
+      }
+
+      // Créer une nouvelle instance IMAP si nécessaire
+      if (this.imap.state === 'disconnected') {
+        const imapUser = this.configService.get<string>('EMAIL_USER') ?? '';
+        const imapPassword =
+          this.configService.get<string>('EMAIL_PASSWORD') ?? '';
+        const imapHost = this.configService.get<string>('IMAP_HOST') ?? '';
+        const imapPortConfig = this.configService.get<string>('IMAP_PORT');
+        const imapPort = imapPortConfig ? parseInt(imapPortConfig, 10) : 993;
+
+        const imapConfig: Imap.Config = {
+          user: imapUser,
+          password: imapPassword,
+          host: imapHost,
+          port: imapPort,
+          tls: true,
+          tlsOptions: { rejectUnauthorized: false },
+          debug: (info: string) => this.logger.debug(`IMAP Debug: ${info}`),
+        };
+
+        this.imap = new Imap(imapConfig) as TypedImap;
+      }
+
       this.imap.once('ready', () => {
         this.logger.log('Connexion IMAP établie avec succès');
         resolve();
@@ -140,7 +183,12 @@ export class AnalyzeEmailService {
         this.logger.log('Connexion IMAP terminée');
       });
 
-      this.imap.connect();
+      // Se connecter seulement si on n'est pas déjà connecté
+      if (this.imap.state !== 'connected') {
+        this.imap.connect();
+      } else {
+        resolve();
+      }
     });
   }
 
@@ -223,15 +271,41 @@ export class AnalyzeEmailService {
           const year = today.getFullYear();
 
           const searchDate = `${day}-${month}-${year}`;
+
+          // Date de demain pour le critère BEFORE
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+          const tomorrowDay = tomorrow.getDate().toString().padStart(2, '0');
+          const tomorrowMonth = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ][tomorrow.getMonth()];
+          const tomorrowYear = tomorrow.getFullYear();
+          const tomorrowSearchDate = `${tomorrowDay}-${tomorrowMonth}-${tomorrowYear}`;
+
           this.logger.log(
-            `Recherche des emails non lus dans ${folder} pour la date: ${searchDate}`,
+            `Recherche des emails non lus dans ${folder} pour la date: ${searchDate} (avant: ${tomorrowSearchDate})`,
           );
 
-          // Rechercher les emails non lus dans ce dossier
+          // Rechercher les emails non lus dans ce dossier (limité à aujourd'hui)
           const folderEmails = await new Promise<EmailContent[]>(
             (resolve, reject) => {
               this.imap.search(
-                ['UNSEEN', ['SINCE', searchDate]],
+                [
+                  'UNSEEN',
+                  ['SINCE', searchDate],
+                  ['BEFORE', tomorrowSearchDate],
+                ],
                 (searchErr: SearchError | null, results: number[]) => {
                   if (searchErr) {
                     this.logger.error(
@@ -589,20 +663,28 @@ export class AnalyzeEmailService {
    * Analyse le contenu des emails avec OpenAI
    * @param emails Liste des emails à analyser
    * @param fastMode Si true, effectue une analyse accélérée avec moins de détails
+   * @param limit Si spécifié, limite le nombre d'emails à analyser
    */
   async analyzeEmails(
     emails: EmailContent[],
     fastMode = false,
+    limit?: number,
   ): Promise<EmailContent[]> {
     this.logger.log(
-      `Début de l'analyse de ${emails.length} emails${fastMode ? ' (mode rapide)' : ''}`,
+      `Début de l'analyse de ${emails.length} emails${fastMode ? ' (mode rapide)' : ''}${limit ? ` (limite: ${limit})` : ''}`,
     );
+
+    // Appliquer la limite si spécifiée
+    const emailsToAnalyze = limit ? emails.slice(0, limit) : emails;
 
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
     // Traiter les emails par lots pour éviter de surcharger l'API
-    const analyzedEmails = await this.processEmailsInBatches(emails, fastMode);
+    const analyzedEmails = await this.processEmailsInBatches(
+      emailsToAnalyze,
+      fastMode,
+    );
 
     // Calculer le total des tokens utilisés
     analyzedEmails.forEach((email) => {
@@ -613,7 +695,7 @@ export class AnalyzeEmailService {
     });
 
     this.logger.log(
-      `Analyse terminée pour ${emails.length} emails. Tokens utilisés: ${totalInputTokens} (entrée), ${totalOutputTokens} (sortie)`,
+      `Analyse terminée pour ${analyzedEmails.length} emails. Tokens utilisés: ${totalInputTokens} (entrée), ${totalOutputTokens} (sortie)`,
     );
     return analyzedEmails;
   }
@@ -719,27 +801,96 @@ export class AnalyzeEmailService {
    */
   private async analyzeEmailContent(
     email: EmailContent,
-    fastMode = false,
-  ): Promise<{
-    summary: string;
-    priority: 'high' | 'medium' | 'low';
-    category: string;
-    actionRequired: boolean;
-    actionItems?: string[];
-    tokensUsed?: {
-      input: number;
-      output: number;
-      total: number;
-    };
-  }> {
-    this.logger.debug(`Analyse de l'email: ${email.subject}`);
+    fastMode: boolean = false,
+  ): Promise<EmailAnalysis> {
+    try {
+      const model = 'gpt-3.5-turbo-1106';
+      const maxTokens = fastMode ? 150 : 300;
+      const temperature = fastMode ? 0.3 : 0.7;
 
-    // Extraire les premiers caractères du contenu (moins en mode rapide)
+      // Vérifier si le contenu de l'email est valide
+      if (!email.body || email.body.trim() === '') {
+        this.logger.warn(`Email sans contenu: ${email.subject}`);
+        return {
+          summary: 'Email sans contenu',
+          priority: 'low',
+          category: 'autre',
+          actionRequired: false,
+          actionItems: [],
+          tokensUsed: {
+            input: 0,
+            output: 0,
+            total: 0,
+          },
+        };
+      }
+
+      const prompt = this.buildAnalysisPrompt(email, fastMode);
+
+      const response = await this.openai.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              "Vous êtes un assistant spécialisé dans l'analyse d'emails professionnels. Votre tâche est d'analyser le contenu de l'email et de fournir un résumé concis et pertinent. Répondez UNIQUEMENT au format JSON, sans aucun autre texte ou marqueur de code.",
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+        response_format: { type: 'json_object' },
+      });
+
+      const analysis = response.choices[0]?.message?.content;
+      if (!analysis) {
+        throw new Error("Pas de réponse de l'API OpenAI");
+      }
+
+      return this.parseAnalysisResponse(analysis);
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de l'analyse de l'email "${email.subject}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      // Générer un résumé basique à partir du contenu de l'email
+      let basicSummary = '';
+      if (email.body) {
+        // Extraire les premières phrases significatives
+        const sentences = email.body
+          .split(/[.!?]+/)
+          .filter((s) => s.trim().length > 0);
+        basicSummary = sentences.slice(0, 2).join('. ').trim();
+        if (basicSummary.length > 200) {
+          basicSummary = basicSummary.substring(0, 197) + '...';
+        }
+      } else {
+        basicSummary = "Impossible d'analyser le contenu de l'email";
+      }
+
+      return {
+        summary: basicSummary,
+        priority: 'medium',
+        category: 'autre',
+        actionRequired: false,
+        actionItems: [],
+        tokensUsed: {
+          input: 0,
+          output: 0,
+          total: 0,
+        },
+      };
+    }
+  }
+
+  private buildAnalysisPrompt(email: EmailContent, fastMode: boolean): string {
     const contentLength = fastMode ? 600 : 800;
     const emailContent = email.body.substring(0, contentLength);
 
-    // Prompt condensé pour réduire les tokens d'entrée
-    const prompt = `
+    return `
     Email - De: ${email.from} | Sujet: ${email.subject} | Date: ${email.date.toISOString()}
     
     Contenu: ${emailContent}
@@ -751,78 +902,65 @@ export class AnalyzeEmailService {
     - actionRequired: true/false
     - actionItems: liste d'actions spécifiques si actionRequired est true${fastMode ? ' (limiter à 1 action principale)' : ''}
     `;
+  }
 
+  private parseAnalysisResponse(analysis: string): EmailAnalysis {
     try {
-      // En mode rapide, utiliser un modèle encore plus léger et limiter davantage les tokens
-      const model = fastMode ? 'gpt-3.5-turbo-instruct' : 'gpt-3.5-turbo-1106';
-      const maxTokens = fastMode ? 200 : 300;
+      // Nettoyer la réponse pour enlever les marqueurs de code
+      let cleanedAnalysis = analysis
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
 
-      const response = await this.openai.chat.completions.create({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: "Analyse d'emails - réponds uniquement en JSON valide",
-          },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-        max_tokens: maxTokens,
-      });
+      // Si la réponse commence par un retour à la ligne, le supprimer
+      if (cleanedAnalysis.startsWith('\n')) {
+        cleanedAnalysis = cleanedAnalysis.substring(1);
+      }
 
-      // Extraire les informations sur les tokens
-      const tokensUsed = {
-        input: response.usage?.prompt_tokens || 0,
-        output: response.usage?.completion_tokens || 0,
-        total: response.usage?.total_tokens || 0,
+      // Essayer de parser la réponse nettoyée
+      const parsedResult = JSON.parse(cleanedAnalysis) as {
+        summary: string;
+        priority: 'high' | 'medium' | 'low';
+        category: string;
+        actionRequired: boolean;
+        actionItems?: string[];
       };
 
-      this.logger.debug(
-        `Tokens utilisés pour l'analyse: ${tokensUsed.total} (entrée: ${tokensUsed.input}, sortie: ${tokensUsed.output})`,
-      );
-
-      try {
-        const content = response.choices[0].message.content;
-        if (!content) {
-          throw new Error('Aucune réponse générée par OpenAI');
-        }
-
-        // Avec response_format type JSON, nous pouvons directement parser le contenu
-        const parsedResult = JSON.parse(content) as {
-          summary: string;
-          priority: 'high' | 'medium' | 'low';
-          category: string;
-          actionRequired: boolean;
-          actionItems?: string[];
-        };
-
-        // Ajouter les informations sur les tokens utilisés
-        return {
-          ...parsedResult,
-          tokensUsed,
-        };
-      } catch (error) {
-        this.logger.error(
-          `Erreur lors du parsing de la réponse OpenAI: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
-        );
-        return {
-          summary: "Impossible d'analyser cet email",
-          priority: 'medium',
-          category: 'autre',
-          actionRequired: false,
-          tokensUsed,
-        };
+      // Valider les champs requis
+      if (
+        !parsedResult.summary ||
+        !parsedResult.priority ||
+        !parsedResult.category
+      ) {
+        throw new Error('Champs requis manquants dans la réponse');
       }
+
+      // Valider la priorité
+      if (!['high', 'medium', 'low'].includes(parsedResult.priority)) {
+        parsedResult.priority = 'medium';
+      }
+
+      return {
+        ...parsedResult,
+        actionItems: parsedResult.actionItems || [],
+        tokensUsed: {
+          input: 0,
+          output: 0,
+          total: 0,
+        },
+      };
     } catch (error) {
       this.logger.error(
-        `Erreur lors de l'appel à l'API OpenAI: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        `Erreur lors du parsing de la réponse: ${error instanceof Error ? error.message : String(error)}`,
       );
+
+      // Générer un résumé basique à partir du contenu de l'email
       return {
-        summary: "Impossible d'analyser cet email",
+        summary: "Erreur lors de l'analyse",
         priority: 'medium',
         category: 'autre',
         actionRequired: false,
+        actionItems: [],
         tokensUsed: {
           input: 0,
           output: 0,
@@ -916,32 +1054,20 @@ export class AnalyzeEmailService {
       // Créer un résumé automatique sans appel à OpenAI
       let summary = `Bonjour, voici votre résumé d'emails du ${formattedDate}.\n\n`;
 
-      summary += `J'ai analysé ${totalEmails} emails aujourd'hui`;
-      if (highPriorityEmails.length > 0) {
-        summary += `, dont ${highPriorityEmails.length} nécessitent votre attention prioritaire`;
-      }
-      if (actionRequiredEmails.length > 0) {
-        summary += ` et ${actionRequiredEmails.length} requièrent une action de votre part`;
-      }
-      summary += `.\n\n`;
+      if (totalEmails === 0) {
+        summary += "Vous n'avez reçu aucun nouvel email aujourd'hui.";
+      } else {
+        summary += `J'ai analysé ${totalEmails} emails aujourd'hui.\n\n`;
 
-      // Liste des emails prioritaires
-      if (highPriorityEmails.length > 0) {
-        summary += `Les emails les plus importants sont:\n`;
-        highPriorityEmails.slice(0, 3).forEach((email, i) => {
-          summary += `${i + 1}. "${email.subject}" de ${email.from.split('<')[0].replace(/"/g, '')}\n`;
+        // Ajouter un aperçu du contenu de chaque email
+        analyzedEmails.forEach((email, idx) => {
+          summary += `• [${email.subject}] de ${email.from.split('<')[0].replace(/"/g, '')}\n`;
+          if (email.analysis?.summary) {
+            summary += `   ${email.analysis.summary}\n`;
+          } else {
+            summary += `   (Pas de résumé disponible)\n`;
+          }
         });
-        summary += `\n`;
-      }
-
-      // Liste des actions
-      if (allActionItems.length > 0) {
-        summary += `Actions principales à effectuer:\n`;
-        const actions = [...new Set(allActionItems)].slice(0, 5);
-        actions.forEach((action, i) => {
-          summary += `${i + 1}. ${action}\n`;
-        });
-        summary += `\n`;
       }
 
       // Créer token count simulé (puisque nous n'avons pas fait d'appel API)
@@ -1276,9 +1402,66 @@ export class AnalyzeEmailService {
   }
 
   /**
+   * Méthode combinée pour obtenir un résumé formaté des emails du jour
+   * @param limit Nombre maximum d'emails à analyser
+   * @param fastMode Si true, utilise le mode rapide pour l'analyse
+   */
+  async getDailyFormattedSummary(
+    limit: number,
+    fastMode: boolean = false,
+  ): Promise<{
+    formattedSummary: string;
+    tokensUsed: {
+      input: number;
+      output: number;
+      total: number;
+    };
+  }> {
+    this.logger.log(
+      `Début de l'analyse des emails du jour (limite: ${limit}, mode rapide: ${fastMode})`,
+    );
+
+    try {
+      // 1. Récupérer les emails du jour
+      const emails = await this.getTodayEmails();
+      this.logger.log(`${emails.length} emails récupérés aujourd'hui`);
+
+      // 2. Appliquer la limite
+      const emailsToAnalyze = emails.slice(0, limit);
+      this.logger.log(`${emailsToAnalyze.length} emails à analyser`);
+
+      // 3. Analyser les emails
+      const analyzedEmails = await this.analyzeEmails(
+        emailsToAnalyze,
+        fastMode,
+      );
+      this.logger.log(`${analyzedEmails.length} emails analysés`);
+
+      // 4. Générer le résumé global
+      const overallSummary = await this.generateOverallSummary(
+        analyzedEmails,
+        fastMode,
+      );
+      this.logger.log('Résumé global généré');
+
+      // 5. Formater le résumé pour l'affichage
+      const { formattedSummary, tokensUsed } =
+        await this.formatProfessionalSummary(overallSummary, fastMode);
+
+      return {
+        formattedSummary,
+        tokensUsed,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la génération du résumé quotidien: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Formate le résumé en un format professionnel structuré
-   * @param summaryData Données du résumé à formater
-   * @param fastMode Si true, crée un format plus simple et direct
    */
   async formatProfessionalSummary(
     summaryData: {
@@ -1305,16 +1488,6 @@ export class AnalyzeEmailService {
     };
   }> {
     try {
-      // Ajout d'une opération asynchrone pour satisfaire le linter
-      await Promise.resolve();
-
-      // Récupérer les tokens utilisés pour la génération du résumé initial
-      const initialTokensUsed = summaryData.tokensUsed || {
-        input: 0,
-        output: 0,
-        total: 0,
-      };
-
       // Obtenir la date du jour au format français
       const today = new Date();
       const options: Intl.DateTimeFormatOptions = {
@@ -1324,96 +1497,55 @@ export class AnalyzeEmailService {
       };
       const dateStr = today.toLocaleDateString('fr-FR', options);
 
-      // Créer un résumé conversationnel
-      let formattedSummary = `Bonjour, voici votre résumé d'emails du ${dateStr}.\n\n`;
+      // Créer un résumé conversationnel avec emojis
+      let formattedSummary = `📧 Résumé des emails du ${dateStr}\n\n`;
 
       // Aperçu du nombre d'emails
-      formattedSummary += `J'ai analysé ${summaryData.totalEmails} emails aujourd'hui`;
+      formattedSummary += `📊 J'ai analysé ${summaryData.totalEmails} emails aujourd'hui`;
 
       if (summaryData.highPriorityCount > 0) {
-        formattedSummary += `, dont ${summaryData.highPriorityCount} nécessitent votre attention prioritaire`;
+        formattedSummary += `, dont ${summaryData.highPriorityCount} ⚠️ prioritaires`;
       }
 
       if (summaryData.actionRequiredCount > 0) {
-        formattedSummary += ` et ${summaryData.actionRequiredCount} requièrent une action de votre part`;
+        formattedSummary += ` et ${summaryData.actionRequiredCount} 📝 nécessitent une action`;
       }
       formattedSummary += `.\n\n`;
 
-      // En mode rapide, simplifier la sortie
-      if (fastMode) {
-        // Emails prioritaires sous forme de liste
-        if (
-          summaryData.topPriorityEmails &&
-          summaryData.topPriorityEmails.length > 0
-        ) {
-          formattedSummary += `Emails prioritaires:\n`;
-          summaryData.topPriorityEmails.slice(0, 3).forEach((email, index) => {
-            formattedSummary += `${index + 1}. "${email.subject}" de ${email.from.split('<')[0].replace(/"/g, '')}\n`;
-          });
-          formattedSummary += `\n`;
-        }
+      // Liste des emails avec leurs résumés
+      formattedSummary += `📋 Aperçu des emails :\n\n`;
 
-        // Actions requises
-        if (summaryData.actionItems && summaryData.actionItems.length > 0) {
-          formattedSummary += `Actions requises:\n`;
-          const uniqueActions = [...new Set(summaryData.actionItems)].slice(
-            0,
-            5,
-          );
-          uniqueActions.forEach((action, index) => {
-            formattedSummary += `${index + 1}. ${action}\n`;
-          });
-          formattedSummary += `\n`;
-        }
+      summaryData.topPriorityEmails.forEach((email, index) => {
+        const sender = email.from.split('<')[0].replace(/"/g, '').trim();
+        const priority = email.analysis?.priority || 'medium';
+        const priorityEmoji =
+          priority === 'high' ? '🔴' : priority === 'medium' ? '🟡' : '🟢';
 
-        // Résumé succinct
-        formattedSummary += `En résumé: ${summaryData.summary}`;
-
-        return {
-          formattedSummary,
-          tokensUsed: initialTokensUsed,
-        };
-      }
-
-      // Format standard (non rapide) avec plus de détails
-      // Emails prioritaires
-      if (
-        summaryData.topPriorityEmails &&
-        summaryData.topPriorityEmails.length > 0
-      ) {
-        formattedSummary += `Les emails les plus importants concernent `;
-
-        const emailSubjects = summaryData.topPriorityEmails.map(
-          (email) =>
-            `"${email.subject}" de ${email.from.split('<')[0].replace(/"/g, '')}`,
-        );
-
-        if (emailSubjects.length === 1) {
-          formattedSummary += `${emailSubjects[0]}`;
-        } else if (emailSubjects.length === 2) {
-          formattedSummary += `${emailSubjects[0]} et ${emailSubjects[1]}`;
+        formattedSummary += `${index + 1}. ${priorityEmoji} [${email.subject || '(sans sujet)'}] de ${sender}\n`;
+        if (email.analysis?.summary) {
+          formattedSummary += `   ${email.analysis.summary}\n`;
         } else {
-          const lastSubject = emailSubjects.pop();
-          formattedSummary += `${emailSubjects.join(', ')} et ${lastSubject}`;
+          formattedSummary += `   (Pas de résumé disponible)\n`;
         }
-        formattedSummary += `.\n\n`;
-      }
+
+        // Ajouter la catégorie si disponible
+        if (email.analysis?.category) {
+          formattedSummary += `   📌 Catégorie : ${email.analysis.category}\n`;
+        }
+        formattedSummary += `\n`;
+      });
 
       // Actions requises
       if (summaryData.actionItems && summaryData.actionItems.length > 0) {
+        formattedSummary += `📝 Actions requises :\n`;
         const uniqueActions = [...new Set(summaryData.actionItems)];
-        if (uniqueActions.length === 1) {
-          formattedSummary += `L'action principale à effectuer est de ${uniqueActions[0].toLowerCase()}.\n\n`;
-        } else if (uniqueActions.length > 1) {
-          formattedSummary += `Voici les actions principales à effectuer :\n`;
-          uniqueActions.slice(0, 5).forEach((action, index) => {
-            formattedSummary += `${index + 1}. ${action}\n`;
-          });
-          if (uniqueActions.length > 5) {
-            formattedSummary += `... et ${uniqueActions.length - 5} autres actions.\n`;
-          }
-          formattedSummary += `\n`;
+        uniqueActions.slice(0, 5).forEach((action, index) => {
+          formattedSummary += `${index + 1}. ✅ ${action}\n`;
+        });
+        if (uniqueActions.length > 5) {
+          formattedSummary += `... et ${uniqueActions.length - 5} autres actions.\n`;
         }
+        formattedSummary += `\n`;
       }
 
       // Résumé des catégories d'emails
@@ -1421,39 +1553,33 @@ export class AnalyzeEmailService {
         summaryData.categoryCounts &&
         Object.keys(summaryData.categoryCounts).length > 0
       ) {
-        formattedSummary += `Vos emails se répartissent principalement entre `;
-
+        formattedSummary += `📊 Répartition par catégories :\n`;
         const categories = Object.entries(summaryData.categoryCounts)
           .sort((a, b) => b[1] - a[1])
-          .map(([category, count]) => `${count} emails ${category}s`);
+          .map(
+            ([category, count]) =>
+              `- ${count} email${count > 1 ? 's' : ''} ${category}`,
+          );
 
-        if (categories.length === 1) {
-          formattedSummary += `${categories[0]}`;
-        } else if (categories.length === 2) {
-          formattedSummary += `${categories[0]} et ${categories[1]}`;
-        } else {
-          const lastCategory = categories.pop();
-          formattedSummary += `${categories.join(', ')} et ${lastCategory}`;
-        }
-        formattedSummary += `.\n\n`;
+        categories.forEach((category) => {
+          formattedSummary += `${category}\n`;
+        });
       }
-
-      // Résumé général
-      formattedSummary += `En résumé : ${summaryData.summary}\n\n`;
 
       return {
         formattedSummary,
-        tokensUsed: initialTokensUsed,
+        tokensUsed: summaryData.tokensUsed || {
+          input: 0,
+          output: 0,
+          total: 0,
+        },
       };
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erreur inconnue';
+    } catch (error) {
       this.logger.error(
-        `Erreur lors du formatage professionnel du résumé: ${errorMessage}`,
+        `Erreur lors du formatage du résumé: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
-        formattedSummary:
-          'Impossible de générer le résumé conversationnel de vos emails.',
+        formattedSummary: '❌ Impossible de générer le résumé des emails.',
         tokensUsed: {
           input: 0,
           output: 0,
@@ -1486,7 +1612,7 @@ export class AnalyzeEmailService {
       );
 
       const allEmails: EmailContent[] = [];
-      let totalEmailsFound = 0;
+      const totalEmailsFound = 0;
       const limitReached = { value: false };
 
       // Valider et convertir les dates
@@ -1619,45 +1745,36 @@ export class AnalyzeEmailService {
                             buffer += chunk.toString('utf8');
                           });
 
-                          stream.once('end', () => {
-                            void (async () => {
-                              try {
-                                this.logger.debug(
-                                  `Parsing du contenu de l'email #${seqno} dans ${folder}`,
-                                );
-                                const bufferContent: Buffer =
-                                  Buffer.from(buffer);
-                                const parsedEmail: ParsedMail =
-                                  await simpleParser(bufferContent);
-                                const parsed: ParsedEmail =
-                                  parsedEmail as unknown as ParsedEmail;
+                          stream.once('end', async () => {
+                            try {
+                              this.logger.debug(
+                                `Parsing du contenu de l'email #${seqno} dans ${folder}`,
+                              );
+                              const bufferContent: Buffer = Buffer.from(buffer);
+                              const parsedEmail: ParsedMail =
+                                await simpleParser(bufferContent);
+                              const parsed: ParsedEmail =
+                                parsedEmail as unknown as ParsedEmail;
 
-                                email.from = parsed.from?.text || '';
-                                email.to = parsed.to?.text || '';
-                                email.subject = parsed.subject || '';
-                                email.date = parsed.date || new Date();
-                                email.body = parsed.text || '';
+                              email.from = parsed.from?.text || '';
+                              email.to = parsed.to?.text || '';
+                              email.subject = parsed.subject || '';
+                              email.date = parsed.date || new Date();
+                              email.body = parsed.text || '';
 
-                                this.logger.debug(
-                                  `Email #${seqno} parsé avec succès: ${email.subject}`,
-                                );
+                              this.logger.debug(
+                                `Email #${seqno} parsé avec succès: ${email.subject}`,
+                              );
 
-                                resolveEmail(email as EmailContent);
-                              } catch (e: unknown) {
-                                const errorMessage =
-                                  e instanceof Error
-                                    ? e.message
-                                    : 'Erreur inconnue';
-                                this.logger.error(
-                                  `Erreur lors du parsing de l'email #${seqno}: ${errorMessage}`,
-                                );
-                                rejectEmail(
-                                  new Error(
-                                    `Erreur lors du parsing de l'email #${seqno}: ${errorMessage}`,
-                                  ),
-                                );
-                              }
-                            })();
+                              resolveEmail(email as EmailContent);
+                            } catch (e) {
+                              const errorMsg =
+                                e instanceof Error ? e.message : String(e);
+                              this.logger.error(
+                                `Erreur parsing email #${seqno}: ${errorMsg}`,
+                              );
+                              rejectEmail(new Error(errorMsg));
+                            }
                           });
                         });
                       },
@@ -1676,26 +1793,21 @@ export class AnalyzeEmailService {
             },
           );
 
-          // Filtrer les emails par date
-          const filteredEmails = folderEmails.filter((email) => {
+          // Filtrer les emails par date (aujourd'hui uniquement)
+          const todayEmails = folderEmails.filter((email) => {
             if (!email.date) return false;
 
             const emailDate = new Date(email.date);
-            return emailDate >= startDateObj && emailDate < endDateObj;
+            emailDate.setHours(0, 0, 0, 0); // Début de la journée
+
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0); // Début de la journée
+
+            return emailDate.getTime() === todayDate.getTime();
           });
 
           // Ajouter les emails de ce dossier au tableau global
-          allEmails.push(...filteredEmails);
-          totalEmailsFound += filteredEmails.length;
-
-          // Vérifier si la limite a été atteinte
-          if (limit && totalEmailsFound >= limit) {
-            this.logger.log(
-              `Limite de ${limit} emails atteinte après le dossier ${folder}`,
-            );
-            limitReached.value = true;
-            break;
-          }
+          allEmails.push(...todayEmails);
         } catch (folderError: unknown) {
           const errorMessage =
             folderError instanceof Error
@@ -1708,14 +1820,10 @@ export class AnalyzeEmailService {
         }
       }
 
-      const message = limitReached.value
-        ? `Limite de ${limit} emails atteinte. ${allEmails.length} emails récupérés.`
-        : `${allEmails.length} emails récupérés au total de tous les dossiers pour la période spécifiée`;
-
-      this.logger.log(message);
-
-      // Si une limite est définie, s'assurer de ne pas dépasser
-      return limit ? allEmails.slice(0, limit) : allEmails;
+      this.logger.log(
+        `${allEmails.length} emails récupérés au total de tous les dossiers`,
+      );
+      return allEmails;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Erreur inconnue';
@@ -1728,190 +1836,154 @@ export class AnalyzeEmailService {
     }
   }
 
-  /**
-   * Récupère un email spécifique par son ID sans charger tous les emails
-   * @param mailbox Boîte mail contenant l'email
-   * @param emailId ID de l'email à récupérer
-   * @param forceRefresh Forcer l'actualisation du cache
-   */
   async getSpecificEmailById(
     mailbox: string,
     emailId: string,
     forceRefresh: boolean = false,
   ): Promise<EmailContent | null> {
     try {
-      this.logger.log(
-        `Recherche directe de l'email ${emailId} dans ${mailbox}`,
-      );
+      const cacheKey = `${mailbox}:${emailId}`;
 
-      // Vérifier d'abord le cache
-      const cacheKey = `${mailbox}_emails`;
-      const cachedData = this.emailsCache[cacheKey];
-      const now = Date.now();
-
-      // Si le cache est valide et qu'on ne force pas le rechargement
-      if (
-        !forceRefresh &&
-        cachedData &&
-        now - cachedData.timestamp < this.CACHE_TTL
-      ) {
-        // Chercher l'email dans le cache
-        const cachedEmail = cachedData.emails.find(
-          (e) => e.id === emailId || e.imapUID === emailId,
-        );
-
-        if (cachedEmail) {
-          this.logger.log(`[CACHE] Email ${emailId} trouvé dans le cache`);
-          return cachedEmail;
+      // Utilisation du cache si valide
+      if (!forceRefresh && this.emailsCache[cacheKey]) {
+        const cachedData = this.emailsCache[cacheKey];
+        if (Date.now() - cachedData.timestamp < this.CACHE_TTL) {
+          this.logger.debug(
+            `Utilisation du cache pour l'email ${emailId} dans ${mailbox}`,
+          );
+          return cachedData.emails[0] || null;
         }
       }
 
-      // Si l'email n'est pas dans le cache, on doit établir une nouvelle connexion IMAP
       await this.connectToImap();
 
-      // Ouvrir la boîte mail spécifiée
+      // Ouvrir le dossier IMAP
       await new Promise<void>((resolve, reject) => {
-        this.imap.openBox(mailbox, true, (err) => {
+        this.imap.openBox(mailbox, true, (err: Error | null) => {
           if (err) {
             this.logger.error(
               `Erreur lors de l'ouverture de la boîte ${mailbox}: ${err.message}`,
             );
-            reject(err);
-            return;
+            return reject(err);
           }
           resolve();
         });
       });
 
-      // Rechercher l'email par son ID ou UID
-      let searchCriteria: any[];
-
-      // Déterminer le type d'ID
-      if (/^\d+$/.test(emailId)) {
-        // UID IMAP (si c'est un nombre)
-        searchCriteria = [['UID', emailId]];
-      } else {
-        // Message-ID (si c'est une chaîne avec des caractères)
-        searchCriteria = [['HEADER', 'Message-ID', emailId]];
-      }
-
-      const messages = await new Promise<number[]>((resolve, reject) => {
-        this.imap.search(searchCriteria, (err, results) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve(results);
-        });
-      });
-
-      if (!messages || messages.length === 0) {
-        this.logger.warn(`Aucun email trouvé avec l'ID ${emailId}`);
-        return null;
-      }
-
-      // Récupérer le contenu du message
-      const emailData = await new Promise<EmailContent | null>((resolve) => {
-        try {
-          const fetch = this.imap.fetch(messages, {
-            bodies: [''],
-            struct: true,
-            uid: true,
-          }) as ImapFetch;
-
-          let email: Partial<EmailContent> | null = null;
-
-          fetch.on('message', (msg: ImapMessage, seqno: number) => {
-            email = {
-              id: String(seqno),
-              folderPath: mailbox,
-            };
-
-            // Capturer l'UID IMAP
-            msg.once('attributes', (attrs) => {
-              if (attrs && attrs.uid) {
-                email!.imapUID = String(attrs.uid);
+      const email = await new Promise<EmailContent | null>(
+        (resolve, reject) => {
+          this.imap.search(
+            ['ALL'],
+            (searchErr: Error | null, results: number[]) => {
+              if (searchErr) {
+                this.logger.error(
+                  `Erreur lors de la recherche des emails dans ${mailbox}: ${searchErr.message}`,
+                );
+                return reject(searchErr);
               }
-            });
 
-            msg.on('body', (stream: NodeJS.ReadableStream) => {
-              let buffer = '';
-              stream.on('data', (chunk: Buffer) => {
-                buffer += chunk.toString('utf8');
+              if (!results || results.length === 0) {
+                this.logger.log(`Aucun email trouvé dans ${mailbox}`);
+                return resolve(null);
+              }
+
+              const fetch = this.imap.fetch(results, {
+                bodies: [''],
+                struct: true,
+                uid: true,
+              }) as ImapFetch;
+
+              let found: EmailContent | null = null;
+
+              fetch.on('message', (msg: ImapMessage, seqno: number) => {
+                let currentUID: string | undefined;
+
+                const emailPromise = new Promise<EmailContent>(
+                  (resolveEmail, rejectEmail) => {
+                    const email: Partial<EmailContent> = {
+                      id: String(seqno),
+                      folderPath: mailbox,
+                    };
+
+                    msg.once('attributes', (attrs) => {
+                      if (attrs && attrs.uid !== undefined) {
+                        currentUID = String(attrs.uid);
+                        email.imapUID = currentUID;
+                      }
+                    });
+
+                    msg.on('body', (stream: NodeJS.ReadableStream) => {
+                      let buffer = '';
+                      stream.on('data', (chunk: Buffer) => {
+                        buffer += chunk.toString('utf8');
+                      });
+
+                      stream.once('end', async () => {
+                        try {
+                          const parsed = await simpleParser(
+                            Buffer.from(buffer),
+                          );
+                          email.from = parsed.from?.text || '';
+                          email.to = parsed.to?.text || '';
+                          email.subject = parsed.subject || '';
+                          email.date = parsed.date || new Date();
+                          email.body = parsed.text || '';
+
+                          // Comparaison par UID (et non seqno)
+                          if (currentUID === emailId) {
+                            found = email as EmailContent;
+                          }
+
+                          resolveEmail(email as EmailContent);
+                        } catch (e) {
+                          const errorMsg =
+                            e instanceof Error ? e.message : String(e);
+                          this.logger.error(
+                            `Erreur parsing email #${seqno}: ${errorMsg}`,
+                          );
+                          rejectEmail(new Error(errorMsg));
+                        }
+                      });
+                    });
+                  },
+                );
+
+                emailPromise.catch((err: Error) => {
+                  this.logger.error(
+                    `Erreur lors du traitement de l'email: ${err.message}`,
+                  );
+                });
               });
 
-              stream.once('end', () => {
-                void (async () => {
-                  try {
-                    const bufferContent: Buffer = Buffer.from(buffer);
-                    const parsedEmail = await simpleParser(bufferContent);
-
-                    email!.from = parsedEmail.from?.text || '';
-                    email!.to = parsedEmail.to?.text || '';
-                    email!.subject = parsedEmail.subject || '';
-                    email!.date = parsedEmail.date || new Date();
-                    email!.body = parsedEmail.text || '';
-                  } catch (e) {
-                    this.logger.error(
-                      `Erreur lors du parsing de l'email: ${e instanceof Error ? e.message : String(e)}`,
-                    );
-                  }
-                })();
+              fetch.once('end', () => {
+                resolve(found);
               });
-            });
-          });
-
-          fetch.once('end', () => {
-            resolve(email as EmailContent);
-          });
-        } catch (e) {
-          this.logger.error(
-            `Erreur lors de la récupération du message: ${e instanceof Error ? e.message : String(e)}`,
+            },
           );
-          resolve(null);
-        }
-      });
-
-      if (!emailData) {
-        this.logger.warn(
-          `Impossible de récupérer l'email avec l'ID ${emailId}`,
-        );
-        return null;
-      }
-
-      // Mettre à jour le cache avec ce nouvel email
-      if (cachedData) {
-        // Remplacer l'email dans le cache s'il existe déjà, sinon l'ajouter
-        const emailIndex = cachedData.emails.findIndex(
-          (e) => e.id === emailData.id || e.imapUID === emailData.imapUID,
-        );
-
-        if (emailIndex >= 0) {
-          cachedData.emails[emailIndex] = emailData;
-        } else {
-          cachedData.emails.push(emailData);
-        }
-
-        // Mettre à jour le timestamp du cache
-        cachedData.timestamp = now;
-      } else {
-        // Créer une nouvelle entrée dans le cache
-        this.emailsCache[cacheKey] = {
-          timestamp: now,
-          emails: [emailData],
-        };
-      }
-
-      return emailData;
-    } catch (error) {
-      this.logger.error(
-        `Erreur lors de la récupération de l'email ${emailId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        },
       );
-      throw error;
+
+      // Mettre en cache l'email trouvé
+      if (email) {
+        this.emailsCache[cacheKey] = {
+          timestamp: Date.now(),
+          emails: [email],
+        };
+        return email;
+      }
+
+      return null;
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Erreur lors de la récupération de l'email: ${errorMsg}`,
+      );
+      return null;
     } finally {
-      this.imap.end();
+      // Fermer proprement la connexion IMAP
+      if (this.imap.state === 'authenticated') {
+        this.imap.end();
+      }
     }
   }
 }

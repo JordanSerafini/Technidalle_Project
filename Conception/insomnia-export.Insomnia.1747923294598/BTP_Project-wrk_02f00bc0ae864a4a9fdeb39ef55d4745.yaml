@@ -1,0 +1,19 @@
+type: collection.insomnia.rest/5.0
+name: BTP_Project
+meta:
+  id: wrk_02f00bc0ae864a4a9fdeb39ef55d4745
+  created: 1733914226594
+  modified: 1735568251159
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_e5d474625451b27514cf475aff1a177278aafb94
+    created: 1735568251289
+    modified: 1735568251289
+environments:
+  name: Base Environment
+  meta:
+    id: env_e5d474625451b27514cf475aff1a177278aafb94
+    created: 1733914226596
+    modified: 1735568251158
+    isPrivate: false
