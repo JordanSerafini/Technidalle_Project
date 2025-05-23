@@ -26,12 +26,16 @@ export class EmailsController {
     @Query('orderby') orderby?: string,
     @Query('top') top?: number,
   ): Promise<EmailMessage[]> {
-    return this.emailsService.getEmails(userId, {
-      filter,
-      select,
-      orderby,
-      top,
-    });
+    const data: { value: EmailMessage[] } = await this.emailsService.getEmails(
+      userId,
+      {
+        filter,
+        select,
+        orderby,
+        top,
+      },
+    );
+    return data.value;
   }
 
   @Get('users/:userId/messages/:messageId')

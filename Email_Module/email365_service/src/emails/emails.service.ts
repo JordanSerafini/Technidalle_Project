@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
@@ -8,7 +9,7 @@ import {
   SendMailRequest,
 } from './interfaces/email.interface';
 import { getToken } from 'src/utils/function';
-import { AxiosResponse } from 'axios';
+
 @Injectable()
 export class EmailsService {
   private readonly logger = new Logger(EmailsService.name);
@@ -22,16 +23,17 @@ export class EmailsService {
   async getEmails(
     userId: string,
     options?: EmailOptions,
-  ): Promise<EmailMessage[]> {
+    nextLink?: string,
+  ): Promise<any> {
     try {
-      const response = await lastValueFrom<AxiosResponse<EmailMessage[]>>(
-        this.httpService.get<EmailMessage[]>(
-          `${this.graphApiUrl}/users/${userId}/messages`,
-          {
-            params: options,
-            headers: await this.getHeaders(),
-          },
-        ),
+      const url = nextLink
+        ? nextLink
+        : `${this.graphApiUrl}/users/${userId}/messages`;
+      const response = await lastValueFrom(
+        this.httpService.get<any>(url, {
+          params: options,
+          headers: await this.getHeaders(),
+        }),
       );
       return response.data;
     } catch (error: any) {
@@ -44,7 +46,7 @@ export class EmailsService {
 
   async getMessage(userId: string, messageId: string): Promise<EmailMessage> {
     try {
-      const response = await lastValueFrom<AxiosResponse<EmailMessage>>(
+      const response = await lastValueFrom(
         this.httpService.get<EmailMessage>(
           `${this.graphApiUrl}/users/${userId}/messages/${messageId}`,
           {
@@ -61,9 +63,28 @@ export class EmailsService {
     }
   }
 
+  async getAttachments(userId: string, messageId: string): Promise<any> {
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get<any>(
+          `${this.graphApiUrl}/users/${userId}/messages/${messageId}/attachments`,
+          {
+            headers: await this.getHeaders(),
+          },
+        ),
+      );
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(
+        `Erreur lors de la récupération des pièces jointes: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
   async sendMail(userId: string, request: SendMailRequest): Promise<void> {
     try {
-      await lastValueFrom<AxiosResponse<void>>(
+      await lastValueFrom<void>(
         this.httpService.post(
           `${this.graphApiUrl}/users/${userId}/sendMail`,
           request,
@@ -81,7 +102,7 @@ export class EmailsService {
     message: EmailMessage,
   ): Promise<EmailMessage> {
     try {
-      const response = await lastValueFrom<AxiosResponse<EmailMessage>>(
+      const response = await lastValueFrom(
         this.httpService.post<EmailMessage>(
           `${this.graphApiUrl}/users/${userId}/messages`,
           message,
@@ -103,7 +124,7 @@ export class EmailsService {
     updateData: Partial<EmailMessage>,
   ): Promise<EmailMessage> {
     try {
-      const response = await lastValueFrom<AxiosResponse<EmailMessage>>(
+      const response = await lastValueFrom(
         this.httpService.patch<EmailMessage>(
           `${this.graphApiUrl}/users/${userId}/messages/${messageId}`,
           updateData,
@@ -121,7 +142,7 @@ export class EmailsService {
 
   async deleteMessage(userId: string, messageId: string): Promise<boolean> {
     try {
-      await lastValueFrom<AxiosResponse<void>>(
+      await lastValueFrom<void>(
         this.httpService.delete(
           `${this.graphApiUrl}/users/${userId}/messages/${messageId}`,
           { headers: await this.getHeaders() },
