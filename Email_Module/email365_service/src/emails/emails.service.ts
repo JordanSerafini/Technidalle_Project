@@ -24,7 +24,7 @@ export class EmailsService {
     userId: string,
     options?: EmailOptions,
     nextLink?: string,
-  ): Promise<any> {
+  ): Promise<{ value: EmailMessage[] }> {
     try {
       const url = nextLink
         ? nextLink
