@@ -1,0 +1,121 @@
+Gestion des messages
+🔹 Lire les messages
+
+    Lister les messages : Récupère les e-mails d'une boîte aux lettres.
+
+        Endpoint : GET /users/{userId}/messages
+
+        Supporte les paramètres OData tels que $filter, $select, $orderby, $top pour affiner les résultats.
+        Microsoft Learn+1Microsoft Learn+1
+        Microsoft Learn+1Microsoft Learn+1
+
+    Lire un message spécifique : Récupère les détails d'un e-mail spécifique.
+
+        Endpoint : GET /users/{userId}/messages/{messageId}
+
+🔹 Envoyer des messages
+
+    Envoyer un e-mail : Envoie un e-mail au nom de l'utilisateur.
+
+        Endpoint : POST /users/{userId}/sendMail
+
+        Le corps de la requête doit contenir l'objet message avec les propriétés nécessaires.
+        tines.com
+
+    Envoyer un brouillon : Envoie un e-mail précédemment enregistré en tant que brouillon.
+
+        Endpoint : POST /users/{userId}/messages/{messageId}/send
+
+🔹 Créer et gérer des brouillons
+
+    Créer un brouillon : Crée un nouveau message brouillon.
+
+        Endpoint : POST /users/{userId}/messages
+
+    Mettre à jour un brouillon : Modifie un message brouillon existant.
+
+        Endpoint : PATCH /users/{userId}/messages/{messageId}
+
+    Supprimer un brouillon : Supprime un message brouillon.
+
+        Endpoint : DELETE /users/{userId}/messages/{messageId}
+
+🔹 Répondre et transférer
+
+    Répondre à un message : Répond à un e-mail spécifique.
+
+        Endpoint : POST /users/{userId}/messages/{messageId}/reply
+
+    Répondre à tous : Répond à tous les destinataires d'un e-mail.
+
+        Endpoint : POST /users/{userId}/messages/{messageId}/replyAll
+
+    Transférer un message : Transfère un e-mail à un ou plusieurs destinataires.
+
+        Endpoint : POST /users/{userId}/messages/{messageId}/forward
+
+🔹 Supprimer des messages
+
+    Supprimer un message : Supprime un e-mail spécifique.
+
+        Endpoint : DELETE /users/{userId}/messages/{messageId}
+
+    Supprimer définitivement un message : Supprime définitivement un e-mail (le place dans le dossier des éléments récupérables).
+
+        Endpoint : DELETE /users/{userId}/messages/{messageId}
+
+        Ajouter l'en-tête Prefer: outlook.body-content-type="text" pour spécifier le format du corps du message.
+        Microsoft Learn
+
+📁 Gestion des dossiers
+
+    Lister les dossiers : Récupère les dossiers de messagerie de l'utilisateur.
+
+        Endpoint : GET /users/{userId}/mailFolders
+
+        Utilisez le paramètre includeHiddenFolders=true pour inclure les dossiers cachés.
+        Microsoft Learn+2Microsoft Learn+2Microsoft Learn+2
+
+    Créer un dossier : Crée un nouveau dossier de messagerie.
+
+        Endpoint : POST /users/{userId}/mailFolders
+
+    Mettre à jour un dossier : Modifie les propriétés d'un dossier existant.
+
+        Endpoint : PATCH /users/{userId}/mailFolders/{folderId}
+
+    Supprimer un dossier : Supprime un dossier de messagerie.
+
+        Endpoint : DELETE /users/{userId}/mailFolders/{folderId}
+        Microsoft Learn+1Microsoft Learn+1
+        Microsoft Learn+1Microsoft Learn+1
+
+📎 Gestion des pièces jointes
+
+    Lister les pièces jointes : Récupère les pièces jointes d'un message.
+
+        Endpoint : GET /users/{userId}/messages/{messageId}/attachments
+
+    Ajouter une pièce jointe : Ajoute une pièce jointe à un message.
+
+        Endpoint : POST /users/{userId}/messages/{messageId}/attachments
+
+    Supprimer une pièce jointe : Supprime une pièce jointe d'un message.
+
+        Endpoint : DELETE /users/{userId}/messages/{messageId}/attachments/{attachmentId}
+
+🔔 Notifications et synchronisation
+
+    Créer une souscription : S'abonne aux notifications de changement pour les messages.
+
+        Endpoint : POST /subscriptions
+
+        Permet de recevoir des notifications push lors de la réception de nouveaux e-mails.
+
+    Synchroniser les messages : Récupère les modifications incrémentielles des messages.
+
+        Endpoint : GET /users/{userId}/messages/delta
+
+        Utile pour synchroniser les e-mails sans récupérer l'intégralité de la boîte aux lettres.
+        Microsoft Learn
+

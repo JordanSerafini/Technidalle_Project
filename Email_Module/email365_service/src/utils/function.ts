@@ -8,9 +8,13 @@ export async function getToken() {
   params.append('client_secret', process.env.CLIENT_SECRET ?? '');
   params.append('grant_type', 'client_credentials');
 
-  const res = await axios.post(url, params, {
+  const res = await axios.post<{ access_token: string }>(url, params, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
-
-  return res.data.access_token;
+  if (res.data.access_token) {
+    const token = res.data.access_token;
+    return token;
+  } else {
+    throw new Error('Failed to get token');
+  }
 }
