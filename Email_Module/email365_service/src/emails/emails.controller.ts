@@ -78,4 +78,77 @@ export class EmailsController {
   ): Promise<boolean> {
     return this.emailsService.deleteMessage(userId, messageId);
   }
+
+  @Get('users/:userId/mailFolders')
+  async getMailFolders(@Param('userId') userId: string) {
+    return this.emailsService.getMailFolders(userId);
+  }
+
+  @Get('users/:userId/mailFolders/:folderId/messages')
+  async getMessagesFromFolder(
+    @Param('userId') userId: string,
+    @Param('folderId') folderId: string,
+    @Query('filter') filter?: string,
+    @Query('select') select?: string,
+    @Query('orderby') orderby?: string,
+    @Query('top') top?: number,
+  ) {
+    return this.emailsService.getMessagesFromFolder(userId, folderId, {
+      filter,
+      select,
+      orderby,
+      top,
+    });
+  }
+
+  @Post('users/:userId/mailFolders')
+  async createMailFolder(
+    @Param('userId') userId: string,
+    @Body() folderData: { displayName: string; parentFolderId?: string },
+  ) {
+    return this.emailsService.createMailFolder(userId, folderData);
+  }
+
+  @Delete('users/:userId/mailFolders/:folderId')
+  async deleteMailFolder(
+    @Param('userId') userId: string,
+    @Param('folderId') folderId: string,
+  ) {
+    return this.emailsService.deleteMailFolder(userId, folderId);
+  }
+
+  @Post('users/:userId/messages/:messageId/move')
+  async moveMessage(
+    @Param('userId') userId: string,
+    @Param('messageId') messageId: string,
+    @Body() body: { destinationId: string },
+  ) {
+    return this.emailsService.moveMessage(
+      userId,
+      messageId,
+      body.destinationId,
+    );
+  }
+
+  @Post('users/:userId/messages/:messageId/copy')
+  async copyMessage(
+    @Param('userId') userId: string,
+    @Param('messageId') messageId: string,
+    @Body() body: { destinationId: string },
+  ) {
+    return this.emailsService.copyMessage(
+      userId,
+      messageId,
+      body.destinationId,
+    );
+  }
+
+  @Patch('users/:userId/messages/:messageId/read')
+  async markAsRead(
+    @Param('userId') userId: string,
+    @Param('messageId') messageId: string,
+    @Body() body: { isRead: boolean },
+  ) {
+    return this.emailsService.markAsRead(userId, messageId, body.isRead);
+  }
 }

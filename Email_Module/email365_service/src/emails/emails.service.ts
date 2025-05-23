@@ -157,6 +157,72 @@ export class EmailsService {
     }
   }
 
+  async getMailFolders(userId: string): Promise<any> {
+    const url = `${this.graphApiUrl}/users/${userId}/mailFolders`;
+    const response = await lastValueFrom(
+      this.httpService.get<any>(url, { headers: await this.getHeaders() }),
+    );
+    return response.data;
+  }
+
+  async getMessagesFromFolder(
+    userId: string,
+    folderId: string,
+    options?: EmailOptions,
+  ): Promise<{ value: EmailMessage[] }> {
+    const url = `${this.graphApiUrl}/users/${userId}/mailFolders/${folderId}/messages`;
+    const response = await lastValueFrom(
+      this.httpService.get<any>(url, {
+        params: options,
+        headers: await this.getHeaders(),
+      }),
+    );
+    return response.data;
+  }
+
+  async createMailFolder(
+    userId: string,
+    folderData: { displayName: string, parentFolderId?: string }
+  ): Promise<any> {
+    const url = `${this.graphApiUrl}/users/${userId}/mailFolders`;
+    const response = await lastValueFrom(
+      this.httpService.post<any>(url, folderData, { headers: await this.getHeaders() }),
+    );
+    return response.data;
+  }
+
+  async deleteMailFolder(userId: string, folderId: string): Promise<boolean> {
+    const url = `${this.graphApiUrl}/users/${userId}/mailFolders/${folderId}`;
+    await lastValueFrom(
+      this.httpService.delete(url, { headers: await this.getHeaders() }),
+    );
+    return true;
+  }
+
+  async moveMessage(userId: string, messageId: string, destinationId: string): Promise<any> {
+    const url = `${this.graphApiUrl}/users/${userId}/messages/${messageId}/move`;
+    const response = await lastValueFrom(
+      this.httpService.post<any>(url, { destinationId }, { headers: await this.getHeaders() }),
+    );
+    return response.data;
+  }
+
+  async copyMessage(userId: string, messageId: string, destinationId: string): Promise<any> {
+    const url = `${this.graphApiUrl}/users/${userId}/messages/${messageId}/copy`;
+    const response = await lastValueFrom(
+      this.httpService.post<any>(url, { destinationId }, { headers: await this.getHeaders() }),
+    );
+    return response.data;
+  }
+
+  async markAsRead(userId: string, messageId: string, isRead: boolean): Promise<EmailMessage> {
+    const url = `${this.graphApiUrl}/users/${userId}/messages/${messageId}`;
+    const response = await lastValueFrom(
+      this.httpService.patch<EmailMessage>(url, { isRead }, { headers: await this.getHeaders() }),
+    );
+    return response.data;
+  }
+
   private async getHeaders(): Promise<Record<string, string>> {
     const token = await getToken();
     if (!token) {
