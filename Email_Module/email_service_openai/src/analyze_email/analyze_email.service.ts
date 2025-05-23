@@ -271,15 +271,41 @@ export class AnalyzeEmailService {
           const year = today.getFullYear();
 
           const searchDate = `${day}-${month}-${year}`;
+
+          // Date de demain pour le critère BEFORE
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+          const tomorrowDay = tomorrow.getDate().toString().padStart(2, '0');
+          const tomorrowMonth = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ][tomorrow.getMonth()];
+          const tomorrowYear = tomorrow.getFullYear();
+          const tomorrowSearchDate = `${tomorrowDay}-${tomorrowMonth}-${tomorrowYear}`;
+
           this.logger.log(
-            `Recherche des emails non lus dans ${folder} pour la date: ${searchDate}`,
+            `Recherche des emails non lus dans ${folder} pour la date: ${searchDate} (avant: ${tomorrowSearchDate})`,
           );
 
-          // Rechercher les emails non lus dans ce dossier
+          // Rechercher les emails non lus dans ce dossier (limité à aujourd'hui)
           const folderEmails = await new Promise<EmailContent[]>(
             (resolve, reject) => {
               this.imap.search(
-                ['UNSEEN', ['SINCE', searchDate]],
+                [
+                  'UNSEEN',
+                  ['SINCE', searchDate],
+                  ['BEFORE', tomorrowSearchDate],
+                ],
                 (searchErr: SearchError | null, results: number[]) => {
                   if (searchErr) {
                     this.logger.error(
