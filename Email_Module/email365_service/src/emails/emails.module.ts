@@ -5,12 +5,7 @@ import { EmailsController } from './emails.controller';
 import { EmailsService } from './emails.service';
 
 @Module({
-  imports: [
-    HttpModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-  ],
+  imports: [HttpModule, ConfigModule],
   controllers: [EmailsController],
   providers: [EmailsService],
   exports: [EmailsService],

@@ -1,121 +1,40 @@
-Gestion des messages
-🔹 Lire les messages
+📩 Lecture des emails
+Action	Endpoint	Description
+🔍 Lister les mails	GET /users/{user-id}/messages	Récupère tous les mails reçus (boîte de réception par défaut). Paramètres : $top, $filter, $select, $orderby, etc.
+📄 Lire un mail	GET /users/{user-id}/messages/{message-id}	Récupère les détails d’un message précis (objet, corps, expéditeur, etc.)
+📎 Récupérer les pièces jointes	GET /users/{user-id}/messages/{message-id}/attachments	Liste des fichiers attachés à un email
+📎 Télécharger une pièce jointe	GET /users/{user-id}/messages/{message-id}/attachments/{id}/$value	Récupère le contenu brut d’une pièce jointe
+✉️ Envoi et rédaction
+Action	Endpoint	Description
+📤 Envoyer un email	POST /users/{user-id}/sendMail	Envoie un email immédiatement. On passe un message dans le corps JSON.
+✍️ Créer un brouillon	POST /users/{user-id}/messages	Crée un email brouillon dans la boîte d’envoi
+✏️ Modifier un brouillon	PATCH /users/{user-id}/messages/{message-id}	Modifie un email brouillon (ajouter du contenu, fichiers, etc.)
+📬 Envoyer un brouillon	POST /users/{user-id}/messages/{message-id}/send	Envoie un email qui est en brouillon
+🗑️ Suppression et gestion
+Action	Endpoint	Description
+❌ Supprimer un mail	DELETE /users/{user-id}/messages/{message-id}	Supprime un message
+📂 Déplacer un mail	POST /users/{user-id}/messages/{message-id}/move	Déplace un mail vers un autre dossier (destinationId)
+🔄 Copier un mail	POST /users/{user-id}/messages/{message-id}/copy	Copie un mail dans un autre dossier
+📁 Dossiers (mail folders)
+Action	Endpoint	Description
+📁 Lister les dossiers	GET /users/{user-id}/mailFolders	Liste tous les dossiers mails (Inbox, SentItems, etc.)
+🔍 Messages d’un dossier	GET /users/{user-id}/mailFolders/{folder-id}/messages	Récupère les messages d’un dossier spécifique
+➕ Créer un dossier	POST /users/{user-id}/mailFolders	Crée un nouveau dossier personnalisé
+✏️ Modifier un dossier	PATCH /users/{user-id}/mailFolders/{folder-id}	Renomme ou modifie un dossier
+❌ Supprimer un dossier	DELETE /users/{user-id}/mailFolders/{folder-id}	Supprime un dossier (sauf Inbox/SentItems)
+🔔 Suivi, actions, drapeaux
+Action	Endpoint	Description
+🚩 Ajouter un flag	PATCH /users/{user-id}/messages/{message-id} avec flag	Ajoute un suivi (flagged) à un email
+⭐ Ajouter importance	PATCH /users/{user-id}/messages/{message-id} avec importance	Définit l’importance (Low / Normal / High)
+📥 Marquer comme lu/non lu	PATCH /users/{user-id}/messages/{message-id} avec isRead	Change l’état de lecture
+✅ Pour aller plus loin
 
-    Lister les messages : Récupère les e-mails d'une boîte aux lettres.
+    Tu peux appliquer des filtres comme :
 
-        Endpoint : GET /users/{userId}/messages
+        ?$filter=isRead eq false (messages non lus)
 
-        Supporte les paramètres OData tels que $filter, $select, $orderby, $top pour affiner les résultats.
-        Microsoft Learn+1Microsoft Learn+1
-        Microsoft Learn+1Microsoft Learn+1
+        ?$orderby=receivedDateTime desc
 
-    Lire un message spécifique : Récupère les détails d'un e-mail spécifique.
+        ?$select=subject,from,receivedDateTime
 
-        Endpoint : GET /users/{userId}/messages/{messageId}
-
-🔹 Envoyer des messages
-
-    Envoyer un e-mail : Envoie un e-mail au nom de l'utilisateur.
-
-        Endpoint : POST /users/{userId}/sendMail
-
-        Le corps de la requête doit contenir l'objet message avec les propriétés nécessaires.
-        tines.com
-
-    Envoyer un brouillon : Envoie un e-mail précédemment enregistré en tant que brouillon.
-
-        Endpoint : POST /users/{userId}/messages/{messageId}/send
-
-🔹 Créer et gérer des brouillons
-
-    Créer un brouillon : Crée un nouveau message brouillon.
-
-        Endpoint : POST /users/{userId}/messages
-
-    Mettre à jour un brouillon : Modifie un message brouillon existant.
-
-        Endpoint : PATCH /users/{userId}/messages/{messageId}
-
-    Supprimer un brouillon : Supprime un message brouillon.
-
-        Endpoint : DELETE /users/{userId}/messages/{messageId}
-
-🔹 Répondre et transférer
-
-    Répondre à un message : Répond à un e-mail spécifique.
-
-        Endpoint : POST /users/{userId}/messages/{messageId}/reply
-
-    Répondre à tous : Répond à tous les destinataires d'un e-mail.
-
-        Endpoint : POST /users/{userId}/messages/{messageId}/replyAll
-
-    Transférer un message : Transfère un e-mail à un ou plusieurs destinataires.
-
-        Endpoint : POST /users/{userId}/messages/{messageId}/forward
-
-🔹 Supprimer des messages
-
-    Supprimer un message : Supprime un e-mail spécifique.
-
-        Endpoint : DELETE /users/{userId}/messages/{messageId}
-
-    Supprimer définitivement un message : Supprime définitivement un e-mail (le place dans le dossier des éléments récupérables).
-
-        Endpoint : DELETE /users/{userId}/messages/{messageId}
-
-        Ajouter l'en-tête Prefer: outlook.body-content-type="text" pour spécifier le format du corps du message.
-        Microsoft Learn
-
-📁 Gestion des dossiers
-
-    Lister les dossiers : Récupère les dossiers de messagerie de l'utilisateur.
-
-        Endpoint : GET /users/{userId}/mailFolders
-
-        Utilisez le paramètre includeHiddenFolders=true pour inclure les dossiers cachés.
-        Microsoft Learn+2Microsoft Learn+2Microsoft Learn+2
-
-    Créer un dossier : Crée un nouveau dossier de messagerie.
-
-        Endpoint : POST /users/{userId}/mailFolders
-
-    Mettre à jour un dossier : Modifie les propriétés d'un dossier existant.
-
-        Endpoint : PATCH /users/{userId}/mailFolders/{folderId}
-
-    Supprimer un dossier : Supprime un dossier de messagerie.
-
-        Endpoint : DELETE /users/{userId}/mailFolders/{folderId}
-        Microsoft Learn+1Microsoft Learn+1
-        Microsoft Learn+1Microsoft Learn+1
-
-📎 Gestion des pièces jointes
-
-    Lister les pièces jointes : Récupère les pièces jointes d'un message.
-
-        Endpoint : GET /users/{userId}/messages/{messageId}/attachments
-
-    Ajouter une pièce jointe : Ajoute une pièce jointe à un message.
-
-        Endpoint : POST /users/{userId}/messages/{messageId}/attachments
-
-    Supprimer une pièce jointe : Supprime une pièce jointe d'un message.
-
-        Endpoint : DELETE /users/{userId}/messages/{messageId}/attachments/{attachmentId}
-
-🔔 Notifications et synchronisation
-
-    Créer une souscription : S'abonne aux notifications de changement pour les messages.
-
-        Endpoint : POST /subscriptions
-
-        Permet de recevoir des notifications push lors de la réception de nouveaux e-mails.
-
-    Synchroniser les messages : Récupère les modifications incrémentielles des messages.
-
-        Endpoint : GET /users/{userId}/messages/delta
-
-        Utile pour synchroniser les e-mails sans récupérer l'intégralité de la boîte aux lettres.
-        Microsoft Learn
-
+    Le champ @odata.nextLink dans la réponse permet de paginier les résultats.
