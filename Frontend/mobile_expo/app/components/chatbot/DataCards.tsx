@@ -1,103 +1,11 @@
 import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { router } from 'expo-router';
+import { ClientCardProps, ProjectCardProps, DocumentCardProps, ScheduleCardProps, DataCardsProps, StaffData, ClientData, ProjectData, DocumentData, ScheduleItemData } from '@/app/utils/interfaces/datacard.interface';
 
-interface ClientData {
-  id: number;
-  firstname: string;
-  lastname: string;
-  email: string;
-  phone: string | null;
-  addresses: {
-    city: string;
-  };
-  created_at: string;
-}
-
-interface ProjectData {
-  id: number;
-  reference: string;
-  name: string;
-  description: string;
-  client_id: number;
-  status: string;
-  start_date: string;
-  end_date: string;
-  estimated_duration: number;
-  budget: number;
-  actual_cost: number | null;
-  notes?: string;
-  clients?: any;
-}
-
-interface DocumentData {
-  id: number;
-  reference: string;
-  type: string;
-  status?: string;
-  issue_date: string;
-  due_date?: string;
-  amount?: number;
-  project_id?: number;
-  client_id?: number;
-  file_path?: string;
-}
-
-interface ScheduleItemData {
-  id: string;
-  title: string;
-  type: 'event' | 'assignment';
-  startTime: string;
-  endTime?: string;
-  allDay?: boolean;
-  project?: { id: number; name: string } | null;
-  stage?: { id: number; name: string } | null;
-  eventType?: string;
-}
-
-interface StaffData {
-  id: number;
-  staff_id?: string;
-  firstname: string;
-  lastname: string;
-  email: string;
-  role_id: number;
-  phone?: string;
-  mobile?: string;
-  address_id?: number;
-  hire_date: string;
-  is_available?: boolean;
-}
-
-interface ClientCardProps {
-  client: ClientData;
-  onPress?: (client: ClientData) => void;
-}
-
-interface ProjectCardProps {
-  project: ProjectData;
-  onPress?: (project: ProjectData) => void;
-}
-
-interface DocumentCardProps {
-  document: DocumentData;
-  onPress?: (document: DocumentData) => void;
-}
-
-interface ScheduleCardProps {
-  scheduleItem: ScheduleItemData;
-  onPress?: (scheduleItem: ScheduleItemData) => void;
-}
-
-interface DataCardsProps {
-  data: any[];
-  format: string;
-  title?: string;
-  onItemPress?: (item: any) => void;
-}
 
 const ClientCard: React.FC<ClientCardProps> = ({ client, onPress }) => {
   const handlePress = () => {
@@ -116,7 +24,7 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onPress }) => {
   return (
     <TouchableOpacity 
       className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
-      onPress={handlePress}
+      onPress={onPress ? () => onPress(client) : handlePress}
     >
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
@@ -199,7 +107,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onPress }) => {
   return (
     <TouchableOpacity 
       className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
-      onPress={handlePress}
+      onPress={onPress ? () => onPress(project) : handlePress}
     >
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
@@ -299,7 +207,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onPress }) => {
   return (
     <TouchableOpacity 
       className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
-      onPress={handlePress}
+      onPress={onPress ? () => onPress(document) : handlePress}
     >
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
@@ -378,7 +286,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({ scheduleItem, onPress }) =>
   return (
     <TouchableOpacity 
       className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
-      onPress={handlePress}
+      onPress={onPress ? () => onPress(scheduleItem) : handlePress}
     >
       <View className="flex-row justify-between items-start">
         <View className="flex-1">
@@ -472,46 +380,70 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
     return null;
   }
 
-  // Fonction pour naviguer vers la page de détail générique
+  // Cette fonction n'est plus utilisée pour la navigation si onItemPress est fourni
   const navigateToDetailPage = (item: any) => {
+    console.log("navigateToDetailPage called with:", item);
     if (onItemPress) {
-      onItemPress(item);
-    } else {
-      // Navigation par défaut basée sur le type de données
-      if ('firstname' in item && 'lastname' in item) {
-        // C'est un client
-        router.push({
-          pathname: "/(tabs)/clients/[id]",
-          params: { id: item.id.toString() }
-        });
-      } else if ('reference' in item && 'start_date' in item) {
-        // C'est un projet
-        router.push({
-          pathname: "/(tabs)/projects/[id]",
-          params: { id: item.id.toString() }
-        });
-      } else if ('reference' in item && 'issue_date' in item) {
-        // C'est un document
-        router.push({
-          pathname: "/(tabs)/documents/[id]",
-          params: { id: item.id.toString() }
-        });
-      } else if (item.id && item.title && 'type' in item && (item.type === 'event' || item.type === 'assignment')) {
-        // C'est un élément de planning
-        if (item.project?.id) {
-          // Si c'est lié à un projet, on redirige vers le projet
+        onItemPress(item); // Utiliser la prop si elle existe
+        return; // Sortir après avoir utilisé la prop
+    }
+    
+    // Logique de navigation par défaut si onItemPress n'est PAS fourni (ce cas ne devrait pas arriver ici mais par sécurité)
+    if ('firstname' in item && 'lastname' in item) {
+      // Client
+      router.push({
+        pathname: "/(tabs)/clients/[id]",
+        params: { id: item.id.toString() }
+      });
+    } else if ('reference' in item && 'start_date' in item) {
+      // Projet
+      router.push({
+        pathname: "/(tabs)/projects/[id]",
+        params: { id: item.id.toString() }
+      });
+    } else if ('reference' in item && 'issue_date' in item) {
+      // Document
+      router.push({
+        pathname: "/(tabs)/documents/[id]",
+        params: { id: item.id.toString() }
+      });
+    } else if (item.id && item.title && 'type' in item && (item.type === 'event' || item.type === 'assignment')) {
+       // Planning item
+       if (item.project?.id) {
           router.push({
             pathname: "/(tabs)/projects/[id]",
             params: { id: item.project.id.toString() }
           });
         } else {
-          // Sinon, on redirige vers la page de planning
           router.push({
             pathname: "/(tabs)/planning"
           });
         }
-      }
+    } else {
+      Alert.alert(
+        "Information",
+        "Type d'élément non pris en charge pour la navigation."
+      );
     }
+  };
+
+  const renderCard = ({ item }: { item: any }) => {
+    // Déterminer le type de carte à rendre
+    if ('firstname' in item && 'lastname' in item) {
+      return <ClientCard client={item} onPress={onItemPress} />; // Passer onItemPress
+    } else if ('reference' in item && 'start_date' in item) {
+      return <ProjectCard project={item} onPress={onItemPress} />; // Passer onItemPress
+    } else if ('reference' in item && 'issue_date' in item) {
+      return <DocumentCard document={item} onPress={onItemPress} />; // Passer onItemPress
+    } else if (item.id && item.title && 'type' in item && (item.type === 'event' || item.type === 'assignment')) {
+       return <ScheduleCard scheduleItem={item} onPress={onItemPress} />; // Passer onItemPress
+    } else if ('staff_id' in item && 'firstname' in item) {
+       // Staff Card - Assuming StaffCard also accepts an onPress prop
+       // If StaffCard does not need navigation, no onPress is needed here
+       return <StaffCard staff={item} />; 
+    }
+    // Retourner null ou une carte générique si le type est inconnu
+    return null;
   };
 
   // Déterminer le type de données à afficher
@@ -550,9 +482,7 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           <FlatList
             data={data}
             keyExtractor={(item: ClientData) => item.id.toString()}
-            renderItem={({ item }: { item: ClientData }) => (
-              <ClientCard client={item} onPress={onItemPress} />
-            )}
+            renderItem={renderCard}
             scrollEnabled={true}
             nestedScrollEnabled={true}
             style={{ maxHeight: 400 }}
@@ -571,9 +501,7 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           <FlatList
             data={data}
             keyExtractor={(item: ProjectData) => item.id.toString()}
-            renderItem={({ item }: { item: ProjectData }) => (
-              <ProjectCard project={item} onPress={onItemPress} />
-            )}
+            renderItem={renderCard}
             scrollEnabled={true}
             nestedScrollEnabled={true}
             style={{ maxHeight: 400 }}
@@ -592,9 +520,7 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           <FlatList
             data={data}
             keyExtractor={(item: DocumentData) => item.id.toString()}
-            renderItem={({ item }: { item: DocumentData }) => (
-              <DocumentCard document={item} onPress={onItemPress} />
-            )}
+            renderItem={renderCard}
             scrollEnabled={true}
             nestedScrollEnabled={true}
             style={{ maxHeight: 400 }}
@@ -613,9 +539,7 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
           <FlatList
             data={data}
             keyExtractor={(item: ScheduleItemData) => item.id.toString()}
-            renderItem={({ item }: { item: ScheduleItemData }) => (
-              <ScheduleCard scheduleItem={item} onPress={onItemPress} />
-            )}
+            renderItem={renderCard}
             scrollEnabled={true}
             nestedScrollEnabled={true}
             style={{ maxHeight: 400 }}
@@ -633,49 +557,7 @@ const DataCards: React.FC<DataCardsProps> = ({ data, format, title, onItemPress 
         <FlatList
           data={data}
           keyExtractor={(_: any, index: number) => index.toString()}
-          renderItem={({ item }: { item: any }) => (
-            <TouchableOpacity 
-              className="bg-white rounded-lg p-4 mb-2 shadow-sm border border-gray-200"
-              onPress={() => navigateToDetailPage(item)}
-            >
-              {Object.entries(item).map(([key, value]) => {
-                // Ne pas afficher les objets complexes ou les tableaux directement
-                if (typeof value === 'object' && value !== null) {
-                  if (Array.isArray(value)) {
-                    return (
-                      <View key={key} className="flex-row mb-1">
-                        <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                        <Text className="text-gray-600">{value.length} éléments</Text>
-                      </View>
-                    );
-                  }
-                  return (
-                    <View key={key} className="flex-row mb-1">
-                      <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                      <Text className="text-gray-600">Objet</Text>
-                    </View>
-                  );
-                }
-                
-                // Pour les dates, afficher simplement la valeur telle quelle
-                if (key.includes('date') && value) {
-                  return (
-                    <View key={key} className="flex-row mb-1">
-                      <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                      <Text className="text-gray-600">{String(value)}</Text>
-                    </View>
-                  );
-                }
-                
-                return (
-                  <View key={key} className="flex-row mb-1">
-                    <Text className="font-medium text-gray-700 mr-2">{key}:</Text>
-                    <Text className="text-gray-600">{String(value)}</Text>
-                  </View>
-                );
-              })}
-            </TouchableOpacity>
-          )}
+          renderItem={renderCard}
           scrollEnabled={true}
           nestedScrollEnabled={true}
           style={{ maxHeight: 400 }}
