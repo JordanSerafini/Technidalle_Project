@@ -1,4 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 // Type pour les coordonnées géographiques
 interface GeoCoordinates {
@@ -11,12 +12,21 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   clients_list: {
     keywords: [
       'client',
+      'clients',
       'liste',
       'tous',
       'répertoire',
       'annuaire',
       'afficher',
+      'voir',
+      'affichage',
       'clientèle',
+      'contacts',
+      'base clients',
+      'clients enregistrés',
+      'utilisateurs',
+      'acheteurs',
+      'consommateurs',
     ],
     questions: [
       'Liste des clients',
@@ -29,37 +39,72 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Voir tous les clients',
       'Notre clientèle',
       'Annuaire des clients',
+      'Qui sont nos clients ?',
+      'Montre-moi la liste des clients',
+      'Je veux la liste des clients',
+      'Donne-moi la liste des clients',
+      'Quels clients avons-nous ?',
+      'Consulter les clients',
+      'Liste complète des clients',
+      'Afficher la base client',
+      'Montre les clients enregistrés',
+      'Quels sont les clients actuels ?',
+      'Je souhaite voir nos clients',
+      'Peux-tu me lister les clients ?',
+      'Qui sont les personnes enregistrées comme clients ?',
+      'Affiche tous les contacts clients',
+      'Contacts commerciaux enregistrés',
+      'Affiche les coordonnées des clients',
+      'Quels sont les noms de nos clients ?',
     ],
-    prisma: async () => {
-      return await prismaService.clients.findMany({
-        select: {
-          firstname: true,
-          lastname: true,
-          company_name: true,
-          email: true,
-          phone: true,
-          addresses: {
-            select: {
-              city: true,
+    prisma: async (options?: { skip?: number; take?: number }) => {
+      const { skip = 0, take = 20 } = options || {};
+      try {
+        return await prismaService.clients.findMany({
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            company_name: true,
+            email: true,
+            phone: true,
+            addresses: {
+              select: {
+                city: true,
+                zip_code: true,
+                street_name: true,
+                street_number: true,
+                country: true,
+              },
             },
           },
-        },
-        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
-      });
+          orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+          skip,
+          take,
+        });
+      } catch (error) {
+        console.error('Erreur lors de la récupération des clients:', error);
+        return [];
+      }
     },
     response_format: 'table',
-    description: 'Liste complète des clients',
+    description: 'Liste complète des clients avec coordonnées principales',
   },
-
+  
   client_details: {
     keywords: [
+      'client',
       'détail',
-      'information',
       'fiche',
+      'information',
       'profil',
       'coordonnées',
-      'client',
+      'contact',
       'dossier',
+      'identité',
+      'infos',
+      'recherche',
+      'consultation',
     ],
     questions: [
       'Détails du client [CLIENT]',
@@ -68,83 +113,126 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Profil de [CLIENT]',
       'Coordonnées de [CLIENT]',
       'Qui est [CLIENT] ?',
-      'Informations client [CLIENT]',
+      'Infos client [CLIENT]',
       'Contact [CLIENT]',
-      'Données de [CLIENT]',
       'Dossier client [CLIENT]',
+      'Montre-moi la fiche de [CLIENT]',
+      'Je cherche le client [CLIENT]',
+      'Consulter la fiche de [CLIENT]',
+      'Accéder au profil de [CLIENT]',
+      'Voir les données de [CLIENT]',
+      'Affiche-moi les infos de [CLIENT]',
     ],
-    prisma: async (client: string) => {
-      return await prismaService.clients.findFirst({
-        where: {
-          OR: [
-            { firstname: { contains: client, mode: 'insensitive' } },
-            { lastname: { contains: client, mode: 'insensitive' } },
-            { company_name: { contains: client, mode: 'insensitive' } },
-            { email: { contains: client, mode: 'insensitive' } },
-            { customer_id: { contains: client, mode: 'insensitive' } },
-          ],
-        },
-        include: {
-          addresses: true,
-          client_addresses: {
-            include: {
-              addresses: true,
-            },
-          },
-          projects: {
-            select: {
-              name: true,
-              reference: true,
-              status: true,
-              start_date: true,
-              end_date: true,
-            },
-            orderBy: {
-              start_date: 'desc',
-            },
-          },
-          documents: {
-            select: {
-              type: true,
-              reference: true,
-              status: true,
-              issue_date: true,
-              amount: true,
-              payment_status: true,
-            },
-            orderBy: {
-              issue_date: 'desc',
-            },
-          },
-          events: {
-            where: {
-              start_date: {
-                gte: new Date(),
+    prisma: async (client: string | number) => {
+      try {
+        const whereClause: Prisma.clientsWhereInput =
+          typeof client === 'number' || /^\d+$/.test(client as string)
+            ? { id: Number(client) }
+            : {
+                OR: [
+                  { firstname: { contains: client as string, mode: 'insensitive' } },
+                  { lastname: { contains: client as string, mode: 'insensitive' } },
+                  { company_name: { contains: client as string, mode: 'insensitive' } },
+                  { email: { contains: client as string, mode: 'insensitive' } },
+                  { customer_id: { contains: client as string, mode: 'insensitive' } },
+                ],
+              };
+  
+        const result = await prismaService.clients.findFirst({
+          where: whereClause,
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            company_name: true,
+            email: true,
+            phone: true,
+            addresses: {
+              select: {
+                city: true,
+                zip_code: true,
+                street_name: true,
+                street_number: true,
+                country: true,
               },
             },
-            select: {
-              title: true,
-              start_date: true,
-              end_date: true,
-              location: true,
+            client_addresses: {
+              select: {
+                address_type: true,
+                addresses: {
+                  select: {
+                    city: true,
+                    zip_code: true,
+                    street_name: true,
+                    street_number: true,
+                    country: true,
+                  },
+                },
+              },
             },
-            orderBy: {
-              start_date: 'asc',
+            projects: {
+              select: {
+                name: true,
+                reference: true,
+                status: true,
+                start_date: true,
+                end_date: true,
+              },
+              orderBy: {
+                start_date: 'desc',
+              },
+            },
+            documents: {
+              select: {
+                type: true,
+                reference: true,
+                status: true,
+                issue_date: true,
+                amount: true,
+                payment_status: true,
+              },
+              orderBy: {
+                issue_date: 'desc',
+              },
+            },
+            events: {
+              select: {
+                title: true,
+                start_date: true,
+                end_date: true,
+                location: true,
+              },
+              orderBy: {
+                start_date: 'asc',
+              },
             },
           },
-        },
-      });
+        });
+  
+        if (!result) return null;
+  
+        return {
+          ...result,
+          nb_projects: Array.isArray(result.projects) ? result.projects.length : 0,
+          nb_documents: Array.isArray(result.documents) ? result.documents.length : 0,
+          nb_events: Array.isArray(result.events) ? result.events.length : 0,
+        };
+      } catch (error) {
+        console.error('Erreur lors de la récupération du détail client:', error);
+        return null;
+      }
     },
     response_format: 'object',
-    description: 'Informations détaillées sur un client spécifique',
+    description:
+      'Informations détaillées sur un client spécifique : nom, société, email ou identifiant numérique. Retourne les projets, documents et événements liés.',
     parameters: [
       {
         name: 'CLIENT',
-        description: 'Nom, société ou email du client',
+        description: 'Nom, société, email ou identifiant du client recherché',
       },
     ],
   },
-
+  
   clients_with_unpaid_invoices: {
     keywords: [
       'facture',
@@ -153,6 +241,11 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'paiement',
       'non réglé',
       'débiteur',
+      'non payé',
+      'clients à relancer',
+      'échéance dépassée',
+      'reliquat',
+      'clients en défaut',
     ],
     questions: [
       'Clients avec factures impayées',
@@ -160,11 +253,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       "Qui n'a pas payé ses factures ?",
       'Clients en retard de paiement',
       'Factures en attente de paiement',
-      'Clients débiteurs',
-      'Paiements clients en retard',
       'Liste des impayés',
-      'Clients avec paiements en attente',
-      'Factures non payées',
+      'Quels clients ont des paiements en retard ?',
+      'Clients débiteurs à ce jour',
+      'Voir les factures non payées',
+      'Quels sont les clients à relancer ?',
+      'Montre-moi les clients qui doivent encore payer',
+      'Factures échues non réglées',
     ],
     prisma: async () => {
       return await prismaService.clients.findMany({
@@ -174,7 +269,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
               type: 'facture',
               payment_status: 'non_payé',
               due_date: {
-                lt: new Date(),
+                lt: new Date(), // échéance dépassée
               },
             },
           },
@@ -202,9 +297,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
     },
     response_format: 'table',
-    description: 'Liste des clients avec des factures impayées et en retard',
+    description:
+      "Liste complète des clients ayant des factures de type 'facture' impayées et arrivées à échéance. Inclut les montants, dates et références.",
   },
-
+  
   clients_by_city: {
     keywords: [
       'ville',
@@ -214,18 +310,24 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'localiser',
       'résider',
       'domicile',
+      'implantation',
+      'géolocalisation',
+      'agglomération',
+      'zone',
+      'secteur',
     ],
     questions: [
       'Clients à [CITY]',
       'Quels clients à [CITY] ?',
-      'Clients dans la ville [CITY]',
+      'Clients dans la ville de [CITY]',
       'Clientèle à [CITY]',
-      'Clients localisés à [CITY]',
-      'Clients habitant à [CITY]',
-      'Clients par ville [CITY]',
-      'Rechercher clients à [CITY]',
-      'Clients de [CITY]',
-      'Répertoire clients [CITY]',
+      'Liste des clients de [CITY]',
+      'Clients domiciliés à [CITY]',
+      'Qui sont les clients à [CITY] ?',
+      'Clients de la ville [CITY]',
+      'Trouver les clients à [CITY]',
+      'Afficher les clients localisés à [CITY]',
+      'Y a-t-il des clients à [CITY] ?',
     ],
     prisma: async (city: string) => {
       return await prismaService.clients.findMany({
@@ -285,42 +387,45 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
     },
     response_format: 'table',
-    description: 'Liste des clients filtrés par ville',
+    description:
+      "Affiche la liste des clients résidant ou ayant une adresse liée à une ville donnée. Recherche effectuée de façon insensible à la casse.",
     parameters: [
       {
         name: 'CITY',
-        description: 'Nom de la ville',
+        description: 'Nom de la ville (partiel ou complet)',
       },
     ],
   },
-
+  
   recently_active_clients: {
     keywords: [
-      'récent',
+      'client',
       'actif',
       'activité',
-      'client',
+      'récent',
       'dernièrement',
-      'récemment',
       'interaction',
+      'en cours',
+      'mise à jour',
+      'connecté',
+      'modifié',
     ],
     questions: [
       'Clients récemment actifs',
-      'Clients actifs',
-      'Clients récents',
-      'Activité client récente',
+      'Qui a eu une activité récemment ?',
+      'Clients actifs les 3 derniers mois',
+      'Clients ayant eu des projets récents',
       'Clients avec activité récente',
       'Derniers clients actifs',
-      'Clients avec projets récents',
-      'Clients actifs récemment',
-      'Dernières interactions clients',
-      'Clients avec activité',
+      'Liste des clients actifs récemment',
+      'Quels clients ont eu des interactions ?',
+      'Clients avec projets ou documents récents',
+      'Derniers clients en activité',
     ],
     prisma: async () => {
-      // Date il y a 3 mois
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
+  
       return await prismaService.clients.findMany({
         where: {
           OR: [
@@ -407,14 +512,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             take: 1,
           },
         },
-        orderBy: {
-          updated_at: 'desc',
-        },
+        
       });
     },
     response_format: 'table',
     description:
-      'Liste des clients ayant eu une activité récente (projets, documents ou événements dans les 3 derniers mois)',
+      "Affiche les clients ayant eu une activité dans les 3 derniers mois : création ou mise à jour de projets, émission de documents ou participation à des événements.",
   },
 
   inactive_clients: {
@@ -574,6 +677,25 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'client',
       'associé',
       'activité',
+      'liste projets',
+      'projets client',
+      'chantiers client',
+      'travaux client',
+      'missions client',
+      'afficher projets client',
+      'trouver projets client',
+      'rechercher projets client',
+      'projets par client',
+      'projets en cours client',
+      'projets terminés client',
+      'historique projets client',
+      'liste chantiers client',
+      'chantiers pour client',
+      'jobs client',
+      'liste travaux pour client',
+      'projets achevés client',
+      'projets futurs client',
+      'statut projets client',
     ],
     questions: [
       'Quels projets a le client [CLIENT] ?',
@@ -586,6 +708,26 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Projets passés et actuels de [CLIENT]',
       'Activité projet du client [CLIENT]',
       'Que fait [CLIENT] comme projets ?',
+      'Montre-moi les projets de [CLIENT].',
+      'Je veux voir les projets du client [CLIENT].',
+      'Quels sont les chantiers de [CLIENT] ?',
+      'Affiche la liste des projets pour [CLIENT].',
+      'Peux-tu me donner l\'historique des projets de [CLIENT] ?',
+      'Y a-t-il des chantiers en cours pour [CLIENT] ?',
+      'Quels projets sont terminés pour [CLIENT] ?',
+      'Montre les missions associées à [CLIENT].',
+      'Liste les travaux effectués pour [CLIENT].',
+      'Quelle est l\'activité projet récente de [CLIENT] ?',
+      'Je cherche les projets liés à [CLIENT].',
+      'Donne-moi la liste complète des projets de [CLIENT].',
+      'Pourrais-tu lister les projets du client [CLIENT] ?',
+      'Recherche les projets de [CLIENT].',
+      'Affiche les projets du client dont le nom est [CLIENT].',
+      'Quels sont les statuts des projets de [CLIENT] ?',
+      'Montre les projets annulés par [CLIENT].',
+      'Y a-t-il des projets futurs planifiés pour [CLIENT] ?',
+      'Quels projets sont en préparation pour [CLIENT] ?',
+      'Liste les chantiers achevés pour [CLIENT].',
     ],
     prisma: async (client: string) => {
       return await prismaService.projects.findMany({
@@ -631,6 +773,26 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'historique',
       'règlement',
       'émis',
+      'liste factures',
+      'factures client',
+      'paiements client',
+      'règlements client',
+      'afficher factures client',
+      'voir factures client',
+      'trouver factures client',
+      'rechercher factures client',
+      'factures par client',
+      'factures impayées client',
+      'factures payées client',
+      'factures en retard client',
+      'montant factures client',
+      'total factures client',
+      'factures récentes client',
+      'anciennes factures client',
+      'statut factures client',
+      'référence facture client',
+      'date facture client',
+      'factures non payées client',
     ],
     questions: [
       'Quelles factures a le client [CLIENT] ?',
@@ -643,6 +805,26 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Combien de factures a [CLIENT] ?',
       'Dossier de facturation [CLIENT]',
       'Factures en cours pour [CLIENT]',
+      'Montre-moi les factures de [CLIENT].',
+      'Je veux voir les factures du client [CLIENT].',
+      'Affiche la liste des factures pour [CLIENT].',
+      'Peux-tu me donner l\'historique des factures de [CLIENT] ?',
+      'Quelles factures sont impayées pour [CLIENT] ?',
+      'Montre les paiements effectués par [CLIENT].',
+      'Liste les règlements associés à [CLIENT].',
+      'Quel est le montant total des factures de [CLIENT] ?',
+      'Je cherche les factures impayées de [CLIENT].',
+      'Donne-moi la liste complète des factures de [CLIENT].',
+      'Pourrais-tu lister les factures du client [CLIENT] ?',
+      'Recherche les factures de [CLIENT].',
+      'Affiche les factures du client dont le nom est [CLIENT].',
+      'Quels sont les statuts des factures de [CLIENT] ?',
+      'Montre les factures en retard de [CLIENT].',
+      'Y a-t-il des factures récentes pour [CLIENT] ?',
+      'Liste les anciennes factures de [CLIENT].',
+      'Montre les factures non payées par [CLIENT].',
+      'Quel est le statut de la facture [REFERENCE] pour [CLIENT] ?',
+      'Quand la facture [REFERENCE] a-t-elle été émise pour [CLIENT] ?',
     ],
     prisma: async (client: string) => {
       return await prismaService.documents.findMany({
@@ -699,6 +881,24 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'chantier',
       'client',
       'travaux',
+      'projets actifs',
+      'chantiers en cours',
+      'travaux en cours',
+      'missions actives',
+      'clients engagés',
+      'clients avec projets actifs',
+      'liste clients projets actifs',
+      'afficher clients projets actifs',
+      'voir clients projets actifs',
+      'rechercher clients projets actifs',
+      'clients avec chantiers en cours',
+      'clients ayant projets en cours',
+      'clients avec travaux actifs',
+      'qui a des chantiers actifs',
+      'clients par statut projet actif',
+      'clients avec projets non terminés',
+      'projets client en cours',
+      'chantiers client actifs',
     ],
     questions: [
       'Quels clients ont des projets en cours ?',
@@ -711,6 +911,26 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Liste des clients actifs sur des projets',
       'Clients avec travaux en cours',
       'Portfolio clients actifs',
+      'Montre-moi les clients qui ont des projets en cours.',
+      'Je veux voir les clients avec des chantiers actifs.',
+      'Affiche la liste des clients ayant des projets actifs.',
+      'Peux-tu me donner la liste des clients actuellement engagés dans des projets ?',
+      'Qui sont les clients avec une activité de projet en cours ?',
+      'Quels clients sont occupés sur des chantiers actuellement ?',
+      'Liste les clients avec des travaux en cours.',
+      'Montre le portfolio clients avec des projets actifs.',
+      'Je cherche les clients ayant des projets non terminés.',
+      'Donne-moi la liste des clients avec des chantiers actifs.',
+      'Pourrais-tu lister les clients dont les projets sont en cours ?',
+      'Recherche les clients avec des projets actifs.',
+      'Affiche les clients ayant des travaux en cours.',
+      'Quels clients ont des missions actives ?',
+      'Montre les clients avec des projets dont le statut est \'en cours\'.',
+      'Y a-t-il des clients avec de nouveaux projets actifs ?',
+      'Liste les clients avec des chantiers qui viennent de démarrer.',
+      'Qui sont les clients dont les projets sont en phase active ?',
+      'Affiche les clients avec des projets qui ne sont pas encore terminés.',
+      'Donne-moi la liste des clients impliqués dans des projets actifs.',
     ],
     prisma: async () => {
       return await prismaService.clients.findMany({
@@ -2821,5 +3041,1786 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         optional: true,
       },
     ],
-  }
-});
+  },
+
+  // 1. Requêtes basées sur les documents clients :
+
+  clients_by_document_type: {
+    keywords: [
+      'document',
+      'type',
+      'bon de commande',
+      'fiche technique',
+      'plan',
+      'client',
+    ],
+    questions: [
+      'Quels clients ont reçu un [DOCUMENT_TYPE] ?',
+      'Liste des clients avec [DOCUMENT_TYPE]',
+    ],
+    description: 'Liste des clients associés à un type de document donné.',
+    parameters: [
+      {
+        name: 'DOCUMENT_TYPE',
+        description: 'Type de document (ex: devis, facture, bon_de_commande, etc.)',
+      },
+    ],
+    prisma: async (documentType: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: documentType as any,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: { type: documentType as any },
+            select: { reference: true, issue_date: true, status: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_by_document_status: {
+    keywords: [
+      'document',
+      'statut',
+      'valide',
+      'refuse',
+      'annule',
+      'en attente',
+      'client',
+    ],
+    questions: [
+      'Clients avec [DOCUMENT_TYPE] au statut [DOCUMENT_STATUS]',
+      'Liste des [DOCUMENT_TYPE] [DOCUMENT_STATUS] par client',
+    ],
+    description:
+      'Liste des clients ayant un certain type de document avec un statut spécifique.',
+    parameters: [
+      {
+        name: 'DOCUMENT_TYPE',
+        description: 'Type de document',
+      },
+      {
+        name: 'DOCUMENT_STATUS',
+        description: 'Statut du document (ex: valide, refuse, annule, etc.)',
+      },
+    ],
+    prisma: async (documentType: string, documentStatus: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: documentType as any,
+              status: documentStatus as any,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: { type: documentType as any, status: documentStatus as any },
+            select: { reference: true, issue_date: true, amount: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_partially_paid_invoices: {
+    keywords: [
+      'facture',
+      'paiement partiel',
+      'reste à payer',
+      'client',
+    ],
+    questions: [
+      'Quels clients ont des factures partiellement payées ?',
+      'Factures avec solde dû par client',
+    ],
+    description:
+      'Liste des clients avec des factures qui ne sont ni entièrement payées, ni non payées (solde restant).',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: 'facture',
+              payment_status: { not: 'paye' },
+              amount_paid: { gt: 0 },
+              // Ne peut pas comparer directement les champs dans where, la logique de solde est dans le SELECT ou post-requête si nécessaire pour affichage
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: {
+               type: 'facture',
+               payment_status: { not: 'paye' },
+               amount_paid: { gt: 0 },
+               // amount: { gt: prismaService.documents.fields.amount_paid }, // Cette comparaison n'est pas possible ici
+            },
+            select: { reference: true, issue_date: true, amount: true, amount_paid: true, balance_due: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  client_total_quotes: {
+    keywords: [
+      'total devis',
+      'estimation',
+      'proposition commerciale',
+      'client',
+    ],
+    questions: [
+      'Quel est le total des devis pour le client [CLIENT] ?',
+      'Somme des devis du client [CLIENT]',
+    ],
+    description: 'Calcule le montant total de tous les devis pour un client spécifique.',
+    parameters: [
+      {
+        name: 'CLIENT',
+        description: 'Nom, email ou ID du client',
+      },
+    ],
+    prisma: async (client: string) => {
+      const result = await prismaService.documents.aggregate({
+        _sum: { amount: true },
+        where: {
+          type: 'devis',
+           projects: {
+            clients: {
+              OR: [
+                { firstname: { contains: client, mode: 'insensitive' } },
+                { lastname: { contains: client, mode: 'insensitive' } },
+                { email: { contains: client, mode: 'insensitive' } },
+                { id: parseInt(client) || undefined }, // Handle potential non-numeric input
+              ],
+            },
+          },
+        },
+      });
+      return { client: client, total_devis_amount: result._sum.amount };
+    },
+    response_format: 'object',
+  },
+
+  // 2. Requêtes basées sur les projets clients :
+
+  clients_by_project_status: {
+    keywords: [
+      'projet',
+      'chantier',
+      'statut',
+      'en préparation',
+      'terminé',
+      'client',
+    ],
+    questions: [
+      'Quels clients ont des projets [PROJECT_STATUS] ?',
+      'Liste des chantiers [PROJECT_STATUS] par client',
+    ],
+    description: 'Liste des clients ayant au moins un projet avec un statut donné.',
+    parameters: [
+      {
+        name: 'PROJECT_STATUS',
+        description: 'Statut du projet (ex: en_cours, terminé, annulé, etc.)',
+      },
+    ],
+    prisma: async (projectStatus: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              status: projectStatus as any,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: { status: projectStatus as any },
+            select: { name: true, reference: true, start_date: true, end_date: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_projects_completed_in_period: {
+    keywords: [
+      'projet terminé',
+      'chantier fini',
+      'période',
+      'achevé',
+      'client',
+    ],
+    questions: [
+      'Clients avec projets terminés [PERIOD]',
+      'Projets achevés pour les clients durant [PERIOD]',
+    ],
+    description: 'Liste des clients ayant terminé un projet sur une période donnée.',
+    parameters: [
+      {
+        name: 'PERIOD',
+        description: 'Période (ex: ce mois-ci, ce trimestre, cette année)',
+      },
+    ],
+    prisma: async (period: string) => {
+      // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
+      const startDate = new Date(); // Placeholder
+      const endDate = new Date();   // Placeholder
+
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              status: 'termine',
+              end_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: {
+              status: 'termine',
+              end_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            select: { name: true, reference: true, end_date: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_by_payment_method: {
+    keywords: [
+      'paiement',
+      'méthode',
+      'client',
+      'règlement',
+      'mode de paiement'
+    ],
+    questions: [
+      'Quels clients utilisent le mode de paiement [METHOD] ?',
+      'Clients ayant payé par [METHOD]',
+      'Liste des clients par mode de paiement [METHOD]',
+    ],
+    description: 'Liste des clients ayant utilisé un mode de paiement spécifique pour au moins un document.',
+    parameters: [
+      {
+        name: 'METHOD',
+        description: 'Mode de paiement (ex: carte_bancaire, virement, chèque, etc.)',
+      },
+    ],
+    prisma: async (method: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              payment_method: { contains: method, mode: 'insensitive' },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: { payment_method: { contains: method, mode: 'insensitive' } },
+            select: { reference: true, issue_date: true, payment_method: true },
+            take: 1, // Show at least one document using this method
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_discounts_by_document_type: {
+    keywords: [
+      'remise',
+      'devis',
+      'facture',
+      'client',
+    ],
+    questions: [
+      'Clients avec remises importantes sur [DOCUMENT_TYPE]',
+      'Remises cumulées par client sur [DOCUMENT_TYPE]',
+    ],
+    description: 'Liste des clients ayant bénéficié de remises importantes sur un type de document spécifique.',
+    parameters: [
+      {
+        name: 'DOCUMENT_TYPE',
+        description: 'Type de document (ex: devis, facture)',
+      },
+    ],
+    prisma: async (documentType: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: documentType as any,
+              discount_amount: { gt: 0 },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: { type: documentType as any, discount_amount: { gt: 0 } },
+            select: { reference: true, issue_date: true, amount: true, discount_amount: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_accepted_quotes_in_period: {
+    keywords: [
+      'devis',
+      'accepté',
+      'période',
+      'client',
+    ],
+    questions: [
+      'Clients avec devis acceptés [PERIOD]',
+      'Devis acceptés par client [PERIOD]',
+    ],
+    description: 'Liste des clients dont un devis a été accepté récemment.',
+    parameters: [
+      {
+        name: 'PERIOD',
+        description: 'Période (ex: ce mois-ci, ce trimestre, cette année)',
+      },
+    ],
+    prisma: async (period: string) => {
+      // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
+      const startDate = new Date(); // Placeholder
+      const endDate = new Date();   // Placeholder
+
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: 'devis',
+              status: 'valide',
+              signed_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: {
+              type: 'devis',
+              status: 'valide',
+              signed_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            select: { reference: true, signed_date: true, amount: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_frequent_events_of_type: {
+    keywords: [
+      'événement',
+      'fréquent',
+      'type',
+      'client',
+    ],
+    questions: [
+      'Clients avec beaucoup d\'événements de type [EVENT_TYPE]',
+      'Clients avec un grand nombre d\'[EVENT_TYPE]',
+    ],
+    description: 'Liste des clients qui ont eu un grand nombre d\'événements d\'un certain type.',
+    parameters: [
+      {
+        name: 'EVENT_TYPE',
+        description: 'Type d\'événement (ex: appel téléphonique, visite technique)',
+      },
+    ],
+    prisma: async (eventType: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          events: {
+            some: {
+              event_type: eventType as any,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          events: {
+            where: { event_type: eventType as any },
+            select: { event_type: true, start_date: true, description: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_by_project_status_in_period: {
+    keywords: [
+      'projet',
+      'statut',
+      'période',
+      'client',
+    ],
+    questions: [
+      'Clients dont des projets sont passés au statut [PROJECT_STATUS] [PERIOD]',
+      'Projets [PROJECT_STATUS] pour les clients [PERIOD]',
+    ],
+    description: 'Liste des clients dont des projets ont changé de statut sur une période donnée.',
+    parameters: [
+      {
+        name: 'PROJECT_STATUS',
+        description: 'Statut du projet (ex: en_cours, terminé, annulé)',
+      },
+      {
+        name: 'PERIOD',
+        description: 'Période (ex: ce mois-ci, ce trimestre, cette année)',
+      },
+    ],
+    prisma: async (projectStatus: string, period: string) => {
+      // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
+      const startDate = new Date(); // Placeholder
+      const endDate = new Date();   // Placeholder
+
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              status: projectStatus as any,
+              updated_at: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: {
+              status: projectStatus as any,
+              updated_at: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            select: { name: true, reference: true, updated_at: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_without_default_invoice_address: {
+    keywords: [
+      'facturation',
+      'adresse',
+      'défaut',
+      'client',
+    ],
+    questions: [
+      'Clients sans adresse de facturation par défaut',
+      'Qui n\'a pas d\'adresse de facturation par défaut ?',
+    ],
+    description: 'Liste des clients pour lesquels l\'adresse de facturation par défaut n\'est pas définie.',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          client_addresses: {
+            none: {
+              is_default: true,
+              address_type: 'facturation',
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_by_project_reference: {
+    keywords: [
+      'projet',
+      'référence',
+      'client',
+    ],
+    questions: [
+      'Clients associés au projet [PROJECT_REFERENCE]',
+      'Qui est associé au projet [PROJECT_REFERENCE] ?',
+    ],
+    description: 'Recherche un client en fournissant la référence d\'un de ses projets.',
+    parameters: [
+      {
+        name: 'PROJECT_REFERENCE',
+        description: 'Référence du projet',
+      },
+    ],
+    prisma: async (projectReference: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              reference: projectReference,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: { reference: projectReference },
+            select: { name: true, reference: true, start_date: true, end_date: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_site_reports: {
+    keywords: [
+      'rapport',
+      'chantier',
+      'ouvert',
+      'client',
+    ],
+    questions: [
+      'Clients avec des rapports de chantier ouverts',
+      'Qui a des rapports de chantier en cours ?',
+    ],
+    description: 'Liste des clients dont les projets ou étapes sont associés à des rapports de chantier avec un statut "ouvert".',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              project_stages: {
+                some: {
+                  site_reports: {
+                    some: {
+                      status: 'ouvert',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: {
+              project_stages: {
+                some: {
+                  site_reports: {
+                    some: {
+                      status: 'ouvert',
+                    },
+                  },
+                },
+              },
+            },
+            select: {
+              name: true,
+              reference: true,
+              project_stages: {
+                where: {
+                  site_reports: {
+                    some: {
+                      status: 'ouvert',
+                    },
+                  },
+                },
+                select: {
+                  name: true,
+                  site_reports: {
+                    where: {
+                      status: 'ouvert',
+                    },
+                    select: {
+                      description: true,
+                      created_at: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_low_budget_projects: {
+    keywords: [
+      'budget',
+      'faible',
+      'projet',
+      'client',
+    ],
+    questions: [
+      'Clients avec des projets à budget faible',
+      'Qui a des projets avec un budget inférieur à [BUDGET] ?',
+    ],
+    description: 'Liste des clients dont les projets ont un budget faible.',
+    parameters: [
+      {
+        name: 'BUDGET',
+        description: 'Budget maximum (par défaut: 10000)',
+        optional: true,
+      },
+    ],
+    prisma: async (budget: string = '10000') => {
+      const budgetNum = parseInt(budget);
+      const maxBudget = isNaN(budgetNum) ? 10000 : budgetNum;
+
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              budget: { lt: maxBudget },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: {
+              budget: { lt: maxBudget },
+            },
+            select: {
+              name: true,
+              reference: true,
+              budget: true,
+            },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_without_customer_id: {
+    keywords: [
+      'customer_id',
+      'manquant',
+      'client',
+    ],
+    questions: [
+      'Clients sans customer_id',
+      'Qui n\'a pas de customer_id ?',
+    ],
+    description: 'Liste des clients pour lesquels le champ customer_id n\'est pas défini.',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          customer_id: null,
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_recently_updated: {
+    keywords: [
+      'récent',
+      'mis à jour',
+      'modifié',
+      'client'
+    ],
+    questions: [
+      'Clients récemment mis à jour',
+      'Qui a été modifié récemment ?',
+    ],
+    description: 'Liste des clients dont la fiche a été mise à jour récemment (par exemple, dans les 30 derniers jours).',
+    prisma: async () => {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      return await prismaService.clients.findMany({
+        where: {
+          updated_at: { gte: thirtyDaysAgo },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          updated_at: true,
+        },
+        orderBy: { updated_at: 'desc' },
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_high_budget_projects: {
+    keywords: [
+      'projet',
+      'budget',
+      'coût',
+      'dépasse',
+      'client',
+      'élevé'
+    ],
+    questions: [
+      'Quels clients ont des projets dont le budget dépasse [AMOUNT] € ?',
+      'Projets clients avec budget élevé',
+    ],
+    description: 'Liste des clients ayant au moins un projet dont le budget est supérieur à un montant spécifié.',
+    parameters: [
+      {
+        name: 'AMOUNT',
+        description: 'Montant numérique du budget minimum',
+      },
+    ],
+    prisma: async (amount: number) => {
+      return await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              budget: { gt: amount },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            where: { budget: { gt: amount } },
+            select: { name: true, reference: true, budget: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  // 3. Requêtes basées sur les événements clients :
+
+  clients_by_event_type: {
+    keywords: [
+      'événement',
+      'rdv',
+      'type',
+      'réunion chantier',
+      'visite technique',
+      'client',
+      'interaction'
+    ],
+    questions: [
+      'Quels clients ont eu un événement de type [EVENT_TYPE] ?',
+      'Liste des clients avec [EVENT_TYPE]',
+      'Clients avec événement [EVENT_TYPE]'
+    ],
+    description: 'Liste des clients associés à un type d\'événement donné.',
+    parameters: [
+      {
+        name: 'EVENT_TYPE',
+        description: 'Type d\'événement (ex: appel_telephonique, reunion_chantier, visite_technique, etc.)',
+      },
+    ],
+    prisma: async (eventType: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          events: {
+            some: {
+              event_type: eventType as any,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          events: {
+            where: { event_type: eventType as any },
+            select: { title: true, start_date: true, location: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_events_in_period: {
+    keywords: [
+      'événement',
+      'rdv',
+      'période',
+      'contact',
+      'client',
+      'interaction'
+    ],
+    questions: [
+      'Clients avec événements [PERIOD]',
+      'Quels clients ont eu des rendez-vous [PERIOD] ?',
+      'Liste des interactions clients sur [PERIOD]'
+    ],
+    description: 'Liste des clients ayant eu au moins un événement enregistré sur une période donnée.',
+    parameters: [
+      {
+        name: 'PERIOD',
+        description: 'Période (ex: la semaine dernière, le mois dernier, l\'année dernière)',
+      },
+    ],
+    prisma: async (period: string) => {
+      // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
+      const startDate = new Date(); // Placeholder
+      const endDate = new Date();   // Placeholder
+
+      return await prismaService.clients.findMany({
+        where: {
+          events: {
+            some: {
+              start_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          events: {
+            where: {
+              start_date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            select: { title: true, start_date: true, event_type: true },
+            orderBy: { start_date: 'desc' },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_future_events: {
+    keywords: [
+      'événement',
+      'rdv',
+      'futur',
+      'à venir',
+      'planifié',
+      'client',
+      'prochain'
+    ],
+    questions: [
+      'Quels clients ont des événements à venir ?',
+      'Clients avec des rendez-vous planifiés',
+      'Liste des clients avec des événements futurs',
+      'Qui a un événement planifié bientôt ?'
+    ],
+    description: 'Liste des clients ayant au moins un événement dont la date de début est dans le futur.',
+    prisma: async () => {
+      const now = new Date();
+      return await prismaService.clients.findMany({
+        where: {
+          events: {
+            some: {
+              start_date: { gt: now },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          events: {
+            where: { start_date: { gt: now } },
+            select: { title: true, start_date: true, event_type: true, location: true },
+            orderBy: { start_date: 'asc' },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  // 4. Requêtes basées sur les adresses clients :
+
+  clients_by_address_type: {
+    keywords: [
+      'adresse',
+      'type',
+      'facturation',
+      'livraison',
+      'chantier',
+      'client',
+      'domicile',
+      'siège social'
+    ],
+    questions: [
+      'Quels clients ont une adresse de type [ADDRESS_TYPE] ?',
+      'Liste des clients avec une adresse de [ADDRESS_TYPE]',
+      'Clients avec adresse [ADDRESS_TYPE]'
+    ],
+    description: 'Liste des clients associés à un type d\'adresse spécifique.',
+    parameters: [
+      {
+        name: 'ADDRESS_TYPE',
+        description: 'Type d\'adresse (ex: facturation, livraison, chantier, domicile, etc.)',
+      },
+    ],
+    prisma: async (addressType: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          client_addresses: {
+            some: {
+              address_type: addressType as any,
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          client_addresses: {
+            where: { address_type: addressType as any },
+            select: { addresses: true, address_type: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_by_street_name: {
+    keywords: [
+      'adresse',
+      'rue',
+      'habite',
+      'client',
+      'localisé',
+      'réside'
+    ],
+    questions: [
+      'Quels clients habitent rue [STREET_NAME] ?',
+      'Clients dans la rue [STREET_NAME]',
+      'Clients résidant rue [STREET_NAME]'
+    ],
+    description: 'Liste des clients ayant une adresse principale ou secondaire dans une rue spécifiée.',
+    parameters: [
+      {
+        name: 'STREET_NAME',
+        description: 'Nom de la rue',
+      },
+    ],
+    prisma: async (streetName: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          OR: [
+            {
+              addresses: {
+                street_name: { contains: streetName, mode: 'insensitive' },
+              },
+            },
+            {
+              client_addresses: {
+                  some: {
+                      addresses: {
+                          street_name: { contains: streetName, mode: 'insensitive' },
+                      },
+                  },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          addresses: {
+            select: { street_number: true, street_name: true, city: true },
+          },
+          client_addresses: {
+            select: { addresses: { select: { street_number: true, street_name: true, city: true } } },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  // 5. Requêtes basées sur l'ancienneté et l'activité :
+
+  clients_created_before_date: {
+    keywords: [
+      'ancienneté',
+      'avant',
+      'date de création',
+      'client',
+      'enregistré',
+      'créé'
+    ],
+    questions: [
+      'Quels clients ont été créés avant le [DATE] ?',
+      'Clients enregistrés avant le [DATE]',
+      'Clients créés avant le [DATE]'
+    ],
+    description: 'Liste des clients dont la date de création est antérieure à une date donnée.',
+    parameters: [
+      {
+        name: 'DATE',
+        description: 'Date limite (format: AAAA-MM-JJ)',
+      },
+    ],
+    prisma: async (date: string) => {
+      const cutoffDate = new Date(date);
+      return await prismaService.clients.findMany({
+        where: {
+          created_at: { lt: cutoffDate },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          created_at: true,
+        },
+        orderBy: { created_at: 'asc' },
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_without_any_documents: {
+    keywords: [
+      'sans document',
+      'pas de devis',
+      'pas de facture',
+      'client vide',
+      'aucun document'
+    ],
+    questions: [
+      'Quels clients n\'ont aucun document associé ?',
+      'Liste des clients sans document',
+      'Clients sans aucun document'
+    ],
+    description: 'Liste des clients qui ne sont associés à aucun devis, facture ou autre document.',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: { none: {} },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          created_at: true,
+        },
+        orderBy: { created_at: 'asc' },
+      });
+    },
+    response_format: 'table',
+  },
+
+  // 6. Requêtes basées sur les interactions avec le personnel :
+
+  clients_by_staff_association: {
+    keywords: [
+      'associé',
+      'personnel',
+      'employé',
+      'géré par',
+      'client',
+      'impliquant'
+    ],
+    questions: [
+      'Quels clients sont gérés par [STAFF_NAME] ?',
+      'Clients associés à [STAFF_NAME]',
+      'Liste des clients avec des projets ou événements impliquant [STAFF_NAME]'
+    ],
+    description: 'Liste des clients ayant des projets ou des événements auxquels un membre du personnel spécifique est associé.',
+    parameters: [
+      {
+        name: 'STAFF_NAME',
+        description: 'Nom ou prénom du membre du personnel',
+      },
+    ],
+    prisma: async (staffName: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          OR: [
+            {
+              projects: {
+                some: {
+                  project_staff: {
+                    some: {
+                      staff: {
+                        OR: [
+                          { firstname: { contains: staffName, mode: 'insensitive' } },
+                          { lastname: { contains: staffName, mode: 'insensitive' } },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            {
+              events: {
+                some: {
+                  staff: {
+                       OR: [
+                          { firstname: { contains: staffName, mode: 'insensitive' } },
+                          { lastname: { contains: staffName, mode: 'insensitive' } },
+                        ],
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+            company_name: true,
+            email: true,
+            phone: true,
+          },
+          orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+        });
+      },
+    response_format: 'table',
+  },
+
+  // 7. Requêtes basées sur les notes clients :
+
+  clients_by_notes_keyword: {
+    keywords: [
+      'note',
+      'commentaire',
+      'mot clé',
+      'spécifique',
+      'client',
+      'mentionne'
+    ],
+    questions: [
+      'Clients dont les notes mentionnent [KEYWORD]',
+      'Liste des clients avec le mot [KEYWORD] dans leurs notes',
+      'Qui a le mot [KEYWORD] dans ses notes ?'
+    ],
+    description: 'Liste des clients dont le champ "notes" contient un mot-clé spécifique.',
+    parameters: [
+      {
+        name: 'KEYWORD',
+        description: 'Mot-clé à rechercher dans les notes',
+      },
+    ],
+    prisma: async (keyword: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          notes: { contains: keyword, mode: 'insensitive' },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          notes: true,
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  // 8. Requêtes combinées ou avancées :
+
+  clients_with_accepted_quotes_no_project: {
+    keywords: [
+      'devis accepté',
+      'pas de projet',
+      'en attente',
+      'client',
+      'validé',
+      'sans chantier'
+    ],
+    questions: [
+      'Quels clients ont un devis accepté mais pas de projet démarré ?',
+      'Clients avec devis validés sans chantier en cours',
+      'Liste des clients avec devis accepté mais pas de projet associé',
+    ],
+    description: 'Liste des clients ayant au moins un devis accepté mais aucun projet avec un statut indiquant un démarrage (en_cours, en_preparation, en_pause).',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: 'devis',
+              status: 'valide',
+            },
+          },
+          NOT: {
+            projects: {
+              some: {
+                status: { in: ['en_preparation', 'en_cours', 'en_pause'] },
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: { type: 'devis', status: 'valide' },
+            select: { reference: true, issue_date: true },
+          },
+          projects: {
+            select: { name: true, status: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_significant_payment_delay: {
+    keywords: [
+      'retard paiement',
+      'impayé répété',
+      'mauvais payeur',
+      'client',
+      'facture en retard',
+      'historique impayés'
+    ],
+    questions: [
+      'Quels clients ont un historique de retards de paiement ?',
+      'Clients ayant souvent des factures en retard',
+      'Liste des clients avec historique de retards de paiement importants'
+    ],
+    description: 'Identifier les clients ayant eu un certain nombre (par exemple, 2 ou plus) de factures avec un statut de paiement "non_payé" au-delà de leur date d\'échéance.',
+    prisma: async () => { 
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: 'facture',
+              payment_status: 'non_payé',
+              due_date: { lt: new Date() },
+            },
+          },
+        },
+        include: {
+          documents: {
+            where: {
+              type: 'facture',
+              payment_status: 'non_payé',
+              due_date: { lt: new Date() },
+            },
+            select: { reference: true, due_date: true, amount: true },
+          },
+        },
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_at_risk_projects: {
+    keywords: [
+      'projet en retard',
+      'avancement faible',
+      'date limite proche',
+      'client',
+      'risque retard',
+      'progression lente'
+    ],
+    questions: [
+      'Quels clients ont des projets avec peu d\'avancement et une date de fin proche ?',
+      'Projets clients avec risque de retard et faible progression',
+      'Clients avec projets potentiellement en retard et peu avancés'
+    ],
+    description: 'Liste des clients ayant des projets dont la date de fin est dans les 30 prochains jours et dont l\'avancement moyen des étapes est inférieur à 50%.',
+    prisma: async () => {
+      const now = new Date();
+      const thirtyDaysLater = new Date();
+      thirtyDaysLater.setDate(now.getDate() + 30);
+
+      const projects = await prismaService.projects.findMany({
+        where: {
+          end_date: {
+            gte: now,
+            lte: thirtyDaysLater,
+          },
+          status: { not: 'termine' },
+        },
+        include: {
+          clients: {
+             select: {
+               id: true,
+               firstname: true,
+               lastname: true,
+               company_name: true,
+               email: true,
+               phone: true,
+             }
+          },
+          project_stages: {
+            select: { completion_percentage: true },
+          },
+        },
+      });
+
+      const clientsWithAtRiskProjects = projects
+        .filter(project => {
+          const stagesCount = project.project_stages.length;
+          if (stagesCount === 0) return false;
+          const avgCompletion = project.project_stages.reduce((sum, stage) => sum + (stage.completion_percentage || 0), 0) / stagesCount;
+          return avgCompletion < 50;
+        })
+        .map(project => project.clients);
+
+       const uniqueClientsMap = new Map<number, any>();
+       clientsWithAtRiskProjects.forEach(client => {
+           if (client) { // Ensure client is not null
+               uniqueClientsMap.set(client.id, client);
+           }
+       });
+
+       return Array.from(uniqueClientsMap.values());
+    },
+    response_format: 'table',
+  },
+
+  // 9. Requêtes basées sur des critères combinés ou spécifiques :
+
+  clients_with_discounts_on_document_type: {
+    keywords: [
+      'remise',
+      'devis',
+      'facture',
+      'client',
+    ],
+    questions: [
+      'Clients ayant reçu une remise sur un [DOCUMENT_TYPE]',
+      'Liste des clients avec remises sur [DOCUMENT_TYPE]',
+    ],
+    description: 'Liste des clients ayant bénéficié d\'une remise sur un type de document spécifique.',
+    parameters: [
+      {
+        name: 'DOCUMENT_TYPE',
+        description: 'Type de document (ex: devis, facture)',
+      },
+    ],
+    prisma: async (documentType: string) => {
+      return await prismaService.clients.findMany({
+        where: {
+          documents: {
+            some: {
+              type: documentType as any,
+              discount_amount: { gt: 0 },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          documents: {
+            where: { type: documentType as any, discount_amount: { gt: 0 } },
+            select: { reference: true, issue_date: true, amount: true, discount_amount: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  clients_with_frequent_events_by_type: {
+    keywords: [
+      'événement',
+      'fréquent',
+      'type',
+      'interaction',
+      'beaucoup'
+    ],
+    questions: [
+      'Clients avec beaucoup d\'événements de type [EVENT_TYPE]',
+      'Qui a eu beaucoup de [EVENT_TYPE] ?',
+    ],
+    description: 'Liste des clients ayant un nombre élevé d\'événements d\'un type spécifique.',
+    parameters: [
+      {
+        name: 'EVENT_TYPE',
+        description: 'Type d\'événement (ex: appel_telephonique, reunion_chantier)',
+      },
+    ],
+    prisma: async (eventType: string) => {
+      const clients = await prismaService.clients.findMany({
+        include: {
+          events: {
+            where: { event_type: eventType as any },
+            select: { id: true }
+          },
+        },
+      });
+
+      // Filter clients with more than a certain number of events of this type (e.g., > 3)
+      const clientsWithFrequentEvents = clients
+        .filter(client => client.events.length > 3) // Threshold can be adjusted
+        .map(client => ({
+          id: client.id,
+          firstname: client.firstname,
+          lastname: client.lastname,
+          company_name: client.company_name,
+          email: client.email,
+          phone: client.phone,
+          event_count: client.events.length,
+        }))
+        .sort((a, b) => b.event_count - a.event_count);
+
+      return clientsWithFrequentEvents;
+    },
+    response_format: 'table',
+  },
+
+  clients_without_default_billing_address: {
+    keywords: [
+      'adresse facturation',
+      'par défaut',
+      'manquante',
+      'client'
+    ],
+    questions: [
+      'Clients sans adresse de facturation par défaut',
+      'Qui n\'a pas d\'adresse de facturation principale ?',
+    ],
+    description: 'Liste des clients pour lesquels aucune adresse de facturation par défaut n\'est définie.',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          client_addresses: {
+            none: {
+              OR: [
+                { address_type: 'facturation' as any, is_default: true },
+                { address_type: 'facturation' as any, is_default: null }, // Consider null as not default
+              ],
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          client_addresses: {
+            select: { address_type: true, is_default: true, addresses: true },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+  client_by_project_reference: {
+    keywords: [
+      'projet',
+      'référence',
+      'client',
+      'associé à'
+    ],
+    questions: [
+      'Quel client est associé au projet [REFERENCE] ?',
+      'Client du projet [REFERENCE]',
+    ],
+    description: 'Trouve le client associé à un projet spécifique en utilisant la référence du projet.',
+    parameters: [
+      {
+        name: 'REFERENCE',
+        description: 'Référence du projet',
+      },
+    ],
+    prisma: async (reference: string) => {
+      const project = await prismaService.projects.findUnique({
+        where: { reference: reference },
+        select: {
+          clients: {
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+              company_name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+      });
+      return project ? project.clients : null; // Return the client object or null if project not found
+    },
+    response_format: 'object', // Or 'table' if you expect multiple clients per ref, but unique reference implies one.
+  },
+
+  clients_with_open_site_reports: {
+    keywords: [
+      'rapport chantier',
+      'site report',
+      'ouvert',
+      'problème',
+      'client'
+    ],
+    questions: [
+      'Clients avec rapports de chantier ouverts',
+      'Qui a des problèmes signalés sur leurs chantiers ?',
+    ],
+    description: 'Liste des clients ayant des projets ou étapes associés à des rapports de chantier non résolus.',
+    prisma: async () => {
+      const clients = await prismaService.clients.findMany({
+        where: {
+          projects: {
+            some: {
+              site_reports: {
+                some: {
+                  status: 'ouvert', // Assuming 'ouvert' means unresolved
+                },
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          projects: {
+            select: {
+              name: true,
+              reference: true,
+              site_reports: {
+                where: { status: 'ouvert' },
+                select: { description: true, status: true },
+              },
+            },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+      return clients.filter(client => client.projects.some(project => project.site_reports.length > 0));
+    },
+    response_format: 'table',
+  },
+
+  clients_missing_customer_id: {
+    keywords: [
+      'customer id',
+      'manquant',
+      'identifiant externe',
+      'client'
+    ],
+    questions: [
+      'Clients sans customer_id',
+      'Qui n\'a pas d\'identifiant client externe ?',
+    ],
+    description: 'Liste des clients pour lesquels le champ customer_id est vide ou nul.',
+    prisma: async () => {
+      return await prismaService.clients.findMany({
+        where: {
+          OR: [
+            { customer_id: { equals: '' } },
+            { customer_id: { equals: null } },
+          ],
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+          customer_id: true,
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+  },
+
+
+}); // Closing parenthesis for getClientsQueries
+
