@@ -1,18 +1,21 @@
 import { ProjectEBP } from './projectEBP';
 
 export interface ProjectAPP {
+  id?: number;
+  external_ebp_id?: string;
   reference: string;
   name: string;
-  description?: string;
-  client_id: string;
-  address_id?: string;
-  start_date: Date;
-  end_date: Date;
-  budget: number;
-  actual_cost: number;
-  margin: number;
-  notes?: string;
-  deal_id?: string; // ID de l'affaire associée au projet
+  description?: string | null;
+  client_id?: string | null;
+  address_id?: number | null;
+  start_date?: Date | null;
+  end_date?: Date | null;
+  estimated_duration?: number | null;
+  budget?: number | null;
+  actual_cost?: number | null;
+  margin?: number | null;
+  notes?: string | null;
+  deal_id?: string | null;
   // Propriété pour conserver les données originales pendant la transformation
   constructionSite?: any;
 }
@@ -22,6 +25,7 @@ export class ProjectMapper {
     const { constructionSite } = projectEBP;
 
     return {
+      external_ebp_id: constructionSite.Id,
       reference: constructionSite.Id,
       name: constructionSite.Caption,
       description: constructionSite.NotesClear,
@@ -29,6 +33,7 @@ export class ProjectMapper {
       address_id: undefined, // À compléter lors de la synchronisation
       start_date: constructionSite.StartDate,
       end_date: constructionSite.EndDate,
+      estimated_duration: constructionSite.PredictedDuration,
       budget: constructionSite.PredictedSales,
       actual_cost: constructionSite.AccomplishedSales,
       margin: constructionSite.PredictedGrossMargin,
