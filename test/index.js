@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const tenantId = '';
-const clientId = '';
-const clientSecret = '';
+const tenantId = process.env.TENANT_ID;
+const clientId = process.env.CLIENT_ID;
+const clientSecret = process.env.CLIENT_SECRET;
 const userEmail = 'jordan@solution-logique.fr';
 
 async function getToken() {
