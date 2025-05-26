@@ -17,6 +17,7 @@ export interface Message {
 
 export interface ChatMessageProps {
   message: Message;
+  onItemPress?: (item: any) => void;
 }
 
 export interface QuickReplyProps {

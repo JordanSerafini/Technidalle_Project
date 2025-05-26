@@ -6,7 +6,7 @@ import { ChatMessageProps, Attachment } from './types';
 import { Ionicons } from '@expo/vector-icons';
 import DataCards from './DataCards';
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onItemPress }) => {
   const formattedTime = format(message.timestamp, 'HH:mm', { locale: fr });
 
   const renderAttachment = (attachment: Attachment, index: number) => {
@@ -79,6 +79,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           data={message.data} 
           format={message.responseFormat || 'default'} 
           title={message.queryDescription}
+          onItemPress={onItemPress}
         />
       )}
       
