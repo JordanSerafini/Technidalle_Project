@@ -16,6 +16,9 @@ export const documentsQueries = {
       'consulter',
       'filtrer',
       'catégorie',
+      'genre',
+      'classification',
+      'nature',
     ],
     questions: [
       'Quels sont les documents de type [TYPE] ?',
@@ -28,6 +31,9 @@ export const documentsQueries = {
       'Consulter [TYPE]',
       'Lister [TYPE]',
       'Trouver [TYPE]',
+      'Quels documents appartiennent à la catégorie [TYPE] ?',
+      'Montre-moi les documents classés comme [TYPE]',
+      'Quels fichiers sont du type [TYPE] ?',
     ],
     prisma: async (type: string) => {
       return await prisma.documents.findMany({
@@ -79,6 +85,10 @@ export const documentsQueries = {
       'status',
       'rechercher',
       'consulter',
+      // Ajouts
+      'situation',
+      'condition',
+      'progression',
     ],
     questions: [
       'Quels sont les documents avec le statut [STATUS] ?',
@@ -91,6 +101,10 @@ export const documentsQueries = {
       'Lister documents [STATUS]',
       'Trouver documents [STATUS]',
       'Documents en statut [STATUS]',
+      // Ajouts
+      'Quels documents sont actuellement [STATUS] ?',
+      'Montre-moi les documents en état [STATUS]',
+      'Quels fichiers ont le statut [STATUS] ?',
     ],
     prisma: async (status: string) => {
       return await prisma.documents.findMany({
@@ -142,6 +156,10 @@ export const documentsQueries = {
       'entre',
       'plage',
       'temporel',
+      // Ajouts
+      'durée',
+      'fenêtre',
+      'calendrier',
     ],
     questions: [
       'Quels sont les documents entre [START_DATE] et [END_DATE] ?',
@@ -154,6 +172,10 @@ export const documentsQueries = {
       'Lister documents période [START_DATE] [END_DATE]',
       'Trouver documents période [START_DATE] [END_DATE]',
       'Documents créés entre [START_DATE] et [END_DATE]',
+      // Ajouts
+      'Quels documents ont été générés durant la période du [START_DATE] au [END_DATE] ?',
+      'Montre-moi les documents créés dans l\'intervalle [START_DATE] - [END_DATE]',
+      'Quels fichiers couvrent la plage de dates [START_DATE] à [END_DATE] ?',
     ],
     prisma: async (startDate: string, endDate: string) => {
       return await prisma.documents.findMany({
@@ -213,6 +235,10 @@ export const documentsQueries = {
       'afficher',
       'consulter',
       'référence',
+      // Ajouts
+      'fiche',
+      'description',
+      'identité',
     ],
     questions: [
       'Détails du document [REFERENCE]',
@@ -225,6 +251,10 @@ export const documentsQueries = {
       'Détails [REFERENCE]',
       'Info [REFERENCE]',
       'Voir [REFERENCE]',
+      // Ajouts
+      'Peux-tu me donner la fiche complète du document [REFERENCE] ?',
+      'Quels sont les détails associés à la référence [REFERENCE] ?',
+      'Je veux la description du document [REFERENCE]',
     ],
     prisma: async (reference: string) => {
       return await prisma.documents.findFirst({
@@ -313,6 +343,10 @@ export const documentsQueries = {
       'rechercher',
       'consulter',
       'filtrer',
+      // Ajouts
+      'dossier client',
+      'relation',
+      'appartenance',
     ],
     questions: [
       'Quels sont les documents du client [CLIENT] ?',
@@ -325,6 +359,10 @@ export const documentsQueries = {
       'Lister documents client [CLIENT]',
       'Trouver documents client [CLIENT]',
       'Documents associés à [CLIENT]',
+      // Ajouts
+      'Quels fichiers sont liés au client [CLIENT] ?',
+      'Montre-moi tous les documents appartenant à [CLIENT]',
+      'Quels sont les dossiers du client [CLIENT] ?',
     ],
     prisma: async (client: string) => {
       return await prisma.documents.findMany({

@@ -107,24 +107,6 @@ export class AnalyzeAgentController {
       const questionLower = analyzeQuestionDto.question.toLowerCase().trim();
       let forcedQueryId: string | null = null;
 
-      // Mappings directs pour certaines questions spécifiques qui peuvent avoir des problèmes de matching
-      const directMappings: Record<string, string> = {
-        'qui travaille la semaine prochaine': 'staff_schedule_next_week',
-        'qui travaille la semaine pro': 'staff_schedule_next_week',
-        'qui est prévu la semaine prochaine': 'staff_schedule_next_week',
-        'planning semaine prochaine': 'staff_schedule_next_week',
-        'qui travaille semaine prochaine': 'staff_schedule_next_week',
-        'travail semaine prochaine': 'staff_schedule_next_week',
-      };
-
-      // Si la question exacte est dans notre mapping, forcer la requête
-      if (directMappings[questionLower]) {
-        forcedQueryId = directMappings[questionLower];
-        this.logger.log(
-          `Forçage de la requête ${forcedQueryId} pour la question "${questionLower}"`,
-        );
-      }
-
       // Étape 1: Analyser la question
       const analysisResult = await this.analyzeAgentService.analyzeQuestion(
         analyzeQuestionDto.question,

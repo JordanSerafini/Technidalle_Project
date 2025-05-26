@@ -459,13 +459,29 @@ export class ElasticsearchService {
         index: this.queriesIndexName,
         size: limit,
         query: {
-          script_score: {
-            query: { match_all: {} },
-            script: {
-              source:
-                "cosineSimilarity(params.query_vector, 'questions_vector') + 1.0",
-              params: { query_vector: questionVector },
-            },
+          bool: {
+            should: [
+              // Recherche de similarité vectorielle (RAG)
+              {
+                script_score: {
+                  query: { match_all: {} },
+                  script: {
+                    source:
+                      "cosineSimilarity(params.query_vector, 'questions_vector') + 1.0",
+                    params: { query_vector: questionVector },
+                  },
+                },
+              },
+              // Recherche textuelle pour les mots-clés dans les questions et descriptions
+              {
+                multi_match: {
+                  query: questionText,
+                  fields: ['questions', 'description'],
+                  fuzziness: 'AUTO', // Permet une légère tolérance aux fautes de frappe
+                },
+              },
+            ],
+            minimum_should_match: 1, // Au moins une des clauses 'should' doit correspondre
           },
         },
       })) as ElasticsearchResponse;
