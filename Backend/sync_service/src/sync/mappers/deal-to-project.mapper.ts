@@ -1,4 +1,5 @@
 import { BaseMapper } from './index';
+import { ProjectAPP } from '../../interfaces/projects/projectAPP';
 
 // Définition de l'enum ProjectStatus
 export enum ProjectStatus {
@@ -46,23 +47,24 @@ interface Deal {
   PredictedCosts?: number;
   AccomplishedCosts?: number;
   PredictedGrossMargin?: number;
-  EbpClientReference?: string;
+  xx_Client?: string;
 }
 
-export class DealToProjectMapper extends BaseMapper<Deal, Partial<Project>> {
+export class DealToProjectMapper extends BaseMapper<Deal, Partial<ProjectAPP>> {
   map(
     deal: Deal,
     clientId?: number,
-    existingProject?: Partial<Project>,
-  ): Partial<Project> {
-    const projectData: Partial<Project> = {
+    existingProject?: Partial<ProjectAPP>,
+  ): Partial<ProjectAPP> {
+    const projectData: Partial<ProjectAPP> = {
       ...existingProject,
       external_ebp_id: deal.Id,
       name: deal.Caption || 'Projet sans nom',
       reference: deal.Id,
       description: deal.Notes || existingProject?.description,
-      client_id: clientId !== undefined ? clientId : existingProject?.client_id,
-      status: this.mapDealStateToProjectStatus(deal.DealState),
+      client_id:
+        clientId !== undefined ? String(clientId) : existingProject?.client_id,
+      status: this.mapDealStateToProjectStatus(deal.DealState) as any,
       start_date: deal.xx_DateDebut
         ? new Date(deal.xx_DateDebut)
         : existingProject?.start_date,
@@ -70,7 +72,7 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<Project>> {
         ? new Date(deal.xx_DateFin)
         : existingProject?.end_date,
       estimated_duration:
-        deal.PredictedDuration !== undefined
+        deal.PredictedDuration !== undefined && deal.PredictedDuration !== null
           ? Number(deal.PredictedDuration)
           : existingProject?.estimated_duration,
       budget:
@@ -94,7 +96,7 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<Project>> {
 
   extractClientInfo(deal: Deal): Partial<Client> {
     const clientInfo: Partial<Client> = {};
-    const ebpClientRef = deal.EbpClientReference as string;
+    const ebpClientRef = deal.xx_Client as string;
 
     if (!ebpClientRef) {
       clientInfo.company_name = 'Client EBP Inconnu ' + Date.now();
@@ -153,10 +155,14 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<Project>> {
   }
 
   static toProjectEntity(
-    deal: Deal, 
+    deal: Deal,
     clientId?: number,
-    existingProject?: Partial<Project>
-  ): Partial<Project> {
-    return DealToProjectMapper.getInstance().map(deal, clientId, existingProject);
+    existingProject?: Partial<ProjectAPP>,
+  ): Partial<ProjectAPP> {
+    return DealToProjectMapper.getInstance().map(
+      deal,
+      clientId,
+      existingProject,
+    );
   }
 }

@@ -275,7 +275,8 @@ export class AppController {
     @Res() res: Response,
   ): Promise<void> {
     try {
-      const interfaceString = await this.appService.generateInterfaceFromTable(tableName);
+      const interfaceString =
+        await this.appService.generateInterfaceFromTable(tableName);
       res.setHeader('Content-Type', 'text/plain');
       res.status(200).send(interfaceString);
     } catch (error) {
@@ -283,15 +284,21 @@ export class AppController {
         `Erreur lors de la génération de l'interface pour la table ${tableName}`,
         error,
       );
-      const message = 
+      const message =
         error instanceof Error && error.message.includes('non trouvée')
-        ? `Table '${tableName}' non trouvée.`
-        : `Erreur lors de la génération de l'interface pour la table ${tableName}`;
-      res.status(error instanceof Error && error.message.includes('non trouvée') ? 404 : 500).json({
-        success: false,
-        message: message,
-        error: (error as Error).message,
-      });
+          ? `Table '${tableName}' non trouvée.`
+          : `Erreur lors de la génération de l'interface pour la table ${tableName}`;
+      res
+        .status(
+          error instanceof Error && error.message.includes('non trouvée')
+            ? 404
+            : 500,
+        )
+        .json({
+          success: false,
+          message: message,
+          error: (error as Error).message,
+        });
     }
   }
 }

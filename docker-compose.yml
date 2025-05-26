@@ -102,7 +102,6 @@ services:
       - app-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      - "postgres_sync:172.18.0.3"
 
   resources:
     build:
