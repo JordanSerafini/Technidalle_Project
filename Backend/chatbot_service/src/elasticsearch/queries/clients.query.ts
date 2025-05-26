@@ -90,7 +90,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     response_format: 'table',
     description: 'Liste complète des clients avec coordonnées principales',
   },
-  
+
   client_details: {
     keywords: [
       'client',
@@ -130,14 +130,36 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             ? { id: Number(client) }
             : {
                 OR: [
-                  { firstname: { contains: client as string, mode: 'insensitive' } },
-                  { lastname: { contains: client as string, mode: 'insensitive' } },
-                  { company_name: { contains: client as string, mode: 'insensitive' } },
-                  { email: { contains: client as string, mode: 'insensitive' } },
-                  { customer_id: { contains: client as string, mode: 'insensitive' } },
+                  {
+                    firstname: {
+                      contains: client as string,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    lastname: {
+                      contains: client as string,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    company_name: {
+                      contains: client as string,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    email: { contains: client as string, mode: 'insensitive' },
+                  },
+                  {
+                    customer_id: {
+                      contains: client as string,
+                      mode: 'insensitive',
+                    },
+                  },
                 ],
               };
-  
+
         const result = await prismaService.clients.findFirst({
           where: whereClause,
           select: {
@@ -208,17 +230,24 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             },
           },
         });
-  
+
         if (!result) return null;
-  
+
         return {
           ...result,
-          nb_projects: Array.isArray(result.projects) ? result.projects.length : 0,
-          nb_documents: Array.isArray(result.documents) ? result.documents.length : 0,
+          nb_projects: Array.isArray(result.projects)
+            ? result.projects.length
+            : 0,
+          nb_documents: Array.isArray(result.documents)
+            ? result.documents.length
+            : 0,
           nb_events: Array.isArray(result.events) ? result.events.length : 0,
         };
       } catch (error) {
-        console.error('Erreur lors de la récupération du détail client:', error);
+        console.error(
+          'Erreur lors de la récupération du détail client:',
+          error,
+        );
         return null;
       }
     },
@@ -232,7 +261,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       },
     ],
   },
-  
+
   clients_with_unpaid_invoices: {
     keywords: [
       'facture',
@@ -300,7 +329,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     description:
       "Liste complète des clients ayant des factures de type 'facture' impayées et arrivées à échéance. Inclut les montants, dates et références.",
   },
-  
+
   clients_by_city: {
     keywords: [
       'ville',
@@ -388,7 +417,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     },
     response_format: 'table',
     description:
-      "Affiche la liste des clients résidant ou ayant une adresse liée à une ville donnée. Recherche effectuée de façon insensible à la casse.",
+      'Affiche la liste des clients résidant ou ayant une adresse liée à une ville donnée. Recherche effectuée de façon insensible à la casse.',
     parameters: [
       {
         name: 'CITY',
@@ -396,7 +425,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       },
     ],
   },
-  
+
   recently_active_clients: {
     keywords: [
       'client',
@@ -425,7 +454,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     prisma: async () => {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-  
+
       return await prismaService.clients.findMany({
         where: {
           OR: [
@@ -512,12 +541,11 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             take: 1,
           },
         },
-        
       });
     },
     response_format: 'table',
     description:
-      "Affiche les clients ayant eu une activité dans les 3 derniers mois : création ou mise à jour de projets, émission de documents ou participation à des événements.",
+      'Affiche les clients ayant eu une activité dans les 3 derniers mois : création ou mise à jour de projets, émission de documents ou participation à des événements.',
   },
 
   inactive_clients: {
@@ -712,12 +740,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Je veux voir les projets du client [CLIENT].',
       'Quels sont les chantiers de [CLIENT] ?',
       'Affiche la liste des projets pour [CLIENT].',
-      'Peux-tu me donner l\'historique des projets de [CLIENT] ?',
+      "Peux-tu me donner l'historique des projets de [CLIENT] ?",
       'Y a-t-il des chantiers en cours pour [CLIENT] ?',
       'Quels projets sont terminés pour [CLIENT] ?',
       'Montre les missions associées à [CLIENT].',
       'Liste les travaux effectués pour [CLIENT].',
-      'Quelle est l\'activité projet récente de [CLIENT] ?',
+      "Quelle est l'activité projet récente de [CLIENT] ?",
       'Je cherche les projets liés à [CLIENT].',
       'Donne-moi la liste complète des projets de [CLIENT].',
       'Pourrais-tu lister les projets du client [CLIENT] ?',
@@ -808,7 +836,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Montre-moi les factures de [CLIENT].',
       'Je veux voir les factures du client [CLIENT].',
       'Affiche la liste des factures pour [CLIENT].',
-      'Peux-tu me donner l\'historique des factures de [CLIENT] ?',
+      "Peux-tu me donner l'historique des factures de [CLIENT] ?",
       'Quelles factures sont impayées pour [CLIENT] ?',
       'Montre les paiements effectués par [CLIENT].',
       'Liste les règlements associés à [CLIENT].',
@@ -925,7 +953,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Recherche les clients avec des projets actifs.',
       'Affiche les clients ayant des travaux en cours.',
       'Quels clients ont des missions actives ?',
-      'Montre les clients avec des projets dont le statut est \'en cours\'.',
+      "Montre les clients avec des projets dont le statut est 'en cours'.",
       'Y a-t-il des clients avec de nouveaux projets actifs ?',
       'Liste les clients avec des chantiers qui viennent de démarrer.',
       'Qui sont les clients dont les projets sont en phase active ?',
@@ -986,7 +1014,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'afficher clients sans projet',
       'voir clients sans projet',
       'rechercher clients sans projet',
-      'qui n\'ont pas de projets',
+      "qui n'ont pas de projets",
       'clients sans projets associés',
       'clients sans travaux',
       'clients sans missions',
@@ -1006,24 +1034,24 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients sans chantier en cours',
       'Liste des clients dormants',
       'Clients sans aucun projet associé',
-      'Montre-moi les clients qui n\'ont pas de projets.',
+      "Montre-moi les clients qui n'ont pas de projets.",
       'Je veux voir les clients sans chantiers.',
       'Affiche la liste des clients sans projet.',
       'Peux-tu me donner la liste des clients inactifs en termes de projets ?',
       'Qui sont les clients sans activité de projet ?',
-      'Liste les clients qui n\'ont aucun projet associé.',
+      "Liste les clients qui n'ont aucun projet associé.",
       'Montre les clients sans travaux en cours ou passés.',
-      'Je cherche les clients qui n\'ont jamais eu de projet.',
+      "Je cherche les clients qui n'ont jamais eu de projet.",
       'Donne-moi la liste complète des clients sans projet.',
       'Pourrais-tu lister les clients sans aucun chantier ?',
-      'Recherche les clients qui n\'ont pas de projets.',
+      "Recherche les clients qui n'ont pas de projets.",
       'Affiche les clients sans projets du tout.',
-      'Quels clients n\'ont pas de missions enregistrées ?',
-      'Montre les nouveaux clients qui n\'ont pas encore de projet.',
-      'Y a-t-il des anciens clients qui n\'ont plus de projets ?',
+      "Quels clients n'ont pas de missions enregistrées ?",
+      "Montre les nouveaux clients qui n'ont pas encore de projet.",
+      "Y a-t-il des anciens clients qui n'ont plus de projets ?",
       'Liste les clients sans activité de projet récente.',
       'Qui sont les clients dormants sans projet ?',
-      'Donne-moi la liste des clients à relancer car ils n\'ont pas de projet.',
+      "Donne-moi la liste des clients à relancer car ils n'ont pas de projet.",
       'Affiche les clients sans aucun chantier en cours.',
       'Montre les clients sans projets, triés par date de création.',
     ],
@@ -1049,7 +1077,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   clients_by_revenue: {
     keywords: [
       'revenu par client',
-      'chiffre d\'affaires',
+      "chiffre d'affaires",
       'revenu',
       'CA',
       'facturation',
@@ -1092,25 +1120,25 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Classement des meilleurs clients par CA',
       'Clients premium par valeur financière',
       "Clients avec le plus gros volume d'affaires",
-      'Montre-moi le classement des clients par chiffre d\'affaires.',
+      "Montre-moi le classement des clients par chiffre d'affaires.",
       'Je veux voir les clients les plus rentables.',
       'Affiche le top 10 des clients par revenu.',
-      'Peux-tu me donner la liste des clients générant le plus de chiffre d\'affaires ?',
+      "Peux-tu me donner la liste des clients générant le plus de chiffre d'affaires ?",
       'Qui sont nos meilleurs clients en termes financiers ?',
-      'Liste les clients avec le plus gros volume d\'affaires.',
+      "Liste les clients avec le plus gros volume d'affaires.",
       'Montre les clients les plus importants financièrement.',
-      'Je cherche l\'analyse du chiffre d\'affaires par client.',
-      'Donne-moi le rapport du chiffre d\'affaires par client.',
-      'Pourrais-tu lister les clients avec un chiffre d\'affaires élevé ?',
+      "Je cherche l'analyse du chiffre d'affaires par client.",
+      "Donne-moi le rapport du chiffre d'affaires par client.",
+      "Pourrais-tu lister les clients avec un chiffre d'affaires élevé ?",
       'Recherche les clients par revenu.',
       'Affiche les clients les plus rentables selon le CA.',
       'Quels clients ont généré le plus de revenus ce trimestre ?',
       'Montre la performance des clients en termes de CA.',
       'Y a-t-il des clients dont le CA a fortement augmenté ?',
-      'Liste les clients à fort potentiel de chiffre d\'affaires.',
+      "Liste les clients à fort potentiel de chiffre d'affaires.",
       'Qui sont les clients avec le plus de facturation ?',
       'Donne-moi une synthèse du CA par client.',
-      'Affiche les clients avec un chiffre d\'affaires supérieur à [MONTANT] € ?',
+      "Affiche les clients avec un chiffre d'affaires supérieur à [MONTANT] € ?",
       'Quel est le CA généré par le client [CLIENT] ?',
     ],
     prisma: async () => {
@@ -1178,7 +1206,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients avec une forte activité',
       'Portefeuille clients multi-chantiers',
       'Montre-moi les clients qui ont plusieurs projets.',
-      'Je veux voir les clients avec plus d\'un chantier.',
+      "Je veux voir les clients avec plus d'un chantier.",
       'Affiche la liste des clients fidèles ayant plusieurs projets.',
       'Peux-tu me donner la liste des clients récurrents avec des projets multiples ?',
       'Qui a plusieurs projets en cours ou terminés ?',
@@ -1312,7 +1340,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'factures non réglées clients',
       'clients à relancer factures',
       'impayés clients liste',
-      'qui doit de l\'argent',
+      "qui doit de l'argent",
       'clients mauvais payeurs',
       'risque crédit client',
       'historique paiements client négatif',
@@ -1336,17 +1364,17 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       "Liste des clients n'ayant effectué aucun paiement",
       'Clients avec factures mais sans paiement',
       'Clientèle sans historique de règlement',
-      'Montre-moi les clients qui n\'ont aucune facture payée.',
+      "Montre-moi les clients qui n'ont aucune facture payée.",
       'Je veux voir les clients sans historique de paiement positif.',
       'Affiche la liste des clients à risque financier.',
       'Peux-tu me donner la liste des clients sans facture payée ?',
-      'Qui sont les clients qui n\'ont jamais effectué de règlement ?',
-      'Liste les clients n\'ayant effectué aucun paiement.',
+      "Qui sont les clients qui n'ont jamais effectué de règlement ?",
+      "Liste les clients n'ayant effectué aucun paiement.",
       'Montre les clients avec des factures émises mais non payées.',
       'Je cherche les clients avec un solde dû.',
       'Donne-moi la liste complète des clients sans paiement enregistré.',
-      'Pourrais-tu lister les clients qui n\'ont jamais réglé de facture ?',
-      'Recherche les clients avec un historique d\'impayés.',
+      "Pourrais-tu lister les clients qui n'ont jamais réglé de facture ?",
+      "Recherche les clients avec un historique d'impayés.",
       'Affiche les clients considérés comme mauvais payeurs.',
       'Quels clients sont en situation de risque de crédit ?',
       'Montre les clients sans règlement enregistré.',
@@ -1354,7 +1382,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Liste les clients nécessitant un suivi pour impayés.',
       'Qui sont les clients en alerte paiement ?',
       'Donne-moi la liste des clients pour le recouvrement.',
-      'Affiche les clients qui ont des factures dont le statut est \'non_payé\'.',
+      "Affiche les clients qui ont des factures dont le statut est 'non_payé'.",
       'Montre les clients qui ont des factures dues sans paiement.',
     ],
     response_format: 'table',
@@ -1628,7 +1656,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     questions: [
       'Quels clients doivent être relancés ?',
       'Clients à recontacter',
-      'Qui n\'a pas été contacté récemment ?',
+      "Qui n'a pas été contacté récemment ?",
       'Liste des clients sans suivi récent',
       'Quels clients nécessitent un suivi ?',
       'Clients sans activité récente mais récents',
@@ -1644,7 +1672,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Pourrais-tu lister les clients sans aucune interaction récente ?',
       'Recherche les clients peu actifs.',
       'Affiche les clients à identifier pour la relance.',
-      'Quels clients ont besoin d\'un rappel ?',
+      "Quels clients ont besoin d'un rappel ?",
       'Montre les clients dont le suivi est nécessaire.',
     ],
     prisma: async () => {
@@ -1719,7 +1747,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     questions: [
       'Clients sans adresse email',
       'Clients sans téléphone',
-      'Qui n\'a pas de coordonnées ?',
+      "Qui n'a pas de coordonnées ?",
       'Liste des clients avec données manquantes',
       'Clients à compléter',
     ],
@@ -1727,10 +1755,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       return await prismaService.clients.findMany({
         where: {
           OR: [
-            { email: { equals: '' } }, 
-            { email: { equals: undefined } }, 
-            { phone: { equals: '' } }, 
-            { phone: { equals: null } }
+            { email: { equals: '' } },
+            { email: { equals: undefined } },
+            { phone: { equals: '' } },
+            { phone: { equals: null } },
           ],
         },
         select: {
@@ -1801,27 +1829,32 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients avec des évènements planifiés durant la semaine en cours.',
   },
   clients_with_multiple_addresses: {
-    keywords: ['adresses', 'clients', 'multiples', 'plusieurs', 'domiciles',
-    'clients adresses multiples',
-    'liste clients adresses multiples',
-    'clients avec plusieurs adresses enregistrées',
-    'qui a plus d\'une adresse',
-    'rechercher clients adresses multiples',
-    'afficher clients adresses multiples',
-    'voir clients adresses multiples',
-    'clients avec adresses secondaires',
-    'gestion adresses clients multiples',
-    'audit adresses clients',
-    'rapport clients adresses multiples',
-    'clients ayant plusieurs lieux',
-    'clients multi-sites',
-    'clients avec adresses différentes',
-    'identification clients adresses multiples',
-    'liste adresses multiples clients',
-    'nombre adresses par client',
-    'clients avec adresses facturation et livraison différentes',
-    'clients avec adresses chantier multiples',
-    'clients avec adresses de contact multiples',
+    keywords: [
+      'adresses',
+      'clients',
+      'multiples',
+      'plusieurs',
+      'domiciles',
+      'clients adresses multiples',
+      'liste clients adresses multiples',
+      'clients avec plusieurs adresses enregistrées',
+      "qui a plus d'une adresse",
+      'rechercher clients adresses multiples',
+      'afficher clients adresses multiples',
+      'voir clients adresses multiples',
+      'clients avec adresses secondaires',
+      'gestion adresses clients multiples',
+      'audit adresses clients',
+      'rapport clients adresses multiples',
+      'clients ayant plusieurs lieux',
+      'clients multi-sites',
+      'clients avec adresses différentes',
+      'identification clients adresses multiples',
+      'liste adresses multiples clients',
+      'nombre adresses par client',
+      'clients avec adresses facturation et livraison différentes',
+      'clients avec adresses chantier multiples',
+      'clients avec adresses de contact multiples',
     ],
     questions: [
       'Quels clients ont plusieurs adresses ?',
@@ -1831,19 +1864,19 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Montre-moi les clients qui ont plusieurs adresses enregistrées.',
       'Je veux voir la liste des clients avec adresses multiples.',
       'Affiche les clients possédant plusieurs domiciles.',
-      'Peux-tu me donner la liste des clients qui ont plus d\'une adresse ?',
+      "Peux-tu me donner la liste des clients qui ont plus d'une adresse ?",
       'Qui a plusieurs adresses associées à son compte ?',
       'Liste les clients avec des adresses secondaires.',
       'Montre les clients nécessitant une gestion des adresses multiples.',
-      'Je cherche l\'audit des adresses clients pour les adresses multiples.',
+      "Je cherche l'audit des adresses clients pour les adresses multiples.",
       'Donne-moi un rapport des clients avec plusieurs adresses.',
-      'Pourrais-tu lister les clients ayant plusieurs lieux d\'activité ?',
+      "Pourrais-tu lister les clients ayant plusieurs lieux d'activité ?",
       'Recherche les clients multi-sites.',
       'Affiche les clients avec des adresses différentes.',
       'Quels clients ont une adresse de facturation et de livraison différente ?',
       'Montre les clients avec des adresses de chantier multiples.',
       'Y a-t-il des clients avec plusieurs adresses de contact ?',
-      'Donne-moi le nombre d\'adresses par client pour les clients avec adresses multiples.',
+      "Donne-moi le nombre d'adresses par client pour les clients avec adresses multiples.",
     ],
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
@@ -1876,7 +1909,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     ],
     questions: [
       'Clients sans projets en cours',
-      'Qui n\'a pas de projet actif ?',
+      "Qui n'a pas de projet actif ?",
       'Liste des clients sans activité actuelle',
       'Clients inactifs côté projet',
     ],
@@ -1898,44 +1931,49 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
     },
     response_format: 'table',
-    description: 'Clients qui n\'ont actuellement aucun projet en cours.',
+    description: "Clients qui n'ont actuellement aucun projet en cours.",
   },
 
   clients_with_multiple_contacts: {
-    keywords: ['contacts', 'personnes', 'référents', 'liens', 'interlocuteurs',
-    'clients multiples contacts',
-    'liste clients plusieurs référents',
-    'clients avec plus d\'un interlocuteur',
-    'clients avec plusieurs personnes associées',
-    'qui a plusieurs contacts',
-    'rechercher clients multiples contacts',
-    'afficher clients plusieurs contacts',
-    'voir clients multiples interlocuteurs',
-    'gestion contacts clients multiples',
-    'audit contacts clients',
-    'rapport clients plusieurs contacts',
-    'clients ayant plusieurs points contact',
-    'clients multi-interlocuteurs',
-    'identification clients multiples contacts',
-    'liste contacts multiples clients',
-    'nombre contacts par client',
-    'clients avec différents contacts par projet',
-    'clients avec contacts facturation et technique différents',
-    'clients avec plusieurs rôles contact',
+    keywords: [
+      'contacts',
+      'personnes',
+      'référents',
+      'liens',
+      'interlocuteurs',
+      'clients multiples contacts',
+      'liste clients plusieurs référents',
+      "clients avec plus d'un interlocuteur",
+      'clients avec plusieurs personnes associées',
+      'qui a plusieurs contacts',
+      'rechercher clients multiples contacts',
+      'afficher clients plusieurs contacts',
+      'voir clients multiples interlocuteurs',
+      'gestion contacts clients multiples',
+      'audit contacts clients',
+      'rapport clients plusieurs contacts',
+      'clients ayant plusieurs points contact',
+      'clients multi-interlocuteurs',
+      'identification clients multiples contacts',
+      'liste contacts multiples clients',
+      'nombre contacts par client',
+      'clients avec différents contacts par projet',
+      'clients avec contacts facturation et technique différents',
+      'clients avec plusieurs rôles contact',
     ],
     questions: [
       'Clients avec plusieurs contacts',
       'Liste des clients avec plusieurs référents',
-      'Qui a plus d\'un interlocuteur ?',
+      "Qui a plus d'un interlocuteur ?",
       'Clients avec plusieurs personnes associées',
       'Montre-moi les clients qui ont plusieurs contacts.',
       'Je veux voir la liste des clients avec plusieurs référents.',
-      'Affiche les clients ayant plus d\'un interlocuteur.',
+      "Affiche les clients ayant plus d'un interlocuteur.",
       'Peux-tu me donner la liste des clients avec plusieurs personnes associées ?',
       'Qui a plusieurs points de contact dans son entreprise ?',
       'Liste les clients nécessitant une gestion de contacts multiples.',
       'Montre les clients avec des contacts différents selon les projets.',
-      'Je cherche l\'audit des contacts clients pour les clients multiples.',
+      "Je cherche l'audit des contacts clients pour les clients multiples.",
       'Donne-moi un rapport des clients avec plusieurs contacts.',
       'Pourrais-tu lister les clients ayant plusieurs rôles de contact définis ?',
       'Recherche les clients multi-interlocuteurs.',
@@ -2070,26 +2108,31 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     description: 'Clients ayant reçu un devis au cours du dernier mois.',
   },
   clients_with_large_invoice_volume: {
-    keywords: ['factures', 'volume', 'beaucoup', 'quantité', 'nombre',
-    'clients grand volume facturation',
-    'clients avec beaucoup de factures',
-    'clients les plus facturés',
-    'qui reçoit beaucoup de factures',
-    'liste clients volume facturation élevé',
-    'afficher clients grand nombre factures',
-    'voir clients volume facturation',
-    'rechercher clients factures nombreuses',
-    'clients avec volume important facturation',
-    'analyse volume facturation clients',
-    'rapport volume facturation clients',
-    'clients avec plus de [NOMBRE] factures',
-    'clients par nombre factures',
-    'classement clients volume facturation',
-    'clients à forte facturation',
-    'suivi volume facturation clients',
-    'tableau bord volume facturation clients',
-    'clients avec beaucoup de factures émises',
-    'clients avec volume transaction élevé',
+    keywords: [
+      'factures',
+      'volume',
+      'beaucoup',
+      'quantité',
+      'nombre',
+      'clients grand volume facturation',
+      'clients avec beaucoup de factures',
+      'clients les plus facturés',
+      'qui reçoit beaucoup de factures',
+      'liste clients volume facturation élevé',
+      'afficher clients grand nombre factures',
+      'voir clients volume facturation',
+      'rechercher clients factures nombreuses',
+      'clients avec volume important facturation',
+      'analyse volume facturation clients',
+      'rapport volume facturation clients',
+      'clients avec plus de [NOMBRE] factures',
+      'clients par nombre factures',
+      'classement clients volume facturation',
+      'clients à forte facturation',
+      'suivi volume facturation clients',
+      'tableau bord volume facturation clients',
+      'clients avec beaucoup de factures émises',
+      'clients avec volume transaction élevé',
     ],
     questions: [
       'Quels clients ont le plus de factures ?',
@@ -2103,7 +2146,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Qui a un volume important de facturation ?',
       'Liste les clients avec plus de [NOMBRE] factures.',
       'Montre le classement des clients par volume de facturation.',
-      'Je cherche l\'analyse du volume de facturation par client.',
+      "Je cherche l'analyse du volume de facturation par client.",
       'Donne-moi un rapport du volume de facturation clients.',
       'Pourrais-tu lister les clients à forte facturation ?',
       'Recherche les clients avec un nombre élevé de factures.',
@@ -2132,7 +2175,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         }))
         .filter((c) => c.invoice_count > 5)
         .sort((a, b) => b.invoice_count - a.invoice_count);
-        
+
       return clientsWithInvoiceCount;
     },
     response_format: 'table',
@@ -2146,12 +2189,42 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'interactions',
       'contacts',
       'rendez-vous',
+      'clients événements fréquents',
+      'clients interactions nombreuses',
+      'clients avec beaucoup de rendez-vous',
+      "qui a eu beaucoup d'évènements",
+      'liste clients événements fréquents',
+      'afficher clients interactions',
+      'voir clients rendez-vous fréquents',
+      'rechercher clients événements fréquents',
+      'clients avec forte interaction',
+      'clients souvent en contact',
+      'suivi événements fréquents clients',
+      'rapport événements fréquents clients',
+      'clients avec historique interactions riche',
+      'clients très engagés',
     ],
     questions: [
       'Clients souvent rencontrés',
       'Clients avec interactions fréquentes',
       'Clients avec le plus de rendez-vous',
-      'Qui a eu beaucoup d\'évènements ?',
+      "Qui a eu beaucoup d'évènements ?",
+      "Montre-moi les clients qui ont eu beaucoup d'événements.",
+      'Je veux voir les clients avec des interactions fréquentes.',
+      'Affiche la liste des clients avec le plus de rendez-vous.',
+      'Peux-tu me donner la liste des clients souvent rencontrés ?',
+      'Qui a une forte interaction avec nous ?',
+      "Liste les clients avec un historique d'interactions riche.",
+      "Montre les clients très engagés en termes d'événements.",
+      'Je cherche le suivi des événements fréquents par client.',
+      "Donne-moi un rapport des clients avec beaucoup d'événements.",
+      'Pourrais-tu lister les clients avec un grand nombre de rendez-vous ?',
+      'Recherche les clients avec des interactions nombreuses.',
+      'Affiche les clients qui sont souvent en contact.',
+      "Quels clients ont eu le plus d'événements enregistrés ?",
+      "Montre les clients avec des interactions fréquentes par type d'événement.",
+      "Y a-t-il des clients avec un historique d'événements exceptionnel ?",
+      'Donne-moi la synthèse des événements fréquents par client.',
     ],
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
@@ -2200,10 +2273,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         .filter((client) => {
           if (!client.addresses?.latitude || !client.addresses?.longitude)
             return false;
-          
+
           const latitude = Number(client.addresses.latitude);
           const longitude = Number(client.addresses.longitude);
-          
+
           const R = 6371;
           const dLat = ((latitude - HEADQUARTERS.lat) * Math.PI) / 180;
           const dLon = ((longitude - HEADQUARTERS.lon) * Math.PI) / 180;
@@ -2219,10 +2292,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         })
         .map((client) => {
           if (!client.addresses) return null;
-          
+
           const latitude = Number(client.addresses.latitude);
           const longitude = Number(client.addresses.longitude);
-          
+
           // Calcul de distance avec la formule haversine
           const distance = Math.round(
             Math.acos(
@@ -2230,12 +2303,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
                 Math.sin((latitude * Math.PI) / 180) +
                 Math.cos((HEADQUARTERS.lat * Math.PI) / 180) *
                   Math.cos((latitude * Math.PI) / 180) *
-                  Math.cos(
-                    ((longitude - HEADQUARTERS.lon) * Math.PI) / 180,
-                  ),
+                  Math.cos(((longitude - HEADQUARTERS.lon) * Math.PI) / 180),
             ) * 6371,
           );
-          
+
           return {
             id: client.id,
             firstname: client.firstname,
@@ -2245,19 +2316,59 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             distance_km: distance,
           };
         })
-        .filter((client): client is NonNullable<typeof client> => client !== null);
+        .filter(
+          (client): client is NonNullable<typeof client> => client !== null,
+        );
     },
     response_format: 'table',
     description: 'Liste des clients situés à plus de 100km du siège social.',
   },
 
   clients_without_recent_quotes: {
-    keywords: ['devis', 'ancien', 'manque', 'jamais reçu', 'proposition'],
+    keywords: [
+      'devis',
+      'ancien',
+      'manque',
+      'jamais reçu',
+      'proposition',
+      'client',
+      'sans devis',
+      'pas de devis',
+      'devis ancien',
+      'proposition commerciale non envoyée',
+      'relancer',
+      'sans contact devis',
+      'pas de proposition récente',
+      'aucune offre récente',
+      'oubliés devis',
+      'clients à cibler devis',
+      'clients sans offre récente',
+    ],
     questions: [
       'Clients sans devis récent',
-      'Qui n\'a pas eu de devis depuis 6 mois ?',
+      "Qui n'a pas eu de devis depuis 6 mois ?",
       'Clients sans devis envoyé depuis longtemps',
       'Liste des clients oubliés pour les devis',
+      "Quels clients n'ont pas reçu de proposition commerciale récemment ?",
+      'Liste des clients sans devis émis depuis plus de 6 mois.',
+      "Qui sont les clients qui n'ont pas de devis récent ?",
+      "Clients à qui on n'a pas envoyé de devis depuis longtemps.",
+      'Quels clients sont sans devis récent ?',
+      "Recherche les clients qui n'ont pas eu de proposition commerciale depuis longtemps.",
+      'Liste les clients qui ont été oubliés pour les devis.',
+      'Montre les clients sans activité de devis récente.',
+      "Y a-t-il des clients qui n'ont pas reçu de devis au cours des 6 derniers mois ?",
+      'Je voudrais voir la liste des clients sans devis récent.',
+      'Montre-moi les clients inactifs en termes de devis.',
+      "Quels clients n'ont pas eu de proposition commerciale envoyée depuis longtemps ?",
+      'Liste des clients à considérer pour une nouvelle offre.',
+      "Qui sont les clients qui n'ont aucune offre récente ?",
+      'Y a-t-il des clients sans devis émis dans les six derniers mois ?',
+      "Quels clients n'ont pas reçu d'offre commerciale récemment ?",
+      "Je recherche la liste des clients qui n'ont pas eu de devis récent.",
+      "Montre les clients qui n'ont pas reçu de proposition depuis 6 mois.",
+      'Liste des clients sans proposition commerciale récente.',
+      'Qui sont les clients inactifs concernant les devis récents ?',
     ],
     prisma: async () => {
       const sixMonthsAgo = new Date();
@@ -2285,16 +2396,55 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     },
     response_format: 'table',
     description:
-      'Clients n\'ayant reçu aucun devis au cours des 6 derniers mois.',
+      "Clients n'ayant reçu aucun devis au cours des 6 derniers mois.",
   },
 
   clients_with_cancelled_projects: {
-    keywords: ['annulé', 'projet', 'refusé', 'abandonné'],
+    keywords: [
+      'annulé',
+      'projet',
+      'refusé',
+      'abandonné',
+      'client',
+      'chantier annulé',
+      'projet client refusé',
+      'client projet abandonné',
+      'projets annulés client',
+      'chantiers refusés par client',
+      'qui a annulé un projet',
+      'liste projets annulés',
+      'afficher projets refusés',
+      'voir projets abandonnés',
+      'suivi projets annulés',
+      'rapport projets annulés',
+      'projet stoppé client',
+      'fin de projet anticipée client',
+      'résiliation projet client',
+      'clients ayant mis fin à un projet',
+    ],
     questions: [
       'Clients avec projets annulés',
       'Qui a vu ses projets refusés ?',
       'Liste des projets annulés par client',
       'Projets abandonnés par les clients',
+      'Quels clients ont eu des chantiers annulés ?',
+      'Montre-moi la liste des projets refusés par les clients.',
+      'Je veux voir les projets abandonnés par les clients.',
+      'Affiche les clients ayant annulé un projet.',
+      'Peux-tu me donner la liste des projets annulés pour chaque client ?',
+      'Qui sont les clients dont les chantiers ont été refusés ?',
+      'Liste les projets clients qui ont été stoppés.',
+      'Montre les clients avec une fin de projet anticipée.',
+      'Je cherche les clients ayant résilié un projet.',
+      'Donne-moi la liste complète des clients avec des projets annulés.',
+      'Pourrais-tu lister les clients qui ont abandonné un chantier ?',
+      'Recherche les clients avec des projets refusés.',
+      'Affiche les clients dont le statut d\'un projet est "annulé".',
+      'Quels clients ont eu plusieurs projets annulés ?',
+      'Montre les clients par nombre de projets annulés.',
+      'Y a-t-il des clients avec un historique de projets refusés ?',
+      'Liste les projets annulés récemment par client.',
+      "Qui sont les clients à suivre suite à l'annulation d'un projet ?",
     ],
     prisma: async () => {
       return await prismaService.clients.findMany({
@@ -2328,12 +2478,43 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_projects_in_multiple_cities: {
-    keywords: ['multi-villes', 'plusieurs villes', 'projets dispersés'],
+    keywords: [
+      'multi-villes',
+      'plusieurs villes',
+      'projets dispersés',
+      'client',
+      'chantiers dans différentes villes',
+      'client multi-sites',
+      'projets hors siège',
+      'activité sur plusieurs localisations',
+      'clients géographiquement dispersés',
+      'chantiers multiples villes',
+      'projets dans plusieurs zones',
+      'clients avec adresses de chantier multiples',
+      'portefeuille projets multi-villes',
+      'suivi clients multi-sites',
+    ],
     questions: [
       'Clients avec projets dans plusieurs villes',
       'Liste des clients avec chantiers dispersés',
       'Clients avec chantiers multi-localisés',
       'Qui travaille dans plusieurs villes ?',
+      'Quels clients ont des projets actifs dans différentes villes ?',
+      'Montre-moi la liste des clients avec des chantiers sur plusieurs sites.',
+      "Je veux voir les clients ayant des projets dans plus d'une ville.",
+      'Affiche les clients dont les projets sont géographiquement dispersés.',
+      'Peux-tu me donner la liste des clients avec des chantiers dans plusieurs localisations ?',
+      'Qui sont les clients multi-sites ?',
+      'Liste les clients avec des projets en dehors de la ville du siège.',
+      'Montre les clients avec une activité sur plusieurs zones géographiques.',
+      'Je cherche les clients ayant des adresses de chantier multiples.',
+      'Donne-moi la liste complète des clients avec des projets dans plusieurs villes.',
+      'Pourrais-tu lister les clients dont le portefeuille projets est multi-villes ?',
+      'Recherche les clients avec des chantiers dispersés.',
+      'Affiche les clients par nombre de villes où ils ont des projets.',
+      'Y a-t-il des clients avec un grand nombre de villes différentes ?',
+      'Liste les clients qui nécessitent un suivi multi-sites.',
+      'Montre les clients avec des projets dans la ville de [CITY] et une autre ville.',
     ],
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
@@ -2368,12 +2549,29 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_without_any_events: {
-    keywords: ['aucun évènement', 'jamais contacté', 'zéro interaction'],
+    keywords: [
+      'aucun évènement',
+      'jamais contacté',
+      'zéro interaction',
+      'aucune visite',
+      'aucun rendez-vous',
+      'pas d\'activité',
+      'client jamais sollicité',
+      'aucune trace d\'événement',
+      'client oublié',
+      'aucune interaction',
+    ],
     questions: [
       'Clients sans événement enregistré',
       'Jamais de contact avec certains clients ?',
       'Clients sans rendez-vous ni visite',
       'Clients oubliés sans évènements',
+      'Quels clients n\'ont jamais eu de rendez-vous ?',
+      'Liste des clients sans aucune interaction',
+      'Qui sont les clients jamais sollicités ?',
+      'Montre-moi les clients sans activité événementielle',
+      'Quels clients n\'ont aucune trace d\'événement ?',
+      'Y a-t-il des clients qui n\'ont jamais eu de visite ou de contact ?',
     ],
     prisma: async () => {
       return await prismaService.clients.findMany({
@@ -2484,14 +2682,14 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           documents: true,
         },
       });
-      
+
       const clientsWithDiscounts = clients
         .map((c) => {
           const totalDiscount = c.documents.reduce(
             (acc, doc) => acc + Number(doc.discount_amount || 0),
             0,
           );
-          
+
           if (totalDiscount > 0) {
             return {
               id: c.id,
@@ -2504,9 +2702,11 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           }
           return null;
         })
-        .filter((client): client is NonNullable<typeof client> => client !== null)
+        .filter(
+          (client): client is NonNullable<typeof client> => client !== null,
+        )
         .sort((a, b) => b.total_discount - a.total_discount);
-        
+
       return clientsWithDiscounts;
     },
     response_format: 'table',
@@ -2588,14 +2788,19 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients avec projets ayant dépassé la date prévue sans être terminés.',
   },
   clients_without_signed_documents: {
-    keywords: ['sans signature', 'non signé', 'document contractuel', 'contrat'],
+    keywords: [
+      'sans signature',
+      'non signé',
+      'document contractuel',
+      'contrat',
+    ],
     questions: [
       'Clients sans documents contractuels signés',
-      'Quels clients n\'ont pas signé leurs documents ?',
+      "Quels clients n'ont pas signé leurs documents ?",
       'Liste des clients sans signature',
-      'Clients avec documents en attente de signature'
+      'Clients avec documents en attente de signature',
     ],
-    description: 'Liste des clients qui n\'ont pas de documents signés',
+    description: "Liste des clients qui n'ont pas de documents signés",
     response_format: 'table',
     prisma: async () => {
       return await prismaService.clients.findMany({
@@ -2623,9 +2828,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients avec des projets devant commencer dans le mois',
       'Projets à démarrer prochainement',
       'Quels chantiers vont débuter ce mois-ci ?',
-      'Projets clients prévus pour bientôt'
+      'Projets clients prévus pour bientôt',
     ],
-    description: 'Liste des clients ayant des projets qui débuteront dans le mois à venir',
+    description:
+      'Liste des clients ayant des projets qui débuteront dans le mois à venir',
     response_format: 'table',
     prisma: async () => {
       const now = new Date();
@@ -2741,9 +2947,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     questions: [
       'Clients ayant refusé plusieurs devis',
       'Quels clients rejettent souvent les devis ?',
-      'Clients avec beaucoup de refus commerciaux'
+      'Clients avec beaucoup de refus commerciaux',
     ],
-    description: 'Clients ayant un taux élevé de documents refusés (type devis)',
+    description:
+      'Clients ayant un taux élevé de documents refusés (type devis)',
     response_format: 'table',
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
@@ -2751,10 +2958,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           documents: true,
         },
       });
-      
+
       const clientsWithRejections = clients
         .map((client) => {
-          const refusedCount = client.documents.filter(d => d.type === 'devis' && d.status === 'refuse').length;
+          const refusedCount = client.documents.filter(
+            (d) => d.type === 'devis' && d.status === 'refuse',
+          ).length;
           if (refusedCount >= 2) {
             return {
               id: client.id,
@@ -2767,19 +2976,21 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           }
           return null;
         })
-        .filter((client): client is NonNullable<typeof client> => client !== null)
+        .filter(
+          (client): client is NonNullable<typeof client> => client !== null,
+        )
         .sort((a, b) => b.refused_count - a.refused_count);
-        
+
       return clientsWithRejections;
     },
   },
-  
+
   loyal_clients_by_years: {
     keywords: ['fidèle', 'ancienneté', 'ancien client'],
     questions: [
       'Quels sont les clients les plus anciens ?',
-      'Clients avec le plus d\'ancienneté',
-      'Clients fidèles depuis longtemps'
+      "Clients avec le plus d'ancienneté",
+      'Clients fidèles depuis longtemps',
     ],
     description: 'Classement des clients par ancienneté (date de création)',
     response_format: 'table',
@@ -2800,15 +3011,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
     },
   },
-  
+
   clients_without_bank_info: {
     keywords: ['rib', 'iban', 'coordonnées bancaires'],
     questions: [
       'Clients sans RIB enregistré',
       'Liste des clients sans coordonnées bancaires',
-      'Clients sans IBAN'
+      'Clients sans IBAN',
     ],
-    description: 'Clients pour lesquels aucune info bancaire n\'est renseignée',
+    description: "Clients pour lesquels aucune info bancaire n'est renseignée",
     response_format: 'table',
     prisma: async () => {
       return await prismaService.clients.findMany({
@@ -2830,20 +3041,20 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
     },
   },
-  
+
   clients_with_no_recent_contact: {
     keywords: ['inactif', 'jamais contacté', 'relance', 'oublié'],
     questions: [
       'Clients jamais contactés récemment',
       'Clients sans appel ou événement récent',
-      'Clients oubliés à relancer'
+      'Clients oubliés à relancer',
     ],
     description: 'Clients sans événement de contact depuis plus de 6 mois',
     response_format: 'table',
     prisma: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
+
       return await prismaService.clients.findMany({
         where: {
           events: {
@@ -2865,14 +3076,18 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     },
   },
 
-
   clients_with_unanswered_quotes: {
-    keywords: ['devis sans réponse', 'sans retour', 'en attente', 'non répondu'],
+    keywords: [
+      'devis sans réponse',
+      'sans retour',
+      'en attente',
+      'non répondu',
+    ],
     questions: [
-      'Clients n\'ayant pas répondu au dernier devis',
+      "Clients n'ayant pas répondu au dernier devis",
       'Devis sans réponse client',
-      'Quels clients n\'ont pas donné suite à leur devis ?',
-      'Devis en attente de réponse client'
+      "Quels clients n'ont pas donné suite à leur devis ?",
+      'Devis en attente de réponse client',
     ],
     description: 'Liste des clients ayant des devis en attente de réponse',
     response_format: 'table',
@@ -2920,9 +3135,9 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Chantiers à plus de 80% réalisés',
       'Projets en phase de finalisation',
       'Quels projets sont presque terminés ?',
-      'Chantiers en phase d\'achèvement'
+      "Chantiers en phase d'achèvement",
     ],
-    description: 'Liste des projets dont l\'avancement est supérieur à 80%',
+    description: "Liste des projets dont l'avancement est supérieur à 80%",
     response_format: 'table',
     prisma: async () => {
       // Trouver les projets avec des étapes complétées à plus de 80% en moyenne
@@ -2944,20 +3159,21 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
 
       return projects
-        .map(project => {
+        .map((project) => {
           const stagesCount = project.project_stages.length;
           if (stagesCount === 0) return null;
 
-          const avgCompletion = project.project_stages.reduce(
-            (sum, stage) => sum + (stage.completion_percentage || 0), 
-            0
-          ) / stagesCount;
+          const avgCompletion =
+            project.project_stages.reduce(
+              (sum, stage) => sum + (stage.completion_percentage || 0),
+              0,
+            ) / stagesCount;
 
           if (avgCompletion >= 80) {
             return {
               project_name: project.name,
               reference: project.reference,
-              client: project.clients 
+              client: project.clients
                 ? `${project.clients.company_name || ''} ${project.clients.firstname} ${project.clients.lastname}`.trim()
                 : 'N/A',
               status: project.status,
@@ -2967,7 +3183,9 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           }
           return null;
         })
-        .filter((project): project is NonNullable<typeof project> => project !== null);
+        .filter(
+          (project): project is NonNullable<typeof project> => project !== null,
+        );
     },
   },
 
@@ -2977,7 +3195,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients dont les projets ont été stoppés temporairement',
       'Projets en pause',
       'Chantiers suspendus',
-      'Quels projets sont actuellement à l\'arrêt ?'
+      "Quels projets sont actuellement à l'arrêt ?",
     ],
     description: 'Liste des clients ayant des projets en pause',
     response_format: 'table',
@@ -3019,15 +3237,17 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     questions: [
       'Clients avec plus de X années sans nouveau projet',
       'Clients inactifs depuis longtemps',
-      'Qui n\'a pas travaillé avec nous depuis des années ?',
-      'Anciens clients sans activité récente'
+      "Qui n'a pas travaillé avec nous depuis des années ?",
+      'Anciens clients sans activité récente',
     ],
     description: 'Liste des clients inactifs depuis une période spécifiée',
     response_format: 'table',
     prisma: async (years: string = '2') => {
       const yearsNum = parseInt(years);
       const cutoffDate = new Date();
-      cutoffDate.setFullYear(cutoffDate.getFullYear() - (isNaN(yearsNum) ? 2 : yearsNum));
+      cutoffDate.setFullYear(
+        cutoffDate.getFullYear() - (isNaN(yearsNum) ? 2 : yearsNum),
+      );
 
       return await prismaService.clients.findMany({
         where: {
@@ -3076,7 +3296,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     parameters: [
       {
         name: 'YEARS',
-        description: 'Nombre d\'années d\'inactivité (par défaut: 2)',
+        description: "Nombre d'années d'inactivité (par défaut: 2)",
         optional: true,
       },
     ],
@@ -3088,9 +3308,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients avec recommandation client',
       'Qui nous a recommandé le plus de clients ?',
       'Clients ayant fait du bouche à oreille',
-      'Meilleurs clients en terme de parrainage'
+      'Meilleurs clients en terme de parrainage',
     ],
-    description: 'Liste des clients qui ont recommandé ou parrainé d\'autres clients',
+    description:
+      "Liste des clients qui ont recommandé ou parrainé d'autres clients",
     response_format: 'table',
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
@@ -3104,14 +3325,21 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         },
       });
 
-      const keywords = ['recommandé par', 'parrainage', 'référé par', 'bouche à oreille'];
-      
+      const keywords = [
+        'recommandé par',
+        'parrainage',
+        'référé par',
+        'bouche à oreille',
+      ];
+
       const clientsWithReferrals = clients
-        .map(client => {
-          const hasReferralTerms = client.notes && keywords.some(
-            keyword => client.notes?.toLowerCase().includes(keyword.toLowerCase())
-          );
-          
+        .map((client) => {
+          const hasReferralTerms =
+            client.notes &&
+            keywords.some((keyword) =>
+              client.notes?.toLowerCase().includes(keyword.toLowerCase()),
+            );
+
           if (hasReferralTerms) {
             return {
               id: client.id,
@@ -3124,7 +3352,9 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           }
           return null;
         })
-        .filter((client): client is NonNullable<typeof client> => client !== null);
+        .filter(
+          (client): client is NonNullable<typeof client> => client !== null,
+        );
 
       return clientsWithReferrals;
     },
@@ -3136,13 +3366,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients impactés par des retards de livraison',
       'Projets en retard affectant des clients',
       'Quels clients sont touchés par les retards ?',
-      'Retards de projet par client'
+      'Retards de projet par client',
     ],
     description: 'Liste des clients dont les projets ont pris du retard',
     response_format: 'table',
     prisma: async () => {
       const today = new Date();
-      
+
       return await prismaService.clients.findMany({
         where: {
           projects: {
@@ -3186,9 +3416,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Projets clients avec changement de statut récent',
       'Quels projets ont changé de statut récemment ?',
       'Évolution récente des projets clients',
-      'Changements de statut dans le mois'
+      'Changements de statut dans le mois',
     ],
-    description: 'Liste des clients dont les projets ont récemment changé de statut',
+    description:
+      'Liste des clients dont les projets ont récemment changé de statut',
     response_format: 'table',
     prisma: async () => {
       const oneMonthAgo = new Date();
@@ -3235,9 +3466,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Quels sont les clients les plus exigeants ?',
       'Clients les plus difficiles',
       'Clients avec beaucoup de modifications demandées',
-      'Clients les plus complexes à gérer'
+      'Clients les plus complexes à gérer',
     ],
-    description: 'Liste des clients potentiellement plus exigeants basée sur divers indicateurs',
+    description:
+      'Liste des clients potentiellement plus exigeants basée sur divers indicateurs',
     response_format: 'table',
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
@@ -3253,16 +3485,29 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
 
       return clients
-        .map(client => {
+        .map((client) => {
           // Calcul d'un score d'exigence basé sur divers indicateurs
-          const refusedQuotes = client.documents.filter(d => d.type === 'devis' && d.status === 'refuse').length;
-          const cancelledProjects = client.projects.filter(p => p.status === 'annule').length;
+          const refusedQuotes = client.documents.filter(
+            (d) => d.type === 'devis' && d.status === 'refuse',
+          ).length;
+          const cancelledProjects = client.projects.filter(
+            (p) => p.status === 'annule',
+          ).length;
           const eventCount = client.events.length;
-          const projectChanges = client.projects.reduce((sum, p) => sum + p.project_stages.filter(s => s.status === 'en_pause').length, 0);
-          
+          const projectChanges = client.projects.reduce(
+            (sum, p) =>
+              sum +
+              p.project_stages.filter((s) => s.status === 'en_pause').length,
+            0,
+          );
+
           // Score pondéré
-          const demandScore = (refusedQuotes * 3) + (cancelledProjects * 5) + (projectChanges * 2) + (eventCount > 10 ? 2 : 0);
-          
+          const demandScore =
+            refusedQuotes * 3 +
+            cancelledProjects * 5 +
+            projectChanges * 2 +
+            (eventCount > 10 ? 2 : 0);
+
           if (demandScore >= 5) {
             return {
               id: client.id,
@@ -3278,18 +3523,20 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           }
           return null;
         })
-        .filter((client): client is NonNullable<typeof client> => client !== null)
+        .filter(
+          (client): client is NonNullable<typeof client> => client !== null,
+        )
         .sort((a, b) => b.demand_score - a.demand_score);
     },
   },
-  
+
   recently_added_clients: {
     keywords: ['nouveau', 'récent', 'ajout', 'dernier'],
     questions: [
       'Qui a été le dernier client ajouté ?',
       'Derniers clients enregistrés',
       'Clients récemment créés',
-      'Nouveaux clients cette semaine'
+      'Nouveaux clients cette semaine',
     ],
     description: 'Liste des clients les plus récemment ajoutés',
     response_format: 'table',
@@ -3318,17 +3565,17 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Évolution du nombre de clients par trimestre',
       'Tendance clients par période',
       'Croissance de notre clientèle',
-      'Statistiques clients par trimestre'
+      'Statistiques clients par trimestre',
     ],
     description: 'Évolution du nombre de clients créés par trimestre',
     response_format: 'table',
     prisma: async (year: string = new Date().getFullYear().toString()) => {
       const yearNum = parseInt(year);
       const targetYear = isNaN(yearNum) ? new Date().getFullYear() : yearNum;
-      
+
       const startDate = new Date(targetYear, 0, 1); // 1er janvier de l'année cible
       const endDate = new Date(targetYear, 11, 31); // 31 décembre de l'année cible
-      
+
       const clients = await prismaService.clients.findMany({
         where: {
           created_at: {
@@ -3340,7 +3587,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           created_at: true,
         },
       });
-      
+
       // Initialiser les compteurs pour chaque trimestre
       const quarters = [
         { name: 'T1', count: 0 },
@@ -3348,18 +3595,18 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         { name: 'T3', count: 0 },
         { name: 'T4', count: 0 },
       ];
-      
+
       // Compter les clients par trimestre
-      clients.forEach(client => {
+      clients.forEach((client) => {
         if (!client.created_at) return;
-        
+
         const month = client.created_at.getMonth();
         if (month >= 0 && month < 3) quarters[0].count++;
         else if (month >= 3 && month < 6) quarters[1].count++;
         else if (month >= 6 && month < 9) quarters[2].count++;
         else quarters[3].count++;
       });
-      
+
       return {
         year: targetYear,
         quarters: quarters,
@@ -3369,7 +3616,8 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     parameters: [
       {
         name: 'YEAR',
-        description: 'Année pour laquelle calculer l\'évolution (par défaut: année en cours)',
+        description:
+          "Année pour laquelle calculer l'évolution (par défaut: année en cours)",
         optional: true,
       },
     ],
@@ -3394,7 +3642,8 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     parameters: [
       {
         name: 'DOCUMENT_TYPE',
-        description: 'Type de document (ex: devis, facture, bon_de_commande, etc.)',
+        description:
+          'Type de document (ex: devis, facture, bon_de_commande, etc.)',
       },
     ],
     prisma: async (documentType: string) => {
@@ -3479,12 +3728,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_partially_paid_invoices: {
-    keywords: [
-      'facture',
-      'paiement partiel',
-      'reste à payer',
-      'client',
-    ],
+    keywords: ['facture', 'paiement partiel', 'reste à payer', 'client'],
     questions: [
       'Quels clients ont des factures partiellement payées ?',
       'Factures avec solde dû par client',
@@ -3512,12 +3756,18 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           phone: true,
           documents: {
             where: {
-               type: 'facture',
-               payment_status: { not: 'paye' },
-               amount_paid: { gt: 0 },
-               // amount: { gt: prismaService.documents.fields.amount_paid }, // Cette comparaison n'est pas possible ici
+              type: 'facture',
+              payment_status: { not: 'paye' },
+              amount_paid: { gt: 0 },
+              // amount: { gt: prismaService.documents.fields.amount_paid }, // Cette comparaison n'est pas possible ici
             },
-            select: { reference: true, issue_date: true, amount: true, amount_paid: true, balance_due: true },
+            select: {
+              reference: true,
+              issue_date: true,
+              amount: true,
+              amount_paid: true,
+              balance_due: true,
+            },
           },
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
@@ -3537,7 +3787,8 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Quel est le total des devis pour le client [CLIENT] ?',
       'Somme des devis du client [CLIENT]',
     ],
-    description: 'Calcule le montant total de tous les devis pour un client spécifique.',
+    description:
+      'Calcule le montant total de tous les devis pour un client spécifique.',
     parameters: [
       {
         name: 'CLIENT',
@@ -3549,7 +3800,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         _sum: { amount: true },
         where: {
           type: 'devis',
-           projects: {
+          projects: {
             clients: {
               OR: [
                 { firstname: { contains: client, mode: 'insensitive' } },
@@ -3581,7 +3832,8 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Quels clients ont des projets [PROJECT_STATUS] ?',
       'Liste des chantiers [PROJECT_STATUS] par client',
     ],
-    description: 'Liste des clients ayant au moins un projet avec un statut donné.',
+    description:
+      'Liste des clients ayant au moins un projet avec un statut donné.',
     parameters: [
       {
         name: 'PROJECT_STATUS',
@@ -3606,7 +3858,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           phone: true,
           projects: {
             where: { status: projectStatus as any },
-            select: { name: true, reference: true, start_date: true, end_date: true },
+            select: {
+              name: true,
+              reference: true,
+              start_date: true,
+              end_date: true,
+            },
           },
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
@@ -3627,7 +3884,8 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'Clients avec projets terminés [PERIOD]',
       'Projets achevés pour les clients durant [PERIOD]',
     ],
-    description: 'Liste des clients ayant terminé un projet sur une période donnée.',
+    description:
+      'Liste des clients ayant terminé un projet sur une période donnée.',
     parameters: [
       {
         name: 'PERIOD',
@@ -3637,7 +3895,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     prisma: async (period: string) => {
       // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
       const startDate = new Date(); // Placeholder
-      const endDate = new Date();   // Placeholder
+      const endDate = new Date(); // Placeholder
 
       return await prismaService.clients.findMany({
         where: {
@@ -3681,18 +3939,20 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'méthode',
       'client',
       'règlement',
-      'mode de paiement'
+      'mode de paiement',
     ],
     questions: [
       'Quels clients utilisent le mode de paiement [METHOD] ?',
       'Clients ayant payé par [METHOD]',
       'Liste des clients par mode de paiement [METHOD]',
     ],
-    description: 'Liste des clients ayant utilisé un mode de paiement spécifique pour au moins un document.',
+    description:
+      'Liste des clients ayant utilisé un mode de paiement spécifique pour au moins un document.',
     parameters: [
       {
         name: 'METHOD',
-        description: 'Mode de paiement (ex: carte_bancaire, virement, chèque, etc.)',
+        description:
+          'Mode de paiement (ex: carte_bancaire, virement, chèque, etc.)',
       },
     ],
     prisma: async (method: string) => {
@@ -3712,7 +3972,9 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           email: true,
           phone: true,
           documents: {
-            where: { payment_method: { contains: method, mode: 'insensitive' } },
+            where: {
+              payment_method: { contains: method, mode: 'insensitive' },
+            },
             select: { reference: true, issue_date: true, payment_method: true },
             take: 1, // Show at least one document using this method
           },
@@ -3724,17 +3986,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_discounts_by_document_type: {
-    keywords: [
-      'remise',
-      'devis',
-      'facture',
-      'client',
-    ],
+    keywords: ['remise', 'devis', 'facture', 'client'],
     questions: [
       'Clients avec remises importantes sur [DOCUMENT_TYPE]',
       'Remises cumulées par client sur [DOCUMENT_TYPE]',
     ],
-    description: 'Liste des clients ayant bénéficié de remises importantes sur un type de document spécifique.',
+    description:
+      'Liste des clients ayant bénéficié de remises importantes sur un type de document spécifique.',
     parameters: [
       {
         name: 'DOCUMENT_TYPE',
@@ -3760,7 +4018,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           phone: true,
           documents: {
             where: { type: documentType as any, discount_amount: { gt: 0 } },
-            select: { reference: true, issue_date: true, amount: true, discount_amount: true },
+            select: {
+              reference: true,
+              issue_date: true,
+              amount: true,
+              discount_amount: true,
+            },
           },
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
@@ -3770,12 +4033,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_accepted_quotes_in_period: {
-    keywords: [
-      'devis',
-      'accepté',
-      'période',
-      'client',
-    ],
+    keywords: ['devis', 'accepté', 'période', 'client'],
     questions: [
       'Clients avec devis acceptés [PERIOD]',
       'Devis acceptés par client [PERIOD]',
@@ -3790,7 +4048,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     prisma: async (period: string) => {
       // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
       const startDate = new Date(); // Placeholder
-      const endDate = new Date();   // Placeholder
+      const endDate = new Date(); // Placeholder
 
       return await prismaService.clients.findMany({
         where: {
@@ -3831,21 +4089,18 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_frequent_events_of_type: {
-    keywords: [
-      'événement',
-      'fréquent',
-      'type',
-      'client',
-    ],
+    keywords: ['événement', 'fréquent', 'type', 'client'],
     questions: [
-      'Clients avec beaucoup d\'événements de type [EVENT_TYPE]',
-      'Clients avec un grand nombre d\'[EVENT_TYPE]',
+      "Clients avec beaucoup d'événements de type [EVENT_TYPE]",
+      "Clients avec un grand nombre d'[EVENT_TYPE]",
     ],
-    description: 'Liste des clients qui ont eu un grand nombre d\'événements d\'un certain type.',
+    description:
+      "Liste des clients qui ont eu un grand nombre d'événements d'un certain type.",
     parameters: [
       {
         name: 'EVENT_TYPE',
-        description: 'Type d\'événement (ex: appel téléphonique, visite technique)',
+        description:
+          "Type d'événement (ex: appel téléphonique, visite technique)",
       },
     ],
     prisma: async (eventType: string) => {
@@ -3876,17 +4131,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_by_project_status_in_period: {
-    keywords: [
-      'projet',
-      'statut',
-      'période',
-      'client',
-    ],
+    keywords: ['projet', 'statut', 'période', 'client'],
     questions: [
       'Clients dont des projets sont passés au statut [PROJECT_STATUS] [PERIOD]',
       'Projets [PROJECT_STATUS] pour les clients [PERIOD]',
     ],
-    description: 'Liste des clients dont des projets ont changé de statut sur une période donnée.',
+    description:
+      'Liste des clients dont des projets ont changé de statut sur une période donnée.',
     parameters: [
       {
         name: 'PROJECT_STATUS',
@@ -3900,7 +4151,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     prisma: async (projectStatus: string, period: string) => {
       // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
       const startDate = new Date(); // Placeholder
-      const endDate = new Date();   // Placeholder
+      const endDate = new Date(); // Placeholder
 
       return await prismaService.clients.findMany({
         where: {
@@ -3939,17 +4190,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_without_default_invoice_address: {
-    keywords: [
-      'facturation',
-      'adresse',
-      'défaut',
-      'client',
-    ],
+    keywords: ['facturation', 'adresse', 'défaut', 'client'],
     questions: [
       'Clients sans adresse de facturation par défaut',
-      'Qui n\'a pas d\'adresse de facturation par défaut ?',
+      "Qui n'a pas d'adresse de facturation par défaut ?",
     ],
-    description: 'Liste des clients pour lesquels l\'adresse de facturation par défaut n\'est pas définie.',
+    description:
+      "Liste des clients pour lesquels l'adresse de facturation par défaut n'est pas définie.",
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -3975,16 +4222,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_by_project_reference: {
-    keywords: [
-      'projet',
-      'référence',
-      'client',
-    ],
+    keywords: ['projet', 'référence', 'client'],
     questions: [
       'Clients associés au projet [PROJECT_REFERENCE]',
       'Qui est associé au projet [PROJECT_REFERENCE] ?',
     ],
-    description: 'Recherche un client en fournissant la référence d\'un de ses projets.',
+    description:
+      "Recherche un client en fournissant la référence d'un de ses projets.",
     parameters: [
       {
         name: 'PROJECT_REFERENCE',
@@ -4009,7 +4253,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           phone: true,
           projects: {
             where: { reference: projectReference },
-            select: { name: true, reference: true, start_date: true, end_date: true },
+            select: {
+              name: true,
+              reference: true,
+              start_date: true,
+              end_date: true,
+            },
           },
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
@@ -4019,17 +4268,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_site_reports: {
-    keywords: [
-      'rapport',
-      'chantier',
-      'ouvert',
-      'client',
-    ],
+    keywords: ['rapport', 'chantier', 'ouvert', 'client'],
     questions: [
       'Clients avec des rapports de chantier ouverts',
       'Qui a des rapports de chantier en cours ?',
     ],
-    description: 'Liste des clients dont les projets ou étapes sont associés à des rapports de chantier avec un statut "ouvert".',
+    description:
+      'Liste des clients dont les projets ou étapes sont associés à des rapports de chantier avec un statut "ouvert".',
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -4100,12 +4345,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_low_budget_projects: {
-    keywords: [
-      'budget',
-      'faible',
-      'projet',
-      'client',
-    ],
+    keywords: ['budget', 'faible', 'projet', 'client'],
     questions: [
       'Clients avec des projets à budget faible',
       'Qui a des projets avec un budget inférieur à [BUDGET] ?',
@@ -4155,16 +4395,10 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_without_customer_id: {
-    keywords: [
-      'customer_id',
-      'manquant',
-      'client',
-    ],
-    questions: [
-      'Clients sans customer_id',
-      'Qui n\'a pas de customer_id ?',
-    ],
-    description: 'Liste des clients pour lesquels le champ customer_id n\'est pas défini.',
+    keywords: ['customer_id', 'manquant', 'client'],
+    questions: ['Clients sans customer_id', "Qui n'a pas de customer_id ?"],
+    description:
+      "Liste des clients pour lesquels le champ customer_id n'est pas défini.",
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -4185,17 +4419,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_recently_updated: {
-    keywords: [
-      'récent',
-      'mis à jour',
-      'modifié',
-      'client'
-    ],
+    keywords: ['récent', 'mis à jour', 'modifié', 'client'],
     questions: [
       'Clients récemment mis à jour',
       'Qui a été modifié récemment ?',
     ],
-    description: 'Liste des clients dont la fiche a été mise à jour récemment (par exemple, dans les 30 derniers jours).',
+    description:
+      'Liste des clients dont la fiche a été mise à jour récemment (par exemple, dans les 30 derniers jours).',
     prisma: async () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -4220,19 +4450,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_high_budget_projects: {
-    keywords: [
-      'projet',
-      'budget',
-      'coût',
-      'dépasse',
-      'client',
-      'élevé'
-    ],
+    keywords: ['projet', 'budget', 'coût', 'dépasse', 'client', 'élevé'],
     questions: [
       'Quels clients ont des projets dont le budget dépasse [AMOUNT] € ?',
       'Projets clients avec budget élevé',
     ],
-    description: 'Liste des clients ayant au moins un projet dont le budget est supérieur à un montant spécifié.',
+    description:
+      'Liste des clients ayant au moins un projet dont le budget est supérieur à un montant spécifié.',
     parameters: [
       {
         name: 'AMOUNT',
@@ -4276,18 +4500,19 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'réunion chantier',
       'visite technique',
       'client',
-      'interaction'
+      'interaction',
     ],
     questions: [
       'Quels clients ont eu un événement de type [EVENT_TYPE] ?',
       'Liste des clients avec [EVENT_TYPE]',
-      'Clients avec événement [EVENT_TYPE]'
+      'Clients avec événement [EVENT_TYPE]',
     ],
-    description: 'Liste des clients associés à un type d\'événement donné.',
+    description: "Liste des clients associés à un type d'événement donné.",
     parameters: [
       {
         name: 'EVENT_TYPE',
-        description: 'Type d\'événement (ex: appel_telephonique, reunion_chantier, visite_technique, etc.)',
+        description:
+          "Type d'événement (ex: appel_telephonique, reunion_chantier, visite_technique, etc.)",
       },
     ],
     prisma: async (eventType: string) => {
@@ -4324,24 +4549,26 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'période',
       'contact',
       'client',
-      'interaction'
+      'interaction',
     ],
     questions: [
       'Clients avec événements [PERIOD]',
       'Quels clients ont eu des rendez-vous [PERIOD] ?',
-      'Liste des interactions clients sur [PERIOD]'
+      'Liste des interactions clients sur [PERIOD]',
     ],
-    description: 'Liste des clients ayant eu au moins un événement enregistré sur une période donnée.',
+    description:
+      'Liste des clients ayant eu au moins un événement enregistré sur une période donnée.',
     parameters: [
       {
         name: 'PERIOD',
-        description: 'Période (ex: la semaine dernière, le mois dernier, l\'année dernière)',
+        description:
+          "Période (ex: la semaine dernière, le mois dernier, l'année dernière)",
       },
     ],
     prisma: async (period: string) => {
       // @TODO: Implémenter la logique de calcul des dates limites en fonction de 'period'
       const startDate = new Date(); // Placeholder
-      const endDate = new Date();   // Placeholder
+      const endDate = new Date(); // Placeholder
 
       return await prismaService.clients.findMany({
         where: {
@@ -4386,15 +4613,16 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'à venir',
       'planifié',
       'client',
-      'prochain'
+      'prochain',
     ],
     questions: [
       'Quels clients ont des événements à venir ?',
       'Clients avec des rendez-vous planifiés',
       'Liste des clients avec des événements futurs',
-      'Qui a un événement planifié bientôt ?'
+      'Qui a un événement planifié bientôt ?',
     ],
-    description: 'Liste des clients ayant au moins un événement dont la date de début est dans le futur.',
+    description:
+      'Liste des clients ayant au moins un événement dont la date de début est dans le futur.',
     prisma: async () => {
       const now = new Date();
       return await prismaService.clients.findMany({
@@ -4414,7 +4642,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           phone: true,
           events: {
             where: { start_date: { gt: now } },
-            select: { title: true, start_date: true, event_type: true, location: true },
+            select: {
+              title: true,
+              start_date: true,
+              event_type: true,
+              location: true,
+            },
             orderBy: { start_date: 'asc' },
           },
         },
@@ -4435,18 +4668,19 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'chantier',
       'client',
       'domicile',
-      'siège social'
+      'siège social',
     ],
     questions: [
       'Quels clients ont une adresse de type [ADDRESS_TYPE] ?',
       'Liste des clients avec une adresse de [ADDRESS_TYPE]',
-      'Clients avec adresse [ADDRESS_TYPE]'
+      'Clients avec adresse [ADDRESS_TYPE]',
     ],
-    description: 'Liste des clients associés à un type d\'adresse spécifique.',
+    description: "Liste des clients associés à un type d'adresse spécifique.",
     parameters: [
       {
         name: 'ADDRESS_TYPE',
-        description: 'Type d\'adresse (ex: facturation, livraison, chantier, domicile, etc.)',
+        description:
+          "Type d'adresse (ex: facturation, livraison, chantier, domicile, etc.)",
       },
     ],
     prisma: async (addressType: string) => {
@@ -4477,20 +4711,14 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_by_street_name: {
-    keywords: [
-      'adresse',
-      'rue',
-      'habite',
-      'client',
-      'localisé',
-      'réside'
-    ],
+    keywords: ['adresse', 'rue', 'habite', 'client', 'localisé', 'réside'],
     questions: [
       'Quels clients habitent rue [STREET_NAME] ?',
       'Clients dans la rue [STREET_NAME]',
-      'Clients résidant rue [STREET_NAME]'
+      'Clients résidant rue [STREET_NAME]',
     ],
-    description: 'Liste des clients ayant une adresse principale ou secondaire dans une rue spécifiée.',
+    description:
+      'Liste des clients ayant une adresse principale ou secondaire dans une rue spécifiée.',
     parameters: [
       {
         name: 'STREET_NAME',
@@ -4508,11 +4736,11 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             },
             {
               client_addresses: {
-                  some: {
-                      addresses: {
-                          street_name: { contains: streetName, mode: 'insensitive' },
-                      },
+                some: {
+                  addresses: {
+                    street_name: { contains: streetName, mode: 'insensitive' },
                   },
+                },
               },
             },
           ],
@@ -4528,7 +4756,11 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
             select: { street_number: true, street_name: true, city: true },
           },
           client_addresses: {
-            select: { addresses: { select: { street_number: true, street_name: true, city: true } } },
+            select: {
+              addresses: {
+                select: { street_number: true, street_name: true, city: true },
+              },
+            },
           },
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
@@ -4546,14 +4778,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'date de création',
       'client',
       'enregistré',
-      'créé'
+      'créé',
     ],
     questions: [
       'Quels clients ont été créés avant le [DATE] ?',
       'Clients enregistrés avant le [DATE]',
-      'Clients créés avant le [DATE]'
+      'Clients créés avant le [DATE]',
     ],
-    description: 'Liste des clients dont la date de création est antérieure à une date donnée.',
+    description:
+      'Liste des clients dont la date de création est antérieure à une date donnée.',
     parameters: [
       {
         name: 'DATE',
@@ -4587,14 +4820,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'pas de devis',
       'pas de facture',
       'client vide',
-      'aucun document'
+      'aucun document',
     ],
     questions: [
-      'Quels clients n\'ont aucun document associé ?',
+      "Quels clients n'ont aucun document associé ?",
       'Liste des clients sans document',
-      'Clients sans aucun document'
+      'Clients sans aucun document',
     ],
-    description: 'Liste des clients qui ne sont associés à aucun devis, facture ou autre document.',
+    description:
+      'Liste des clients qui ne sont associés à aucun devis, facture ou autre document.',
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -4624,14 +4858,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'employé',
       'géré par',
       'client',
-      'impliquant'
+      'impliquant',
     ],
     questions: [
       'Quels clients sont gérés par [STAFF_NAME] ?',
       'Clients associés à [STAFF_NAME]',
-      'Liste des clients avec des projets ou événements impliquant [STAFF_NAME]'
+      'Liste des clients avec des projets ou événements impliquant [STAFF_NAME]',
     ],
-    description: 'Liste des clients ayant des projets ou des événements auxquels un membre du personnel spécifique est associé.',
+    description:
+      'Liste des clients ayant des projets ou des événements auxquels un membre du personnel spécifique est associé.',
     parameters: [
       {
         name: 'STAFF_NAME',
@@ -4649,8 +4884,18 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
                     some: {
                       staff: {
                         OR: [
-                          { firstname: { contains: staffName, mode: 'insensitive' } },
-                          { lastname: { contains: staffName, mode: 'insensitive' } },
+                          {
+                            firstname: {
+                              contains: staffName,
+                              mode: 'insensitive',
+                            },
+                          },
+                          {
+                            lastname: {
+                              contains: staffName,
+                              mode: 'insensitive',
+                            },
+                          },
                         ],
                       },
                     },
@@ -4662,27 +4907,31 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
               events: {
                 some: {
                   staff: {
-                       OR: [
-                          { firstname: { contains: staffName, mode: 'insensitive' } },
-                          { lastname: { contains: staffName, mode: 'insensitive' } },
-                        ],
-                    },
+                    OR: [
+                      {
+                        firstname: { contains: staffName, mode: 'insensitive' },
+                      },
+                      {
+                        lastname: { contains: staffName, mode: 'insensitive' },
+                      },
+                    ],
                   },
                 },
               },
-            ],
-          },
-          select: {
-            id: true,
-            firstname: true,
-            lastname: true,
-            company_name: true,
-            email: true,
-            phone: true,
-          },
-          orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
-        });
-      },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          company_name: true,
+          email: true,
+          phone: true,
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
     response_format: 'table',
   },
 
@@ -4695,14 +4944,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'mot clé',
       'spécifique',
       'client',
-      'mentionne'
+      'mentionne',
     ],
     questions: [
       'Clients dont les notes mentionnent [KEYWORD]',
       'Liste des clients avec le mot [KEYWORD] dans leurs notes',
-      'Qui a le mot [KEYWORD] dans ses notes ?'
+      'Qui a le mot [KEYWORD] dans ses notes ?',
     ],
-    description: 'Liste des clients dont le champ "notes" contient un mot-clé spécifique.',
+    description:
+      'Liste des clients dont le champ "notes" contient un mot-clé spécifique.',
     parameters: [
       {
         name: 'KEYWORD',
@@ -4738,14 +4988,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'en attente',
       'client',
       'validé',
-      'sans chantier'
+      'sans chantier',
     ],
     questions: [
       'Quels clients ont un devis accepté mais pas de projet démarré ?',
       'Clients avec devis validés sans chantier en cours',
       'Liste des clients avec devis accepté mais pas de projet associé',
     ],
-    description: 'Liste des clients ayant au moins un devis accepté mais aucun projet avec un statut indiquant un démarrage (en_cours, en_preparation, en_pause).',
+    description:
+      'Liste des clients ayant au moins un devis accepté mais aucun projet avec un statut indiquant un démarrage (en_cours, en_preparation, en_pause).',
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -4791,15 +5042,16 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'mauvais payeur',
       'client',
       'facture en retard',
-      'historique impayés'
+      'historique impayés',
     ],
     questions: [
       'Quels clients ont un historique de retards de paiement ?',
       'Clients ayant souvent des factures en retard',
-      'Liste des clients avec historique de retards de paiement importants'
+      'Liste des clients avec historique de retards de paiement importants',
     ],
-    description: 'Identifier les clients ayant eu un certain nombre (par exemple, 2 ou plus) de factures avec un statut de paiement "non_payé" au-delà de leur date d\'échéance.',
-    prisma: async () => { 
+    description:
+      'Identifier les clients ayant eu un certain nombre (par exemple, 2 ou plus) de factures avec un statut de paiement "non_payé" au-delà de leur date d\'échéance.',
+    prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
           documents: {
@@ -4832,14 +5084,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'date limite proche',
       'client',
       'risque retard',
-      'progression lente'
+      'progression lente',
     ],
     questions: [
-      'Quels clients ont des projets avec peu d\'avancement et une date de fin proche ?',
+      "Quels clients ont des projets avec peu d'avancement et une date de fin proche ?",
       'Projets clients avec risque de retard et faible progression',
-      'Clients avec projets potentiellement en retard et peu avancés'
+      'Clients avec projets potentiellement en retard et peu avancés',
     ],
-    description: 'Liste des clients ayant des projets dont la date de fin est dans les 30 prochains jours et dont l\'avancement moyen des étapes est inférieur à 50%.',
+    description:
+      "Liste des clients ayant des projets dont la date de fin est dans les 30 prochains jours et dont l'avancement moyen des étapes est inférieur à 50%.",
     prisma: async () => {
       const now = new Date();
       const thirtyDaysLater = new Date();
@@ -4855,14 +5108,14 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         },
         include: {
           clients: {
-             select: {
-               id: true,
-               firstname: true,
-               lastname: true,
-               company_name: true,
-               email: true,
-               phone: true,
-             }
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+              company_name: true,
+              email: true,
+              phone: true,
+            },
           },
           project_stages: {
             select: { completion_percentage: true },
@@ -4871,22 +5124,27 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       });
 
       const clientsWithAtRiskProjects = projects
-        .filter(project => {
+        .filter((project) => {
           const stagesCount = project.project_stages.length;
           if (stagesCount === 0) return false;
-          const avgCompletion = project.project_stages.reduce((sum, stage) => sum + (stage.completion_percentage || 0), 0) / stagesCount;
+          const avgCompletion =
+            project.project_stages.reduce(
+              (sum, stage) => sum + (stage.completion_percentage || 0),
+              0,
+            ) / stagesCount;
           return avgCompletion < 50;
         })
-        .map(project => project.clients);
+        .map((project) => project.clients);
 
-       const uniqueClientsMap = new Map<number, any>();
-       clientsWithAtRiskProjects.forEach(client => {
-           if (client) { // Ensure client is not null
-               uniqueClientsMap.set(client.id, client);
-           }
-       });
+      const uniqueClientsMap = new Map<number, any>();
+      clientsWithAtRiskProjects.forEach((client) => {
+        if (client) {
+          // Ensure client is not null
+          uniqueClientsMap.set(client.id, client);
+        }
+      });
 
-       return Array.from(uniqueClientsMap.values());
+      return Array.from(uniqueClientsMap.values());
     },
     response_format: 'table',
   },
@@ -4894,17 +5152,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   // 9. Requêtes basées sur des critères combinés ou spécifiques :
 
   clients_with_discounts_on_document_type: {
-    keywords: [
-      'remise',
-      'devis',
-      'facture',
-      'client',
-    ],
+    keywords: ['remise', 'devis', 'facture', 'client'],
     questions: [
       'Clients ayant reçu une remise sur un [DOCUMENT_TYPE]',
       'Liste des clients avec remises sur [DOCUMENT_TYPE]',
     ],
-    description: 'Liste des clients ayant bénéficié d\'une remise sur un type de document spécifique.',
+    description:
+      "Liste des clients ayant bénéficié d'une remise sur un type de document spécifique.",
     parameters: [
       {
         name: 'DOCUMENT_TYPE',
@@ -4930,7 +5184,12 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
           phone: true,
           documents: {
             where: { type: documentType as any, discount_amount: { gt: 0 } },
-            select: { reference: true, issue_date: true, amount: true, discount_amount: true },
+            select: {
+              reference: true,
+              issue_date: true,
+              amount: true,
+              discount_amount: true,
+            },
           },
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
@@ -4940,22 +5199,18 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_with_frequent_events_by_type: {
-    keywords: [
-      'événement',
-      'fréquent',
-      'type',
-      'interaction',
-      'beaucoup'
-    ],
+    keywords: ['événement', 'fréquent', 'type', 'interaction', 'beaucoup'],
     questions: [
-      'Clients avec beaucoup d\'événements de type [EVENT_TYPE]',
+      "Clients avec beaucoup d'événements de type [EVENT_TYPE]",
       'Qui a eu beaucoup de [EVENT_TYPE] ?',
     ],
-    description: 'Liste des clients ayant un nombre élevé d\'événements d\'un type spécifique.',
+    description:
+      "Liste des clients ayant un nombre élevé d'événements d'un type spécifique.",
     parameters: [
       {
         name: 'EVENT_TYPE',
-        description: 'Type d\'événement (ex: appel_telephonique, reunion_chantier)',
+        description:
+          "Type d'événement (ex: appel_telephonique, reunion_chantier)",
       },
     ],
     prisma: async (eventType: string) => {
@@ -4963,15 +5218,15 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         include: {
           events: {
             where: { event_type: eventType as any },
-            select: { id: true }
+            select: { id: true },
           },
         },
       });
 
       // Filter clients with more than a certain number of events of this type (e.g., > 3)
       const clientsWithFrequentEvents = clients
-        .filter(client => client.events.length > 3) // Threshold can be adjusted
-        .map(client => ({
+        .filter((client) => client.events.length > 3) // Threshold can be adjusted
+        .map((client) => ({
           id: client.id,
           firstname: client.firstname,
           lastname: client.lastname,
@@ -4988,17 +5243,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   clients_without_default_billing_address: {
-    keywords: [
-      'adresse facturation',
-      'par défaut',
-      'manquante',
-      'client'
-    ],
+    keywords: ['adresse facturation', 'par défaut', 'manquante', 'client'],
     questions: [
       'Clients sans adresse de facturation par défaut',
-      'Qui n\'a pas d\'adresse de facturation principale ?',
+      "Qui n'a pas d'adresse de facturation principale ?",
     ],
-    description: 'Liste des clients pour lesquels aucune adresse de facturation par défaut n\'est définie.',
+    description:
+      "Liste des clients pour lesquels aucune adresse de facturation par défaut n'est définie.",
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -5029,17 +5280,13 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
   },
 
   client_by_project_reference: {
-    keywords: [
-      'projet',
-      'référence',
-      'client',
-      'associé à'
-    ],
+    keywords: ['projet', 'référence', 'client', 'associé à'],
     questions: [
       'Quel client est associé au projet [REFERENCE] ?',
       'Client du projet [REFERENCE]',
     ],
-    description: 'Trouve le client associé à un projet spécifique en utilisant la référence du projet.',
+    description:
+      'Trouve le client associé à un projet spécifique en utilisant la référence du projet.',
     parameters: [
       {
         name: 'REFERENCE',
@@ -5073,13 +5320,14 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
       'site report',
       'ouvert',
       'problème',
-      'client'
+      'client',
     ],
     questions: [
       'Clients avec rapports de chantier ouverts',
       'Qui a des problèmes signalés sur leurs chantiers ?',
     ],
-    description: 'Liste des clients ayant des projets ou étapes associés à des rapports de chantier non résolus.',
+    description:
+      'Liste des clients ayant des projets ou étapes associés à des rapports de chantier non résolus.',
     prisma: async () => {
       const clients = await prismaService.clients.findMany({
         where: {
@@ -5113,23 +5361,21 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
         },
         orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
       });
-      return clients.filter(client => client.projects.some(project => project.site_reports.length > 0));
+      return clients.filter((client) =>
+        client.projects.some((project) => project.site_reports.length > 0),
+      );
     },
     response_format: 'table',
   },
 
   clients_missing_customer_id: {
-    keywords: [
-      'customer id',
-      'manquant',
-      'identifiant externe',
-      'client'
-    ],
+    keywords: ['customer id', 'manquant', 'identifiant externe', 'client'],
     questions: [
       'Clients sans customer_id',
-      'Qui n\'a pas d\'identifiant client externe ?',
+      "Qui n'a pas d'identifiant client externe ?",
     ],
-    description: 'Liste des clients pour lesquels le champ customer_id est vide ou nul.',
+    description:
+      'Liste des clients pour lesquels le champ customer_id est vide ou nul.',
     prisma: async () => {
       return await prismaService.clients.findMany({
         where: {
@@ -5152,8 +5398,4 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     },
     response_format: 'table',
   },
-
-
-}); // Closing parenthesis for getClientsQueries
-
-
+});
