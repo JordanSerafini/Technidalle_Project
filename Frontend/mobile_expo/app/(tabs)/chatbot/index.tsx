@@ -237,7 +237,7 @@ export default function ChatbotScreen() {
           data={messages}
           keyExtractor={(item: Message) => item.id}
           renderItem={({ item }: { item: Message }) => (
-            <ChatMessage message={item} />
+            <ChatMessage message={item} onItemPress={handleItemPress} />
           )}
           contentContainerStyle={{ 
             padding: 16,
@@ -270,20 +270,66 @@ export default function ChatbotScreen() {
             onPress={handleQuickReply}
           />
 
-          <View className="flex-row items-center mt-2">
-            <View className="flex-1 flex-row items-center bg-gray-100 rounded-full px-4 py-2">
-              <TextInput
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Écrivez votre message..."
-                className="flex-1 mr-2"
-                multiline
-                maxLength={500}
-              />
-              <AttachmentButton onFileSelected={handleAttachment} />
-              <SpeechButton onSpeechResult={setInputText} />
+          <View className="flex-row items-end mt-2">
+            {/* Conteneur principal pour la zone de saisie et les boutons */}
+            <View className="flex-1 flex-col mr-2">
+              {/* Champ de texte et boutons d'action */}
+              <View className="flex-row items-center bg-gray-100 rounded-2xl px-4 py-3">
+                <TextInput
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Écrivez votre message..."
+                  className="flex-1 mr-2 text-base"
+                  multiline
+                  maxLength={500}
+                  // Ajustement pour le défilement si le texte dépasse une seule ligne
+                  scrollEnabled={true}
+                />
+                <AttachmentButton onFileSelected={handleAttachment} />
+                <SpeechButton onSpeechResult={setInputText} />
+              </View>
+
+              {/* Affichage des aperçus de pièces jointes */}
+              {currentAttachments.length > 0 && (
+                <View className="mt-2 flex-row flex-wrap items-center justify-start">
+                  {currentAttachments.map((attachment, index) => (
+                    <View key={index} className="mr-2 mb-2 rounded-lg overflow-hidden border border-gray-300">
+                      {attachment.type.startsWith('image') ? (
+                        <View className="relative">
+                          <Image
+                            source={{ uri: attachment.uri }}
+                            className="w-16 h-16 rounded-lg" // Taille légèrement réduite et coins arrondis
+                            resizeMode="cover"
+                          />
+                          <TouchableOpacity
+                            onPress={() => removeAttachment(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 z-10"
+                          >
+                            <Ionicons name="close" size={14} color="white" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View className="relative bg-gray-200 rounded-lg p-2 flex-row items-center">
+                           {/* Icône pour fichier */}
+                           <Ionicons name="document-outline" size={20} color="#4b5563" className="mr-1"/>
+                          <Text className="text-sm text-gray-700 max-w-[100px]" numberOfLines={1}>
+                            {attachment.name}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => removeAttachment(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 z-10"
+                          >
+                            <Ionicons name="close" size={14} color="white" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
-            
+
+            {/* Bouton d'envoi */}
             <TouchableOpacity
               onPress={sendMessage}
               disabled={isLoading || (!inputText.trim() && currentAttachments.length === 0)}
@@ -300,41 +346,6 @@ export default function ChatbotScreen() {
               )}
             </TouchableOpacity>
           </View>
-
-          {currentAttachments.length > 0 && (
-            <View className="mt-2 flex-row flex-wrap">
-              {currentAttachments.map((attachment, index) => (
-                <View key={index} className="mr-2 mb-2">
-                  {attachment.type.startsWith('image') ? (
-                    <View className="relative">
-                      <Image
-                        source={{ uri: attachment.uri }}
-                        className="w-20 h-20 rounded-md"
-                      />
-                      <TouchableOpacity
-                        onPress={() => removeAttachment(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                      >
-                        <Ionicons name="close" size={16} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <View className="relative bg-gray-100 rounded-md p-2">
-                      <Text className="text-sm text-gray-700" numberOfLines={1}>
-                        {attachment.name}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => removeAttachment(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
-                      >
-                        <Ionicons name="close" size={16} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -2743,5 +2743,382 @@ export const planningQueries = {
     description:
       'Taux d\'occupation du personnel cette semaine basé sur les heures planifiées vs disponibles',
   },
-  
+
+  staff_availability_by_date: {
+    keywords: [
+      'disponible',
+      'date',
+      'personnel',
+      'libre',
+      'membre',
+      'employé',
+      'planifié',
+      'présent',
+      'équipe',
+    ],
+    questions: [
+      'Qui est disponible le [DATE] ?',
+      'Personnel disponible le [DATE]',
+      'Membres du staff libres le [DATE]',
+      'Employés non planifiés pour le [DATE]',
+      'Qui est dispo le [DATE] ?',
+      'Personnel libre le [DATE]',
+      'Staff disponible le [DATE]',
+      'Employés disponibles le [DATE] ?',
+      'Qui est libre le [DATE] ?',
+      'Personnel non planifié le [DATE]',
+      "Quel est le personnel disponible le [DATE] ?",
+      "Qui est présent et disponible le [DATE] ?",
+      "Équipe disponible le [DATE]",
+    ],
+    prisma: async (date: string) => {
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+
+      const nextDate = new Date(targetDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      return await prisma.staff.findMany({
+        where: {
+          is_available: true,
+          NOT: {
+            OR: [
+              {
+                time_logs: {
+                  some: {
+                    check_in: {
+                      gte: targetDate,
+                      lt: nextDate,
+                    },
+                  },
+                },
+              },
+              {
+                events: {
+                  some: {
+                    start_date: {
+                      gte: targetDate,
+                      lt: nextDate,
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        select: {
+          firstname: true,
+          lastname: true,
+          email: true,
+          phone: true,
+          roles: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+      });
+    },
+    response_format: 'table',
+    description:
+      'Liste du personnel disponible pour une date spécifique (sans entrées dans le planning ni événements)',
+    parameters: [
+      {
+        name: 'DATE',
+        description: 'Date au format YYYY-MM-DD',
+        default: 'CURRENT_DATE',
+      },
+    ],
+  },
+
+  upcoming_events_by_type: {
+    keywords: [
+      'événement',
+      'type',
+      'prochain',
+      'activité',
+      'rendez-vous',
+      'liste',
+      'planning',
+      'avenir',
+    ],
+    questions: [
+      'Quels sont les prochains événements de type [TYPE] ?',
+      'Activités à venir de catégorie [TYPE]',
+      'Rendez-vous [TYPE] à venir',
+      'Liste des [TYPE] à venir',
+      'Quoi de type [TYPE] à venir ?',
+      'Planning [TYPE] à venir',
+      'Événements [TYPE] à venir',
+      'Programme [TYPE] à venir',
+      'Rendez-vous type [TYPE] à venir',
+      'Activités [TYPE] à venir',
+      'Prochains événements de type [TYPE]',
+    ],
+    prisma: async (type: string) => {
+      const now = new Date();
+
+      return await prisma.events.findMany({
+        where: {
+          event_type: type as any,
+          start_date: {
+            gt: now,
+          },
+        },
+        include: {
+          projects: {
+            select: {
+              name: true,
+            },
+          },
+          staff: {
+            select: {
+              firstname: true,
+              lastname: true,
+            },
+          },
+        },
+        orderBy: {
+          start_date: 'asc',
+        },
+      });
+    },
+    response_format: 'table',
+    description:
+      'Liste des prochains événements d\'un type spécifique, triés par date',
+    parameters: [
+      {
+        name: 'TYPE',
+        description:
+          "Type d\'événement (appel_telephonique, reunion_chantier, visite_technique, rendez_vous_client, reunion_interne)",
+      },
+    ],
+  },
+
+  upcoming_tasks: {
+    keywords: [
+      'tâche',
+      'faire',
+      'programme',
+      'planning',
+      'avenir',
+      'prochaine',
+      'liste',
+      'travail',
+    ],
+    questions: [
+      'Quelles sont les tâches à venir ?',
+      'Prochaines tâches à faire',
+      'Tâches non terminées à venir',
+      'Liste des prochaines tâches',
+      'Quoi faire prochainement ?',
+      'Tâches à réaliser prochainement',
+      'Travaux à venir',
+      'Tâches futures',
+      'Planning des tâches à venir',
+      'Travaux à faire prochainement',
+      'Prochaines tâches',
+    ],
+    prisma: async () => {
+      const now = new Date();
+
+      return await prisma.tasks.findMany({
+        where: {
+          due_date: {
+            gt: now,
+          },
+          status: {
+            not: 'termine',
+          },
+        },
+        include: {
+          project_stages: {
+            select: {
+              name: true,
+              projects: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          staff: {
+            select: {
+              firstname: true,
+              lastname: true,
+            },
+          },
+        },
+        orderBy: [{ due_date: 'asc' }, { priority: 'desc' }],
+      });
+    },
+    response_format: 'table',
+    description:
+      'Liste des tâches à venir (non terminées), triées par date d\'échéance puis par priorité',
+  },
+
+  recent_site_reports_by_project: {
+    keywords: [
+      'rapport',
+      'chantier',
+      'activité',
+      'journée',
+      'récent',
+      'projet',
+      'liste',
+    ],
+    questions: [
+      'Quels sont les derniers rapports de chantier pour le projet [PROJECT] ?',
+      'Rapports journaliers récents pour le projet [PROJECT]',
+      'Derniers comptes rendus de chantier du projet [PROJECT]',
+      "Rapports d\'activité récents du projet [PROJECT]",
+      'Derniers rapports du projet [PROJECT]',
+      'Rapports chantier projet [PROJECT]',
+      'Comptes rendus récents projet [PROJECT]',
+      'Rapports journaliers projet [PROJECT]',
+      'Rapports activité projet [PROJECT]',
+      'Derniers comptes rendus pour [PROJECT]',
+    ],
+    prisma: async (project: string) => {
+      return await prisma.site_reports.findMany({
+        where: {
+          projects: {
+            OR: [
+              { name: { contains: project, mode: 'insensitive' } },
+              { id: { equals: parseInt(project) } },
+            ],
+          },
+        },
+        select: {
+          id: true,
+          created_at: true,
+          description: true,
+          projects: {
+            select: {
+              name: true,
+            },
+          },
+          staff: {
+            select: {
+              firstname: true,
+              lastname: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take: 10,
+      });
+    },
+    response_format: 'table',
+    description:
+      'Liste des 10 derniers rapports journaliers de chantier pour un projet spécifique',
+    parameters: [
+      {
+        name: 'PROJECT',
+        description: 'Nom ou ID du projet',
+      },
+    ],
+  },
+
+  vehicle_reservations_by_date: {
+    keywords: [
+      'véhicule',
+      'réservation',
+      'disponible',
+      'planifié',
+      'date',
+      'période',
+      'calendrier',
+    ],
+    questions: [
+      'Quels véhicules sont réservés le [DATE] ?',
+      'Réservations de véhicules pour le [DATE]',
+      'Véhicules non disponibles le [DATE]',
+      'Planning des véhicules le [DATE]',
+      'Quels véhicules sont pris le [DATE] ?',
+      'Réservations véhicules du [START_DATE] au [END_DATE]',
+      'Véhicules réservés entre [START_DATE] et [END_DATE]',
+      'Planning des réservations de véhicules entre [START_DATE] et [END_DATE]',
+      'Calendrier des réservations véhicules',
+    ],
+    prisma: async (startDate: string, endDate?: string) => {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      let end = new Date(start);
+      if (endDate) {
+        end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+      } else {
+        end.setHours(23, 59, 59, 999);
+      }
+
+      return await prisma.vehicle_reservations.findMany({
+        where: {
+          OR: [
+            { // Réservation commence pendant la période
+              start_date: {
+                gte: start,
+                lte: end,
+              },
+            },
+            { // Réservation se termine pendant la période
+              end_date: {
+                gte: start,
+                lte: end,
+              },
+            },
+            { // Réservation englobe la période
+              start_date: {
+                lte: start,
+              },
+              end_date: {
+                gte: end,
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          start_date: true,
+          end_date: true,
+          purpose: true,
+          vehicles: {
+            select: {
+              name: true,
+              brand: true,
+              model: true,
+              registration_number: true,
+            },
+          },
+          staff: {
+            select: {
+              firstname: true,
+              lastname: true,
+            },
+          },
+        },
+        orderBy: {
+          start_date: 'asc',
+        },
+      });
+    },
+    response_format: 'table',
+    description:
+      'Liste des réservations de véhicules pour une date ou une plage de dates spécifique',
+    parameters: [
+      {
+        name: 'START_DATE',
+        description: 'Date de début (format YYYY-MM-DD)',
+        default: 'CURRENT_DATE',
+      },
+      {
+        name: 'END_DATE',
+        description: 'Date de fin (format YYYY-MM-DD, facultatif)',
+      },
+    ],
+  },
 };

@@ -995,11 +995,11 @@ export const projectsQueries = {
   },
 
   projects_with_no_progress: {
-    keywords: ['aucun avancement', 'bloqué', 'immobile', 'gelé'],
+    keywords: ['progression', 'avancement', 'zéro', 'bloqué', 'arrêt', 'stagnation', 'projet'],
     questions: [
-      'Projets sans avancement',
-      'Chantiers bloqués',
-      'Quels projets sont à l\'arrêt ?',
+      "Projets sans avancement",
+      "Chantiers bloqués",
+      "Quels projets sont à l'arrêt ?",
     ],
     prisma: async () => {
       return await prisma.projects.findMany({

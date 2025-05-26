@@ -76,6 +76,7 @@ export class WhatsappController {
         }
       }
     } catch (error) {}
+    return 'OK';
   }
 
   @Post('send-text')

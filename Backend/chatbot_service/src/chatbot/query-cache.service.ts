@@ -11,6 +11,8 @@ export class QueryCacheService {
   private readonly logger = new Logger(QueryCacheService.name);
   private cache: Map<string, CacheItem<any>> = new Map();
   private readonly defaultTTL = 1000 * 60 * 60; // 1 heure par défaut
+  private cacheHits = 0;
+  private cacheMisses = 0;
 
   /**
    * Récupère une valeur dans le cache
@@ -21,6 +23,7 @@ export class QueryCacheService {
     const item = this.cache.get(key);
 
     if (!item) {
+      this.cacheMisses++;
       return undefined;
     }
 
@@ -28,9 +31,11 @@ export class QueryCacheService {
     if (Date.now() > item.expiresAt) {
       this.logger.debug(`Cache expiré pour la clé: ${key}`);
       this.cache.delete(key);
+      this.cacheMisses++;
       return undefined;
     }
 
+    this.cacheHits++;
     this.logger.debug(`Cache hit pour la clé: ${key}`);
     return item.data as T;
   }
@@ -120,5 +125,13 @@ export class QueryCacheService {
       );
       throw error;
     }
+  }
+
+  // Ajout d'une méthode pour obtenir les statistiques du cache
+  getCacheStats(): { hits: number; misses: number } {
+    return {
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+    };
   }
 }
