@@ -73,8 +73,10 @@ export class SyncDealsService {
 
   async syncAllEbpData(): Promise<any> {
     const startTime = Date.now();
-    
-    this.logger.log('Starting full EBP data synchronization (deals and documents)');
+
+    this.logger.log(
+      'Starting full EBP data synchronization (deals and documents)',
+    );
 
     let totalProcessed = 0;
     let totalSucceeded = 0;
@@ -88,16 +90,22 @@ export class SyncDealsService {
       totalProcessed += dealSyncResult.processed;
       totalSucceeded += dealSyncResult.succeeded;
       totalFailed += dealSyncResult.failed;
-      if (dealSyncResult.errors.length > 0) errorMessages.push(...dealSyncResult.errors);
-      this.logger.log(`Deals synchronization finished. ${dealSyncResult.succeeded}/${dealSyncResult.processed} succeeded.`);
+      if (dealSyncResult.errors.length > 0)
+        errorMessages.push(...dealSyncResult.errors);
+      this.logger.log(
+        `Deals synchronization finished. ${dealSyncResult.succeeded}/${dealSyncResult.processed} succeeded.`,
+      );
 
       this.logger.log('Starting EBP Sale Documents synchronization...');
       const docSyncResult = await this._syncSaleDocuments();
       totalProcessed += docSyncResult.processed;
       totalSucceeded += docSyncResult.succeeded;
       totalFailed += docSyncResult.failed;
-      if (docSyncResult.errors.length > 0) errorMessages.push(...docSyncResult.errors);
-      this.logger.log(`Sale Documents synchronization finished. ${docSyncResult.succeeded}/${docSyncResult.processed} succeeded.`);
+      if (docSyncResult.errors.length > 0)
+        errorMessages.push(...docSyncResult.errors);
+      this.logger.log(
+        `Sale Documents synchronization finished. ${docSyncResult.succeeded}/${docSyncResult.processed} succeeded.`,
+      );
 
       status = totalFailed === 0 ? 'SUCCESS' : 'PARTIAL_SUCCESS';
     } catch (error) {
@@ -107,8 +115,10 @@ export class SyncDealsService {
     }
 
     const duration_ms = Date.now() - startTime;
-    this.logger.log(`Synchronization completed with status: ${status} in ${duration_ms}ms. Processed: ${totalProcessed}, Succeeded: ${totalSucceeded}, Failed: ${totalFailed}`);
-    
+    this.logger.log(
+      `Synchronization completed with status: ${status} in ${duration_ms}ms. Processed: ${totalProcessed}, Succeeded: ${totalSucceeded}, Failed: ${totalFailed}`,
+    );
+
     if (errorMessages.length > 0) {
       this.logger.warn(`Sync errors: ${errorMessages.join('\n')}`);
     }
@@ -120,7 +130,7 @@ export class SyncDealsService {
       items_succeeded: totalSucceeded,
       items_failed: totalFailed,
       duration_ms,
-      details: errorMessages.join('\n')
+      details: errorMessages.join('\n'),
     };
   }
 
@@ -158,7 +168,9 @@ export class SyncDealsService {
         const viewExists = viewCheckResult.rows[0]?.exists || false;
 
         if (!viewExists) {
-          this.logger.warn('La vue synced_ebp_deals n\'existe pas. Retour de tableau vide.');
+          this.logger.warn(
+            "La vue synced_ebp_deals n'existe pas. Retour de tableau vide.",
+          );
           return { processed: 0, succeeded: 0, failed: 0, errors: [] };
         }
 
@@ -173,7 +185,7 @@ export class SyncDealsService {
         );
         ebpDeals = []; // Utiliser un tableau vide
       }
-      
+
       processed = ebpDeals.length;
       this.logger.log(`Found ${processed} deals to synchronize from EBP view.`);
 
@@ -335,10 +347,12 @@ export class SyncDealsService {
         const viewExists = viewCheckResult.rows[0]?.exists || false;
 
         if (!viewExists) {
-          this.logger.warn('La vue synced_ebp_sale_documents n\'existe pas. Retour de tableau vide.');
+          this.logger.warn(
+            "La vue synced_ebp_sale_documents n'existe pas. Retour de tableau vide.",
+          );
           return { processed: 0, succeeded: 0, failed: 0, errors: [] };
         }
-        
+
         // La vue existe, on peut continuer
         const result = await this.queryService.executeQuery(
           'SELECT * FROM synced_ebp_sale_documents',
