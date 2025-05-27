@@ -3,6 +3,7 @@ import { DealToProjectMapper } from '../sync/mappers/deal-to-project.mapper';
 import { EntityType } from '../interfaces';
 import { QueryService } from './query.service';
 import { ClientSyncService } from './client-sync.service';
+import { ProjectAPP } from '../interfaces/projects/projectAPP';
 
 @Injectable()
 export class SyncService {
@@ -32,7 +33,7 @@ export class SyncService {
 
       switch (entityType) {
         case EntityType.DEAL:
-          return await this.syncDeal(entityId, dbClient);
+          return await this.syncDeal(entityId);
         case EntityType.CLIENT:
           return await this.syncClient(entityId, dbClient);
         case EntityType.PROJECT:
@@ -56,9 +57,8 @@ export class SyncService {
   /**
    * Synchronise une affaire EBP et crée/met à jour un projet correspondant
    * @param dealId ID de l'affaire EBP
-   * @param dbClient Client de base de données
    */
-  private async syncDeal(dealId?: string, dbClient?: any): Promise<any> {
+  private async syncDeal(dealId?: string): Promise<any> {
     const query = `
       SELECT * FROM ebp_deals
       ${dealId ? 'WHERE id = $1' : ''}
@@ -98,7 +98,7 @@ export class SyncService {
         deal,
         clientId !== null ? clientId : undefined,
         existingProject,
-      );
+      ) as ProjectAPP & { status: string };
 
       // 4. Insérer ou mettre à jour le projet
       const upsertQuery = existingProject

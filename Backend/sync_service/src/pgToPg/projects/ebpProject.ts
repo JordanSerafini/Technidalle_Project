@@ -146,7 +146,7 @@ export default class EBPProject {
     try {
       // Démarrer la transaction avec pgClientDestination au lieu de this.queryService
       const pgDestinationClient = await pgClientDestination.getClient();
-      
+
       try {
         await pgDestinationClient.query('BEGIN');
 
@@ -155,40 +155,49 @@ export default class EBPProject {
         const clientQuery = `
           SELECT id FROM clients WHERE customer_id = $1
         `;
-        
-        const clientResult = await pgDestinationClient.query(clientQuery, [customerEbpId]);
-        
+
+        const clientResult = await pgDestinationClient.query(clientQuery, [
+          customerEbpId,
+        ]);
+
         if (clientResult.rows && clientResult.rows.length > 0) {
           // Client trouvé, utiliser son ID numérique
           appClientId = clientResult.rows[0].id;
-          this.logger.log(`Client trouvé avec ID: ${appClientId} pour customerEbpId: ${customerEbpId}`);
+          this.logger.log(
+            `Client trouvé avec ID: ${appClientId} pour customerEbpId: ${customerEbpId}`,
+          );
         } else {
           // Si client non trouvé, on peut insérer un client temporaire
-          this.logger.warn(`Client avec customerEbpId ${customerEbpId} non trouvé dans la table clients`);
-          
+          this.logger.warn(
+            `Client avec customerEbpId ${customerEbpId} non trouvé dans la table clients`,
+          );
+
           // Option: insérer un client temporaire
           const tempClientQuery = `
             INSERT INTO clients (customer_id, firstname, lastname, email)
             VALUES ($1, 'Client', $2, $3)
             RETURNING id
           `;
-          
-          const tempEmail = `${customerEbpId.toLowerCase()}@temp.com`;
-          const tempClientResult = await pgDestinationClient.query(
-            tempClientQuery, 
-            [customerEbpId, customerEbpId, tempEmail]
-          ).catch(err => {
-            this.logger.error(`Erreur lors de l'insertion du client temporaire: ${err.message}`);
-            return { rows: [] };
-          });
-          
+
+          const tempEmail = `${(customerEbpId || '').toLowerCase()}@temp.com`;
+          const tempClientResult = await pgDestinationClient
+            .query(tempClientQuery, [customerEbpId, customerEbpId, tempEmail])
+            .catch((err) => {
+              this.logger.error(
+                `Erreur lors de l'insertion du client temporaire: ${err.message}`,
+              );
+              return { rows: [] };
+            });
+
           if (tempClientResult.rows && tempClientResult.rows.length > 0) {
             appClientId = tempClientResult.rows[0].id;
             this.logger.log(`Client temporaire créé avec ID: ${appClientId}`);
           } else {
             // Si impossible de créer un client temporaire, utiliser une valeur par défaut
             appClientId = 1; // ID client par défaut
-            this.logger.warn(`Utilisation de l'ID client par défaut: ${appClientId}`);
+            this.logger.warn(
+              `Utilisation de l'ID client par défaut: ${appClientId}`,
+            );
           }
         }
 

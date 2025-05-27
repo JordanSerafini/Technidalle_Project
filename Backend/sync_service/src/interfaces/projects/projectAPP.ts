@@ -8,6 +8,7 @@ export interface ProjectAPP {
   description?: string | null;
   client_id?: string | null;
   address_id?: number | null;
+  status?: string;
   start_date?: Date | null;
   end_date?: Date | null;
   estimated_duration?: number | null;
