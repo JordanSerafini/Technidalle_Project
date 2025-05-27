@@ -145,16 +145,21 @@ export class AppService {
       }
     }
 
-    const dbClients = await this.prisma.clients.findMany({
-      where: whereConditions,
-      include: {
-        addresses: true,
-      },
-      orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
-      skip: data?.offset || 0,
-      take: data?.limit || undefined,
-    });
-    return dbClients as Client[];
+    try {
+      const dbClients = await this.prisma.clients.findMany({
+        where: whereConditions,
+        include: {
+          addresses: true,
+        },
+        orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }],
+        skip: data?.offset || 0,
+        take: data?.limit || undefined,
+      });
+      return dbClients as Client[];
+    } catch (error) {
+      this.logger.error(`Erreur lors de la récupération des clients: ${error.message}`, error.stack);
+      throw error; // Re-throw the error so the gateway receives a 500
+    }
   }
 
   async getClientById(id: number): Promise<Client | null> {

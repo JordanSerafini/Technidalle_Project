@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DealToProjectMapper } from './mappers/deal-to-project.mapper';
-import { SyncLog } from './entities/sync-log.entity';
 import { QueryService } from '../services/query.service';
 
 interface EbpDealView {
@@ -38,7 +37,7 @@ interface EbpSaleDocumentView {
 // Définir les interfaces directement ici
 interface Project {
   id?: number;
-  client_id?: number;
+  client_id?: string | null;
   external_ebp_id?: string;
   name?: string;
   reference?: string;
@@ -53,12 +52,6 @@ interface Client {
   firstname?: string;
   lastname?: string;
   email?: string;
-  [key: string]: any;
-}
-
-interface Document {
-  id?: number;
-  external_ebp_id?: string;
   [key: string]: any;
 }
 
@@ -224,8 +217,6 @@ export class SyncDealsService {
           );
 
           if (!client) {
-            const { clause: insertClientFields, values: insertClientValues } =
-              this.buildUpdateSetClause(clientDataToSave, 1);
             const insertClientQuery = `INSERT INTO clients (${Object.keys(
               clientDataToSave,
             )
