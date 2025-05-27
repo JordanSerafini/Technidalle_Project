@@ -379,14 +379,9 @@ export default class EBPDocuments {
             // Ici, on suppose que les autres clés correspondent déjà (ex: project_id -> "project_id")
             // Mais si ce n'était pas le cas, il faudrait une fonction de mapping ici.
             // Pour document_id, on l'exclut explicitement.
-            if (true) {
-              // Remplacez 'true' par une validation si nécessaire
-              // Assumant que les autres clés correspondent (ex: `reference` -> `"reference"`)
-              // Si besoin de mapper `someCamelCase` vers `"some_snake_case"`, il faudrait le faire ici.
-              updateFields.push(`"${key}" = $${paramIndex}`); // Utilise la clé telle quelle (devrait correspondre aux colonnes SQL sauf pour documentId)
-              updateValues.push(documentData[typedKey]);
-              paramIndex++;
-            }
+            updateFields.push(`"${key}" = $${paramIndex}`); // Utilise la clé telle quelle (devrait correspondre aux colonnes SQL sauf pour documentId)
+            updateValues.push(documentData[typedKey]);
+            paramIndex++;
           }
         });
 
