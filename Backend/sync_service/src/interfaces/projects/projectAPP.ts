@@ -2,6 +2,7 @@ import { ProjectEBP } from './projectEBP';
 
 export interface ProjectAPP {
   id?: number;
+  project_id?: string;
   external_ebp_id?: string;
   reference: string;
   name: string;

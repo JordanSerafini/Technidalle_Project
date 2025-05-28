@@ -18,17 +18,6 @@ import {
 import { QueryService } from '../services/query.service';
 import { ClientSyncService } from '../services/client-sync.service';
 
-// Interface pour les projets (utilisée par les deals)
-interface Project {
-  id?: number;
-  client_id?: number;
-  external_ebp_id?: string;
-  name?: string;
-  reference?: string;
-  status?: string;
-  [key: string]: any;
-}
-
 // Interface pour typer les erreurs de synchronisation
 export interface SyncErrorDetail {
   identifier: string | number | undefined; // Email client ou référence article
@@ -45,7 +34,10 @@ export class PgSyncService {
   private queryService: QueryService;
   private clientSyncService: ClientSyncService;
 
-  constructor(queryService: QueryService, clientSyncService: ClientSyncService) {
+  constructor(
+    queryService: QueryService,
+    clientSyncService: ClientSyncService,
+  ) {
     this.queryService = queryService;
     this.clientSyncService = clientSyncService;
     this.ebpProject = new EBPProject(queryService, clientSyncService);
@@ -414,7 +406,9 @@ export class PgSyncService {
   /**
    * Convertit plusieurs affaires EBP en projets format application
    */
-  convertMultipleEBPDealsToAppProjects(dealsEBP: DealInterface[]): Partial<ProjectAPP>[] {
+  convertMultipleEBPDealsToAppProjects(
+    dealsEBP: DealInterface[],
+  ): Partial<ProjectAPP>[] {
     return this.ebpDeal.convertMultipleToAppProject(dealsEBP);
   }
 
@@ -427,6 +421,6 @@ export class PgSyncService {
     failed: number;
     details: string;
   }> {
-    return await this.ebpDeal.syncAllDeals();
+    return await this.ebpDeal.fastSyncAllDeals();
   }
 }

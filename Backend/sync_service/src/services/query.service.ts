@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { QueryResult, QueryResultRow } from 'pg';
-import { pgClient } from '../clients/PgClient';
+import destinationPgClient from '../clients/pgClient_2';
 
 @Injectable()
 export class QueryService {
@@ -21,7 +21,7 @@ export class QueryService {
     params: any[] = [],
   ): Promise<QueryResult<T>> {
     try {
-      return await pgClient.query(query, params);
+      return await destinationPgClient.query(query, params);
     } catch (error) {
       this.logger.error(
         `Erreur lors de l'exécution de la requête: ${query}`,

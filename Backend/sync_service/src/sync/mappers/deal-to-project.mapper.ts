@@ -72,6 +72,7 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<ProjectAPP>> {
           ? Number(deal.PredictedGrossMargin)
           : existingProject?.margin,
       notes: deal.Notes || existingProject?.notes,
+      project_id: deal.Id,
     };
 
     return this.cleanUndefinedProperties(projectData);
