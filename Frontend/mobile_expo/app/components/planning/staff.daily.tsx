@@ -1,5 +1,6 @@
 import { View, Text, ScrollView } from "react-native"
 import data from "./data.json"
+import { EventCard } from "./EventCard"
 
 function formatDateTime(dateString: string) {
   const date = new Date(dateString)
@@ -24,62 +25,16 @@ const eventTypeColors: Record<string, string> = {
 
 const StaffDaily = () => {
   const renderEvent = (event: any) => {
-    const color = eventTypeColors[event.event_type?.toLowerCase()] || eventTypeColors["autre"]
-
     return (
-      <View
+      <EventCard
         key={event.id}
-        className="flex-row mb-4 shadow-md rounded-2xl overflow-hidden"
-      >
-        {/* Banderole colorée */}
-        <View style={{ width: 6, backgroundColor: color }} />
-
-        {/* Contenu de la carte */}
-        <View className="flex-1 bg-white p-4 border border-gray-100">
-          {/* Type d’événement */}
-          <Text
-            className="text-xs font-bold uppercase mb-2"
-            style={{ color }}
-          >
-            {event.event_type || "Autre"}
-          </Text>
-
-          <Text className="text-base font-semibold text-gray-900 mb-1">
-            {event.title}
-          </Text>
-
-          {event.description && (
-            <Text className="text-sm text-gray-600 mb-2">{event.description}</Text>
-          )}
-
-          <View className="mb-2">
-            <Text className="text-sm text-gray-700">
-              🕒 <Text className="font-medium">Début :</Text> {formatDateTime(event.start_date)}
-            </Text>
-            <Text className="text-sm text-gray-700">
-              🕕 <Text className="font-medium">Fin :</Text> {formatDateTime(event.end_date)}
-            </Text>
-          </View>
-
-          {event.all_day && (
-            <Text className="text-xs text-blue-600 font-medium mb-2">
-              📅 Événement sur la journée
-            </Text>
-          )}
-
-          {event.location && (
-            <Text className="text-sm text-gray-800 mb-1">
-              📍 <Text className="font-medium">Lieu :</Text> {event.location}
-            </Text>
-          )}
-
-          {event.project_id && (
-            <Text className="text-xs text-gray-500 italic">
-              Projet ID : {event.project_id}
-            </Text>
-          )}
-        </View>
-      </View>
+        title={event.title}
+        description={event.description}
+        event_type={event.event_type}
+        start_date={event.start_date}
+        end_date={event.end_date}
+        color={event.color}
+      />
     )
   }
 
@@ -95,7 +50,7 @@ const StaffDaily = () => {
           data.map(renderEvent)
         ) : (
           <Text className="text-center text-gray-500 mt-10">
-            Aucun événement prévu pour aujourd’hui.
+            Aucun événement prévu pour aujourd'hui.
           </Text>
         )}
       </ScrollView>
