@@ -856,9 +856,9 @@ export default class EBPDocuments {
     dealId: string,
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
-    // Recherche uniquement sur la colonne 'reference' (AFFxxxxx)
+    // Recherche sur la colonne project_id (ID EBP du deal) dans projects
     const result = await destinationClient.query<{ id: number }>(
-      'SELECT id FROM projects WHERE reference = $1',
+      'SELECT id FROM projects WHERE project_id = $1',
       [dealId],
     );
     return result.rows[0] || null;
