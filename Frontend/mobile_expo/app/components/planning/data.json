@@ -26,8 +26,13 @@
     "staff_id": 202,
     "status": "en_cours",
     "color": "#33FF57"
-  },
-  {
+  }
+]
+
+
+/*
+
+{
     "id": 3,
     "title": "Rendez-vous client - Projet C",
     "description": "Présentation du devis final.",
@@ -93,4 +98,7 @@
     "status": "terminé",
     "color": "#33FFA1"
   }
-]
+
+
+
+*/

@@ -2,10 +2,12 @@ import { useFetch } from "@/app/hooks/useFetch";
 import { ActivityIndicator, Text, View, TouchableOpacity, SafeAreaView, ScrollView } from "react-native";
 import { useState, useCallback } from "react";
 import { DailyPlanningResponse, WeeklyPlanningResponse, PlanningResponse } from "@/app/utils/interfaces/planning.interface";
+import StaffDaily from "@/app/components/planning/staff.daily";
 
 export function PlanningScreen() {
   const staffId = 1;
   const [ time, setTime ] = useState<string>('today');
+  const [isStaffDailyVisible, setIsStaffDailyVisible] = useState(false);
   const { data: planning, loading: planningLoading, error: planningError } = useFetch<PlanningResponse | null>(`events/staff/${staffId}/schedule/${time}`);
 
 
@@ -113,8 +115,25 @@ export function PlanningScreen() {
           >
             <Text className="text-white font-bold">Semaine</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setIsStaffDailyVisible(true)}
+            className="py-2 px-4 rounded mx-1 bg-green-500"
+          >
+            <Text className="text-white font-bold">Staff Daily</Text>
+          </TouchableOpacity>
         </View>
-        {renderPlanning()}
+        {isStaffDailyVisible && (
+          <View className="flex-1">
+            <StaffDaily />
+            <TouchableOpacity
+              onPress={() => setIsStaffDailyVisible(false)}
+              className="mt-2 py-2 px-4 rounded bg-red-500"
+            >
+              <Text className="text-white font-bold">Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {!isStaffDailyVisible && renderPlanning()}
       </View>
     </SafeAreaView>
   );
