@@ -94,28 +94,29 @@ export default class EBPDocuments {
         return null;
       }
 
-      // Vérifier si ConstructionSiteId existe
-      if (!ebpDoc.ConstructionSiteId) {
-        this.logger.warn(
-          `Skipping document ${ebpDoc.DocumentNumber}: ConstructionSiteId is missing.`,
+      let project: DbObject | null = null;
+      if (ebpDoc.ConstructionSiteId) {
+        project = await this.getProjectByEbpId(
+          ebpDoc.ConstructionSiteId,
+          destinationClient,
         );
-        return null;
+      } else if (ebpDoc.DealId) {
+        project = await this.getProjectByDealId(
+          ebpDoc.DealId,
+          destinationClient,
+        );
       }
-
-      this.logger.debug(
-        `[Doc ${ebpDoc.DocumentNumber}] Looking up project with EBP ID: ${ebpDoc.ConstructionSiteId}`,
-      );
-      const project = await this.getProjectByEbpId(
-        ebpDoc.ConstructionSiteId,
-        destinationClient,
-      );
-
       if (!project) {
         this.logger.warn(
-          `Skipping document ${ebpDoc.DocumentNumber}: Project with EBP ID ${ebpDoc.ConstructionSiteId} not found in destination DB.`,
+          `Skipping document ${ebpDoc.DocumentNumber}: Project not found for ConstructionSiteId or DealId.`,
         );
         return null;
       }
+
+      // Log de debug détaillé pour le mapping document <-> projet
+      this.logger.debug(
+        `[DEBUG] Mapping document ${ebpDoc.DocumentNumber} (ref: ${ebpDoc.Reference}) vers projet: id=${project?.id}, ref=${project?.reference}, via ConstructionSiteId=${ebpDoc.ConstructionSiteId} ou DealId=${ebpDoc.DealId}`,
+      );
 
       const projectId = Number(project.id);
       this.logger.debug(
@@ -791,32 +792,24 @@ export default class EBPDocuments {
     ebpId: string,
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
-    this.logger.debug(`getProjectByEbpId called with EBP ID: ${ebpId}`);
-    try {
-      this.logger.debug(`Recherche du projet avec l'ID EBP ${ebpId}`);
-      const result = await destinationClient.query<{ id: number }>(
-        'SELECT id FROM projects WHERE "project_id" = $1 OR "reference" = $1',
-        [ebpId],
-      );
+    // Recherche uniquement sur la colonne 'reference' (PRJxxxx ou AFFxxxxx)
+    const result = await destinationClient.query<{ id: number }>(
+      'SELECT id FROM projects WHERE reference = $1',
+      [ebpId],
+    );
+    return result.rows[0] || null;
+  }
 
-      if (result.rows.length > 0 && result.rows[0].id) {
-        this.logger.debug(
-          `getProjectByEbpId: Found project App ID ${result.rows[0].id} for EBP ID ${ebpId}`,
-        );
-        return result.rows[0];
-      } else {
-        this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
-        return null;
-      }
-    } catch (error) {
-      const typedError = error as DatabaseError;
-      this.logger.error(
-        `Erreur lors de la récupération du projet avec EBP ID ${ebpId}: ${typedError.message}`,
-        `Code: ${typedError.code}`,
-        typedError.stack,
-      );
-      return null;
-    }
+  private async getProjectByDealId(
+    dealId: string,
+    destinationClient: PoolClient,
+  ): Promise<DbObject | null> {
+    // Recherche uniquement sur la colonne 'reference' (AFFxxxxx)
+    const result = await destinationClient.query<{ id: number }>(
+      'SELECT id FROM projects WHERE reference = $1',
+      [dealId],
+    );
+    return result.rows[0] || null;
   }
 
   private async getStaffByEbpId(
@@ -1538,9 +1531,9 @@ export default class EBPDocuments {
     documentData: Partial<Document>,
     client: PoolClient,
   ): Promise<number | null> {
-    const selectQuery = `SELECT id FROM documents WHERE "documentId" = $1`;
+    const selectQuery = `SELECT id FROM documents WHERE reference = $1`;
     const selectResult = await client.query<{ id: number }>(selectQuery, [
-      documentData.documentId,
+      documentData.reference,
     ]);
 
     const appId = selectResult.rows[0]

@@ -1,0 +1,1 @@
+ npm run start:dev *> sync_service_logs.txt
