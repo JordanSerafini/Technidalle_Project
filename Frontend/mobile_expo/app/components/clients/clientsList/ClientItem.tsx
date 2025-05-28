@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { formatClientData } from '@/app/utils/formatClientData';
+import { MotiView } from 'moti';
 
 const { width } = Dimensions.get('window');
 
