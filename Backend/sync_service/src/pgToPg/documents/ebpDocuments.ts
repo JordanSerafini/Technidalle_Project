@@ -101,6 +101,15 @@ export default class EBPDocuments {
           destinationClient,
         );
       } else if (ebpDoc.DealId) {
+        this.logger.debug(
+          `[DEBUG] Recherche projet AFF pour DealId=${ebpDoc.DealId}`,
+        );
+        const affProjects = await destinationClient.query(
+          "SELECT reference FROM projects WHERE reference LIKE 'AFF%'",
+        );
+        this.logger.debug(
+          `[DEBUG] Références AFF dans projects: ${Array.isArray(affProjects.rows) ? affProjects.rows.map((r: unknown) => (typeof r === 'object' && r && 'reference' in r ? (r as { reference: string }).reference : '')).join(', ') : ''}`,
+        );
         project = await this.getProjectByDealId(
           ebpDoc.DealId,
           destinationClient,
@@ -534,6 +543,8 @@ export default class EBPDocuments {
       | DealsaledocumentlineInterface
       | DealpurchasedocumentlineInterface
     )[] = [];
+    let dealSaleDocs: any[] = [];
+    let dealPurchaseDocs: any[] = [];
     let client: PoolClient | null = null;
     let total = 0;
     let count = 0;
@@ -545,11 +556,16 @@ export default class EBPDocuments {
       ebpSaleLines = await this.getAllSaleDocumentLinesFromEBP();
       ebpPurchaseLines = await this.getAllPurchaseDocumentLinesFromEBP();
       allEbpLines = [...ebpSaleLines, ...ebpPurchaseLines];
-      total = ebpDocs.length;
+      dealSaleDocs = await this.getAllDealSaleDocumentsFromEBP();
+      dealPurchaseDocs = await this.getAllDealPurchaseDocumentsFromEBP();
+      total = ebpDocs.length + dealSaleDocs.length + dealPurchaseDocs.length;
       client = await PgClient2.getClient();
 
-      this.logger.log(`Début de la synchronisation de ${total} documents`);
+      this.logger.log(
+        `Début de la synchronisation de ${total} documents (chantiers + affaires)`,
+      );
 
+      // --- Documents de chantier (projets classiques) ---
       for (const ebpDoc of ebpDocs) {
         const identifier = ebpDoc.DocumentNumber || ebpDoc.Id || 'ID_INCONNU';
         try {
@@ -557,76 +573,48 @@ export default class EBPDocuments {
           const appDoc = await this.convertToAppDocument(ebpDoc, ebpDocEx);
 
           if (appDoc) {
-            const insertedId = await this.insertDocumentIntoApp(appDoc);
-            if (insertedId && client) {
+            if (!appDoc.project_id) {
+              this.logger.warn(
+                `Skipping document ${identifier} - project_id is missing after conversion.`,
+              );
+              errors.push({
+                identifier,
+                error: 'project_id manquant après conversion',
+              });
+              continue;
+            }
+            this.logger.debug(
+              `[DEBUG] Upsert document: ref=${appDoc.reference}, project_id=${appDoc.project_id}`,
+            );
+            const documentIdApp = await this.upsertDocument(appDoc, client);
+            if (documentIdApp && client) {
               count++;
-              if (count % 50 === 0 || count === total) {
-                this.logger.log(
-                  `Progression: ${count}/${total} documents traités`,
-                );
-              }
-
               // Synchronisation des lignes de documents
               const relatedEbpLines = allEbpLines.filter(
-                (
-                  line:
-                    | DealsaledocumentlineInterface
-                    | DealpurchasedocumentlineInterface,
-                ) =>
+                (line) =>
                   line &&
                   typeof line === 'object' &&
                   'DocumentId' in line &&
                   line.DocumentId === ebpDoc.Id,
               );
-              this.logger.debug(
-                `Found ${relatedEbpLines.length} lines for document EBP ID ${ebpDoc.Id}`,
-              );
-
               for (const ebpLine of relatedEbpLines) {
                 try {
                   const appDocumentLine =
                     await this.mapEbpDocumentLineToAppDocumentLine(
                       ebpLine,
-                      insertedId,
+                      documentIdApp,
                     );
-
                   if (appDocumentLine) {
-                    const documentLineId = await this.upsertDocumentLine(
-                      appDocumentLine,
-                      client,
-                    );
-                    if (!documentLineId) {
-                      errors.push({
-                        identifier: `Ligne ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${identifier}`,
-                        error: "Échec de l'insertion/màj de la ligne",
-                      });
-                    } else {
-                      this.logger.debug(
-                        `Ligne EBP ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} synchronisée avec succès (ID App: ${documentLineId})`,
-                      );
-                    }
-                  } else {
-                    errors.push({
-                      identifier: `Ligne ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${identifier}`,
-                      error: 'Échec du mappage de la ligne',
-                    });
+                    await this.upsertDocumentLine(appDocumentLine, client);
                   }
                 } catch (lineError) {
-                  const errMsg =
-                    lineError instanceof Error
-                      ? lineError.message
-                      : String(lineError);
-                  this.logger.error(
-                    `Erreur lors de la synchronisation de la ligne EBP ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${identifier}: ${errMsg}`,
-                    lineError instanceof Error ? lineError.stack : undefined,
-                  );
                   errors.push({
                     identifier: `Ligne ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${identifier}`,
-                    error: `Erreur lors du traitement de la ligne: ${errMsg}`,
+                    error: String(lineError),
                   });
                 }
               }
-            } else if (!insertedId) {
+            } else if (!documentIdApp) {
               errors.push({
                 identifier,
                 error: `Échec de l'insertion/màj pour le document ${identifier}`,
@@ -639,13 +627,77 @@ export default class EBPDocuments {
             });
           }
         } catch (docError) {
-          const errorMessage =
-            docError instanceof Error ? docError.message : String(docError);
-          this.logger.error(
-            `Erreur majeure lors de la synchronisation du document ${identifier}: ${errorMessage}`,
-            docError instanceof Error ? docError.stack : undefined,
-          );
-          errors.push({ identifier, error: `Erreur majeure: ${errorMessage}` });
+          errors.push({
+            identifier,
+            error: `Erreur majeure: ${String(docError)}`,
+          });
+        }
+      }
+
+      // --- Documents d'affaires (deals) ---
+      for (const dealDocAny of ([] as any[]).concat(
+        dealSaleDocs,
+        dealPurchaseDocs,
+      )) {
+        const dealDoc =
+          typeof dealDocAny === 'object' && dealDocAny !== null
+            ? dealDocAny
+            : {};
+        const identifier =
+          'DocumentNumber' in dealDoc &&
+          typeof dealDoc.DocumentNumber === 'string'
+            ? dealDoc.DocumentNumber
+            : 'Id' in dealDoc
+              ? String(dealDoc.Id)
+              : 'ID_INCONNU';
+        try {
+          // On simule un objet compatible avec convertToAppDocument
+          const fakeEbpDoc = {
+            ...dealDoc,
+            DealId:
+              'DealId' in dealDoc
+                ? dealDoc.DealId
+                : 'Id' in dealDoc
+                  ? dealDoc.Id
+                  : undefined, // s'assurer que DealId est bien présent
+            ConstructionSiteId: undefined, // Forcer à undefined pour passer par getProjectByDealId
+          };
+          const appDoc = await this.convertToAppDocument(fakeEbpDoc);
+          if (appDoc) {
+            if (!appDoc.project_id) {
+              this.logger.warn(
+                `Skipping deal document ${identifier} - project_id is missing after conversion.`,
+              );
+              errors.push({
+                identifier,
+                error: 'project_id manquant après conversion',
+              });
+              continue;
+            }
+            this.logger.debug(
+              `[DEBUG] Upsert deal document: ref=${appDoc.reference}, project_id=${appDoc.project_id}`,
+            );
+            const documentIdApp = await this.upsertDocument(appDoc, client);
+            if (documentIdApp && client) {
+              count++;
+              // Pas de synchronisation de lignes ici (à adapter si besoin)
+            } else if (!documentIdApp) {
+              errors.push({
+                identifier,
+                error: `Échec de l'insertion/màj pour le document d'affaire ${identifier}`,
+              });
+            }
+          } else {
+            errors.push({
+              identifier,
+              error: `Échec de la conversion pour le document d'affaire ${identifier}`,
+            });
+          }
+        } catch (docError) {
+          errors.push({
+            identifier,
+            error: `Erreur majeure: ${String(docError)}`,
+          });
         }
       }
 
@@ -1334,200 +1386,48 @@ export default class EBPDocuments {
   }
 
   /**
-   * Synchronise tous les documents
+   * Récupère tous les documents de vente d'affaires depuis la base EBP
    */
-  async syncAllConstructionSiteDocuments(): Promise<{
-    success: boolean;
-    count: number;
-    total: number;
-    errors: { identifier: string; error: string }[];
-  }> {
-    this.logger.log(
-      'Démarrage de la synchronisation des documents de chantier...',
-    );
-    const errors: { identifier: string; error: string }[] = [];
-    let syncedCount = 0;
-    // Déclaration des variables en dehors du try pour la portée
-    let ebpDocs: ConstructionsitereferencedocumentInterface[] = [];
-    let ebpDocsEx: ConstructionsitereferencedocumentexInterface[] = [];
-    let ebpSaleLines: DealsaledocumentlineInterface[] = [];
-    let ebpPurchaseLines: DealpurchasedocumentlineInterface[] = [];
-    let allEbpLines: (
-      | DealsaledocumentlineInterface
-      | DealpurchasedocumentlineInterface
-    )[] = [];
-    let client: PoolClient | null = null;
+  async getAllDealSaleDocumentsFromEBP(): Promise<any[]> {
+    this.logger.log('Début de getAllDealSaleDocumentsFromEBP');
     try {
-      ebpDocs = await this.getAllDocumentsFromEBP();
-      ebpDocsEx = await this.getAllDocumentsExFromEBP();
-      ebpSaleLines = await this.getAllSaleDocumentLinesFromEBP();
-      ebpPurchaseLines = await this.getAllPurchaseDocumentLinesFromEBP();
-      allEbpLines = [...ebpSaleLines, ...ebpPurchaseLines];
-      this.logger.log(
-        `Récupérés ${ebpDocs.length} documents de référence EBP.`,
+      const ebpDocsResult = await pgClientSource.executeQuery(
+        'SELECT * FROM "DealSaleDocument"',
       );
       this.logger.log(
-        `Récupérées ${allEbpLines.length} lignes de document depuis EBP.`,
+        `Récupération de ${ebpDocsResult.length} documents de vente d'affaires depuis EBP`,
       );
-
-      client = await PgClient2.getClient();
-
-      for (const ebpDoc of ebpDocs) {
-        const documentIdentifier =
-          ebpDoc.DocumentNumber || ebpDoc.Id || 'ID_INCONNU';
-        try {
-          const ebpDocEx = ebpDocsEx.find((ex) => ex.Id === ebpDoc.Id);
-          const appDoc = await this.convertToAppDocument(ebpDoc, ebpDocEx);
-
-          if (!appDoc) {
-            this.logger.warn(
-              `Skipping document ${documentIdentifier} - conversion failed.`,
-            );
-            errors.push({
-              identifier: documentIdentifier,
-              error: "Conversion de l'en-tête échouée",
-            });
-            continue;
-          }
-
-          if (!appDoc.project_id) {
-            this.logger.warn(
-              `Skipping document ${documentIdentifier} - project_id is missing after conversion.`,
-            );
-            errors.push({
-              identifier: documentIdentifier,
-              error: 'project_id manquant après conversion',
-            });
-            continue;
-          }
-
-          this.logger.debug(
-            `[DEBUG] Upsert document: ref=${appDoc.reference}, project_id=${appDoc.project_id}`
-          );
-
-          const documentIdApp = await this.upsertDocument(appDoc, client);
-
-          if (documentIdApp) {
-            syncedCount++;
-            this.logger.debug(
-              `Synchronisé document EBP ${ebpDoc.Id} vers APP ${documentIdApp}`,
-            );
-
-            const relatedEbpLines = allEbpLines.filter(
-              (
-                line:
-                  | DealsaledocumentlineInterface
-                  | DealpurchasedocumentlineInterface,
-              ) =>
-                line &&
-                typeof line === 'object' &&
-                'DocumentId' in line &&
-                line.DocumentId === ebpDoc.Id,
-            );
-            this.logger.debug(
-              `Found ${relatedEbpLines.length} lines for document EBP ID ${ebpDoc.Id}`,
-            );
-
-            for (const ebpLine of relatedEbpLines) {
-              try {
-                const appDocumentLine =
-                  await this.mapEbpDocumentLineToAppDocumentLine(
-                    ebpLine,
-                    documentIdApp,
-                  );
-
-                if (appDocumentLine) {
-                  const documentLineId = await this.upsertDocumentLine(
-                    appDocumentLine,
-                    client,
-                  );
-                  if (!documentLineId) {
-                    errors.push({
-                      identifier: `Ligne ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${documentIdentifier}`,
-                      error: "Échec de l'insertion/màj de la ligne",
-                    });
-                  } else {
-                    this.logger.debug(
-                      `Ligne EBP ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} synchronisée avec succès (ID App: ${documentLineId})`,
-                    );
-                  }
-                } else {
-                  errors.push({
-                    identifier: `Ligne ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${documentIdentifier}`,
-                    error: 'Échec du mappage de la ligne',
-                  });
-                }
-              } catch (lineError) {
-                const errMsg =
-                  lineError instanceof Error
-                    ? lineError.message
-                    : String(lineError);
-                this.logger.error(
-                  `Erreur lors de la synchronisation de la ligne EBP ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${documentIdentifier}: ${errMsg}`,
-                  `Erreur lors de la synchronisation de la ligne EBP ${ebpLine.Id} pour document ${documentIdentifier}: ${errMsg}`,
-                  lineError instanceof Error ? lineError.stack : undefined,
-                );
-                errors.push({
-                  identifier: `Ligne ${ebpLine.Id} pour document ${documentIdentifier}`,
-                  error: `Erreur lors du traitement de la ligne: ${errMsg}`,
-                });
-              }
-            }
-
-            if (syncedCount % 50 === 0 || syncedCount === ebpDocs.length) {
-              this.logger.log(
-                `Progression: ${syncedCount}/${ebpDocs.length} documents traités`,
-              );
-            }
-          } else {
-            errors.push({
-              identifier: documentIdentifier,
-              error: `Échec de l'insertion/màj de l'en-tête pour le document ${documentIdentifier}`,
-            });
-          }
-        } catch (docError) {
-          const errorMessage =
-            docError instanceof Error ? docError.message : String(docError);
-          this.logger.error(
-            `Erreur majeure lors de la synchronisation du document ${documentIdentifier}: ${errorMessage}`,
-            docError instanceof Error ? docError.stack : undefined,
-          );
-          errors.push({
-            identifier: documentIdentifier,
-            error: `Erreur majeure lors du traitement du document: ${errorMessage}`,
-          });
-        }
-      }
-
-      if (client && typeof client.release === 'function') {
-        client.release();
-      }
-
-      this.logger.log(
-        `Synchronisation des documents terminée. ${syncedCount}/${ebpDocs.length} documents traités avec succès (en-têtes). ${errors.length} erreurs rencontrées lors du traitement des documents ou de leurs lignes.`,
-      );
-      return {
-        success: errors.length === 0,
-        count: syncedCount,
-        total: ebpDocs.length,
-        errors,
-      };
-    } catch (globalError) {
-      const errorMessage =
-        globalError instanceof Error
-          ? globalError.message
-          : String(globalError);
+      return ebpDocsResult;
+    } catch (error) {
       this.logger.error(
-        `Erreur globale lors de la synchronisation des documents ou de leurs lignes: ${errorMessage}`,
-        globalError instanceof Error ? globalError.stack : undefined,
+        "Erreur lors de la récupération des documents de vente d'affaires depuis EBP:",
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
       );
-      errors.push({ identifier: 'GLOBAL', error: errorMessage });
-      return {
-        success: false,
-        count: syncedCount,
-        total: ebpDocs.length,
-        errors: errors,
-      };
+      return [];
+    }
+  }
+
+  /**
+   * Récupère tous les documents d'achat d'affaires depuis la base EBP
+   */
+  async getAllDealPurchaseDocumentsFromEBP(): Promise<any[]> {
+    this.logger.log('Début de getAllDealPurchaseDocumentsFromEBP');
+    try {
+      const ebpDocsResult = await pgClientSource.executeQuery(
+        'SELECT * FROM "DealPurchaseDocument"',
+      );
+      this.logger.log(
+        `Récupération de ${ebpDocsResult.length} documents d'achat d'affaires depuis EBP`,
+      );
+      return ebpDocsResult;
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de la récupération des documents d'achat d'affaires depuis EBP:",
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      return [];
     }
   }
 
@@ -1536,7 +1436,7 @@ export default class EBPDocuments {
     client: PoolClient,
   ): Promise<number | null> {
     this.logger.debug(
-      `[DEBUG] Upsert document: ref=${documentData.reference}, project_id=${documentData.project_id}`
+      `[DEBUG] Upsert document: ref=${documentData.reference}, project_id=${documentData.project_id}`,
     );
     const selectQuery = `SELECT id FROM documents WHERE reference = $1`;
     const selectResult = await client.query<{ id: number }>(selectQuery, [
