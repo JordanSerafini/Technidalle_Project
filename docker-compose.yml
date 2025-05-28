@@ -15,10 +15,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./Database/sql_dev/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
       - ./Database/sql_dev/seed_db_part1.sql:/docker-entrypoint-initdb.d/seed_db_part1.sql
-      - ./Database/sql_dev/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
-      - ./Database/sql_dev/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
-      - ./Database/sql_dev/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
-      - ./Database/sql_dev/sync_logs.sql:/docker-entrypoint-initdb.d/sync_logs.sql
+      # - ./Database/sql_dev/seed_db_part2.sql:/docker-entrypoint-initdb.d/seed_db_part2.sql
+      # - ./Database/sql_dev/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
+      # - ./Database/sql_dev/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
+      # - ./Database/sql_dev/sync_logs.sql:/docker-entrypoint-initdb.d/sync_logs.sql
     networks:
       - app-network
     healthcheck:

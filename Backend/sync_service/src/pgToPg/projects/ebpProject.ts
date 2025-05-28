@@ -5,12 +5,12 @@ import {
   ProjectMapper,
 } from '../../interfaces/projects/projectAPP';
 import EBPclient from '../clients/ebpClient';
-import pgClientDestination from '../../clients/pgClient_2';
 import { ConstructionsiteInterface } from '../../interfaces/projects/constructionSite';
 import { QueryService } from '../../services/query.service';
 import { ClientSyncService } from '../../services/client-sync.service';
 import { CreateClientWithAddressDto } from '../../interfaces/clients/clientApp';
 import PgClient2 from '../../clients/pgClient_2';
+import { QueryResult } from 'pg';
 
 interface ConstructionSiteReferenceDocument {
   Id?: string;
@@ -149,11 +149,11 @@ export default class EBPProject {
   /**
    * Insère un projet dans la base App
    */
-  async insertProjectIntoApp(projectApp: ProjectAPP): Promise<string> {
+  async insertProjectIntoApp(projectApp: ProjectAPP): Promise<string | null> {
     const customerEbpId = projectApp.client_id;
 
     try {
-      // Démarrer la transaction avec pgClientDestination au lieu de this.queryService
+      // Obtenir un client depuis le pool de connexions de destination
       const client = await PgClient2.getClient();
 
       try {
@@ -165,8 +165,12 @@ export default class EBPProject {
           SELECT id FROM clients WHERE customer_id = $1
         `;
 
-        const clientResult = await client.query<{ id: number }>(clientQuery, [
-          customerEbpId,
+        const clientResult: QueryResult<{
+          id: number;
+        }> = await client.query<{
+          id: number;
+        }>(clientQuery, [
+          customerEbpId as any, // Cast to any to resolve potential type mismatch with query params
         ]);
 
         if (clientResult.rows && clientResult.rows.length > 0) {
@@ -176,38 +180,20 @@ export default class EBPProject {
             `Client trouvé avec ID: ${appClientId} pour customerEbpId: ${customerEbpId}`,
           );
         } else {
-          // Si client non trouvé, on peut insérer un client temporaire
           this.logger.warn(
-            `Client avec customerEbpId ${customerEbpId} non trouvé dans la table clients`,
+            `Client avec customerEbpId ${customerEbpId} non trouvé dans la table clients. Impossible d'associer un client valide.`,
           );
+          // appClientId reste null
+        }
 
-          // Option: insérer un client temporaire
-          const tempClientQuery = `
-            INSERT INTO clients (customer_id, firstname, lastname, email)
-            VALUES ($1, 'Client', $2, $3)
-            RETURNING id
-          `;
-
-          const tempEmail = `${customerEbpId?.toLowerCase() ?? 'default'}@temp.com`;
-          const tempClientResult = await client
-            .query(tempClientQuery, [customerEbpId, customerEbpId, tempEmail])
-            .catch((err) => {
-              this.logger.error(
-                `Erreur lors de l'insertion du client temporaire: ${err.message}`,
-              );
-              return { rows: [] };
-            });
-
-          if (tempClientResult.rows && tempClientResult.rows.length > 0) {
-            appClientId = Number(tempClientResult.rows[0]?.id);
-            this.logger.log(`Client temporaire créé avec ID: ${appClientId}`);
-          } else {
-            // Si impossible de créer un client temporaire, utiliser une valeur par défaut
-            appClientId = 1; // ID client par défaut
-            this.logger.warn(
-              `Utilisation de l'ID client par défaut: ${appClientId}`,
-            );
-          }
+        // Si clientId est toujours null ici (client existant non trouvé),
+        // cela signifie que le client n'a pas pu être associé. Annuler la transaction et ignorer le projet.
+        if (appClientId === null) {
+          this.logger.warn(
+            `Impossible de trouver un client pour le projet EBP ${projectApp.reference}. Le projet sera ignoré.`,
+          );
+          await client.query('ROLLBACK'); // Annuler la transaction pour ce projet
+          return null; // Ne pas insérer le projet
         }
 
         let projectAddressId: number | null = null;
@@ -220,12 +206,12 @@ export default class EBPProject {
 
         if (siteAddressData) {
           const addressDataForUpsert: CreateClientWithAddressDto['address'] = {
-            street_name: siteAddressData.address1,
-            additional_address: siteAddressData.address2,
-            city: siteAddressData.city,
-            zip_code: siteAddressData.zipCode,
-            country: siteAddressData.country,
-            street_number: null,
+            street_name: siteAddressData.Address1,
+            additional_address: siteAddressData.Address2,
+            city: siteAddressData.City,
+            zip_code: siteAddressData.ZipCode,
+            country: siteAddressData.CountryIsoCode,
+            street_number: null, // Assuming street_number is not available in ConstructionSite address
           };
 
           try {
@@ -251,22 +237,22 @@ export default class EBPProject {
           );
         }
 
+        // Parameters for the SQL queries (excluding the reference for the WHERE clause initially)
         const projectValues = [
-          projectApp.reference, // project_id
-          projectApp.reference, // reference
-          projectApp.name, // name
-          projectApp.description, // description
-          appClientId, // client_id (maintenant un ID numérique)
-          projectAddressId, // address_id
-          'prospect', // status
-          projectApp.start_date ? new Date(projectApp.start_date) : null, // start_date
-          projectApp.end_date ? new Date(projectApp.end_date) : null, // end_date
-          null, // estimated_duration
-          projectApp.budget, // budget
-          projectApp.actual_cost, // actual_cost
-          projectApp.margin, // margin
-          2, // priority - valeur par défaut
-          projectApp.notes || projectApp.description, // notes
+          projectApp.name, // $2 (for UPDATE) or $1 (for INSERT)
+          projectApp.description, // $3 (for UPDATE) or $2 (for INSERT)
+          appClientId, // $4 (for UPDATE) or $3 (for INSERT)
+          projectAddressId, // $5 (for UPDATE) or $4 (for INSERT)
+          projectApp.status || 'prospect', // $6 (for UPDATE) or $5 (for INSERT)
+          projectApp.start_date ? new Date(projectApp.start_date) : null, // $7 (for UPDATE) or $6 (for INSERT)
+          projectApp.end_date ? new Date(projectApp.end_date) : null, // $8 (for UPDATE) or $7 (for INSERT)
+          projectApp.estimated_duration, // $9 (for UPDATE) or $8 (for INSERT)
+          projectApp.budget, // $10 (for UPDATE) or $9 (for INSERT)
+          projectApp.actual_cost, // $11 (for UPDATE) or $10 (for INSERT)
+          projectApp.margin, // $12 (for UPDATE) or $11 (for INSERT)
+          2, // $13 (for UPDATE) or $12 (for INSERT) (priority)
+          projectApp.notes || projectApp.description, // $14 (for UPDATE) or $13 (for INSERT)
+          projectApp.project_id, // $15 (for UPDATE) or $14 (for INSERT) (stocke l'ID EBP original si différent de reference)
         ];
 
         // D'abord, vérifier si le projet existe déjà en utilisant pgDestinationClient
@@ -275,57 +261,70 @@ export default class EBPProject {
           WHERE "reference" = $1
         `;
 
-        const checkResult = await client.query(checkProjectQuery, [
-          projectApp.reference,
-        ]);
+        const checkResult: QueryResult<{
+          id: number;
+        }> = await client.query<{
+          id: number;
+        }>(checkProjectQuery, [projectApp.reference]);
 
-        let projectResult;
+        let projectResult: QueryResult<{ reference: string }>;
 
         if (checkResult.rows && checkResult.rows.length > 0) {
           // Le projet existe déjà, faire un UPDATE
           const updateProjectQuery = `
             UPDATE "projects" SET
-              "project_id" = $1,
-              "name" = $3,
-              "description" = $4,
-              "client_id" = $5,
-              "address_id" = $6,
-              "status" = $7,
-              "start_date" = $8,
-              "end_date" = $9,
-              "estimated_duration" = $10,
-              "budget" = $11,
-              "actual_cost" = $12,
-              "margin" = $13,
-              "priority" = $14,
-              "notes" = $15,
+              "name" = $2,
+              "description" = $3,
+              "client_id" = $4,
+              "address_id" = $5,
+              "status" = $6,
+              "start_date" = $7,
+              "end_date" = $8,
+              "estimated_duration" = $9,
+              "budget" = $10,
+              "actual_cost" = $11,
+              "margin" = $12,
+              "priority" = $13,
+              "notes" = $14,
+              "project_id" = $15,
               "updated_at" = NOW()
-            WHERE "reference" = $2
+            WHERE "reference" = $1
             RETURNING "reference"
           `;
 
+          // Add reference to the beginning of the values array for the UPDATE query
+          const updateValues = [projectApp.reference, ...projectValues];
+
           projectResult = await client.query<{ reference: string }>(
             updateProjectQuery,
-            projectValues,
+            updateValues,
           );
         } else {
           // Le projet n'existe pas, faire un INSERT
           const insertProjectQuery = `
             INSERT INTO "projects" (
-              "project_id", "reference", "name", "description", "client_id", 
+              "reference", "name", "description", "client_id", 
               "address_id", "status", "start_date", "end_date", "estimated_duration", 
-              "budget", "actual_cost", "margin", "priority", "notes"
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+              "budget", "actual_cost", "margin", "priority", "notes", "project_id",
+               "created_at", "updated_at"
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
             RETURNING "reference"
           `;
 
+          // Add reference to the beginning of the values array for the INSERT query
+          const insertValues = [projectApp.reference, ...projectValues];
+
           projectResult = await client.query<{ reference: string }>(
             insertProjectQuery,
-            projectValues,
+            insertValues,
           );
         }
 
-        if (!projectResult.rows || !projectResult.rows[0]?.reference) {
+        if (
+          !projectResult.rows ||
+          projectResult.rows.length === 0 ||
+          !projectResult.rows[0]?.reference
+        ) {
           throw new Error(
             'Résultat de requête de projet invalide ou référence manquante',
           );
@@ -336,10 +335,19 @@ export default class EBPProject {
       } catch (error) {
         await client.query('ROLLBACK');
         this.logger.error(
-          `Erreur lors de l'insertion du projet: ${projectApp.reference}`,
+          `Erreur lors de l'insertion/mise à jour du projet: ${projectApp.reference}`,
           error,
         );
-        throw error;
+        // Log de l'erreur détaillée si possible
+        if (error instanceof Error) {
+          this.logger.error(
+            `Détails de l'erreur: ${error.message}`,
+            error.stack,
+          );
+        } else {
+          this.logger.error(`Détails de l'erreur: ${String(error)}`);
+        }
+        throw error; // Rethrow the error after logging
       } finally {
         // Libérer le client après utilisation
         if (client && typeof client.release === 'function') {
@@ -348,14 +356,22 @@ export default class EBPProject {
       }
     } catch (error) {
       this.logger.error(
-        `Erreur lors de l'insertion du projet: ${projectApp.reference}`,
+        `Erreur lors de l'obtention du client de la base de données: ${projectApp.reference}`,
         error,
       );
-      throw error;
+      // Log de l'erreur détaillée si possible
+      if (error instanceof Error) {
+        this.logger.error(`Détails de l'erreur: ${error.message}`, error.stack);
+      } else {
+        this.logger.error(`Détails de l'erreur: ${String(error)}`);
+      }
+      throw error; // Rethrow the error after logging
     }
   }
 
-  // Fonction utilitaire pour extraire des données d'adresse d'un constructionSite
+  /**
+   * Fonction utilitaire pour extraire des données d'adresse d'un constructionSite
+   */
   private getConstructionSiteAddressData(
     ebpConstructionSiteData: ConstructionsiteInterface,
   ) {
@@ -373,13 +389,13 @@ export default class EBPProject {
     }
 
     return {
-      address1: ebpConstructionSiteData.ConstructionSiteAddress_Address1 || '',
-      address2: ebpConstructionSiteData.ConstructionSiteAddress_Address2 || '',
-      zipCode: ebpConstructionSiteData.ConstructionSiteAddress_ZipCode || '',
-      city: ebpConstructionSiteData.ConstructionSiteAddress_City || '',
-      country:
+      Address1: ebpConstructionSiteData.ConstructionSiteAddress_Address1 || '',
+      Address2: ebpConstructionSiteData.ConstructionSiteAddress_Address2 || '',
+      ZipCode: ebpConstructionSiteData.ConstructionSiteAddress_ZipCode || '',
+      City: ebpConstructionSiteData.ConstructionSiteAddress_City || '',
+      CountryIsoCode:
         ebpConstructionSiteData.ConstructionSiteAddress_CountryIsoCode || '',
-      description:
+      Description:
         ebpConstructionSiteData.ConstructionSiteAddress_Description || '',
     };
   }

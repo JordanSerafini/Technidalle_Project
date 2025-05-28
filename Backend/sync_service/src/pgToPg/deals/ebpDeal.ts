@@ -739,8 +739,13 @@ export default class EBPDeal {
       );
 
       // Fetch app clients once to create a map for faster lookup
-      const appClientsResult = await this.queryService.executeQuery<{ id: number; customer_id: string }>(`SELECT id, customer_id FROM public."clients"`);
-      const clientMap = new Map(appClientsResult.rows?.map(c => [c.customer_id.trim(), c.id])); // Trim customer_id from DB too
+      const appClientsResult = await this.queryService.executeQuery<{
+        id: number;
+        customer_id: string;
+      }>(`SELECT id, customer_id FROM public."clients"`);
+      const clientMap = new Map(
+        appClientsResult.rows?.map((c) => [c.customer_id.trim(), c.id]),
+      ); // Trim customer_id from DB too
 
       for (const deal of ebpDeals) {
         const dealId = String(deal.Id).replace(/'/g, "''");
@@ -756,22 +761,22 @@ export default class EBPDeal {
 
         // Check if ebpClientId is valid and lookup client
         if (ebpClientId && ebpClientId !== '') {
-            internalClientId = clientMap.get(ebpClientId) || null;
-            if (internalClientId === null) {
-                 this.logger.warn(
-                     `Client with customer_id ${ebpClientId} not found in app DB for deal ${dealId}. Skipping project insertion.`,
-                 );
-                failed++;
-                failedDeals.push(dealId);
-                continue; // Skip to the next deal
-            }
-        } else {
-             this.logger.warn(
-                 `Deal ${dealId} has no valid xx_Client. Skipping project insertion.`,
-             );
+          internalClientId = clientMap.get(ebpClientId) || null;
+          if (internalClientId === null) {
+            this.logger.warn(
+              `Client with customer_id ${ebpClientId} not found in app DB for deal ${dealId}. Skipping project insertion.`,
+            );
             failed++;
             failedDeals.push(dealId);
             continue; // Skip to the next deal
+          }
+        } else {
+          this.logger.warn(
+            `Deal ${dealId} has no valid xx_Client. Skipping project insertion.`,
+          );
+          failed++;
+          failedDeals.push(dealId);
+          continue; // Skip to the next deal
         }
 
         // Mappage du statut EBP (numérique) vers le statut de l'application (enum string)
@@ -789,10 +794,15 @@ export default class EBPDeal {
         // Calculate start and end dates, handle potential invalid end date
         const startDateIso = deal.DealDate.toISOString();
         let endDateValue = 'NULL';
-        if (deal.xx_DateFin && new Date(deal.xx_DateFin) >= new Date(deal.DealDate)) {
-             endDateValue = `'${deal.xx_DateFin.toISOString()}'`;
+        if (
+          deal.xx_DateFin &&
+          new Date(deal.xx_DateFin) >= new Date(deal.DealDate)
+        ) {
+          endDateValue = `'${deal.xx_DateFin.toISOString()}'`;
         } else if (deal.xx_DateFin) {
-             this.logger.warn(`Deal ${dealId} has an end date (${deal.xx_DateFin.toISOString()}) before the start date (${startDateIso}). Setting end_date to NULL.`);
+          this.logger.warn(
+            `Deal ${dealId} has an end date (${deal.xx_DateFin.toISOString()}) before the start date (${startDateIso}). Setting end_date to NULL.`,
+          );
         }
 
         sqlScript += `
@@ -821,50 +831,54 @@ export default class EBPDeal {
             "updated_at" = NOW(); -- Removed synced_at, synced_by_device_id
 
         `;
-         succeeded++; // Increment succeeded count as we are adding to the script
+        succeeded++; // Increment succeeded count as we are adding to the script
       }
 
       sqlScript += `COMMIT;
 `;
 
       // Exécuter le script pour toutes les affaires en une seule transaction
-      if (succeeded > 0) { // Only execute if there are projects to insert
-          try {
-            this.logger.log(
-              `Exécution de la transaction pour ${succeeded} affaires`,
-            );
-            await this.queryService.executeQuery(sqlScript);
-            this.logger.log(
-              `Transaction terminée avec succès pour ${succeeded} affaires`,
-            );
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            this.logger.error(
-              `Erreur lors de l'exécution de la transaction: ${errorMessage}`,
-            );
-            // Annuler la transaction en cas d'erreur
-            await this.queryService.executeQuery('ROLLBACK');
-             // If the transaction fails, all succeeded deals in this batch are actually failed
-            failed += succeeded;
-            succeeded = 0;
+      if (succeeded > 0) {
+        // Only execute if there are projects to insert
+        try {
+          this.logger.log(
+            `Exécution de la transaction pour ${succeeded} affaires`,
+          );
+          await this.queryService.executeQuery(sqlScript);
+          this.logger.log(
+            `Transaction terminée avec succès pour ${succeeded} affaires`,
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Erreur lors de l'exécution de la transaction: ${errorMessage}`,
+          );
+          // Annuler la transaction en cas d'erreur
+          await this.queryService.executeQuery('ROLLBACK');
+          // If the transaction fails, all succeeded deals in this batch are actually failed
+          failed += succeeded;
+          succeeded = 0;
 
-            return {
-              processed,
-              succeeded: 0,
-              failed: processed, // Mark all as failed on transaction error
-              details: `Erreur lors de l'exécution de la transaction: ${errorMessage}`,
-            };
-          }
+          return {
+            processed,
+            succeeded: 0,
+            failed: processed, // Mark all as failed on transaction error
+            details: `Erreur lors de l'exécution de la transaction: ${errorMessage}`,
+          };
+        }
       } else {
-           this.logger.log('No valid deals to insert into projects table.');
+        this.logger.log('No valid deals to insert into projects table.');
       }
 
       return {
         processed,
         succeeded,
         failed,
-        details: failedDeals.length > 0 ? `Failed to process deals: ${failedDeals.join(', ')}` : 'Fast sync completed successfully',
+        details:
+          failedDeals.length > 0
+            ? `Failed to process deals: ${failedDeals.join(', ')}`
+            : 'Fast sync completed successfully',
       };
     } catch (error) {
       const errorMessage =
@@ -873,14 +887,14 @@ export default class EBPDeal {
 
       // Attempt to rollback if BEGIN was executed but COMMIT failed
       if (sqlScript.startsWith('BEGIN;') && !sqlScript.endsWith('COMMIT;\n')) {
-           try {
-                await this.queryService.executeQuery('ROLLBACK');
-                this.logger.log('Rolled back transaction due to global error.');
-           } catch (rollbackError) {
-                this.logger.error(
-                    `Error during rollback: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
-                );
-           }
+        try {
+          await this.queryService.executeQuery('ROLLBACK');
+          this.logger.log('Rolled back transaction due to global error.');
+        } catch (rollbackError) {
+          this.logger.error(
+            `Error during rollback: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+          );
+        }
       }
 
       return {
@@ -912,9 +926,9 @@ export default class EBPDeal {
     // On ne vérifie plus le résultat ici car syncClientsFromEBP gère ses propres erreurs et logging
     const clientSyncSuccess = await this.syncClientsFromEBP();
     if (!clientSyncSuccess) {
-         this.logger.warn(
-             'Client synchronization failed. Proceeding with deal sync might result in more errors.',
-         );
+      this.logger.warn(
+        'Client synchronization failed. Proceeding with deal sync might result in more errors.',
+      );
     }
 
     // Vérifier l'état des projets avant de commencer

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Customer as ClientEBP } from '../interfaces/clients/clientEBP';
 import { CreateClientWithAddressDto } from '../interfaces/clients/clientApp';
-import EBPclient from './clients/ebpClient';
+import EBPclient, { convertEBPtoAppClient } from './clients/ebpClient';
 import { Item as ItemEBP } from '../interfaces/items/itemEBP';
 import { ItemAPP } from '../interfaces/items/itemAPP';
 import { ProjectEBP } from '../interfaces/projects/projectEBP';
@@ -52,7 +52,7 @@ export class PgSyncService {
   convertEBPClientToAppClient(
     clientEBP: ClientEBP,
   ): CreateClientWithAddressDto {
-    return this.ebpClient.convertToAppClient(clientEBP);
+    return convertEBPtoAppClient(clientEBP);
   }
 
   /**
@@ -61,7 +61,7 @@ export class PgSyncService {
   convertMultipleEBPClientsToAppClients(
     clientsEBP: ClientEBP[],
   ): CreateClientWithAddressDto[] {
-    return this.ebpClient.convertMultipleToAppClient(clientsEBP);
+    return clientsEBP.map((client) => convertEBPtoAppClient(client));
   }
 
   /**
