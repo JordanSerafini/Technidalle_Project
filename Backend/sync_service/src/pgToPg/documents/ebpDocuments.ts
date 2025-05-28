@@ -1401,6 +1401,10 @@ export default class EBPDocuments {
             continue;
           }
 
+          this.logger.debug(
+            `[DEBUG] Upsert document: ref=${appDoc.reference}, project_id=${appDoc.project_id}`
+          );
+
           const documentIdApp = await this.upsertDocument(appDoc, client);
 
           if (documentIdApp) {
@@ -1531,6 +1535,9 @@ export default class EBPDocuments {
     documentData: Partial<Document>,
     client: PoolClient,
   ): Promise<number | null> {
+    this.logger.debug(
+      `[DEBUG] Upsert document: ref=${documentData.reference}, project_id=${documentData.project_id}`
+    );
     const selectQuery = `SELECT id FROM documents WHERE reference = $1`;
     const selectResult = await client.query<{ id: number }>(selectQuery, [
       documentData.reference,
