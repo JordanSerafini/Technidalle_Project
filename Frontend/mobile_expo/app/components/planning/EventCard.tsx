@@ -22,7 +22,7 @@ export function EventCard({
   const bandColor = eventTypeColors[event_type] ?? '#CCCCCC';
 
   return (
-    <View className="flex-row bg-white rounded-xl my-2 shadow-sm min-h-[80px] items-stretch" accessibilityRole="summary">
+    <View className="flex-row bg-white rounded-xl my-2 shadow-sm min-h-[80px] items-stretch w-full" accessibilityRole="summary">
       <View style={{ backgroundColor: bandColor }} className="w-2 rounded-l-xl" />
       <View className="flex-1 p-3 justify-center">
         <Text className="text-xs font-bold text-gray-500 mb-1 capitalize">{event_type.replace(/_/g, ' ')}</Text>

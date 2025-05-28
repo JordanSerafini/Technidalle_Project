@@ -39,13 +39,13 @@ const StaffDaily = () => {
   }
 
   return (
-    <View className="flex-1 bg-gray-100 pt-4">
+    <View className="flex-1 bg-gray-100 pt-4 w-full">
       <View className="px-4">
         <Text className="text-2xl font-bold text-gray-900 mb-4">
           🗓️ Programme du jour
         </Text>
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         {data.length > 0 ? (
           data.map(renderEvent)
         ) : (
