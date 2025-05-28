@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { PoolClient, DatabaseError } from 'pg';
 import * as pgClientSource from '../../clients/PgClient';
-import pgClientDestination from '../../clients/pgClient_2';
+import PgClient2 from '../../clients/pgClient_2';
 import {
   ConstructionsitereferencedocumentInterface,
   ConstructionsitereferencedocumentexInterface,
@@ -63,7 +63,7 @@ export default class EBPDocuments {
   ): Promise<Partial<Document> | null> {
     let destinationClient: PoolClient | null = null;
     try {
-      destinationClient = await pgClientDestination.getClient();
+      destinationClient = await PgClient2.getClient();
       if (!destinationClient) {
         this.logger.error(
           "Impossible d'obtenir un client de la pool de destination.",
@@ -340,7 +340,7 @@ export default class EBPDocuments {
     );
     let destinationClient: PoolClient | null = null;
     try {
-      destinationClient = await pgClientDestination.getClient();
+      destinationClient = await PgClient2.getClient();
       if (!destinationClient) {
         this.logger.error(
           "Impossible d'obtenir un client de la pool de destination pour insertDocumentIntoApp.",
@@ -967,6 +967,293 @@ export default class EBPDocuments {
       return 'non_payé';
     } else {
       return 'non_applicable';
+    }
+  }
+
+  async syncAllConstructionSiteDocuments(): Promise<{
+    success: boolean;
+    count: number;
+    total: number;
+    errors: { identifier: string; error: string }[];
+  }> {
+    this.logger.log(
+      'Démarrage de la synchronisation des documents de chantier...',
+    );
+    const errors: { identifier: string; error: string }[] = [];
+    let syncedCount = 0;
+
+    try {
+      // 1. Récupérer tous les documents de référence EBP
+      const ebpDocs = await this.getAllDocumentsFromEBP();
+      const ebpDocsEx = await this.getAllDocumentsExFromEBP(); // Si nécessaire pour des données supplémentaires
+      this.logger.log(
+        `Récupérés ${ebpDocs.length} documents de référence EBP.`,
+      );
+
+      const client = await PgClient2.getClient();
+
+      for (const ebpDoc of ebpDocs) {
+        try {
+          // 2. Mapper le document EBP vers l'interface de l'application
+          const appDocPartial = await this.convertToAppDocument(
+            ebpDoc,
+            ebpDocsEx.find((ex) => ex.Id === ebpDoc.Id), // Passez l'interface Ex si trouvée
+          );
+
+          if (!appDocPartial) {
+            this.logger.warn(
+              `Skipping document ${ebpDoc.Id} - conversion failed.`,
+            );
+            errors.push({ identifier: ebpDoc.Id, error: 'Conversion failed' });
+            continue;
+          }
+
+          // 3. Lier le document au projet de l'application
+          // Trouver l'ID du projet APP correspondant au ConstructionSiteId EBP
+          let appIdProject: number | null = null;
+          if (ebpDoc.ConstructionSiteId) {
+            const projectApp = await this.getProjectByEbpId(
+              ebpDoc.ConstructionSiteId,
+              client,
+            );
+            if (projectApp) {
+              appIdProject = projectApp.id;
+              appDocPartial.project_id = appIdProject;
+            } else {
+              this.logger.warn(
+                `Document ${ebpDoc.Id} lié à un ConstructionSiteId EBP inconnu: ${ebpDoc.ConstructionSiteId}. Skipping.`,
+              );
+              errors.push({
+                identifier: ebpDoc.Id,
+                error: `ConstructionSiteId EBP inconnu: ${ebpDoc.ConstructionSiteId}`,
+              });
+              continue;
+            }
+          } else if (ebpDoc.DealId) {
+            const projectApp = await this.getProjectByEbpId(
+              ebpDoc.DealId,
+              client,
+            );
+            if (projectApp) {
+              appIdProject = projectApp.id;
+              appDocPartial.project_id = appIdProject;
+            } else {
+              this.logger.warn(
+                `Document ${ebpDoc.Id} lié à un DealId EBP inconnu: ${ebpDoc.DealId}. Skipping.`,
+              );
+              errors.push({
+                identifier: ebpDoc.Id,
+                error: `DealId EBP inconnu: ${ebpDoc.DealId}`,
+              });
+              continue;
+            }
+          }
+
+          if (!appIdProject) {
+            this.logger.warn(
+              `Document ${ebpDoc.Id} non lié à un projet EBP (ni ConstructionSiteId ni DealId). Skipping.`,
+            );
+            errors.push({
+              identifier: ebpDoc.Id,
+              error: `Document non lié à un projet EBP`,
+            });
+            continue;
+          }
+
+          // 4. Insérer ou mettre à jour dans la base de données de l'application
+          const documentIdApp = await this.upsertDocument(
+            appDocPartial,
+            client,
+          );
+
+          if (documentIdApp) {
+            syncedCount++;
+            this.logger.debug(
+              `Synchronisé document EBP ${ebpDoc.Id} vers APP ${documentIdApp}`,
+            );
+          } else {
+            errors.push({
+              identifier: ebpDoc.Id,
+              error: 'Failed to upsert document in app DB',
+            });
+          }
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          const errStack = error instanceof Error ? error.stack : undefined;
+          this.logger.error(
+            `Erreur lors de la synchronisation du document EBP ${ebpDoc.Id}: ${errMsg}`,
+            errStack,
+          );
+          errors.push({ identifier: ebpDoc.Id, error: errMsg });
+        }
+      }
+
+      if (client && typeof client.release === 'function') {
+        client.release();
+      }
+
+      this.logger.log(
+        `Synchronisation des documents terminée. ${syncedCount}/${ebpDocs.length} synchronisés avec succès.`,
+      );
+      return {
+        success: errors.length === 0,
+        count: syncedCount,
+        total: ebpDocs.length,
+        errors: errors,
+      };
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Erreur critique lors de la récupération des documents EBP: ${errMsg}`,
+        errStack,
+      );
+      errors.push({ identifier: 'global', error: errMsg });
+      return {
+        success: false,
+        count: syncedCount,
+        total: 0, // Impossible de connaître le total si la récupération échoue
+        errors: errors,
+      };
+    }
+  }
+
+  private async upsertDocument(
+    documentData: Partial<Document>,
+    client: PoolClient,
+  ): Promise<number | null> {
+    const selectQuery = `SELECT id FROM documents WHERE "documentId" = $1`;
+    const selectResult = await client.query<{ id: number }>(selectQuery, [
+      documentData.documentId,
+    ]);
+
+    const appId = selectResult.rows[0]
+      ? Number((selectResult.rows[0] as { id: number }).id)
+      : undefined;
+    if (appId) {
+      const updateQuery = `UPDATE documents SET
+              project_id = $1,
+              type = $2,
+              reference = $3,
+              status = $4,
+              amount = $5,
+              issue_date = $6,
+              due_date = $7,
+              payment_date = $8,
+              payment_method = $9,
+              payment_terms = $10,
+              discount_rate = $11,
+              discount_amount = $12,
+              payment_status = $13,
+              amount_paid = $14,
+              balance_due = $15,
+              legal_mentions = $16,
+              validity_period = $17,
+              signed_by_client = $18,
+              signed_date = $19,
+              approved_by_staff_id = $20,
+              electronic_signature_path = $21,
+              version = $22,
+              parent_document_id = $23,
+              revision_reason = $24,
+              quotation_id = $25,
+              purchase_order_reference = $26,
+              delivery_address_id = $27,
+              delivery_date = $28,
+              shipping_costs = $29,
+              notes = $30,
+              file_path = $31,
+              updated_at = NOW()
+              WHERE id = $32
+           `;
+      const updateValues = [
+        documentData.project_id,
+        documentData.type,
+        documentData.reference,
+        documentData.status,
+        documentData.amount,
+        documentData.issue_date,
+        documentData.due_date,
+        documentData.payment_date,
+        documentData.payment_method,
+        documentData.payment_terms,
+        documentData.discount_rate,
+        documentData.discount_amount,
+        documentData.payment_status,
+        documentData.amount_paid,
+        documentData.balance_due,
+        documentData.legal_mentions,
+        documentData.validity_period,
+        documentData.signed_by_client,
+        documentData.signed_date,
+        documentData.approved_by_staff_id,
+        documentData.electronic_signature_path,
+        documentData.version,
+        documentData.parent_document_id,
+        documentData.revision_reason,
+        documentData.quotation_id,
+        documentData.purchase_order_reference,
+        documentData.delivery_address_id,
+        documentData.delivery_date,
+        documentData.shipping_costs,
+        documentData.notes,
+        documentData.file_path,
+        appId,
+      ];
+      await client.query(updateQuery, updateValues);
+      return appId;
+    } else {
+      const insertQuery = `INSERT INTO documents (
+              "documentId", project_id, type, reference, status, amount, issue_date, due_date, payment_date,
+              payment_method, payment_terms, discount_rate, discount_amount, payment_status, amount_paid,
+              balance_due, legal_mentions, validity_period, signed_by_client, signed_date, approved_by_staff_id,
+              electronic_signature_path, version, parent_document_id, revision_reason, quotation_id,
+              purchase_order_reference, delivery_address_id, delivery_date, shipping_costs, notes, file_path, created_at, updated_at
+          ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+              $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, NOW(), NOW()
+          ) RETURNING id`;
+
+      const insertValues = [
+        documentData.documentId,
+        documentData.project_id,
+        documentData.type,
+        documentData.reference,
+        documentData.status,
+        documentData.amount,
+        documentData.issue_date,
+        documentData.due_date,
+        documentData.payment_date,
+        documentData.payment_method,
+        documentData.payment_terms,
+        documentData.discount_rate,
+        documentData.discount_amount,
+        documentData.payment_status,
+        documentData.amount_paid,
+        documentData.balance_due,
+        documentData.legal_mentions,
+        documentData.validity_period,
+        documentData.signed_by_client,
+        documentData.signed_date,
+        documentData.approved_by_staff_id,
+        documentData.electronic_signature_path,
+        documentData.version,
+        documentData.parent_document_id,
+        documentData.revision_reason,
+        documentData.quotation_id,
+        documentData.purchase_order_reference,
+        documentData.delivery_address_id,
+        documentData.delivery_date,
+        documentData.shipping_costs,
+        documentData.notes,
+        documentData.file_path,
+      ];
+
+      const insertResult = await client.query(insertQuery, insertValues);
+      const insertedId = insertResult.rows[0]
+        ? Number((insertResult.rows[0] as { id: number }).id)
+        : undefined;
+      return insertedId ?? null;
     }
   }
 }

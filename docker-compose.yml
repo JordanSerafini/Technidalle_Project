@@ -19,7 +19,6 @@ services:
       - ./Database/sql_dev/seed_db_part3.sql:/docker-entrypoint-initdb.d/seed_db_part3.sql
       - ./Database/sql_dev/seed_db_part4.sql:/docker-entrypoint-initdb.d/seed_db_part4.sql
       - ./Database/sql_dev/sync_logs.sql:/docker-entrypoint-initdb.d/sync_logs.sql
-
     networks:
       - app-network
     healthcheck:
@@ -226,25 +225,25 @@ services:
       - /app/node_modules
       - /app/generated/prisma
 
-  email-modules:
-    build:
-      context: ./Email_Module/email_service_openai
-      dockerfile: Dockerfile
-    container_name: email-modules
-    ports:
-      - "4444:4444"
-    environment:
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - IMAP_HOST=${IMAP_HOST}
-      - IMAP_PORT=${IMAP_PORT}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_SECURE=${SMTP_SECURE}
+  # email-modules:
+  #   build:
+  #     context: ./Email_Module/email_service_openai
+  #     dockerfile: Dockerfile
+  #   container_name: email-modules
+  #   ports:
+  #     - "4444:4444"
+  #   environment:
+  #     - EMAIL_USER=${EMAIL_USER}
+  #     - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #     - IMAP_HOST=${IMAP_HOST}
+  #     - IMAP_PORT=${IMAP_PORT}
+  #     - SMTP_HOST=${SMTP_HOST}
+  #     - SMTP_PORT=${SMTP_PORT}
+  #     - SMTP_SECURE=${SMTP_SECURE}
 
-    networks:
-      - app-network
+  #   networks:
+  #     - app-network
 
   api-gateway:
     build:

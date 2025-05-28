@@ -10,6 +10,12 @@ import { ConstructionsiteInterface } from '../../interfaces/projects/constructio
 import { QueryService } from '../../services/query.service';
 import { ClientSyncService } from '../../services/client-sync.service';
 import { CreateClientWithAddressDto } from '../../interfaces/clients/clientApp';
+import PgClient2 from '../../clients/pgClient_2';
+
+interface ConstructionSiteReferenceDocument {
+  Id?: string;
+  ConstructionSiteId?: string;
+}
 
 export default class EBPProject {
   private readonly logger = new Logger(EBPProject.name);
@@ -76,18 +82,21 @@ export default class EBPProject {
         `Récupéré ${referenceDocuments.length} documents de référence`,
       );
 
-      const referenceDocsMap = new Map<string, any>();
-      referenceDocuments.forEach((doc) => {
-        if (doc?.ConstructionSiteId) {
-          referenceDocsMap.set(doc.ConstructionSiteId, doc);
-        }
-      });
+      const referenceDocsMap = new Map<
+        string,
+        ConstructionSiteReferenceDocument
+      >();
+
+      (referenceDocuments as ConstructionSiteReferenceDocument[]).forEach(
+        (doc) => {
+          if (doc?.ConstructionSiteId) {
+            referenceDocsMap.set(doc.ConstructionSiteId, doc);
+          }
+        },
+      );
 
       return constructionSites.map((site) => ({
         constructionSite: site,
-        constructionSiteReferenceDocument: site.Id
-          ? referenceDocsMap.get(site.Id)
-          : undefined,
       }));
     } catch (error) {
       this.logger.error('Erreur dans getAllProjectsFromEBP', error);
@@ -145,50 +154,59 @@ export default class EBPProject {
 
     try {
       // Démarrer la transaction avec pgClientDestination au lieu de this.queryService
-      const pgDestinationClient = await pgClientDestination.getClient();
-      
+      const client = await PgClient2.getClient();
+
       try {
-        await pgDestinationClient.query('BEGIN');
+        await client.query('BEGIN');
 
         // Rechercher l'ID numérique correspondant au client dans la table clients
         let appClientId: number | null = null;
         const clientQuery = `
           SELECT id FROM clients WHERE customer_id = $1
         `;
-        
-        const clientResult = await pgDestinationClient.query(clientQuery, [customerEbpId]);
-        
+
+        const clientResult = await client.query<{ id: number }>(clientQuery, [
+          customerEbpId,
+        ]);
+
         if (clientResult.rows && clientResult.rows.length > 0) {
           // Client trouvé, utiliser son ID numérique
-          appClientId = clientResult.rows[0].id;
-          this.logger.log(`Client trouvé avec ID: ${appClientId} pour customerEbpId: ${customerEbpId}`);
+          appClientId = Number(clientResult.rows[0]?.id);
+          this.logger.log(
+            `Client trouvé avec ID: ${appClientId} pour customerEbpId: ${customerEbpId}`,
+          );
         } else {
           // Si client non trouvé, on peut insérer un client temporaire
-          this.logger.warn(`Client avec customerEbpId ${customerEbpId} non trouvé dans la table clients`);
-          
+          this.logger.warn(
+            `Client avec customerEbpId ${customerEbpId} non trouvé dans la table clients`,
+          );
+
           // Option: insérer un client temporaire
           const tempClientQuery = `
             INSERT INTO clients (customer_id, firstname, lastname, email)
             VALUES ($1, 'Client', $2, $3)
             RETURNING id
           `;
-          
-          const tempEmail = `${customerEbpId.toLowerCase()}@temp.com`;
-          const tempClientResult = await pgDestinationClient.query(
-            tempClientQuery, 
-            [customerEbpId, customerEbpId, tempEmail]
-          ).catch(err => {
-            this.logger.error(`Erreur lors de l'insertion du client temporaire: ${err.message}`);
-            return { rows: [] };
-          });
-          
+
+          const tempEmail = `${customerEbpId?.toLowerCase() ?? 'default'}@temp.com`;
+          const tempClientResult = await client
+            .query(tempClientQuery, [customerEbpId, customerEbpId, tempEmail])
+            .catch((err) => {
+              this.logger.error(
+                `Erreur lors de l'insertion du client temporaire: ${err.message}`,
+              );
+              return { rows: [] };
+            });
+
           if (tempClientResult.rows && tempClientResult.rows.length > 0) {
-            appClientId = tempClientResult.rows[0].id;
+            appClientId = Number(tempClientResult.rows[0]?.id);
             this.logger.log(`Client temporaire créé avec ID: ${appClientId}`);
           } else {
             // Si impossible de créer un client temporaire, utiliser une valeur par défaut
             appClientId = 1; // ID client par défaut
-            this.logger.warn(`Utilisation de l'ID client par défaut: ${appClientId}`);
+            this.logger.warn(
+              `Utilisation de l'ID client par défaut: ${appClientId}`,
+            );
           }
         }
 
@@ -213,7 +231,7 @@ export default class EBPProject {
           try {
             projectAddressId = await this.ebpClient.upsertAddress(
               addressDataForUpsert,
-              pgDestinationClient,
+              client,
             );
             if (projectAddressId === null) {
               this.logger.warn(
@@ -257,7 +275,7 @@ export default class EBPProject {
           WHERE "reference" = $1
         `;
 
-        const checkResult = await pgDestinationClient.query(checkProjectQuery, [
+        const checkResult = await client.query(checkProjectQuery, [
           projectApp.reference,
         ]);
 
@@ -286,7 +304,7 @@ export default class EBPProject {
             RETURNING "reference"
           `;
 
-          projectResult = await pgDestinationClient.query(
+          projectResult = await client.query<{ reference: string }>(
             updateProjectQuery,
             projectValues,
           );
@@ -301,7 +319,7 @@ export default class EBPProject {
             RETURNING "reference"
           `;
 
-          projectResult = await pgDestinationClient.query(
+          projectResult = await client.query<{ reference: string }>(
             insertProjectQuery,
             projectValues,
           );
@@ -313,10 +331,10 @@ export default class EBPProject {
           );
         }
 
-        await pgDestinationClient.query('COMMIT');
-        return projectResult.rows[0].reference;
+        await client.query('COMMIT');
+        return String(projectResult.rows[0]?.reference);
       } catch (error) {
-        await pgDestinationClient.query('ROLLBACK');
+        await client.query('ROLLBACK');
         this.logger.error(
           `Erreur lors de l'insertion du projet: ${projectApp.reference}`,
           error,
@@ -324,7 +342,9 @@ export default class EBPProject {
         throw error;
       } finally {
         // Libérer le client après utilisation
-        pgDestinationClient.release();
+        if (client && typeof client.release === 'function') {
+          client.release();
+        }
       }
     } catch (error) {
       this.logger.error(

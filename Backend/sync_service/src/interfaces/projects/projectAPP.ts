@@ -16,6 +16,7 @@ export interface ProjectAPP {
   margin?: number | null;
   notes?: string | null;
   deal_id?: string | null;
+  status?: string;
   // Propriété pour conserver les données originales pendant la transformation
   constructionSite?: any;
 }
