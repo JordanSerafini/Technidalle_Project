@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import { cleanupExpoRouterKey } from '@/app/utils/cleanupRouter';
 
 export default function ChatbotLayout() {
-  // Force cleanup lors du montage de ce layout
   useEffect(() => {
     if (typeof window !== 'undefined') {
       cleanupExpoRouterKey();
