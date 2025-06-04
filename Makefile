@@ -50,7 +50,3 @@ else
 	bash updatePrisma.sh
 endif
 	@echo "Mise a jour Prisma terminee."
-
-
-	
-	
