@@ -102,3 +102,18 @@ others → 'autre'
 3. **Insert/Update** records in the application database using upsert logic. Example: `EBPclient.upsertAddress()` handles address deduplication and is used when inserting clients and projects.
 
 The mapping ensures that EBP identifiers remain accessible (`customer_id`, `project_id`, `document_id`) while data is normalised in the final schema.
+
+## Example SQL migration
+
+The file `Database/sql_dev/sync_to_app.sql` provides a ready-to-use SQL script
+illustrating how to import data from the `postgres_sync` staging database into
+the application's schema. It performs upserts for clients, addresses, materials,
+projects, documents and document lines using the mapping rules described above.
+Run it after restoring the dump in `postgres_sync`:
+
+```bash
+psql -d app_db -f Database/sql_dev/sync_to_app.sql
+```
+
+Adapt schema names or additional fields to your environment.
+
