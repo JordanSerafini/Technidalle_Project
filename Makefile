@@ -51,6 +51,7 @@ else
 endif
 	@echo "Mise a jour Prisma terminee."
 
+
 # Jest tests
 test:
 	npm run test

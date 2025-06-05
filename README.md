@@ -24,3 +24,15 @@ docker-compose up --build
 ```
 
 This will start PostgreSQL, Elasticsearch and all microservices.
+
+## Load testing
+
+A sample Artillery configuration (`artillery.yaml`) is provided at the repository root.
+Run a quick load test and generate a report with:
+
+```bash
+make test-load
+```
+
+Results will be saved in `load-report.json` and `load-report.html`.
+
