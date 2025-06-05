@@ -1,9 +1,11 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
+import { ApiTags } from '@nestjs/swagger';
 import { ProjectStaffService } from './project-staff.service';
 import { CreateProjectStaffDto } from './dto/create-project-staff.dto';
 import { UpdateProjectStaffDto } from './dto/update-project-staff.dto';
 
+@ApiTags('project-staff')
 @Controller()
 export class ProjectStaffController {
   constructor(private readonly projectStaffService: ProjectStaffService) {}
