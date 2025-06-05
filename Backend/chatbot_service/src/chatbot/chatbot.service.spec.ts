@@ -114,4 +114,26 @@ describe('ChatbotService', () => {
 
     expect(response).toMatch(/Client A/);
   });
+
+  it('returns general answer when no predefined query', async () => {
+    analyzeAgentServiceMock.analyzeQuestion.mockResolvedValue({
+      reformulatedQuestion: 'hello',
+      analysis: { intent: 'smalltalk', entities: [] },
+      similarPredefinedQueries: [],
+    });
+    langchainServiceMock.generateGeneralResponse.mockResolvedValue('Salut!');
+
+    const response = await service.handleUserMessage('u1', 'Bonjour');
+
+    expect(response).toBe('Salut!');
+    expect(langchainServiceMock.generateGeneralResponse).toHaveBeenCalled();
+    expect(analyzeAgentServiceMock.updateConversationContext).toHaveBeenCalled();
+  });
+
+  it('provides health status', async () => {
+    const status = await service.getHealth();
+    expect(status.status).toBe('ok');
+    expect(status.database).toBe('connected');
+    expect(status.services.length).toBeGreaterThan(0);
+  });
 });
