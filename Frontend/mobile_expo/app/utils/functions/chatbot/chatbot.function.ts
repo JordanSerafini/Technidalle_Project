@@ -103,7 +103,7 @@ export const sendConversationMessage = async (message: string): Promise<ChatbotR
       message,
     };
 
-    const response = await fetch(`${url.chatbot}analyze/conversation`, {
+    const response = await fetch(`${url.chatbot}chatbot/message`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
