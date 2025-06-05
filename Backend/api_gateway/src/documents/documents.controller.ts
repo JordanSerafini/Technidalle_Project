@@ -14,6 +14,16 @@ import {
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiParam,
+  ApiBody,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
+import {
   Document,
   CreateDocumentDto,
   UpdateDocumentDto,
@@ -57,6 +67,7 @@ interface UpdateProjectMediaDto {
 }
 
 @Injectable()
+@ApiTags('documents')
 @Controller('documents')
 export class DocumentsController {
   constructor(
@@ -64,6 +75,13 @@ export class DocumentsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Liste des documents' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery({ name: 'searchQuery', required: false, type: String })
+  @ApiQuery({ name: 'clientId', required: false, type: Number })
+  @ApiQuery({ name: 'projectId', required: false, type: Number })
+  @ApiOkResponse({ description: 'Liste des documents' })
   async getAllDocuments(
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
@@ -88,6 +106,9 @@ export class DocumentsController {
   }
 
   @Get('client/:clientId')
+  @ApiOperation({ summary: 'Documents par client' })
+  @ApiParam({ name: 'clientId', type: Number })
+  @ApiOkResponse({ description: 'Liste des documents' })
   async getDocumentsByClientId(
     @Param('clientId') clientId: string,
   ): Promise<Document[]> {
@@ -116,6 +137,9 @@ export class DocumentsController {
   }
 
   @Get('project/:projectId')
+  @ApiOperation({ summary: 'Documents par projet' })
+  @ApiParam({ name: 'projectId', type: Number })
+  @ApiOkResponse({ description: 'Liste des documents' })
   async getDocumentsByProjectId(
     @Param('projectId') projectId: number,
   ): Promise<Document[]> {
@@ -139,6 +163,11 @@ export class DocumentsController {
   }
 
   @Get('media')
+  @ApiOperation({ summary: 'Liste des medias' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery({ name: 'projectId', required: false, type: Number })
+  @ApiOkResponse({ description: 'Liste des medias' })
   async getAllProjectMedia(
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
@@ -161,6 +190,9 @@ export class DocumentsController {
   }
 
   @Get('media/:id')
+  @ApiOperation({ summary: 'M\u00e9dia par id' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'D\u00e9tails du m\u00e9dia' })
   async getProjectMediaById(@Param('id') id: number): Promise<ProjectMedia> {
     try {
       const media = await firstValueFrom(
@@ -181,6 +213,9 @@ export class DocumentsController {
   }
 
   @Get('project/:projectId/media')
+  @ApiOperation({ summary: 'M\u00e9dias par projet' })
+  @ApiParam({ name: 'projectId', type: Number })
+  @ApiOkResponse({ description: 'Liste des medias' })
   async getMediaByProjectId(
     @Param('projectId') projectId: number,
   ): Promise<ProjectMedia[]> {

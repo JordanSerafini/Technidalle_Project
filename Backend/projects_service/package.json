@@ -22,7 +22,8 @@
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
-    "@nestjs/microservices": "^11.0.14"
+    "@nestjs/microservices": "^11.0.14",
+    "@prisma/client": "^6.8.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
