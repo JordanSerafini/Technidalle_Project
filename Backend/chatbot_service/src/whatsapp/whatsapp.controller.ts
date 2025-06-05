@@ -83,7 +83,7 @@ export class WhatsappController {
 
             // Appeler le contrôleur analyze/chatbot
             const analyzeResponse = await firstValueFrom(
-              this.httpService.post('http://192.168.20.225:5599/analyze/chatbot', {
+              this.httpService.post('http://192.168.20.225:3000/analyze/chatbot', {
                 question: questionContent
               })
             );
