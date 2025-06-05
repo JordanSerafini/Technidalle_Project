@@ -12,6 +12,16 @@ import {
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiParam,
+  ApiBody,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
+import {
   Project,
   CreateProjectDto,
   UpdateProjectDto,
@@ -30,6 +40,7 @@ import {
 } from '../interfaces/address.interface';
 import { firstValueFrom } from 'rxjs';
 
+@ApiTags('projects')
 @Controller('projects')
 export class ProjectsController {
   constructor(
@@ -38,6 +49,11 @@ export class ProjectsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Liste des projets' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery({ name: 'searchQuery', required: false, type: String })
+  @ApiOkResponse({ description: 'Liste des projets' })
   async getAllProjects(
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
@@ -56,6 +72,9 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'D\u00e9tails d\'un projet' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'Projet trouv\u00e9' })
   async getProjectById(@Param('id', ParseIntPipe) id: number): Promise<Project> {
     return firstValueFrom(
       this.projectsService.send(
@@ -66,6 +85,9 @@ export class ProjectsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Cr\u00e9er un projet' })
+  @ApiBody({ type: CreateProjectDto })
+  @ApiCreatedResponse({ description: 'Projet cr\u00e9\u00e9' })
   async createProject(
     @Body() createProjectDto: CreateProjectDto,
   ): Promise<Project> {
@@ -75,6 +97,10 @@ export class ProjectsController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Mettre \u00e0 jour un projet' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: UpdateProjectDto })
+  @ApiOkResponse({ description: 'Projet mis \u00e0 jour' })
   async updateProject(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectDto: UpdateProjectDto,
@@ -88,6 +114,9 @@ export class ProjectsController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Supprimer un projet' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiNoContentResponse({ description: 'Projet supprim\u00e9' })
   async deleteProject(@Param('id', ParseIntPipe) id: number): Promise<boolean> {
     return firstValueFrom(
       this.projectsService.send({ cmd: 'delete_project' }, { id }),
