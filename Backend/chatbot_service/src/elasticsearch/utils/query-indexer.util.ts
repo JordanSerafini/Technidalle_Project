@@ -113,12 +113,12 @@ export async function checkAndIndexQueries(
 /**
  * Fonction utilitaire pour indexer rapidement une ou plusieurs requêtes de n'importe quel module
  * @param queries Objet contenant les requêtes à indexer
- * @param apiBaseUrl URL de base de l'API (par défaut: http://localhost:5599)
+ * @param apiBaseUrl URL de base de l'API (par défaut: http://localhost:3000)
  * @returns Promesse résolue avec le résultat de l'indexation
  */
 export async function indexQueries(
     queries: Record<string, any>,
-    apiBaseUrl: string = 'http://localhost:5599'
+    apiBaseUrl: string = 'http://localhost:3000'
   ): Promise<any> {
     try {
       // Préparation des données pour l'API
@@ -153,13 +153,13 @@ export async function indexQueries(
    * Fonction utilitaire pour indexer rapidement une seule requête
    * @param queryId Identifiant de la requête à indexer
    * @param queryDetails Détails de la requête à indexer
-   * @param apiBaseUrl URL de base de l'API (par défaut: http://localhost:5599)
+ * @param apiBaseUrl URL de base de l'API (par défaut: http://localhost:3000)
    * @returns Promesse résolue avec le résultat de l'indexation
    */
   export async function indexSingleQuery(
     queryId: string,
     queryDetails: any,
-    apiBaseUrl: string = 'http://localhost:5599'
+    apiBaseUrl: string = 'http://localhost:3000'
   ): Promise<any> {
     try {
       // Préparation des données pour l'API
@@ -194,12 +194,12 @@ export async function indexQueries(
   /**
    * Indexe toutes les requêtes de plusieurs modules en une seule opération
    * @param queryModules Tableau d'objets de requêtes de différents modules
-   * @param apiBaseUrl URL de base de l'API (par défaut: http://localhost:5599)
+ * @param apiBaseUrl URL de base de l'API (par défaut: http://localhost:3000)
    * @returns Promesse résolue avec le résultat de l'indexation
    */
   export async function indexMultipleModules(
     queryModules: Record<string, any>[],
-    apiBaseUrl: string = 'http://localhost:5599'
+    apiBaseUrl: string = 'http://localhost:3000'
   ): Promise<any> {
     try {
       // Fusionner tous les modules en un seul objet de requêtes

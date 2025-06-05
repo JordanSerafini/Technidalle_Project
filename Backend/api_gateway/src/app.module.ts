@@ -6,6 +6,7 @@ import { GlobalModule } from './global/global.module';
 import { EventsModule } from './events/events.module';
 import { DevisModule } from './documents/devis/devis.module';
 import { DocumentsModule } from './documents/documents.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DocumentsModule } from './documents/documents.module';
     DocumentsModule,
     DevisModule,
     EventsModule,
+    ChatbotModule,
   ],
   controllers: [],
   providers: [],
