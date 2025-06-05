@@ -219,4 +219,14 @@ export class QueryExecutorService {
       this.logger.log('Cache entièrement invalidé');
     }
   }
+
+  /**
+   * Récupère la définition des paramètres pour une requête donnée
+   * @param queryId Identifiant de la requête
+   * @returns La liste des paramètres attendus ou undefined
+   */
+  getParameterDefinitions(queryId: string): QueryParameter[] | undefined {
+    const queryDetails = this.queryMap[queryId];
+    return queryDetails?.parameters;
+  }
 }
