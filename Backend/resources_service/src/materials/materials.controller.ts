@@ -1,9 +1,11 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
+import { ApiTags } from '@nestjs/swagger';
 import { MaterialsService } from './materials.service';
 import { CreateMaterialDto } from './dto/create-material.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 
+@ApiTags('materials')
 @Controller()
 export class MaterialsController {
   constructor(private readonly materialsService: MaterialsService) {}
