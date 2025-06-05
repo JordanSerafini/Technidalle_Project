@@ -325,9 +325,10 @@ export class SyncDealsService {
     errors: string[];
   }> {
     let processed = 0;
-    const succeeded = 0;
-    const failed = 0;
+    let succeeded = 0;
+    let failed = 0;
     const errors: string[] = [];
+    let ebpDocs: EbpSaleDocumentView[] = [];
 
     try {
       // Vérifier si la vue existe avant de l'interroger
@@ -348,13 +349,73 @@ export class SyncDealsService {
         const result = await this.queryService.executeQuery(
           'SELECT * FROM synced_ebp_sale_documents',
         );
-        const ebpDocs = result.rows as EbpSaleDocumentView[];
+        ebpDocs = result.rows as EbpSaleDocumentView[];
         processed = ebpDocs.length;
         this.logger.log(
           `Found ${processed} sale documents to synchronize from EBP view.`,
         );
 
-        // Le reste de la méthode serait implémenté ici
+        for (const ebpDoc of ebpDocs) {
+          try {
+            const projectRes = await this.queryService.executeQuery<{ id: number }>(
+              'SELECT id FROM projects WHERE external_ebp_id = $1',
+              [ebpDoc.EbpDealId],
+            );
+            const project = projectRes.rows[0];
+            if (!project) throw new Error('Associated project not found');
+
+            let clientId: number | undefined = undefined;
+            if (ebpDoc.EbpCustomerId) {
+              const clientRes = await this.queryService.executeQuery<{ id: number }>(
+                'SELECT id FROM clients WHERE external_ebp_customer_id = $1',
+                [ebpDoc.EbpCustomerId],
+              );
+              clientId = clientRes.rows[0]?.id;
+            }
+
+            const existingRes = await this.queryService.executeQuery<{ id: number }>(
+              'SELECT id FROM documents WHERE document_id = $1',
+              [ebpDoc.EbpDocumentId],
+            );
+            const existing = existingRes.rows[0];
+
+            const docData = SaleDocumentToDocumentMapper.toDocumentEntity(
+              ebpDoc,
+              project.id,
+              clientId,
+              existing,
+            );
+
+            if (!existing) {
+              const fields = Object.keys(docData)
+                .map((k) => `"${k}"`)
+                .join(', ');
+              const values = Object.values(docData);
+              const params = values.map((_, i) => `$${i + 1}`).join(', ');
+              await this.queryService.executeQuery(
+                `INSERT INTO documents (${fields}) VALUES (${params})`,
+                values,
+              );
+            } else {
+              const { clause, values } = this.buildUpdateSetClause(docData, 1);
+              if (values.length > 0) {
+                await this.queryService.executeQuery(
+                  `UPDATE documents SET ${clause} WHERE id = $${
+                    values.length + 1
+                  }`,
+                  [...values, existing.id],
+                );
+              }
+            }
+
+            succeeded++;
+          } catch (itemErr) {
+            failed++;
+            const msg = itemErr instanceof Error ? itemErr.message : String(itemErr);
+            this.logger.error(`Failed to sync EBP document ${ebpDoc.Id}: ${msg}`);
+            errors.push(`Doc ${ebpDoc.Id}: ${msg}`);
+          }
+        }
       } catch (viewError) {
         this.logger.warn(
           `Erreur lors de la vérification de la vue synced_ebp_sale_documents: ${viewError.message}. Utilisation d'un tableau vide.`,

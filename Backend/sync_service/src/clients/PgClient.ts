@@ -1,12 +1,15 @@
 import { Client } from 'pg';
+import * as dotenv from 'dotenv';
 
-// Configuration PostgreSQL avec valeurs codées en dur
+dotenv.config();
+
+// Configuration PostgreSQL avec variables d'environnement
 const pgClient = new Client({
-  user: 'sync_user',
-  host: 'localhost',
-  database: 'sync_db',
-  password: 'sync_password',
-  port: 5433,
+  user: process.env.SYNC_PG_USER || 'sync_user',
+  host: process.env.SYNC_PG_HOST || 'localhost',
+  database: process.env.SYNC_PG_DATABASE || 'sync_db',
+  password: process.env.SYNC_PG_PASSWORD || 'sync_password',
+  port: parseInt(process.env.SYNC_PG_PORT || '5433', 10),
 });
 
 pgClient
