@@ -2,7 +2,7 @@
 #  Makefile docker compose + Swarm
 ############################################
 
-.PHONY: up down prismaUp
+.PHONY: up down prismaUp test test-watch test-e2e test-cov test-load test-load-report
 
 up:
 	@echo "Lancement de l'application en utilisant docker compose..."
@@ -51,7 +51,24 @@ else
 endif
 	@echo "Mise a jour Prisma terminee."
 
-test-load:
-	@echo "Running Artillery load test..."
-	npx artillery run artillery.yaml --output load-report.json && npx artillery report --output load-report.html load-report.json
 
+# Jest tests
+test:
+	npm run test
+
+test-watch:
+	npm run test:watch
+
+test-e2e:
+	npm run test:e2e
+
+test-cov:
+	npm run test:cov
+
+# Artillery load tests
+test-load:
+	npx artillery run artillery.yaml
+
+test-load-report:
+	npx artillery run artillery.yaml --output report.json
+	npx artillery report --output report.html report.json
