@@ -1,7 +1,7 @@
 import { DealToProjectMapper } from './deal-to-project.mapper';
-// Importer d'autres mappers ici au besoin
+import { SaleDocumentLineToDocumentLineMapper } from './saledocumentline-to-documentline.mapper';
 
-export { DealToProjectMapper };
+export { DealToProjectMapper, SaleDocumentLineToDocumentLineMapper };
 
 // Interface commune pour tous les mappers
 export interface Mapper<Source, Target> {
