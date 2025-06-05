@@ -116,3 +116,4 @@ psql -d app_db -f Database/sql_dev/sync_to_app.sql
 ```
 
 Adapt schema names or additional fields to your environment.
+
