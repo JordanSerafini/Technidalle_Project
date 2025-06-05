@@ -8,7 +8,7 @@ import { Message, Attachment } from '@/app/components/chatbot/types';
 import QuickReply from '@/app/components/chatbot/QuickReply';
 import AttachmentButton from '@/app/components/chatbot/AttachmentButton';
 import SpeechButton from '@/app/components/chatbot/SpeechButton';
-import { sendMessageToChatbot, formatChatbotResponse, checkChatbotHealth } from '@/app/utils/functions/chatbot/chatbot.function';
+import { sendConversationMessage, formatChatbotResponse, checkChatbotHealth } from '@/app/utils/functions/chatbot/chatbot.function';
 import DataCards from '@/app/components/chatbot/DataCards';
 
 // Suggestions de démarrage pour la conversation
@@ -110,8 +110,8 @@ export default function ChatbotScreen() {
     setIsLoading(true);
 
     try {
-      // Appel à l'API du chatbot
-      const response = await sendMessageToChatbot(userMessage.text);
+      // Appel à l'API du chatbot avec gestion de conversation
+      const response = await sendConversationMessage(userMessage.text);
       const formattedResponse = formatChatbotResponse(response);
       
       // Vérifier si des données structurées sont disponibles
