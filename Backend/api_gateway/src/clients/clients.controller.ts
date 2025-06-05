@@ -9,6 +9,16 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiParam,
+  ApiBody,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
 import { ClientProxy } from '@nestjs/microservices';
 import {
   Client,
@@ -26,6 +36,7 @@ import {
 } from '../interfaces/address.interface';
 import { firstValueFrom } from 'rxjs';
 
+@ApiTags('clients')
 @Controller('clients')
 export class ClientsController {
   constructor(
@@ -33,6 +44,15 @@ export class ClientsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Liste des clients' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery({ name: 'searchQuery', required: false, type: String })
+  @ApiQuery({ name: 'typeFilter', required: false, type: String })
+  @ApiQuery({ name: 'cityFilter', required: false, type: String })
+  @ApiQuery({ name: 'statusFilter', required: false, type: String })
+  @ApiQuery({ name: 'lastOrderFilter', required: false, type: String })
+  @ApiOkResponse({ description: 'Liste de clients' })
   async getAllClients(
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
@@ -59,6 +79,9 @@ export class ClientsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'R\u00e9cup\u00e9rer un client par son identifiant' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'Client trouv\u00e9' })
   async getClientById(@Param('id') id: number): Promise<Client> {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'get_client_by_id' }, { id: Number(id) }),
@@ -66,6 +89,9 @@ export class ClientsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Cr\u00e9er un client' })
+  @ApiBody({ type: CreateClientDto })
+  @ApiCreatedResponse({ description: 'Client cr\u00e9\u00e9' })
   async createClient(
     @Body() createClientDto: CreateClientDto,
   ): Promise<Client> {
@@ -75,6 +101,10 @@ export class ClientsController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Mettre \u00e0 jour un client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: UpdateClientDto })
+  @ApiOkResponse({ description: 'Client mis \u00e0 jour' })
   async updateClient(
     @Param('id') id: number,
     @Body() updateClientDto: UpdateClientDto,
@@ -88,6 +118,9 @@ export class ClientsController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Supprimer un client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiNoContentResponse({ description: 'Client supprim\u00e9' })
   async deleteClient(@Param('id') id: number): Promise<boolean> {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'delete_client' }, { id: Number(id) }),
@@ -95,6 +128,9 @@ export class ClientsController {
   }
 
   @Get(':id/addresses')
+  @ApiOperation({ summary: 'Adresses d\'un client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'Liste des adresses' })
   async getAddressesByClientId(@Param('id') id: number): Promise<Address[]> {
     return await firstValueFrom(
       this.clientsService.send(
@@ -105,6 +141,10 @@ export class ClientsController {
   }
 
   @Post(':id/addresses')
+  @ApiOperation({ summary: 'Ajouter une adresse \u00e0 un client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: CreateAddressDto })
+  @ApiCreatedResponse({ description: 'Adresse cr\u00e9\u00e9e' })
   async createAddress(
     @Param('id') id: number,
     @Body() createAddressDto: CreateAddressDto,
@@ -118,6 +158,10 @@ export class ClientsController {
   }
 
   @Put('addresses/:id')
+  @ApiOperation({ summary: 'Mettre \u00e0 jour une adresse' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: UpdateAddressDto })
+  @ApiOkResponse({ description: 'Adresse mise \u00e0 jour' })
   async updateAddress(
     @Param('id') id: number,
     @Body() updateAddressDto: UpdateAddressDto,
@@ -131,6 +175,9 @@ export class ClientsController {
   }
 
   @Delete('addresses/:id')
+  @ApiOperation({ summary: 'Supprimer une adresse' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiNoContentResponse({ description: 'Adresse supprim\u00e9e' })
   async deleteAddress(@Param('id') id: number): Promise<boolean> {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'delete_address' }, { id: Number(id) }),
@@ -138,6 +185,9 @@ export class ClientsController {
   }
 
   @Get(':id/client-addresses')
+  @ApiOperation({ summary: 'Associations adresse/client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'Liste des associations' })
   async getClientAddresses(@Param('id') id: number): Promise<ClientAddress[]> {
     return await firstValueFrom(
       this.clientsService.send(
@@ -148,6 +198,9 @@ export class ClientsController {
   }
 
   @Get('client-addresses/:id')
+  @ApiOperation({ summary: 'D\u00e9tail d\'une association adresse/client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'D\u00e9tails de l\'association' })
   async getClientAddressById(@Param('id') id: number): Promise<ClientAddress> {
     return await firstValueFrom(
       this.clientsService.send(
@@ -158,6 +211,10 @@ export class ClientsController {
   }
 
   @Post(':id/client-addresses')
+  @ApiOperation({ summary: 'Cr\u00e9er une association adresse/client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: CreateClientAddressDto })
+  @ApiCreatedResponse({ description: 'Association cr\u00e9\u00e9e' })
   async createClientAddress(
     @Param('id') id: number,
     @Body() createClientAddressDto: CreateClientAddressDto,
@@ -173,6 +230,10 @@ export class ClientsController {
   }
 
   @Put('client-addresses/:id')
+  @ApiOperation({ summary: 'Mettre \u00e0 jour une association' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: UpdateClientAddressDto })
+  @ApiOkResponse({ description: 'Association mise \u00e0 jour' })
   async updateClientAddress(
     @Param('id') id: number,
     @Body() updateClientAddressDto: UpdateClientAddressDto,
@@ -186,6 +247,9 @@ export class ClientsController {
   }
 
   @Delete('client-addresses/:id')
+  @ApiOperation({ summary: 'Supprimer une association adresse/client' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiNoContentResponse({ description: 'Association supprim\u00e9e' })
   async deleteClientAddress(@Param('id') id: number): Promise<boolean> {
     return await firstValueFrom(
       this.clientsService.send(
@@ -196,6 +260,10 @@ export class ClientsController {
   }
 
   @Put(':clientId/client-addresses/:addressId/set-default')
+  @ApiOperation({ summary: 'D\u00e9finir l\'adresse par d\u00e9faut' })
+  @ApiParam({ name: 'clientId', type: Number })
+  @ApiParam({ name: 'addressId', type: Number })
+  @ApiOkResponse({ description: 'Association mise \u00e0 jour' })
   async setDefaultClientAddress(
     @Param('clientId') clientId: number,
     @Param('addressId') addressId: number,
@@ -209,6 +277,9 @@ export class ClientsController {
   }
 
   @Get('geocode')
+  @ApiOperation({ summary: 'G\u00e9ocoder une adresse' })
+  @ApiQuery({ name: 'address', type: String })
+  @ApiOkResponse({ description: 'Coordonn\u00e9es g\u00e9ographiques' })
   async geocodeAddress(@Query('address') address: string) {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'geocode_address' }, { address }),
@@ -216,6 +287,9 @@ export class ClientsController {
   }
 
   @Put('addresses/:id/geocode')
+  @ApiOperation({ summary: 'Mettre \u00e0 jour la g\u00e9olocalisation' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'G\u00e9olocalisation mise \u00e0 jour' })
   async updateAddressCoordinates(@Param('id') id: number) {
     return await firstValueFrom(
       this.clientsService.send(
@@ -226,6 +300,8 @@ export class ClientsController {
   }
 
   @Post('addresses/geocode-all')
+  @ApiOperation({ summary: 'G\u00e9ocoder toutes les adresses' })
+  @ApiOkResponse({ description: 'Op\u00e9ration lanc\u00e9e' })
   async updateAllAddressesCoordinates() {
     return await firstValueFrom(
       this.clientsService.send({ cmd: 'update_all_addresses_coordinates' }, {}),
@@ -233,6 +309,9 @@ export class ClientsController {
   }
 
   @Post('with-address')
+  @ApiOperation({ summary: 'Cr\u00e9er un client avec adresse' })
+  @ApiBody({ type: CreateClientWithAddressDto })
+  @ApiCreatedResponse({ description: 'Client cr\u00e9\u00e9 avec adresse' })
   async createClientWithAddress(
     @Body() createClientWithAddressDto: CreateClientWithAddressDto,
   ): Promise<Client> {
