@@ -50,3 +50,8 @@ else
 	bash updatePrisma.sh
 endif
 	@echo "Mise a jour Prisma terminee."
+
+test-load:
+	@echo "Running Artillery load test..."
+	npx artillery run artillery.yaml --output load-report.json && npx artillery report --output load-report.html load-report.json
+

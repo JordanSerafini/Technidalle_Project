@@ -1,0 +1,59 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 30
+      arrivalRate: 50
+      name: "Ramp up"
+    - duration: 30
+      arrivalRate: 100
+      name: "Stress"
+  defaults:
+    headers:
+      Content-Type: application/json
+scenarios:
+  - name: "get-projects"
+    description: "Récupération de la liste des projets"
+    flow:
+      - get:
+          url: "/projects"
+  - name: "create-client"
+    description: "Création d'un client"
+    flow:
+      - post:
+          url: "/clients"
+          json:
+            name: "Client {{ uuid() }}"
+          capture:
+            json: "$.id"
+            as: "clientId"
+  - name: "add-document"
+    description: "Ajout d'un document"
+    flow:
+      - get:
+          url: "/projects"
+          capture:
+            json: "$[0].id"
+            as: "projectId"
+      - post:
+          url: "/documents"
+          json:
+            title: "Document {{ uuid() }}"
+            projectId: "{{ projectId }}"
+          capture:
+            json: "$.id"
+            as: "docId"
+  - name: "delete-document"
+    description: "Création puis suppression d'un document"
+    flow:
+      - post:
+          url: "/documents"
+          json:
+            title: "Temp Doc {{ uuid() }}"
+          capture:
+            json: "$.id"
+            as: "tempDocId"
+      - delete:
+          url: "/documents/{{ tempDocId }}"
