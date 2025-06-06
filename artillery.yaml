@@ -13,7 +13,8 @@ config:
   defaults:
     headers:
       Content-Type: application/json
-  scenarios:
+
+scenarios:
     # -------- Projects --------
     - name: "get-projects"
       description: "Récupération de la liste des projets"
