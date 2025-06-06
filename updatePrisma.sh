@@ -7,14 +7,18 @@ BACKEND_DIR="./Backend"
 for SERVICE_DIR in "$BACKEND_DIR"/*_service "$BACKEND_DIR"/api_gateway; do
   # Vérifier si le dossier existe
   if [ -d "$SERVICE_DIR" ]; then
+  cd "$SERVICE_DIR"
+
+
     # Vérifier si prisma existe dans ce dossier
     if [ -d "$SERVICE_DIR/prisma" ] || grep -q "prisma" "$SERVICE_DIR/package.json" 2>/dev/null; then
       echo "Mise à jour de Prisma dans $SERVICE_DIR..."
       
       # Aller dans le dossier du service
       cd "$SERVICE_DIR"
-      
       # Exécuter les commandes Prisma
+            npm install --legacy-peer-deps
+
       npx prisma db pull
       npx prisma generate
       

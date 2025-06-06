@@ -16,7 +16,7 @@ upd:
 
 build:
 	@echo "Lancement de l'application en utilisant docker compose..."
-	docker compose up --build
+	docker compose build && docker compose up
 	@echo "Application build and up."
 
 down:
