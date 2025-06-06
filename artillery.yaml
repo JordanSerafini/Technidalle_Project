@@ -158,3 +158,32 @@ scenarios:
               as: "tempDocId"
         - delete:
             url: "/documents/{{ tempDocId }}"
+
+    # -------- Events --------
+    - name: "get-events"
+      description: "R\xE9cup\xE9ration de la liste des \xE9v\xE9nements"
+      flow:
+        - get:
+            url: "/events"
+
+    - name: "create-event"
+      description: "Cr\xE9ation puis suppression d'un \xE9v\xE9nement"
+      flow:
+        - get:
+            url: "/projects"
+            capture:
+              json: "$[0].id"
+              as: "eventProjectId"
+        - post:
+            url: "/events"
+            json:
+              title: "Evt {{ uuid() }}"
+              event_type: "autre"
+              start_date: "2024-01-01T09:00:00.000Z"
+              end_date: "2024-01-01T10:00:00.000Z"
+              project_id: "{{ eventProjectId }}"
+            capture:
+              json: "$.id"
+              as: "eventId"
+        - delete:
+            url: "/events/{{ eventId }}"
