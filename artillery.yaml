@@ -13,47 +13,147 @@ config:
   defaults:
     headers:
       Content-Type: application/json
-scenarios:
-  - name: "get-projects"
-    description: "Récupération de la liste des projets"
-    flow:
-      - get:
-          url: "/projects"
-  - name: "create-client"
-    description: "Création d'un client"
-    flow:
-      - post:
-          url: "/clients"
-          json:
-            name: "Client {{ uuid() }}"
-          capture:
-            json: "$.id"
-            as: "clientId"
-  - name: "add-document"
-    description: "Ajout d'un document"
-    flow:
-      - get:
-          url: "/projects"
-          capture:
-            json: "$[0].id"
-            as: "projectId"
-      - post:
-          url: "/documents"
-          json:
-            title: "Document {{ uuid() }}"
-            projectId: "{{ projectId }}"
-          capture:
-            json: "$.id"
-            as: "docId"
-  - name: "delete-document"
-    description: "Création puis suppression d'un document"
-    flow:
-      - post:
-          url: "/documents"
-          json:
-            title: "Temp Doc {{ uuid() }}"
-          capture:
-            json: "$.id"
-            as: "tempDocId"
-      - delete:
-          url: "/documents/{{ tempDocId }}"
+  scenarios:
+    # -------- Projects --------
+    - name: "get-projects"
+      description: "Récupération de la liste des projets"
+      flow:
+        - get:
+            url: "/projects"
+
+    - name: "create-project"
+      description: "Création d'un projet avec un client"
+      flow:
+        - post:
+            url: "/clients"
+            json:
+              firstname: "Project"
+              lastname: "Owner"
+              email: "proj.{{ uuid() }}@example.com"
+            capture:
+              json: "$.id"
+              as: "projClientId"
+        - post:
+            url: "/projects"
+            json:
+              reference: "PRJ-{{ uuid() }}"
+              name: "Projet {{ uuid() }}"
+              clientId: "{{ projClientId }}"
+            capture:
+              json: "$.id"
+              as: "projectId"
+
+    - name: "update-project"
+      description: "Création puis mise à jour d'un projet"
+      flow:
+        - post:
+            url: "/clients"
+            json:
+              firstname: "Updater"
+              lastname: "Client"
+              email: "upclient.{{ uuid() }}@example.com"
+            capture:
+              json: "$.id"
+              as: "updClientId"
+        - post:
+            url: "/projects"
+            json:
+              reference: "UP-{{ uuid() }}"
+              name: "Projet Update {{ uuid() }}"
+              clientId: "{{ updClientId }}"
+            capture:
+              json: "$.id"
+              as: "updProjectId"
+        - put:
+            url: "/projects/{{ updProjectId }}"
+            json:
+              name: "Projet Modifié {{ uuid() }}"
+
+    # -------- Clients --------
+    - name: "get-clients"
+      description: "Récupération de la liste des clients"
+      flow:
+        - get:
+            url: "/clients"
+
+    - name: "create-client"
+      description: "Création d'un client"
+      flow:
+        - post:
+            url: "/clients"
+            json:
+              firstname: "Test"
+              lastname: "Client {{ uuid() }}"
+              email: "test.client.{{ uuid() }}@example.com"
+            capture:
+              json: "$.id"
+              as: "clientId"
+
+    - name: "update-client"
+      description: "Création puis mise à jour d'un client"
+      flow:
+        - post:
+            url: "/clients"
+            json:
+              firstname: "Update"
+              lastname: "Client"
+              email: "update.client.{{ uuid() }}@example.com"
+            capture:
+              json: "$.id"
+              as: "clientUpdateId"
+        - put:
+            url: "/clients/{{ clientUpdateId }}"
+            json:
+              firstname: "Updated"
+
+    - name: "delete-client"
+      description: "Création puis suppression d'un client"
+      flow:
+        - post:
+            url: "/clients"
+            json:
+              firstname: "Temp"
+              lastname: "User"
+              email: "temp.user.{{ uuid() }}@example.com"
+            capture:
+              json: "$.id"
+              as: "clientDeleteId"
+        - delete:
+            url: "/clients/{{ clientDeleteId }}"
+
+    # -------- Documents --------
+    - name: "get-documents"
+      description: "Récupération de la liste des documents"
+      flow:
+        - get:
+            url: "/documents"
+
+    - name: "add-document"
+      description: "Ajout d'un document"
+      flow:
+        - get:
+            url: "/projects"
+            capture:
+              json: "$[0].id"
+              as: "projectId"
+        - post:
+            url: "/documents"
+            json:
+              title: "Document {{ uuid() }}"
+              projectId: "{{ projectId }}"
+            capture:
+              json: "$.id"
+              as: "docId"
+
+    - name: "delete-document"
+      description: "Création puis suppression d'un document"
+      flow:
+        - post:
+            url: "/documents"
+            json:
+              title: "Temp Doc {{ uuid() }}"
+            capture:
+              json: "$.id"
+              as: "tempDocId"
+        - delete:
+            url: "/documents/{{ tempDocId }}"
