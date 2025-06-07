@@ -8,7 +8,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useClientsStore } from '@/app/store/clientsStore';
 
 // Imports des composants séparés
-import ClientItem from '@/app/components/clients/clientsList/ClientItem';
+import ClientCard from '@/app/components/clients/clientsList/ClientCard';
 import PhoneModal from '@/app/components/clients/clientsList/PhoneModal';
 import FilterScrollView from '@/app/components/clients/clientsList/FilterScrollView';
 import SearchBar from '@/app/components/clients/clientsList/SearchBar';
@@ -211,9 +211,9 @@ export default function ClientsScreen() {
     return ["Avec commandes", "Sans commande", "Récentes"];
   }, []);
 
-  const handlePhonePress = (client: Client, event: any) => {
+  const handlePhonePress = (client: Client, event?: any) => {
     // Empêcher la propagation pour éviter de naviguer vers le détail
-    event.stopPropagation();
+    event?.stopPropagation?.();
     
     setSelectedClientForModal(client);
     
@@ -234,14 +234,6 @@ export default function ClientsScreen() {
   };
 
   // Fonction optimisée pour manipuler l'email
-  const handleEmailPress = (email: string | undefined, event: any) => {
-    // Empêcher la propagation pour éviter de naviguer vers le détail
-    event.stopPropagation();
-    
-    if (email) {
-      Linking.openURL(`mailto:${email}`);
-    }
-  };
 
   const navigateToClientDetail = (client: Client) => {
     // Stockage du client dans le store global
@@ -312,15 +304,17 @@ export default function ClientsScreen() {
     }
   };
   
-  // Rendu d'un item client pour FlashList
-  const renderItem = useCallback(({ item }: { item: Client }) => (
-    <ClientItem
-      client={item}
-      onPhonePress={handlePhonePress}
-      onEmailPress={handleEmailPress}
-      onItemPress={navigateToClientDetail}
-    />
-  ), [handlePhonePress, handleEmailPress, navigateToClientDetail]);
+  // Rendu d'une carte client pour FlashList
+  const renderItem = useCallback(
+    ({ item }: { item: Client }) => (
+      <ClientCard
+        client={item}
+        onCallPress={handlePhonePress}
+        onDetailPress={navigateToClientDetail}
+      />
+    ),
+    [handlePhonePress, navigateToClientDetail]
+  );
 
   // Key extractor pour optimiser les renders
   const keyExtractor = useCallback((item: Client) => 
