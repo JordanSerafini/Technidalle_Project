@@ -4,6 +4,9 @@
 
 .PHONY: up down prismaUp test test-watch test-e2e test-cov test-load test-load-report
 
+# Detect backend services (directories containing a package.json)
+SERVICE_DIRS := $(shell find Backend -mindepth 1 -maxdepth 2 -name package.json -printf '%h ')
+
 up:
 	@echo "Lancement de l'application en utilisant docker compose..."
 	docker compose up
@@ -52,18 +55,30 @@ endif
 	@echo "Mise a jour Prisma terminee."
 
 
-# Jest tests
+# Jest tests executed for each backend service
 test:
-	npm run test
+	@for dir in $(SERVICE_DIRS); do \
+echo "Running unit tests in $$dir"; \
+npm --prefix $$dir run test || exit 1; \
+done
 
 test-watch:
-	npm run test:watch
+	@for dir in $(SERVICE_DIRS); do \
+echo "Watching tests in $$dir"; \
+npm --prefix $$dir run test:watch; \
+done
 
 test-e2e:
-	npm run test:e2e
+	@for dir in $(SERVICE_DIRS); do \
+echo "Running e2e tests in $$dir"; \
+npm --prefix $$dir run test:e2e || exit 1; \
+done
 
 test-cov:
-	npm run test:cov
+	@for dir in $(SERVICE_DIRS); do \
+echo "Running coverage in $$dir"; \
+npm --prefix $$dir run test:cov || exit 1; \
+done
 
 # Artillery load tests
 test-load:
