@@ -1,11 +1,29 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs, Redirect } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { Platform, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const tintColor = '#2f95dc';
-  
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    SecureStore.getItemAsync('accessToken').then((value) => {
+      setToken(value);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return null;
+  }
+
+  if (!token) {
+    return <Redirect href="/LoginScreen" />;
+  }
+
   return (
     <Tabs
       initialRouteName="dashboard"
