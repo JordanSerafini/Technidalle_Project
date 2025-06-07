@@ -18,3 +18,7 @@ yarn-error.log*
 # Ne pas exclure ces fichiers
 !Database/Dump/sync_db_backup.dump
 !Database/Dump/restore_sync_db.sh
+# Allow prisma mock for tests
+!Backend/auth_service/generated/
+!Backend/auth_service/generated/prisma/
+!Backend/auth_service/generated/prisma/index.ts
