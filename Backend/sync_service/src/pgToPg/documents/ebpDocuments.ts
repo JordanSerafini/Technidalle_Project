@@ -381,10 +381,11 @@ export default class EBPDocuments {
         return null;
       }
 
-      // Vérifier si le document existe déjà par document_id (qui devrait être unique)
+      // Vérifier si le document existe déjà par document_id ET project_id
+      // Cela évite les conflits entre documents EBP de même ID mais de projets différents
       const existingDocResult = await destinationClient.query<{ id: number }>(
-        'SELECT id FROM documents WHERE "document_id" = $1',
-        [documentData.documentId],
+        'SELECT id FROM documents WHERE "document_id" = $1 AND "project_id" = $2',
+        [documentData.documentId, documentData.project_id],
       );
 
       if (existingDocResult.rows.length > 0) {
@@ -1431,16 +1432,21 @@ export default class EBPDocuments {
     }
   }
 
-  private async upsertDocument(
+    private async upsertDocument(
     documentData: Partial<Document>,
     client: PoolClient,
   ): Promise<number | null> {
     this.logger.debug(
-      `[DEBUG] Upsert document: ref=${documentData.reference}, project_id=${documentData.project_id}`,
+      `[DEBUG] Upsert document: ref=${documentData.reference}, project_id=${documentData.project_id}, document_id=${documentData.documentId}`,
     );
-    const selectQuery = `SELECT id FROM documents WHERE reference = $1`;
+    
+    // Utiliser une combinaison de document_id et project_id pour l'unicité
+    // Cela évite les conflits entre documents de même ID EBP mais de projets différents
+    // et gère aussi le cas où deals et construction sites pourraient avoir des IDs qui se chevauchent
+    const selectQuery = `SELECT id FROM documents WHERE document_id = $1 AND project_id = $2`;
     const selectResult = await client.query<{ id: number }>(selectQuery, [
-      documentData.reference,
+      documentData.documentId,
+      documentData.project_id,
     ]);
 
     const appId = selectResult.rows[0]
