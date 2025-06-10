@@ -17,7 +17,7 @@ import SearchBar from '@/app/components/clients/clientsList/SearchBar';
 import { FilterType, ExtendedFetchOptions } from '@/app/utils/types/clientFilters';
 
 // Obtenir les dimensions de l'écran
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -99,7 +99,7 @@ export default function ClientsScreen() {
 
   // Stocker les données dans le state local une fois chargées
   useEffect(() => {
-    if (data) {
+    if (data && data.length > 0) {
       if (offset === 0) {
         // Si c'est la première page, remplacer les clients
         setLocalClients(data);
@@ -113,6 +113,10 @@ export default function ClientsScreen() {
         setAllLoaded(true);
       }
       
+      setLoadingMore(false);
+    } else if (data && data.length === 0 && offset === 0) {
+      // Cas où l'API retourne un tableau vide pour la première page
+      setLocalClients([]);
       setLoadingMore(false);
     }
   }, [data, offset]);
@@ -394,20 +398,22 @@ export default function ClientsScreen() {
       />
       
       <View style={{ flex: 1 }}>
-        {localClients.length > 0 ? (
-          <FlashList
-            data={localClients}
-            renderItem={renderItem}
-            estimatedItemSize={50}
-            keyExtractor={keyExtractor}
-            onEndReached={loadMoreClients}
-            onEndReachedThreshold={0.3}
-            ListFooterComponent={renderFooter}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
-            refreshing={loading && offset === 0}
-            onRefresh={refreshClients}
-          />
-        ) : renderEmptyView()}
+        <View style={{ height: height - 160 }}>
+          {localClients.length > 0 ? (
+            <FlashList
+              data={localClients}
+              renderItem={renderItem}
+              estimatedItemSize={100}
+              keyExtractor={keyExtractor}
+              onEndReached={loadMoreClients}
+              onEndReachedThreshold={0.3}
+              ListFooterComponent={renderFooter}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
+              refreshing={loading && offset === 0}
+              onRefresh={refreshClients}
+            />
+          ) : renderEmptyView()}
+        </View>
       </View>
 
       {/* Vue pour le filtre et la barre de recherche en bas de l'écran */}

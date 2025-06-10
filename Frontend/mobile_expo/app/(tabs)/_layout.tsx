@@ -8,7 +8,7 @@ export default function TabLayout() {
   const tintColor = '#2f95dc';
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
+/*
   useEffect(() => {
     SecureStore.getItemAsync('accessToken').then((value) => {
       setToken(value);
@@ -23,7 +23,7 @@ export default function TabLayout() {
   if (!token) {
     return <Redirect href="/LoginScreen" />;
   }
-
+*/
   return (
     <Tabs
       initialRouteName="dashboard"
