@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Param, Logger, Res } from '@nestjs/common';
+import { Controller, Get, Post, Param, Logger, Res, Body } from '@nestjs/common';
 import { AppService } from './app.service';
+import { UnifiedSyncService } from './services/unified-sync.service';
 import { Response } from 'express';
+import { SyncOptions } from './interfaces/sync/unified-project.interface';
 
 interface SyncOperationResponse {
   success: boolean;
@@ -13,7 +15,10 @@ interface SyncOperationResponse {
 export class AppController {
   private readonly logger = new Logger(AppController.name);
 
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly unifiedSyncService: UnifiedSyncService
+  ) {}
 
   @Get()
   getHello(): string {
@@ -299,6 +304,223 @@ export class AppController {
           message: message,
           error: (error as Error).message,
         });
+    }
+  }
+
+  // ========== NOUVEAUX ENDPOINTS SYNCHRONISATION UNIFIÉE ==========
+
+  @Post('sync/unified/complete')
+  async syncUnifiedComplete(@Body() options: Partial<SyncOptions> = {}): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('Démarrage de la synchronisation unifiée complète');
+      
+      // Configuration par défaut
+      const defaultOptions: SyncOptions = {
+        force_update: false,
+        validate_clients: true,
+        sync_documents: true,
+        sync_items: true,
+        batch_size: 100,
+        ...options
+      };
+
+      // Exécuter la synchronisation complète
+      const result = await this.unifiedSyncService.syncComplete(defaultOptions);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Synchronisation unifiée complète réussie: ${result.succeeded}/${result.processed} éléments synchronisés en ${result.duration_ms}ms`
+          : `Synchronisation unifiée échouée: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          options: defaultOptions,
+          result: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            skipped: result.skipped,
+            duration_ms: result.duration_ms,
+            details: result.details
+          },
+          errors: result.errors.length > 0 ? result.errors.slice(0, 10) : [] // Limiter les erreurs affichées
+        }
+      };
+    } catch (error) {
+      this.logger.error('Erreur lors de la synchronisation unifiée complète', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation unifiée complète',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/unified/projects')
+  async syncUnifiedProjects(@Body() options: Partial<SyncOptions> = {}): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('Démarrage de la synchronisation des projets unifiés');
+      
+      const projectOptions: SyncOptions = {
+        force_update: false,
+        validate_clients: true,
+        sync_documents: false,
+        sync_items: false,
+        batch_size: 50,
+        ...options
+      };
+
+      // Exécuter la synchronisation des projets uniquement
+      const result = await this.unifiedSyncService.syncProjectsOnly(projectOptions);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Synchronisation des projets réussie: ${result.succeeded}/${result.processed} projets synchronisés en ${result.duration_ms}ms`
+          : `Synchronisation des projets échouée: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          options: projectOptions,
+          result: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            skipped: result.skipped,
+            duration_ms: result.duration_ms,
+            details: result.details
+          },
+          errors: result.errors.length > 0 ? result.errors.slice(0, 5) : []
+        }
+      };
+    } catch (error) {
+      this.logger.error('Erreur lors de la synchronisation des projets unifiés', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des projets unifiés',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/unified/documents')
+  async syncUnifiedDocuments(@Body() options: Partial<SyncOptions> = {}): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('Démarrage de la synchronisation des documents complets');
+      
+      const docOptions: SyncOptions = {
+        force_update: false,
+        validate_clients: false,
+        sync_documents: true,
+        sync_items: false,
+        batch_size: 30,
+        ...options
+      };
+
+      // Exécuter la synchronisation des documents uniquement
+      const result = await this.unifiedSyncService.syncDocumentsOnly(docOptions);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Synchronisation des documents réussie: ${result.succeeded}/${result.processed} documents synchronisés en ${result.duration_ms}ms`
+          : `Synchronisation des documents échouée: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          options: docOptions,
+          result: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            skipped: result.skipped,
+            duration_ms: result.duration_ms,
+            details: result.details
+          },
+          errors: result.errors.length > 0 ? result.errors.slice(0, 5) : []
+        }
+      };
+    } catch (error) {
+      this.logger.error('Erreur lors de la synchronisation des documents', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des documents',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/unified/items')
+  async syncUnifiedItems(@Body() options: Partial<SyncOptions> = {}): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('Démarrage de la synchronisation des matériaux');
+      
+      const itemOptions: SyncOptions = {
+        force_update: false,
+        validate_clients: false,
+        sync_documents: false,
+        sync_items: true,
+        batch_size: 200,
+        ...options
+      };
+
+      // Exécuter la synchronisation des matériaux uniquement
+      const result = await this.unifiedSyncService.syncItemsOnly(itemOptions);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `Synchronisation des matériaux réussie: ${result.succeeded}/${result.processed} matériaux synchronisés en ${result.duration_ms}ms`
+          : `Synchronisation des matériaux échouée: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          options: itemOptions,
+          result: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            skipped: result.skipped,
+            duration_ms: result.duration_ms,
+            details: result.details
+          },
+          errors: result.errors.length > 0 ? result.errors.slice(0, 5) : []
+        }
+      };
+    } catch (error) {
+      this.logger.error('Erreur lors de la synchronisation des matériaux', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des matériaux',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Get('sync/unified/status')
+  async getUnifiedSyncStatus(): Promise<SyncOperationResponse> {
+    try {
+      // Récupérer le statut réel de synchronisation
+      const status = await this.unifiedSyncService.getSyncStatus();
+      
+      return {
+        success: true,
+        message: 'Statut de la synchronisation unifiée récupéré avec succès',
+        data: {
+          last_sync: status.last_sync,
+          projects_count: status.projects_count,
+          documents_count: status.documents_count,
+          materials_count: status.materials_count,
+          deals_count: status.deals_count,
+          service_status: 'operational',
+          endpoints_available: [
+            '/sync/unified/complete',
+            '/sync/unified/projects', 
+            '/sync/unified/documents',
+            '/sync/unified/items'
+          ]
+        }
+      };
+    } catch (error) {
+      this.logger.error('Erreur lors de la récupération du statut', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la récupération du statut de synchronisation',
+        error: (error as Error).message,
+      };
     }
   }
 }
