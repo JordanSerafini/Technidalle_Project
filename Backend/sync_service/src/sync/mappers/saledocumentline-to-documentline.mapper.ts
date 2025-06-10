@@ -1,4 +1,4 @@
-import { BaseMapper } from './index';
+import { BaseMapper } from './base.mapper';
 import { SaleDocumentLine } from '../../interfaces/documents/saleDocumentLine.interface';
 import { DocumentLine } from '../../interfaces/documents/documentLine.interface';
 

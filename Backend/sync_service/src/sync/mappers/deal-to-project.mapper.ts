@@ -1,4 +1,4 @@
-import { BaseMapper } from './index';
+import { BaseMapper } from './base.mapper';
 import { ProjectAPP } from '../../interfaces/projects/projectAPP';
 
 // Définition de l'enum ProjectStatus
