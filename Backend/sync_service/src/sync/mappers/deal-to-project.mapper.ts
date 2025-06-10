@@ -11,23 +11,6 @@ export enum ProjectStatus {
   ANNULE = 'annule',
 }
 
-// Définition minimale des interfaces
-interface Project {
-  external_ebp_id?: string;
-  name: string;
-  reference: string;
-  description?: string;
-  client_id: string | number;
-  status?: string;
-  start_date?: Date;
-  end_date?: Date;
-  estimated_duration?: number;
-  budget?: number;
-  actual_cost?: number;
-  margin?: number;
-  notes?: string;
-}
-
 interface Client {
   company_name?: string;
   firstname: string;
@@ -64,7 +47,7 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<ProjectAPP>> {
       description: deal.Notes || existingProject?.description,
       client_id:
         clientId !== undefined ? String(clientId) : existingProject?.client_id,
-      status: this.mapDealStateToProjectStatus(deal.DealState) as any,
+      status: this.mapDealStateToProjectStatus(deal.DealState),
       start_date: deal.xx_DateDebut
         ? new Date(deal.xx_DateDebut)
         : existingProject?.start_date,
@@ -89,6 +72,7 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<ProjectAPP>> {
           ? Number(deal.PredictedGrossMargin)
           : existingProject?.margin,
       notes: deal.Notes || existingProject?.notes,
+      project_id: deal.Id,
     };
 
     return this.cleanUndefinedProperties(projectData);
@@ -131,9 +115,12 @@ export class DealToProjectMapper extends BaseMapper<Deal, Partial<ProjectAPP>> {
         return ProjectStatus.TERMINE;
       case 5:
         return ProjectStatus.ANNULE;
+      // Ajoutez d'autres cas ici si vous connaissez les correspondances pour d'autres états EBP
+      // Exemple: case 6: return ProjectStatus.EN_PREPARATION;
+      // Exemple: case 8: return ProjectStatus.ANNULE; // ou un autre statut pertinent
       default:
         console.warn(
-          `État d'affaire EBP inconnu: ${dealState}, affectation à 'PROSPECT'.`,
+          `État d'affaire EBP inconnu: ${dealState}, affectation à 'PROSPECT'. Veuillez ajouter un mappage spécifique si nécessaire.`, // Ajout d'une note pour l'utilisateur
         );
         return ProjectStatus.PROSPECT;
     }

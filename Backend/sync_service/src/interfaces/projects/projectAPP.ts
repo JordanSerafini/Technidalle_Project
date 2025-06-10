@@ -2,6 +2,7 @@ import { ProjectEBP } from './projectEBP';
 
 export interface ProjectAPP {
   id?: number;
+  project_id?: string;
   external_ebp_id?: string;
   reference: string;
   name: string;
@@ -31,7 +32,7 @@ export class ProjectMapper {
       name: constructionSite.Caption,
       description: constructionSite.NotesClear,
       client_id: constructionSite.CustomerId,
-      address_id: undefined, // À compléter lors de la synchronisation
+      address_id: undefined,
       start_date: constructionSite.StartDate,
       end_date: constructionSite.EndDate,
       estimated_duration: constructionSite.PredictedDuration,

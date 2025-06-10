@@ -1,8 +1,63 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DealToProjectMapper } from './mappers/deal-to-project.mapper';
 import { QueryService } from '../services/query.service';
+import { ProjectAPP } from '../interfaces/projects/projectAPP';
+import { QueryResultRow } from 'pg';
 
-interface EbpDealView {
+// Définition de l'enum ProjectStatus
+export enum ProjectStatus {
+  PROSPECT = 'prospect',
+  DEVIS_EN_COURS = 'devis_en_cours',
+  DEVIS_ACCEPTE = 'devis_accepte',
+  EN_COURS = 'en_cours',
+  TERMINE = 'termine',
+  ANNULE = 'annule',
+}
+
+// Définition minimale des interfaces
+export interface Project {
+  external_ebp_id?: string;
+  name: string;
+  reference: string;
+  description?: string;
+  client_id: string | null | undefined;
+  status?: string;
+  start_date?: Date;
+  end_date?: Date;
+  estimated_duration?: number;
+  budget?: number;
+  actual_cost?: number;
+  margin?: number;
+  notes?: string;
+  id?: number;
+  deal_id?: string | null | undefined;
+}
+
+interface Client {
+  company_name?: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  customer_id?: string;
+  external_ebp_customer_id?: string;
+  id?: string | number;
+}
+
+interface Deal {
+  Id: string;
+  Caption?: string;
+  Notes?: string;
+  DealState?: number;
+  xx_DateDebut?: Date;
+  xx_DateFin?: Date;
+  PredictedDuration?: number;
+  PredictedCosts?: number;
+  AccomplishedCosts?: number;
+  PredictedGrossMargin?: number;
+  xx_Client?: string;
+}
+
+export interface EbpDealView {
   Id: string;
   Caption: string;
   DealDate: Date;
@@ -16,6 +71,7 @@ interface EbpDealView {
   EbpClientReference?: string;
   PredictedDuration?: number;
   ebp_payload_source?: any;
+  xx_Client?: string;
 }
 
 interface EbpSaleDocumentView {
@@ -34,27 +90,6 @@ interface EbpSaleDocumentView {
   ebp_payload_source?: any;
 }
 
-// Définir les interfaces directement ici
-interface Project {
-  id?: number;
-  client_id?: string | null;
-  external_ebp_id?: string;
-  name?: string;
-  reference?: string;
-  status?: string;
-  [key: string]: any;
-}
-
-interface Client {
-  id?: number;
-  external_ebp_customer_id?: string;
-  company_name?: string;
-  firstname?: string;
-  lastname?: string;
-  email?: string;
-  [key: string]: any;
-}
-
 @Injectable()
 export class SyncDealsService {
   private readonly logger = new Logger(SyncDealsService.name);
@@ -64,7 +99,15 @@ export class SyncDealsService {
     this.dealMapper = DealToProjectMapper.getInstance();
   }
 
-  async syncAllEbpData(): Promise<any> {
+  async syncAllEbpData(): Promise<{
+    sync_type: string;
+    status: string;
+    items_processed: number;
+    items_succeeded: number;
+    items_failed: number;
+    duration_ms: number;
+    details: string;
+  }> {
     const startTime = Date.now();
 
     this.logger.log(
@@ -101,10 +144,11 @@ export class SyncDealsService {
       );
 
       status = totalFailed === 0 ? 'SUCCESS' : 'PARTIAL_SUCCESS';
-    } catch (error) {
-      this.logger.error('Full EBP synchronization failed', error.stack);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Full EBP synchronization failed', err.stack);
       status = 'FAILURE';
-      errorMessages.push(`Critical failure: ${error.message}`);
+      errorMessages.push(`Critical failure: ${err.message}`);
     }
 
     const duration_ms = Date.now() - startTime;
@@ -153,11 +197,14 @@ export class SyncDealsService {
     let ebpDeals: EbpDealView[] = [];
 
     try {
-      // Vérifier si la vue existe avant de l'interroger
       try {
-        const viewCheckResult = await this.queryService.executeQuery(
-          "SELECT to_regclass('synced_ebp_deals') IS NOT NULL as exists",
-        );
+        interface ViewExistsResult extends QueryResultRow {
+          exists: boolean;
+        }
+        const viewCheckResult =
+          await this.queryService.executeQuery<ViewExistsResult>(
+            "SELECT to_regclass('synced_ebp_deals') IS NOT NULL as exists",
+          );
         const viewExists = viewCheckResult.rows[0]?.exists || false;
 
         if (!viewExists) {
@@ -167,16 +214,17 @@ export class SyncDealsService {
           return { processed: 0, succeeded: 0, failed: 0, errors: [] };
         }
 
-        // La vue existe, on peut continuer
-        const result = await this.queryService.executeQuery(
+        const result = await this.queryService.executeQuery<EbpDealView>(
           'SELECT * FROM synced_ebp_deals',
         );
-        ebpDeals = result.rows as EbpDealView[];
-      } catch (viewError) {
+        ebpDeals = result.rows;
+      } catch (viewError: unknown) {
+        const err =
+          viewError instanceof Error ? viewError : new Error(String(viewError));
         this.logger.warn(
-          `Erreur lors de la vérification de la vue synced_ebp_deals: ${viewError.message}. Utilisation d'un tableau vide.`,
+          `Erreur lors de la vérification de la vue synced_ebp_deals: ${err.message}. Utilisation d'un tableau vide.`,
         );
-        ebpDeals = []; // Utiliser un tableau vide
+        ebpDeals = [];
       }
 
       processed = ebpDeals.length;
@@ -184,12 +232,11 @@ export class SyncDealsService {
 
       for (const ebpDeal of ebpDeals) {
         try {
-          // Utiliser la méthode extractClientInfo du mapper
           const clientInfo = this.dealMapper.extractClientInfo(ebpDeal);
           let client: Client | null = null;
 
           if (ebpDeal.EbpClientReference) {
-            const clientResult = await this.queryService.executeQuery(
+            const clientResult = await this.queryService.executeQuery<Client>(
               'SELECT * FROM clients WHERE external_ebp_customer_id = $1',
               [ebpDeal.EbpClientReference],
             );
@@ -197,124 +244,136 @@ export class SyncDealsService {
           }
 
           if (!client && clientInfo.company_name) {
-            const clientResult = await this.queryService.executeQuery(
+            const clientResult = await this.queryService.executeQuery<Client>(
               'SELECT * FROM clients WHERE company_name = $1',
               [clientInfo.company_name],
             );
             client = clientResult.rows[0] || null;
           }
 
-          const clientDataToSave = {
+          const clientDataToSave: Partial<Client> = {
             ...clientInfo,
             external_ebp_customer_id: ebpDeal.EbpClientReference,
           };
 
-          // Supprimer les clés undefined pour éviter les erreurs SQL
           Object.keys(clientDataToSave).forEach(
             (key) =>
               clientDataToSave[key] === undefined &&
               delete clientDataToSave[key],
           );
 
-          if (!client) {
-            const insertClientQuery = `INSERT INTO clients (${Object.keys(
-              clientDataToSave,
-            )
-              .map((k) => `"${k}"`)
-              .join(', ')}) VALUES (${Object.keys(clientDataToSave)
-              .map((_, i) => `$${i + 1}`)
-              .join(', ')}) RETURNING *`;
-            const insertResult = await this.queryService.executeQuery(
-              insertClientQuery,
-              Object.values(clientDataToSave),
+          let currentClientInDb: Client | null = null;
+          if (client?.id) {
+            const existingClientResult =
+              await this.queryService.executeQuery<Client>(
+                'SELECT * FROM clients WHERE id = $1',
+                [client.id],
+              );
+            currentClientInDb = existingClientResult.rows[0] || null;
+          }
+
+          if (currentClientInDb) {
+            const updateClause = this.buildUpdateSetClause(clientDataToSave, 2);
+            const updateQuery = `UPDATE clients SET ${updateClause.clause} WHERE id = $1`;
+            const updateValues = [currentClientInDb.id, ...updateClause.values];
+            await this.queryService.executeQuery(updateQuery, updateValues);
+            this.logger.log(
+              `Updated client ${currentClientInDb.id} with EBP reference ${ebpDeal.EbpClientReference}`,
             );
-            client = insertResult.rows[0];
-          } else {
-            // Mise à jour du client existant si nécessaire
-            if (
-              client &&
-              ebpDeal.EbpClientReference &&
-              !client.external_ebp_customer_id
-            ) {
-              const { clause, values } = this.buildUpdateSetClause(
-                { external_ebp_customer_id: ebpDeal.EbpClientReference },
-                1,
+          } else if (clientDataToSave.company_name) {
+            const insertKeys = Object.keys(clientDataToSave).join(', ');
+            const insertValuesPlaceholders = Object.keys(clientDataToSave)
+              .map((_, index) => `$${index + 1}`)
+              .join(', ');
+            const insertValues = Object.values(clientDataToSave);
+            const insertQuery = `INSERT INTO clients (${insertKeys}) VALUES (${insertValuesPlaceholders}) RETURNING id`;
+            const insertResult = await this.queryService.executeQuery<Client>(
+              insertQuery,
+              insertValues,
+            );
+            const newClientId = insertResult.rows[0]?.id;
+            if (newClientId) {
+              this.logger.log(
+                `Created new client with id ${newClientId} from EBP deal ${ebpDeal.Id}`,
               );
-              await this.queryService.executeQuery(
-                `UPDATE clients SET ${clause} WHERE id = $${values.length + 1}`,
-                [...values, client.id],
-              );
-              client.external_ebp_customer_id = ebpDeal.EbpClientReference;
+              client = { ...(clientDataToSave as Client), id: newClientId };
+            } else {
+              throw new Error('Failed to retrieve new client ID after insert');
             }
           }
 
-          if (!client || !client.id)
-            throw new Error('Failed to create or retrieve client');
-
-          // Vérifier si le projet existe déjà
-          const projectResult = await this.queryService.executeQuery(
+          let project: Project | null = null;
+          const projectResult = await this.queryService.executeQuery<Project>(
             'SELECT * FROM projects WHERE external_ebp_id = $1',
             [ebpDeal.Id],
           );
-          let project: Project | null = projectResult.rows[0] || null;
+          project = projectResult.rows[0] || null;
 
-          // Utiliser le mapper pour convertir les données
-          const projectData = this.dealMapper.map(
-            ebpDeal,
-            client.id,
-            project || undefined,
-          );
+          const projectDataToSave: Partial<ProjectAPP> =
+            this.dealMapper.map(ebpDeal);
 
-          Object.keys(projectData).forEach(
-            (key) => projectData[key] === undefined && delete projectData[key],
-          );
-
-          if (!project) {
-            const { clause: insertProjectFields, values: insertProjectValues } =
-              this.buildUpdateSetClause(projectData, 1);
-            const insertProjectQuery = `INSERT INTO projects (${Object.keys(
-              projectData,
-            )
-              .map((k) => `"${k}"`)
-              .join(', ')}) VALUES (${Object.keys(projectData)
-              .map((_, i) => `$${i + 1}`)
-              .join(', ')}) RETURNING *`;
-            const insertResult = await this.queryService.executeQuery(
-              insertProjectQuery,
-              Object.values(projectData),
-            );
-            project = insertResult.rows[0];
+          if (client?.id) {
+            projectDataToSave.client_id = String(client.id);
           } else {
-            const { clause, values } = this.buildUpdateSetClause(
-              projectData,
-              1,
-            );
-            if (values.length > 0) {
-              // Ne pas exécuter de requête UPDATE vide
-              await this.queryService.executeQuery(
-                `UPDATE projects SET ${clause} WHERE id = $${values.length + 1}`,
-                [...values, project.id],
-              );
-            }
+            projectDataToSave.client_id = null;
           }
+
+          const mergedProjectData = project
+            ? { ...project, ...projectDataToSave }
+            : projectDataToSave;
+
+          if (project) {
+            const updateClause = this.buildUpdateSetClause(
+              mergedProjectData,
+              2,
+            );
+            const updateQuery = `UPDATE projects SET ${updateClause.clause} WHERE id = $1`;
+            const updateValues = [project.id, ...updateClause.values];
+            await this.queryService.executeQuery(updateQuery, updateValues);
+            this.logger.log(
+              `Updated project ${project.id} from EBP deal ${ebpDeal.Id}`,
+            );
+          } else if (mergedProjectData.name && mergedProjectData.client_id) {
+            const insertKeys = Object.keys(mergedProjectData).join(', ');
+            const insertValuesPlaceholders = Object.keys(mergedProjectData)
+              .map((_, index) => `$${index + 1}`)
+              .join(', ');
+            const insertValues = Object.values(mergedProjectData);
+            const insertQuery = `INSERT INTO projects (${insertKeys}) VALUES (${insertValuesPlaceholders})`;
+            await this.queryService.executeQuery(insertQuery, insertValues);
+            this.logger.log(`Created new project from EBP deal ${ebpDeal.Id}`);
+          } else {
+            this.logger.warn(
+              `Skipping project sync for EBP deal ${ebpDeal.Id} due to missing required fields (name or client_id).`,
+            );
+            failed++;
+            errors.push(
+              `Skipped project sync for EBP deal ${ebpDeal.Id}: missing name or client_id.`,
+            );
+            continue;
+          }
+
           succeeded++;
-        } catch (itemError) {
-          this.logger.error(
-            `Failed to sync EBP deal ID ${ebpDeal.Id}: ${itemError.message}`,
-            itemError.stack,
-          );
-          errors.push(`Deal ${ebpDeal.Id}: ${itemError.message}`);
+        } catch (itemError: unknown) {
           failed++;
+          const err =
+            itemError instanceof Error
+              ? itemError
+              : new Error(String(itemError));
+          errors.push(`Failed to sync deal ${ebpDeal.Id}: ${err.message}`);
+          this.logger.error(`Failed to sync deal ${ebpDeal.Id}`, err.stack);
         }
       }
-    } catch (queryError) {
-      this.logger.error(
-        `Error fetching deals from EBP view: ${queryError.message}`,
-        queryError.stack,
-      );
-      errors.push(`Critical DB Error (Deals): ${queryError.message}`);
-      failed = processed > 0 ? processed - succeeded : ebpDeals.length || 0;
+    } catch (queryError: unknown) {
+      failed = processed - succeeded;
+      const err =
+        queryError instanceof Error
+          ? queryError
+          : new Error(String(queryError));
+      errors.push(`Query failed during deal sync: ${err.message}`);
+      this.logger.error('Query failed during deal sync', err.stack);
     }
+
     return { processed, succeeded, failed, errors };
   }
 
@@ -328,14 +387,17 @@ export class SyncDealsService {
     let succeeded = 0;
     let failed = 0;
     const errors: string[] = [];
-    let ebpDocs: EbpSaleDocumentView[] = [];
+    let ebpSaleDocuments: EbpSaleDocumentView[] = [];
 
     try {
-      // Vérifier si la vue existe avant de l'interroger
       try {
-        const viewCheckResult = await this.queryService.executeQuery(
-          "SELECT to_regclass('synced_ebp_sale_documents') IS NOT NULL as exists",
-        );
+        interface ViewExistsResult extends QueryResultRow {
+          exists: boolean;
+        }
+        const viewCheckResult =
+          await this.queryService.executeQuery<ViewExistsResult>(
+            "SELECT to_regclass('synced_ebp_sale_documents') IS NOT NULL as exists",
+          );
         const viewExists = viewCheckResult.rows[0]?.exists || false;
 
         if (!viewExists) {
@@ -345,89 +407,56 @@ export class SyncDealsService {
           return { processed: 0, succeeded: 0, failed: 0, errors: [] };
         }
 
-        // La vue existe, on peut continuer
-        const result = await this.queryService.executeQuery(
-          'SELECT * FROM synced_ebp_sale_documents',
-        );
-        ebpDocs = result.rows as EbpSaleDocumentView[];
-        processed = ebpDocs.length;
-        this.logger.log(
-          `Found ${processed} sale documents to synchronize from EBP view.`,
-        );
-
-        for (const ebpDoc of ebpDocs) {
-          try {
-            const projectRes = await this.queryService.executeQuery<{ id: number }>(
-              'SELECT id FROM projects WHERE external_ebp_id = $1',
-              [ebpDoc.EbpDealId],
-            );
-            const project = projectRes.rows[0];
-            if (!project) throw new Error('Associated project not found');
-
-            let clientId: number | undefined = undefined;
-            if (ebpDoc.EbpCustomerId) {
-              const clientRes = await this.queryService.executeQuery<{ id: number }>(
-                'SELECT id FROM clients WHERE external_ebp_customer_id = $1',
-                [ebpDoc.EbpCustomerId],
-              );
-              clientId = clientRes.rows[0]?.id;
-            }
-
-            const existingRes = await this.queryService.executeQuery<{ id: number }>(
-              'SELECT id FROM documents WHERE document_id = $1',
-              [ebpDoc.EbpDocumentId],
-            );
-            const existing = existingRes.rows[0];
-
-            const docData = SaleDocumentToDocumentMapper.toDocumentEntity(
-              ebpDoc,
-              project.id,
-              clientId,
-              existing,
-            );
-
-            if (!existing) {
-              const fields = Object.keys(docData)
-                .map((k) => `"${k}"`)
-                .join(', ');
-              const values = Object.values(docData);
-              const params = values.map((_, i) => `$${i + 1}`).join(', ');
-              await this.queryService.executeQuery(
-                `INSERT INTO documents (${fields}) VALUES (${params})`,
-                values,
-              );
-            } else {
-              const { clause, values } = this.buildUpdateSetClause(docData, 1);
-              if (values.length > 0) {
-                await this.queryService.executeQuery(
-                  `UPDATE documents SET ${clause} WHERE id = $${
-                    values.length + 1
-                  }`,
-                  [...values, existing.id],
-                );
-              }
-            }
-
-            succeeded++;
-          } catch (itemErr) {
-            failed++;
-            const msg = itemErr instanceof Error ? itemErr.message : String(itemErr);
-            this.logger.error(`Failed to sync EBP document ${ebpDoc.Id}: ${msg}`);
-            errors.push(`Doc ${ebpDoc.Id}: ${msg}`);
-          }
-        }
-      } catch (viewError) {
+        const result =
+          await this.queryService.executeQuery<EbpSaleDocumentView>(
+            'SELECT * FROM synced_ebp_sale_documents',
+          );
+        ebpSaleDocuments = result.rows;
+      } catch (viewError: unknown) {
+        const err =
+          viewError instanceof Error ? viewError : new Error(String(viewError));
         this.logger.warn(
-          `Erreur lors de la vérification de la vue synced_ebp_sale_documents: ${viewError.message}. Utilisation d'un tableau vide.`,
+          `Erreur lors de la vérification de la vue synced_ebp_sale_documents: ${err.message}. Utilisation d'un tableau vide.`,
         );
-        return { processed: 0, succeeded: 0, failed: 0, errors: [] };
+        ebpSaleDocuments = [];
       }
-    } catch (error) {
-      this.logger.error(
-        `Error in _syncSaleDocuments: ${error.message}`,
-        error.stack,
+
+      processed = ebpSaleDocuments.length;
+      this.logger.log(
+        `Found ${processed} sale documents to synchronize from EBP view.`,
       );
-      errors.push(`Error syncing documents: ${error.message}`);
+
+      for (const ebpSaleDocument of ebpSaleDocuments) {
+        try {
+          // Logic to sync sale documents
+          this.logger.log(
+            `Syncing sale document ${ebpSaleDocument.DocumentNumber}`,
+          );
+
+          succeeded++;
+        } catch (docError: unknown) {
+          failed++;
+          const err =
+            docError instanceof Error ? docError : new Error(String(docError));
+          errors.push(
+            `Failed to sync sale document ${ebpSaleDocument.DocumentNumber}: ${err.message}`,
+          );
+          this.logger.error(
+            `Failed to sync sale document ${ebpSaleDocument.DocumentNumber}`,
+            err.stack,
+          );
+        }
+      }
+    } catch (error: unknown) {
+      failed = processed - succeeded;
+      const err = error instanceof Error ? error : new Error(String(error));
+      errors.push(
+        `An error occurred during sale document sync: ${err.message}`,
+      );
+      this.logger.error(
+        'An error occurred during sale document sync',
+        err.stack,
+      );
     }
 
     return { processed, succeeded, failed, errors };

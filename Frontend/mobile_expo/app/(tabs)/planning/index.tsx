@@ -1,19 +1,19 @@
 import { useFetch } from "@/app/hooks/useFetch";
-import { ActivityIndicator, Text, View, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from "react-native";
+import { ActivityIndicator, Text, View, TouchableOpacity, SafeAreaView, ScrollView } from "react-native";
 import { useState, useCallback } from "react";
 import { DailyPlanningResponse, WeeklyPlanningResponse, PlanningResponse } from "@/app/utils/interfaces/planning.interface";
+import StaffDaily from "@/app/components/planning/staff.daily";
 
 export function PlanningScreen() {
   const staffId = 1;
   const [ time, setTime ] = useState<string>('today');
+  const [isStaffDailyVisible, setIsStaffDailyVisible] = useState(false);
   const { data: planning, loading: planningLoading, error: planningError } = useFetch<PlanningResponse | null>(`events/staff/${staffId}/schedule/${time}`);
 
-  console.log("Planning Data:", JSON.stringify(planning, null, 2));
-  console.log("Time:", time);
 
   if (planningLoading) {
     return (
-      <SafeAreaView style={styles.centeredContainer}>
+      <SafeAreaView className="flex-1 justify-center items-center">
         <ActivityIndicator size="large" color="#0000ff" />
       </SafeAreaView>
     );
@@ -21,8 +21,8 @@ export function PlanningScreen() {
 
   if (planningError) {
     return (
-      <SafeAreaView style={styles.centeredContainer}>
-        <Text style={styles.errorText}>Erreur lors du chargement du planning: {planningError}</Text>
+      <SafeAreaView className="flex-1 justify-center items-center">
+        <Text className="text-red-600 text-base">Erreur lors du chargement du planning: {planningError}</Text>
       </SafeAreaView>
     );
   }
@@ -30,7 +30,7 @@ export function PlanningScreen() {
   const renderPlanning = () => {
     if (!planning) {
       return (
-        <View style={styles.centeredContainer}>
+        <View className="flex-1 justify-center items-center">
           <Text>Aucune donnée de planning.</Text>
         </View>
       );
@@ -39,15 +39,15 @@ export function PlanningScreen() {
     if ('schedule' in planning && time === 'today') {
       const dailyPlanning = planning as DailyPlanningResponse;
       return (
-        <ScrollView style={styles.scrollView}>
-          <Text style={styles.dateHeader}>Planning pour le {dailyPlanning.date}:</Text>
+        <ScrollView className="flex-1 p-4">
+          <Text className="text-lg font-bold mb-2">Planning pour le {dailyPlanning.date}:</Text>
           {dailyPlanning.schedule.length === 0 ? (
-            <Text style={styles.noItemsText}>Rien de prévu.</Text>
+            <Text className="italic text-gray-600 mt-1">Rien de prévu.</Text>
           ) : (
             dailyPlanning.schedule.map(item => (
-              <View key={item.id} style={[styles.itemContainer, { borderColor: item.type === 'event' ? 'blue' : 'green' }]}>
-                <Text style={styles.itemType}>Type: {item.type}</Text>
-                <Text style={styles.itemTitle}>Titre: {item.title}</Text>
+              <View key={item.id} className={`my-2 p-3 border rounded bg-white ${item.type === 'event' ? 'border-blue-500' : 'border-green-500'}`}>
+                <Text className="font-bold text-gray-700 mb-1">Type: {item.type}</Text>
+                <Text className="text-base font-bold mb-1">Titre: {item.title}</Text>
                 <Text>Projet: {item.project?.name ?? 'N/A'}</Text>
                 <Text>Étape: {item.stage?.name ?? 'N/A'}</Text>
                 {item.role && <Text>Rôle: {item.role}</Text>}
@@ -70,20 +70,20 @@ export function PlanningScreen() {
     } else if ('planning' in planning && time === 'week') {
       const weeklyPlanning = planning as WeeklyPlanningResponse;
       return (
-        <ScrollView style={styles.scrollView}>
-          <Text style={styles.dateHeader}>Planning pour la semaine du {weeklyPlanning.weekOf}:</Text>
+        <ScrollView className="flex-1 p-4">
+          <Text className="text-lg font-bold mb-2">Planning pour la semaine du {weeklyPlanning.weekOf}:</Text>
           {Object.entries(weeklyPlanning.planning).map(([date, items]) => (
-            <View key={date} style={styles.dayContainer}>
-              <Text style={styles.dayHeader}>
+            <View key={date} className="mt-2 mb-1">
+              <Text className="font-bold text-base mb-1 text-gray-700">
                 {new Date(date + 'T00:00:00Z').toLocaleDateString('fr-FR', {
                   weekday: 'long', day:'numeric', month:'long'
                 })}:
               </Text>
               {items.length === 0 ? (
-                <Text style={styles.noItemsText}> - Rien</Text>
+                <Text className="ml-2 italic text-gray-600"> - Rien</Text>
               ) : (
                 items.map(item => (
-                  <Text key={item.id} style={styles.weekItemText}> - {item.title} ({item.type})</Text>
+                  <Text key={item.id} className="ml-2 text-sm text-gray-700"> - {item.title} ({item.type})</Text>
                 ))
               )}
             </View>
@@ -93,119 +93,51 @@ export function PlanningScreen() {
     }
 
     return (
-      <View style={styles.centeredContainer}>
+      <View className="flex-1 justify-center items-center">
          <Text>Format de planning non reconnu.</Text>
       </View>
      );
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.buttonRow}>
+    <SafeAreaView className="flex-1 bg-gray-100">
+      <View className="flex-1 p-4">
+        <View className="flex-row mb-4 justify-center">
           <TouchableOpacity
             onPress={() => setTime('today')}
-            style={[styles.button, time === 'today' ? styles.buttonActive : styles.buttonInactive]}
+            className={`py-2 px-4 rounded mx-1 ${time === 'today' ? 'bg-blue-500' : 'bg-gray-400'}`}
           >
-            <Text style={styles.buttonText}>Aujourd'hui</Text>
+            <Text className="text-white font-bold">Aujourd'hui</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setTime('week')}
-            style={[styles.button, time === 'week' ? styles.buttonActive : styles.buttonInactive]}
+            className={`py-2 px-4 rounded mx-1 ${time === 'week' ? 'bg-blue-500' : 'bg-gray-400'}`}
           >
-            <Text style={styles.buttonText}>Semaine</Text>
+            <Text className="text-white font-bold">Semaine</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setIsStaffDailyVisible(true)}
+            className="py-2 px-4 rounded mx-1 bg-green-500"
+          >
+            <Text className="text-white font-bold">Staff Daily</Text>
           </TouchableOpacity>
         </View>
-        {renderPlanning()}
+        {isStaffDailyVisible && (
+          <View className="flex-1">
+            <StaffDaily />
+            <TouchableOpacity
+              onPress={() => setIsStaffDailyVisible(false)}
+              className="mt-2 py-2 px-4 rounded bg-red-500"
+            >
+              <Text className="text-white font-bold">Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {!isStaffDailyVisible && renderPlanning()}
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-  },
-  container: {
-    flex: 1,
-    padding: 15,
-  },
-  centeredContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 16,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    justifyContent: 'center',
-  },
-  button: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginHorizontal: 5,
-  },
-  buttonActive: {
-    backgroundColor: '#007bff',
-  },
-  buttonInactive: {
-    backgroundColor: '#cccccc',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  dateHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  itemContainer: {
-    marginVertical: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderRadius: 5,
-    backgroundColor: 'white',
-  },
-  itemType: {
-    fontWeight: 'bold',
-    color: '#555',
-    marginBottom: 3,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  noItemsText: {
-    fontStyle: 'italic',
-    color: '#666',
-    marginTop: 5,
-  },
-  dayContainer: {
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  dayHeader: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 5,
-    color: '#333',
-  },
-  weekItemText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#444',
-  },
-});
 
 export default PlanningScreen;

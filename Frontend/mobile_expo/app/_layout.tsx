@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
 import './global.css';
 import { setupUrlCleaner } from './utils/cleanupRouter';
+import 'react-native-gesture-handler';
 
 export default function RootLayout() {
   // Initialiser le nettoyeur d'URL pour résoudre le problème avec __EXPO_ROUTER_key

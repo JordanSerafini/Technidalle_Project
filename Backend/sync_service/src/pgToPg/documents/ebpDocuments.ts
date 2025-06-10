@@ -1,11 +1,15 @@
 import { Logger } from '@nestjs/common';
 import { PoolClient, DatabaseError } from 'pg';
 import * as pgClientSource from '../../clients/PgClient';
-import pgClientDestination from '../../clients/pgClient_2';
+import PgClient2 from '../../clients/pgClient_2';
 import {
   ConstructionsitereferencedocumentInterface,
   ConstructionsitereferencedocumentexInterface,
 } from '../../../EBP_interface/ConstructionSite - Projets/constructionSite';
+import {
+  DealsaledocumentlineInterface,
+  DealpurchasedocumentlineInterface,
+} from '../../interfaces/Deal/deal.interface';
 import EBPclient from '../clients/ebpClient';
 import EBPProject from '../projects/ebpProject';
 import {
@@ -15,6 +19,25 @@ import {
 } from '../../interfaces/documents/documents.interface';
 import { QueryService } from '../../services/query.service';
 import { ClientSyncService } from '../../services/client-sync.service';
+
+// Interface for application document lines
+interface AppDocumentLine {
+  document_id: number; // Link to the parent document in the app DB
+  material_id?: number; // Link to the material in the app DB
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  discount_percent?: number;
+  discount_amount?: number;
+  tax_rate?: number;
+  total_ht?: number; // This will likely be calculated or mapped from EBP total
+  sort_order?: number;
+  created_at?: Date;
+  updated_at?: Date;
+  // Add a field to store the original EBP line ID for tracking
+  ebp_line_id: string;
+}
 
 // Interface pour les objets de base de données
 interface DbObject {
@@ -63,7 +86,7 @@ export default class EBPDocuments {
   ): Promise<Partial<Document> | null> {
     let destinationClient: PoolClient | null = null;
     try {
-      destinationClient = await pgClientDestination.getClient();
+      destinationClient = await PgClient2.getClient();
       if (!destinationClient) {
         this.logger.error(
           "Impossible d'obtenir un client de la pool de destination.",
@@ -71,28 +94,38 @@ export default class EBPDocuments {
         return null;
       }
 
-      // Vérifier si ConstructionSiteId existe
-      if (!ebpDoc.ConstructionSiteId) {
-        this.logger.warn(
-          `Skipping document ${ebpDoc.DocumentNumber}: ConstructionSiteId is missing.`,
+      let project: DbObject | null = null;
+      if (ebpDoc.ConstructionSiteId) {
+        project = await this.getProjectByEbpId(
+          ebpDoc.ConstructionSiteId,
+          destinationClient,
         );
-        return null;
+      } else if (ebpDoc.DealId) {
+        this.logger.debug(
+          `[DEBUG] Recherche projet AFF pour DealId=${ebpDoc.DealId}`,
+        );
+        const affProjects = await destinationClient.query(
+          "SELECT reference FROM projects WHERE reference LIKE 'AFF%'",
+        );
+        this.logger.debug(
+          `[DEBUG] Références AFF dans projects: ${Array.isArray(affProjects.rows) ? affProjects.rows.map((r: unknown) => (typeof r === 'object' && r && 'reference' in r ? (r as { reference: string }).reference : '')).join(', ') : ''}`,
+        );
+        project = await this.getProjectByDealId(
+          ebpDoc.DealId,
+          destinationClient,
+        );
       }
-
-      this.logger.debug(
-        `[Doc ${ebpDoc.DocumentNumber}] Looking up project with EBP ID: ${ebpDoc.ConstructionSiteId}`,
-      );
-      const project = await this.getProjectByEbpId(
-        ebpDoc.ConstructionSiteId,
-        destinationClient,
-      );
-
       if (!project) {
         this.logger.warn(
-          `Skipping document ${ebpDoc.DocumentNumber}: Project with EBP ID ${ebpDoc.ConstructionSiteId} not found in destination DB.`,
+          `Skipping document ${ebpDoc.DocumentNumber}: Project not found for ConstructionSiteId or DealId.`,
         );
         return null;
       }
+
+      // Log de debug détaillé pour le mapping document <-> projet
+      this.logger.debug(
+        `[DEBUG] Mapping document ${ebpDoc.DocumentNumber} (ref: ${ebpDoc.Reference}) vers projet: id=${project?.id}, ref=${project?.reference}, via ConstructionSiteId=${ebpDoc.ConstructionSiteId} ou DealId=${ebpDoc.DealId}`,
+      );
 
       const projectId = Number(project.id);
       this.logger.debug(
@@ -192,7 +225,7 @@ export default class EBPDocuments {
         status: this.mapEbpDocumentStatus(
           ebpDoc.ValidationState ?? ebpDoc.DocumentState,
         ),
-        amount: ebpDoc.AmountVatExcludedWithDiscountAndShipping,
+        amount: ebpDoc.AmountVatExcludedWithDiscount,
         tva_rate: ebpDoc.DetailVatAmount0_DetailVatRate,
         issue_date: ebpDoc.DocumentDate,
         due_date: ebpDoc.ValidityDate,
@@ -340,7 +373,7 @@ export default class EBPDocuments {
     );
     let destinationClient: PoolClient | null = null;
     try {
-      destinationClient = await pgClientDestination.getClient();
+      destinationClient = await PgClient2.getClient();
       if (!destinationClient) {
         this.logger.error(
           "Impossible d'obtenir un client de la pool de destination pour insertDocumentIntoApp.",
@@ -504,6 +537,15 @@ export default class EBPDocuments {
   }> {
     let ebpDocs: ConstructionsitereferencedocumentInterface[] = [];
     let ebpDocsEx: ConstructionsitereferencedocumentexInterface[] = [];
+    let ebpSaleLines: DealsaledocumentlineInterface[] = [];
+    let ebpPurchaseLines: DealpurchasedocumentlineInterface[] = [];
+    let allEbpLines: (
+      | DealsaledocumentlineInterface
+      | DealpurchasedocumentlineInterface
+    )[] = [];
+    let dealSaleDocs: any[] = [];
+    let dealPurchaseDocs: any[] = [];
+    let client: PoolClient | null = null;
     let total = 0;
     let count = 0;
     const errors: { identifier: string; error: string }[] = [];
@@ -511,49 +553,151 @@ export default class EBPDocuments {
     try {
       ebpDocs = await this.getAllDocumentsFromEBP();
       ebpDocsEx = await this.getAllDocumentsExFromEBP();
-      total = ebpDocs.length;
+      ebpSaleLines = await this.getAllSaleDocumentLinesFromEBP();
+      ebpPurchaseLines = await this.getAllPurchaseDocumentLinesFromEBP();
+      allEbpLines = [...ebpSaleLines, ...ebpPurchaseLines];
+      dealSaleDocs = await this.getAllDealSaleDocumentsFromEBP();
+      dealPurchaseDocs = await this.getAllDealPurchaseDocumentsFromEBP();
+      total = ebpDocs.length + dealSaleDocs.length + dealPurchaseDocs.length;
+      client = await PgClient2.getClient();
 
-      this.logger.log(`Début de la synchronisation de ${total} documents`);
+      this.logger.log(
+        `Début de la synchronisation de ${total} documents (chantiers + affaires)`,
+      );
 
+      // --- Documents de chantier (projets classiques) ---
       for (const ebpDoc of ebpDocs) {
-        const identifier = ebpDoc.DocumentNumber || ebpDoc.Id || 'ID_INCONNU'; // Utiliser un identifiant pertinent
+        const identifier = ebpDoc.DocumentNumber || ebpDoc.Id || 'ID_INCONNU';
         try {
           const ebpDocEx = ebpDocsEx.find((ex) => ex.Id === ebpDoc.Id);
           const appDoc = await this.convertToAppDocument(ebpDoc, ebpDocEx);
 
           if (appDoc) {
-            const insertedId = await this.insertDocumentIntoApp(appDoc);
-            if (insertedId) {
+            if (!appDoc.project_id) {
+              this.logger.warn(
+                `Skipping document ${identifier} - project_id is missing after conversion.`,
+              );
+              errors.push({
+                identifier,
+                error: 'project_id manquant après conversion',
+              });
+              continue;
+            }
+            this.logger.debug(
+              `[DEBUG] Upsert document: ref=${appDoc.reference}, project_id=${appDoc.project_id}`,
+            );
+            const documentIdApp = await this.upsertDocument(appDoc, client);
+            if (documentIdApp && client) {
               count++;
-              if (count % 50 === 0 || count === total) {
-                // Log tous les 50 ou à la fin
-                this.logger.log(
-                  `Progression: ${count}/${total} documents traités`,
-                );
+              // Synchronisation des lignes de documents
+              const relatedEbpLines = allEbpLines.filter(
+                (line) =>
+                  line &&
+                  typeof line === 'object' &&
+                  'DocumentId' in line &&
+                  line.DocumentId === ebpDoc.Id,
+              );
+              for (const ebpLine of relatedEbpLines) {
+                try {
+                  const appDocumentLine =
+                    await this.mapEbpDocumentLineToAppDocumentLine(
+                      ebpLine,
+                      documentIdApp,
+                    );
+                  if (appDocumentLine) {
+                    await this.upsertDocumentLine(appDocumentLine, client);
+                  }
+                } catch (lineError) {
+                  errors.push({
+                    identifier: `Ligne ${'Id' in ebpLine ? ebpLine.Id : 'INCONNU'} pour document ${identifier}`,
+                    error: String(lineError),
+                  });
+                }
               }
-            } else {
-              // Erreur loggée dans insertDocumentIntoApp
+            } else if (!documentIdApp) {
               errors.push({
                 identifier,
                 error: `Échec de l'insertion/màj pour le document ${identifier}`,
               });
             }
           } else {
-            // Erreur loggée dans convertToAppDocument
             errors.push({
               identifier,
               error: `Échec de la conversion pour le document ${identifier}`,
             });
           }
         } catch (docError) {
-          // Capturer les erreurs inattendues au niveau de la boucle
-          const errorMessage =
-            docError instanceof Error ? docError.message : String(docError);
-          this.logger.error(
-            `Erreur majeure lors de la synchronisation du document ${identifier}: ${errorMessage}`,
-            docError instanceof Error ? docError.stack : undefined,
-          );
-          errors.push({ identifier, error: `Erreur majeure: ${errorMessage}` });
+          errors.push({
+            identifier,
+            error: `Erreur majeure: ${String(docError)}`,
+          });
+        }
+      }
+
+      // --- Documents d'affaires (deals) ---
+      for (const dealDocAny of ([] as any[]).concat(
+        dealSaleDocs,
+        dealPurchaseDocs,
+      )) {
+        const dealDoc =
+          typeof dealDocAny === 'object' && dealDocAny !== null
+            ? dealDocAny
+            : {};
+        const identifier =
+          'DocumentNumber' in dealDoc &&
+          typeof dealDoc.DocumentNumber === 'string'
+            ? dealDoc.DocumentNumber
+            : 'Id' in dealDoc
+              ? String(dealDoc.Id)
+              : 'ID_INCONNU';
+        try {
+          // On simule un objet compatible avec convertToAppDocument
+          const fakeEbpDoc = {
+            ...dealDoc,
+            DealId:
+              'DealId' in dealDoc
+                ? dealDoc.DealId
+                : 'Id' in dealDoc
+                  ? dealDoc.Id
+                  : undefined, // s'assurer que DealId est bien présent
+            ConstructionSiteId: undefined, // Forcer à undefined pour passer par getProjectByDealId
+          };
+          const appDoc = await this.convertToAppDocument(fakeEbpDoc);
+          if (appDoc) {
+            if (!appDoc.project_id) {
+              this.logger.warn(
+                `Skipping deal document ${identifier} - project_id is missing after conversion.`,
+              );
+              errors.push({
+                identifier,
+                error: 'project_id manquant après conversion',
+              });
+              continue;
+            }
+            this.logger.debug(
+              `[DEBUG] Upsert deal document: ref=${appDoc.reference}, project_id=${appDoc.project_id}`,
+            );
+            const documentIdApp = await this.upsertDocument(appDoc, client);
+            if (documentIdApp && client) {
+              count++;
+              // Pas de synchronisation de lignes ici (à adapter si besoin)
+            } else if (!documentIdApp) {
+              errors.push({
+                identifier,
+                error: `Échec de l'insertion/màj pour le document d'affaire ${identifier}`,
+              });
+            }
+          } else {
+            errors.push({
+              identifier,
+              error: `Échec de la conversion pour le document d'affaire ${identifier}`,
+            });
+          }
+        } catch (docError) {
+          errors.push({
+            identifier,
+            error: `Erreur majeure: ${String(docError)}`,
+          });
         }
       }
 
@@ -562,7 +706,6 @@ export default class EBPDocuments {
       );
       return { success: errors.length === 0, count, total, errors };
     } catch (globalError) {
-      // Erreur lors de la récupération initiale des documents
       const errorMessage =
         globalError instanceof Error
           ? globalError.message
@@ -577,6 +720,8 @@ export default class EBPDocuments {
         total: ebpDocs.length,
         errors: [{ identifier: 'GLOBAL', error: errorMessage }],
       };
+    } finally {
+      if (client) client.release();
     }
   }
 
@@ -699,32 +844,24 @@ export default class EBPDocuments {
     ebpId: string,
     destinationClient: PoolClient,
   ): Promise<DbObject | null> {
-    this.logger.debug(`getProjectByEbpId called with EBP ID: ${ebpId}`);
-    try {
-      this.logger.debug(`Recherche du projet avec l'ID EBP ${ebpId}`);
-      const result = await destinationClient.query<{ id: number }>(
-        'SELECT id FROM projects WHERE "project_id" = $1',
-        [ebpId],
-      );
+    // Recherche uniquement sur la colonne 'reference' (PRJxxxx ou AFFxxxxx)
+    const result = await destinationClient.query<{ id: number }>(
+      'SELECT id FROM projects WHERE reference = $1',
+      [ebpId],
+    );
+    return result.rows[0] || null;
+  }
 
-      if (result.rows.length > 0 && result.rows[0].id) {
-        this.logger.debug(
-          `getProjectByEbpId: Found project App ID ${result.rows[0].id} for EBP ID ${ebpId}`,
-        );
-        return result.rows[0];
-      } else {
-        this.logger.warn(`Aucun projet trouvé avec l'ID EBP ${ebpId}`);
-        return null;
-      }
-    } catch (error) {
-      const typedError = error as DatabaseError;
-      this.logger.error(
-        `Erreur lors de la récupération du projet avec EBP ID ${ebpId}: ${typedError.message}`,
-        `Code: ${typedError.code}`,
-        typedError.stack,
-      );
-      return null;
-    }
+  private async getProjectByDealId(
+    dealId: string,
+    destinationClient: PoolClient,
+  ): Promise<DbObject | null> {
+    // Recherche sur la colonne project_id (ID EBP du deal) dans projects
+    const result = await destinationClient.query<{ id: number }>(
+      'SELECT id FROM projects WHERE project_id = $1',
+      [dealId],
+    );
+    return result.rows[0] || null;
   }
 
   private async getStaffByEbpId(
@@ -967,6 +1104,472 @@ export default class EBPDocuments {
       return 'non_payé';
     } else {
       return 'non_applicable';
+    }
+  }
+
+  /**
+   * Récupère toutes les lignes de documents de vente depuis la base EBP
+   */
+  async getAllSaleDocumentLinesFromEBP(): Promise<
+    DealsaledocumentlineInterface[]
+  > {
+    this.logger.log('Début de getAllSaleDocumentLinesFromEBP');
+    try {
+      const ebpLinesResult = await pgClientSource.executeQuery(`
+        SELECT * FROM "DealSaleDocumentLine"
+      `);
+
+      this.logger.log(
+        `Récupération de ${ebpLinesResult.length} lignes de documents de vente depuis EBP`,
+      );
+      // Assuming executeQuery returns array of rows directly
+      return ebpLinesResult as DealsaledocumentlineInterface[];
+    } catch (error) {
+      this.logger.error(
+        'Erreur lors de la récupération des lignes de documents de vente depuis EBP:',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      // Return an empty array or re-throw depending on desired error handling
+      return [];
+    }
+  }
+
+  /**
+   * Récupère toutes les lignes de documents d'achat depuis la base EBP
+   */
+  async getAllPurchaseDocumentLinesFromEBP(): Promise<
+    DealpurchasedocumentlineInterface[]
+  > {
+    this.logger.log('Début de getAllPurchaseDocumentLinesFromEBP');
+    try {
+      const ebpLinesResult = await pgClientSource.executeQuery(`
+        SELECT * FROM "DealPurchaseDocumentLine"
+      `);
+
+      this.logger.log(
+        `Récupération de ${ebpLinesResult.length} lignes de documents d'achat depuis EBP`,
+      );
+      // Assuming executeQuery returns array of rows directly
+      return ebpLinesResult as DealpurchasedocumentlineInterface[];
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de la récupération des lignes de documents d'achat depuis EBP:",
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      // Return an empty array or re-throw depending on desired error handling
+      return [];
+    }
+  }
+
+  /**
+   * Mappe une ligne de document EBP (vente ou achat) vers la structure de l'application
+   * @param ebpLine Ligne de document EBP
+   * @param appDocumentId L'ID du document parent dans la base de l'application
+   * @returns Ligne de document format application ou null si mappage impossible
+   */
+  async mapEbpDocumentLineToAppDocumentLine(
+    ebpLine: DealsaledocumentlineInterface | DealpurchasedocumentlineInterface,
+    appDocumentId: number,
+  ): Promise<AppDocumentLine | null> {
+    if (
+      !ebpLine.Id ||
+      !ebpLine.DocumentId ||
+      ebpLine.Quantity === undefined ||
+      ebpLine.PurchasePrice === undefined
+    ) {
+      this.logger.warn(
+        `Ligne de document EBP manquante en champs requis (Id, DocumentId, Quantity, PurchasePrice): ${JSON.stringify(ebpLine)}`,
+      );
+      return null;
+    }
+
+    let materialId: number | undefined = undefined;
+    if (ebpLine.ItemId) {
+      try {
+        const materialResult = await this.queryService.executeQuery<{
+          id: number;
+        }>('SELECT id FROM materials WHERE reference = $1', [ebpLine.ItemId]);
+        if (materialResult.rows.length > 0 && materialResult.rows[0].id) {
+          materialId = materialResult.rows[0].id;
+        } else {
+          this.logger.warn(
+            `Matériel EBP avec ItemId ${ebpLine.ItemId} non trouvé dans la base App. La ligne de document sera liée sans matériel.`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Erreur lors de la recherche du matériel pour ItemId ${ebpLine.ItemId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    const quantity = Number(ebpLine.Quantity) || 0;
+    const unitPrice = Number(ebpLine.PurchasePrice) || 0;
+
+    // Calcul du montant total HT (NetAmountVatExcludedWithDiscount si dispo, sinon AmountVatExcluded)
+    const totalHt =
+      ebpLine.NetAmountVatExcludedWithDiscount !== undefined &&
+      ebpLine.NetAmountVatExcludedWithDiscount !== null
+        ? Number(ebpLine.NetAmountVatExcludedWithDiscount)
+        : Number(ebpLine.AmountVatExcluded) || 0;
+
+    // Calcul du montant de remise
+    let discountAmount = 0;
+    if (
+      ebpLine.AmountVatExcluded !== undefined &&
+      ebpLine.NetAmountVatExcludedWithDiscount !== undefined &&
+      ebpLine.AmountVatExcluded !== null &&
+      ebpLine.NetAmountVatExcludedWithDiscount !== null &&
+      Number(ebpLine.AmountVatExcluded) > 0 &&
+      Number(ebpLine.NetAmountVatExcludedWithDiscount) > 0
+    ) {
+      discountAmount =
+        Number(ebpLine.AmountVatExcluded) -
+        Number(ebpLine.NetAmountVatExcludedWithDiscount);
+    }
+
+    // Calcul du pourcentage de remise
+    let discountPercent = 0;
+    if (quantity > 0 && unitPrice > 0 && discountAmount > 0) {
+      discountPercent = (discountAmount / (quantity * unitPrice)) * 100;
+    }
+
+    const taxRate = 20; // Par défaut, à ajuster si besoin
+
+    return {
+      document_id: appDocumentId,
+      material_id: materialId,
+      description:
+        ebpLine.DescriptionClear ||
+        ebpLine.TechnicalDescriptionClear ||
+        'Aucune description',
+      quantity: quantity,
+      unit: 'unité',
+      unit_price: unitPrice,
+      discount_percent: discountPercent,
+      discount_amount: discountAmount,
+      tax_rate: taxRate,
+      total_ht: totalHt,
+      sort_order: ebpLine.LineOrder ?? 0,
+      ebp_line_id: ebpLine.Id,
+    };
+  }
+
+  /**
+   * Insère ou met à jour une ligne de document dans la base de l'application
+   */
+  async upsertDocumentLine(
+    lineData: AppDocumentLine,
+    client: PoolClient,
+  ): Promise<number | null> {
+    this.logger.debug(
+      `Tentative d'upsert de la ligne de document EBP ID: ${lineData.ebp_line_id} pour document APP ID: ${lineData.document_id}`,
+    );
+    try {
+      // Check if the line exists based on the EBP line ID and parent document ID
+      // Assuming 'ebp_line_id' column exists in 'document_lines' for tracking
+      const selectQuery = `SELECT id FROM document_lines WHERE "ebp_line_id" = $1 AND document_id = $2`;
+      const selectResult = await client.query<{ id: number }>(selectQuery, [
+        lineData.ebp_line_id,
+        lineData.document_id,
+      ]);
+
+      if (selectResult.rows.length > 0) {
+        const existingId = selectResult.rows[0].id;
+        this.logger.debug(
+          `Ligne de document existante trouvée (ID App: ${existingId}), mise à jour...`,
+        );
+
+        const updateQuery = `
+          UPDATE document_lines
+          SET
+            material_id = $1,
+            description = $2,
+            quantity = $3,
+            unit = $4,
+            unit_price = $5,
+            discount_percent = $6,
+            discount_amount = $7,
+            tax_rate = $8,
+            total_ht = $9,
+            sort_order = $10,
+            updated_at = NOW()
+          WHERE id = $11
+          RETURNING id
+        `;
+        const updateValues = [
+          lineData.material_id,
+          lineData.description,
+          lineData.quantity,
+          lineData.unit,
+          lineData.unit_price,
+          lineData.discount_percent,
+          lineData.discount_amount,
+          lineData.tax_rate,
+          lineData.total_ht,
+          lineData.sort_order,
+          existingId,
+        ];
+
+        const updateResult = await client.query<{ id: number }>(
+          updateQuery,
+          updateValues,
+        );
+
+        if (updateResult.rows.length > 0) {
+          this.logger.debug(
+            `Ligne de document mise à jour avec succès (ID App: ${updateResult.rows[0].id})`,
+          );
+          return updateResult.rows[0].id;
+        } else {
+          this.logger.error(
+            `Échec de la mise à jour de la ligne de document (ID App: ${existingId}). Aucun ID retourné.`,
+          );
+          return null;
+        }
+      } else {
+        this.logger.debug('Ligne de document non trouvée, insertion...');
+        // The line does not exist, insert it
+        const insertQuery = `
+          INSERT INTO document_lines (
+            document_id, material_id, description, quantity, unit, unit_price,
+            discount_percent, discount_amount, tax_rate, total_ht, sort_order,
+            ebp_line_id, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
+          )
+          RETURNING id
+        `;
+        const insertValues = [
+          lineData.document_id,
+          lineData.material_id,
+          lineData.description,
+          lineData.quantity,
+          lineData.unit,
+          lineData.unit_price,
+          lineData.discount_percent,
+          lineData.discount_amount,
+          lineData.tax_rate,
+          lineData.total_ht,
+          lineData.sort_order,
+          lineData.ebp_line_id,
+        ];
+
+        const insertResult = await client.query<{ id: number }>(
+          insertQuery,
+          insertValues,
+        );
+
+        if (insertResult.rows.length > 0) {
+          this.logger.debug(
+            `Ligne de document insérée avec succès (ID App: ${insertResult.rows[0].id})`,
+          );
+          return insertResult.rows[0].id;
+        } else {
+          this.logger.error(
+            `Échec de l'insertion de la ligne de document EBP ID: ${lineData.ebp_line_id}. Aucun ID retourné.`,
+          );
+          return null;
+        }
+      }
+    } catch (error) {
+      const typedError = error as DatabaseError;
+      this.logger.error(
+        `Erreur BDD lors de l'upsert de la ligne de document EBP ID ${lineData.ebp_line_id} pour document APP ID ${lineData.document_id}: ${typedError.message}`,
+        `Code: ${typedError.code}, Table: ${typedError.table}, Colonne: ${typedError.column}, Contrainte: ${typedError.constraint}`,
+        typedError.stack,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Récupère tous les documents de vente d'affaires depuis la base EBP
+   */
+  async getAllDealSaleDocumentsFromEBP(): Promise<any[]> {
+    this.logger.log('Début de getAllDealSaleDocumentsFromEBP');
+    try {
+      const ebpDocsResult = await pgClientSource.executeQuery(
+        'SELECT * FROM "DealSaleDocument"',
+      );
+      this.logger.log(
+        `Récupération de ${ebpDocsResult.length} documents de vente d'affaires depuis EBP`,
+      );
+      return ebpDocsResult;
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de la récupération des documents de vente d'affaires depuis EBP:",
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Récupère tous les documents d'achat d'affaires depuis la base EBP
+   */
+  async getAllDealPurchaseDocumentsFromEBP(): Promise<any[]> {
+    this.logger.log('Début de getAllDealPurchaseDocumentsFromEBP');
+    try {
+      const ebpDocsResult = await pgClientSource.executeQuery(
+        'SELECT * FROM "DealPurchaseDocument"',
+      );
+      this.logger.log(
+        `Récupération de ${ebpDocsResult.length} documents d'achat d'affaires depuis EBP`,
+      );
+      return ebpDocsResult;
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de la récupération des documents d'achat d'affaires depuis EBP:",
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      return [];
+    }
+  }
+
+  private async upsertDocument(
+    documentData: Partial<Document>,
+    client: PoolClient,
+  ): Promise<number | null> {
+    this.logger.debug(
+      `[DEBUG] Upsert document: ref=${documentData.reference}, project_id=${documentData.project_id}`,
+    );
+    const selectQuery = `SELECT id FROM documents WHERE reference = $1`;
+    const selectResult = await client.query<{ id: number }>(selectQuery, [
+      documentData.reference,
+    ]);
+
+    const appId = selectResult.rows[0]
+      ? Number((selectResult.rows[0] as { id: number }).id)
+      : undefined;
+    if (appId) {
+      const updateQuery = `UPDATE documents SET
+              project_id = $1,
+              type = $2,
+              reference = $3,
+              status = $4,
+              amount = $5,
+              issue_date = $6,
+              due_date = $7,
+              payment_date = $8,
+              payment_method = $9,
+              payment_terms = $10,
+              discount_rate = $11,
+              discount_amount = $12,
+              payment_status = $13,
+              amount_paid = $14,
+              balance_due = $15,
+              legal_mentions = $16,
+              validity_period = $17,
+              signed_by_client = $18,
+              signed_date = $19,
+              approved_by_staff_id = $20,
+              electronic_signature_path = $21,
+              version = $22,
+              parent_document_id = $23,
+              revision_reason = $24,
+              quotation_id = $25,
+              purchase_order_reference = $26,
+              delivery_address_id = $27,
+              delivery_date = $28,
+              shipping_costs = $29,
+              notes = $30,
+              file_path = $31,
+              updated_at = NOW()
+              WHERE id = $32
+           `;
+      const updateValues = [
+        documentData.project_id,
+        documentData.type,
+        documentData.reference,
+        documentData.status,
+        documentData.amount,
+        documentData.issue_date,
+        documentData.due_date,
+        documentData.payment_date,
+        documentData.payment_method,
+        documentData.payment_terms,
+        documentData.discount_rate,
+        documentData.discount_amount,
+        documentData.payment_status,
+        documentData.amount_paid,
+        documentData.balance_due,
+        documentData.legal_mentions,
+        documentData.validity_period,
+        documentData.signed_by_client,
+        documentData.signed_date,
+        documentData.approved_by_staff_id,
+        documentData.electronic_signature_path,
+        documentData.version,
+        documentData.parent_document_id,
+        documentData.revision_reason,
+        documentData.quotation_id,
+        documentData.purchase_order_reference,
+        documentData.delivery_address_id,
+        documentData.delivery_date,
+        documentData.shipping_costs,
+        documentData.notes,
+        documentData.file_path,
+        appId,
+      ];
+      await client.query(updateQuery, updateValues);
+      return appId;
+    } else {
+      const insertQuery = `INSERT INTO documents (
+              "documentId", project_id, type, reference, status, amount, issue_date, due_date, payment_date,
+              payment_method, payment_terms, discount_rate, discount_amount, payment_status, amount_paid,
+              balance_due, legal_mentions, validity_period, signed_by_client, signed_date, approved_by_staff_id,
+              electronic_signature_path, version, parent_document_id, revision_reason, quotation_id,
+              purchase_order_reference, delivery_address_id, delivery_date, shipping_costs, notes, file_path, created_at, updated_at
+          ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+              $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, NOW(), NOW()
+          ) RETURNING id`;
+
+      const insertValues = [
+        documentData.documentId,
+        documentData.project_id,
+        documentData.type,
+        documentData.reference,
+        documentData.status,
+        documentData.amount,
+        documentData.issue_date,
+        documentData.due_date,
+        documentData.payment_date,
+        documentData.payment_method,
+        documentData.payment_terms,
+        documentData.discount_rate,
+        documentData.discount_amount,
+        documentData.payment_status,
+        documentData.amount_paid,
+        documentData.balance_due,
+        documentData.legal_mentions,
+        documentData.validity_period,
+        documentData.signed_by_client,
+        documentData.signed_date,
+        documentData.approved_by_staff_id,
+        documentData.electronic_signature_path,
+        documentData.version,
+        documentData.parent_document_id,
+        documentData.revision_reason,
+        documentData.quotation_id,
+        documentData.purchase_order_reference,
+        documentData.delivery_address_id,
+        documentData.delivery_date,
+        documentData.shipping_costs,
+        documentData.notes,
+        documentData.file_path,
+      ];
+
+      const insertResult = await client.query(insertQuery, insertValues);
+      const insertedId = insertResult.rows[0]
+        ? Number((insertResult.rows[0] as { id: number }).id)
+        : undefined;
+      return insertedId ?? null;
     }
   }
 }

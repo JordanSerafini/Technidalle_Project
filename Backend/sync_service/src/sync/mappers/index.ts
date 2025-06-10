@@ -15,11 +15,11 @@ export abstract class BaseMapper<Source, Target>
   abstract map(source: Source, ...args: any[]): Target;
 
   // Méthodes utilitaires communes à tous les mappers
-  protected cleanUndefinedProperties(obj: any): any {
+  protected cleanUndefinedProperties<T extends object>(obj: T): T {
     const result = { ...obj };
     for (const key in result) {
       if (result[key] === undefined) {
-        delete result[key];
+        delete (result as any)[key]; // Utilisation temporaire de any pour la suppression
       }
     }
     return result;

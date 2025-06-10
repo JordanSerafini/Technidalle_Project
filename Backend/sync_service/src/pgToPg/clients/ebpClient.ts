@@ -2,10 +2,16 @@ import { Customer as ClientEBP } from '../../interfaces/clients/clientEBP';
 import { CreateClientWithAddressDto } from '../../interfaces/clients/clientApp';
 import * as pgClientSource from '../../clients/PgClient';
 import pgClientDestination from '../../clients/pgClient_2';
+import { ConstructionsiteInterface } from '../../interfaces/projects/constructionSite';
 import { Item as ItemEBP } from '../../interfaces/items/itemEBP';
 import { ItemAPP } from '../../interfaces/items/itemAPP';
-import { QueryResult, PoolClient } from 'pg';
+import { QueryResult, PoolClient, DatabaseError } from 'pg';
 import { Logger } from '@nestjs/common';
+
+// Interface pour les objets de base de données avec un ID numérique
+interface DbObjectWithNumericId {
+  id: number;
+}
 
 /**
  * Convertit un client EBP en client format application
@@ -248,353 +254,173 @@ export default class EBPclient {
    * Gère les conflits d'unicité et l'extraction du numéro de rue.
    * @param addressData Données de l'adresse à insérer/màj.
    * @param dbClient Client de base de données PostgreSQL actif.
-   * @returns L'ID de l'adresse insérée ou trouvée, ou null en cas d'erreur ou d'adresse invalide.
    */
   public async upsertAddress(
     addressData: CreateClientWithAddressDto['address'],
     dbClient: PoolClient,
   ): Promise<number | null> {
-    // 1. Normalisation et validation des données d'entrée
-    const streetNameFromData = addressData.street_name?.trim() || '';
-    const streetNumberFromData = addressData.street_number?.trim() || null; // Garder null si vide/null
-
-    let finalStreetNumber: string | null = streetNumberFromData;
-    let finalStreetName: string = streetNameFromData;
-
-    // 2. Extraction du numéro de rue (si nécessaire)
-    if (!finalStreetNumber && finalStreetName) {
-      const parts = finalStreetName.match(/^(\d{1,9}[a-zA-Z]?)\s+(.*)/);
-      if (parts) {
-        const potentialNumber = parts[1];
-        // Vérifier la longueur pour éviter d'extraire un CP ou autre long nombre comme numéro
-        if (potentialNumber.length <= 10) {
-          finalStreetNumber = potentialNumber;
-          finalStreetName = parts[2].trim();
-        }
-      }
-    }
-
-    // Default pour nom de rue vide après extraction éventuelle
-    if (!finalStreetName) {
-      finalStreetName = 'Adresse non spécifiée';
-    }
-
-    // Tronquer numéro si > 10 (sécurité)
-    if (finalStreetNumber && finalStreetNumber.length > 10) {
-      this.logger.warn(
-        `Numéro de rue "${finalStreetNumber}" trop long, tronqué à 10 caractères.`,
-      );
-      finalStreetNumber = finalStreetNumber.substring(0, 10);
-    }
-
-    // Autres champs
-    const zipCode = addressData.zip_code?.trim() || '';
-    const city = addressData.city?.trim() || '';
-    const additionalAddress = addressData.additional_address?.trim() || '';
-    const country = addressData.country?.trim() || 'France';
-
-    // 3. Validation des champs essentiels
-    if (!zipCode || !city) {
-      this.logger.warn(
-        `Adresse incomplète ignorée (CP ou Ville manquant): Rue='${finalStreetName}', CP='${zipCode}', Ville='${city}'`,
-      );
-      return null;
-    }
-    if (zipCode.length > 10) {
-      this.logger.warn(
-        `Code Postal "${zipCode}" trop long (max 10). Adresse ignorée. Rue='${finalStreetName}', Ville='${city}'`,
-      );
-      return null;
-    }
-
-    this.logger.debug(
-      `Recherche/Upsert pour adresse: Num='${finalStreetNumber}', Rue='${finalStreetName}', Compl='${additionalAddress || ''}', CP='${zipCode}', Ville='${city}', Pays='${country}'`,
-    );
-
-    // 4. Essayer de SELECTIONNER d'abord
-    const selectQuery = `
-      SELECT id FROM addresses WHERE
-        (street_number = $1 OR ($1 IS NULL AND street_number IS NULL)) AND
-        street_name = $2 AND
-        zip_code = $3 AND
-        city = $4
-      LIMIT 1
+    // Vérifier si l'adresse existe déjà
+    const checkAddressQuery = `
+      SELECT id FROM addresses
+      WHERE street_name = $1 AND zip_code = $2 AND city = $3
     `;
-    const selectValues = [
-      finalStreetNumber,
-      finalStreetName,
-      zipCode,
-      city,
-      // additionalAddress, // Ne plus utiliser pour la recherche d'unicité
-      // country,         // Ne plus utiliser pour la recherche d'unicité
-    ];
 
     try {
-      const selectResult = (await dbClient.query(
-        selectQuery,
-        selectValues,
-      )) as QueryResult<{ id: number }>;
+      const checkResult: QueryResult<DbObjectWithNumericId> =
+        await dbClient.query(checkAddressQuery, [
+          addressData.street_name,
+          addressData.zip_code,
+          addressData.city,
+        ]);
 
-      if (selectResult.rows.length > 0 && selectResult.rows[0].id) {
-        this.logger.debug(
-          `Adresse existante trouvée avec ID: ${selectResult.rows[0].id}`,
-        );
-        return selectResult.rows[0].id;
+      if (checkResult.rows.length > 0) {
+        // Adresse trouvée, retourner son ID
+        return checkResult.rows[0].id;
       }
 
-      // 5. Si non trouvée, INSERER
-      this.logger.debug("Adresse non trouvée, tentative d'insertion.");
-      const insertQuery = `
-        INSERT INTO addresses (street_number, street_name, additional_address, zip_code, city, country)
+      // L'adresse n'existe pas, l'insérer
+      const insertAddressQuery = `
+        INSERT INTO addresses(
+          street_name,
+          additional_address,
+          zip_code,
+          city,
+          country,
+          street_number
+        )
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (street_number, street_name, zip_code, city) DO NOTHING -- Gérer la race condition potentielle
-        RETURNING id
+        RETURNING id;
       `;
-      // Note: On n'insère pas lat/lon ici car elles ne font pas partie de la clé unique et pourraient différer légèrement
-      const insertValues = [
-        finalStreetNumber,
-        finalStreetName,
-        additionalAddress || null, // S'assurer d'insérer NULL si vide
-        zipCode,
-        city,
-        country,
-      ];
 
-      const insertResult = (await dbClient.query(
-        insertQuery,
-        insertValues,
-      )) as QueryResult<{ id: number }>;
+      const insertResult: QueryResult<DbObjectWithNumericId> =
+        await dbClient.query(insertAddressQuery, [
+          addressData.street_name,
+          addressData.additional_address,
+          addressData.zip_code,
+          addressData.city,
+          addressData.country,
+          addressData.street_number,
+        ]);
 
-      if (insertResult.rows.length > 0 && insertResult.rows[0].id) {
-        this.logger.debug(
-          `Nouvelle adresse insérée avec ID: ${insertResult.rows[0].id}`,
-        );
+      if (insertResult.rows.length > 0) {
         return insertResult.rows[0].id;
       }
 
-      // 6. Si l'insertion (avec ON CONFLICT DO NOTHING) n'a rien retourné (à cause d'une race condition)
-      // Re-sélectionner pour obtenir l'ID inséré par l'autre processus.
-      this.logger.debug(
-        "Insertion n'a pas retourné d'ID (probablement race condition), re-sélection...",
-      );
-      // Utiliser la même requête SELECT que précédemment
-      const reSelectResult = (await dbClient.query(
-        selectQuery,
-        selectValues,
-      )) as QueryResult<{ id: number }>;
-      if (reSelectResult.rows.length > 0 && reSelectResult.rows[0].id) {
-        this.logger.debug(
-          `Adresse existante (après race condition) trouvée avec ID: ${reSelectResult.rows[0].id}`,
-        );
-        return reSelectResult.rows[0].id;
-      } else {
-        // Ceci ne devrait VRAIMENT pas arriver si la contrainte unique est bien définie et gérée
-        this.logger.error(
-          "ERREUR CRITIQUE: Impossible de trouver ou d'insérer l'adresse après tentative de gestion de race condition.",
-          { addressData, selectValues }, // Log les données utilisées pour le SELECT
-        );
-        return null;
-      }
+      return null; // Devrait rarement arriver si l'insertion réussit
     } catch (error) {
-      // Gérer les erreurs inattendues
-      const typedError: any = error;
-      const message = error instanceof Error ? error.message : String(error);
-      const stack = error instanceof Error ? error.stack : undefined;
-      const code = typedError.code || 'UNKNOWN';
-      this.logger.error(
-        `Erreur BDD inattendue lors de l'upsert adresse: ${message} (Code: ${code})`,
-        stack,
-        { addressData }, // Log les données d'origine
-      );
-      return null;
+      console.error("Erreur lors de l'upsert de l'adresse:", error);
+      throw error;
     }
   }
 
   /**
-   * Insère un client dans la base de données de destination, en gérant les adresses dupliquées.
-   * Transaction explicite retirée pour le debug.
+   * Insère un nouveau client dans la base de données de destination.
+   * @param clientData Données du client à insérer.
+   * @returns L'ID du client inséré ou null en cas d'échec ou de duplication.
    */
   async insertClientIntoApp(
     clientData: CreateClientWithAddressDto,
   ): Promise<number | null> {
-    let dbClient: PoolClient | null = null;
-    let addressId: number | null = null;
-
+    let dbClient: PoolClient | null = null; // Initialisation à null
     try {
+      // Utiliser la pool de connexion pour obtenir un client
       dbClient = await pgClientDestination.getClient();
+
       if (!dbClient) {
         this.logger.error(
-          "Impossible d'obtenir un client de pool pour insertClientIntoApp.",
+          "Impossible d'obtenir un client de la pool de destination.",
         );
         return null;
       }
 
-      if (
-        clientData.address &&
-        clientData.address.street_name &&
-        clientData.address.zip_code &&
-        clientData.address.city
-      ) {
-        addressId = await this.upsertAddress(clientData.address, dbClient);
-        if (addressId === null) {
-          this.logger.warn(
-            `Impossible de déterminer l'ID de l'adresse pour le client ${clientData.customer_id}, insertion du client avec address_id = NULL.`,
-          );
-        } else {
-          this.logger.debug(
-            `Adresse déterminée/créée pour le client ${clientData.customer_id} avec ID: ${addressId}`,
-          );
-        }
-      } else {
-        this.logger.debug(
-          `Pas de données d'adresse fournies pour le client ${clientData.customer_id}. address_id sera NULL.`,
+      // Insérer ou mettre à jour l'adresse et obtenir l'ID
+      const addressId = await this.upsertAddress(clientData.address, dbClient);
+
+      if (addressId === null) {
+        this.logger.error(
+          `Impossible d'insérer ou de mettre à jour l'adresse pour le client ${clientData.customer_id}.`,
         );
+        return null; // Échec de l'upsert de l'adresse
       }
 
-      // S'assurer que l'email est valide ou créer un email de secours
-      let emailToUse =
-        clientData.email || `no-email-${clientData.customer_id}@example.com`;
-
-      // Email validation plus stricte pour correspondre à la contrainte PostgreSQL
-      // Le format doit être exactement conforme à xxx@xxx.xxx sans caractères spéciaux autres que ceux autorisés
-      const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-
-      if (!emailRegex.test(emailToUse)) {
-        // Si l'email n'est pas valide, générer un email sécurisé qui respecte certainement la contrainte
-        const safeCustomerId = clientData.customer_id.replace(
-          /[^a-zA-Z0-9]/g,
-          '',
-        );
-        emailToUse = `no-email-${safeCustomerId}@example.com`;
-      }
-
-      // Vérifier que la longueur de l'email est valide (généralement limité dans les BDD)
-      if (emailToUse.length > 254) {
-        // Tronquer l'email tout en gardant le format valide
-        const emailParts = emailToUse.split('@');
-        const localPart = emailParts[0].substring(0, 64); // Local part max 64 caractères
-        const domainPart = emailParts[1] || 'example.com';
-        emailToUse = `${localPart}@${domainPart}`;
-      }
-
-      // Vérifier si l'email existe déjà
-      if (clientData.email) {
-        try {
-          const emailExistsResult = (await dbClient.query(
-            `SELECT EXISTS(SELECT 1 FROM clients WHERE email = $1 AND customer_id != $2) as "exists"`,
-            [emailToUse, clientData.customer_id],
-          )) as QueryResult<{ exists: boolean }>;
-
-          if (emailExistsResult.rows[0]?.exists) {
-            this.logger.warn(
-              `Email ${emailToUse} existe déjà pour un autre client que ${clientData.customer_id}. Génération d'un email unique.`,
-            );
-            const safeCustomerId = clientData.customer_id.replace(
-              /[^a-zA-Z0-9]/g,
-              '',
-            );
-            const timestamp = Date.now();
-            emailToUse = `no-email-${safeCustomerId}-${timestamp}@example.com`;
-          }
-        } catch (emailCheckError) {
-          this.logger.error(
-            `Erreur lors de la vérification de l'existence de l'email ${emailToUse} pour ${clientData.customer_id}:`,
-            emailCheckError,
-          );
-          // En cas d'erreur, utiliser un email de secours garanti valide
-          const safeCustomerId = clientData.customer_id.replace(
-            /[^a-zA-Z0-9]/g,
-            '',
-          );
-          const timestamp = Date.now();
-          emailToUse = `no-email-${safeCustomerId}-${timestamp}@example.com`;
-        }
-      }
-
-      // Nettoyage des numéros de téléphone et mobile
-      let phoneToUse = clientData.phone
-        ? clientData.phone.replace(/[^0-9+\s]/g, '')
-        : null;
-      if (phoneToUse && (phoneToUse.length < 10 || phoneToUse.length > 15)) {
-        this.logger.warn(
-          `Numéro de téléphone invalide pour le client ${clientData.customer_id}: "${clientData.phone}". Sera remplacé par NULL.`,
-        );
-        phoneToUse = null;
-      }
-
-      let mobileToUse = clientData.mobile
-        ? clientData.mobile.replace(/[^0-9+\s]/g, '')
-        : null;
-      if (mobileToUse && (mobileToUse.length < 10 || mobileToUse.length > 15)) {
-        this.logger.warn(
-          `Numéro de mobile invalide pour le client ${clientData.customer_id}: "${clientData.mobile}". Sera remplacé par NULL.`,
-        );
-        mobileToUse = null;
-      }
-
-      const clientValues = [
-        clientData.company_name || null,
-        clientData.customer_id,
-        clientData.firstname || '',
-        clientData.lastname || '',
-        emailToUse,
-        phoneToUse,
-        mobileToUse,
-        addressId,
-        clientData.siret || null,
-        clientData.notes || null,
-      ];
-
+      // Préparer les données du client pour l'insertion
       const clientQuery = `
-        INSERT INTO clients (
-          company_name, customer_id, firstname, lastname, email, phone, mobile, address_id, siret, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (customer_id) DO UPDATE SET
+        INSERT INTO clients(
+          company_name,
+          customer_id,
+          firstname,
+          lastname,
+          email,
+          phone,
+          mobile,
+          notes,
+          address_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (customer_id) DO UPDATE
+        SET
           company_name = EXCLUDED.company_name,
           firstname = EXCLUDED.firstname,
           lastname = EXCLUDED.lastname,
           email = EXCLUDED.email,
           phone = EXCLUDED.phone,
           mobile = EXCLUDED.mobile,
-          address_id = CASE WHEN EXCLUDED.address_id IS NOT NULL THEN EXCLUDED.address_id ELSE clients.address_id END,
-          siret = EXCLUDED.siret,
           notes = EXCLUDED.notes,
-          updated_at = NOW()
-        RETURNING id`;
+          address_id = EXCLUDED.address_id,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id;
+      `;
 
-      const clientResult = (await dbClient.query(
+      // Exécuter la requête d'insertion/màj
+      const result: QueryResult<DbObjectWithNumericId> = await dbClient.query(
         clientQuery,
-        clientValues,
-      )) as QueryResult<{ id: number }>;
-
-      if (!clientResult?.rows?.[0]?.id) {
-        throw new Error(
-          `L'upsert du client ${clientData.customer_id} a échoué, pas d'ID retourné.`,
-        );
-      }
-      const clientId = clientResult.rows[0].id;
-      this.logger.log(
-        `Client ${clientData.customer_id} inséré/mis à jour avec succès (ID App: ${clientId})`,
+        [
+          clientData.company_name,
+          clientData.customer_id,
+          clientData.firstname,
+          clientData.lastname,
+          clientData.email,
+          clientData.phone,
+          clientData.mobile,
+          clientData.notes,
+          addressId,
+        ],
       );
 
-      return clientId;
-    } catch (error) {
+      if (result.rows.length > 0) {
+        // Retourner l'ID du client inséré ou mis à jour
+        return result.rows[0].id;
+      }
+
+      return null; // Devrait rarement arriver si l'upsert réussit
+    } catch (error: unknown) {
+      this.logger.error(
+        `Error inserting client ${clientData.customer_id}`,
+        error,
+      );
+
+      // Gérer spécifiquement l'erreur de duplication (bien que ON CONFLICT DO UPDATE gère déjà cela)
+      if (error instanceof DatabaseError && error.code === '23505') {
+        this.logger.warn(
+          `Client with EBP ID ${clientData.customer_id} already exists. Skipping insertion.`, // Message plus précis
+        );
+        return null;
+      }
+
+      // Pour les autres erreurs, relancer l'exception après logging
       if (error instanceof Error) {
         this.logger.error(
-          `Erreur lors de l'insertion/màj du client ${clientData.customer_id}: ${error.message}`,
-          error.stack ?? 'Pas de stack trace',
-          { clientData, addressId },
+          `Detailed error during client insertion: ${error.message}`,
+          error.stack,
         );
       } else {
         this.logger.error(
-          `Erreur inconnue lors de l'insertion/màj du client ${clientData.customer_id}:`,
-          error,
-          { clientData, addressId },
+          `Unknown error during client insertion: ${String(error)}`,
         );
       }
-
-      return null;
+      throw error; // Relancer l'erreur après logging
     } finally {
+      // Relâcher le client de la pool
       if (dbClient) {
         dbClient.release();
       }
@@ -602,42 +428,10 @@ export default class EBPclient {
   }
 
   /**
-   * Convertit un client EBP en client format application
-   */
-  convertToAppClient(clientEBP: ClientEBP): CreateClientWithAddressDto {
-    return convertEBPtoAppClient(clientEBP);
-  }
-
-  /**
-   * Convertit une liste de clients EBP en clients format application
-   */
-  convertMultipleToAppClient(
-    clientsEBP: ClientEBP[],
-  ): CreateClientWithAddressDto[] {
-    return clientsEBP.map((clientEBP) => convertEBPtoAppClient(clientEBP));
-  }
-
-  /**
-   * Récupère tous les articles EBP depuis la base de données source
+   * Récupère tous les items (articles) EBP depuis la base de données source
    */
   async getAllItemsFromEBP(): Promise<ItemEBP[]> {
-    const query = `
-      SELECT
-        "Id",
-        "UniqueId",
-        "Caption",
-        "DesCom",
-        "SalePriceVatExcluded",
-        "RealStock",
-        "SupplierId",
-        "ManageStock",
-        "Weight",
-        "Volume",
-        "VatId",
-        "PurchasePrice",
-        "SalePriceVatIncluded"
-      FROM "Item"`;
-
+    const query = `SELECT * FROM "Item"`;
     try {
       const itemsData = (await pgClientSource.executeQuery(query)) as ItemEBP[];
       if (!Array.isArray(itemsData)) {
@@ -649,265 +443,250 @@ export default class EBPclient {
       }
       return itemsData;
     } catch (error) {
-      console.error('Erreur lors de la récupération des articles EBP:', error);
+      console.error('Erreur lors de la récupération des items EBP:', error);
       throw error;
     }
   }
 
   /**
-   * Insère un article dans la base de données de destination
+   * Insère un nouvel item dans la base de données de destination ou le met à jour s'il existe.
+   * @param itemData Données de l'item à insérer/màj.
+   * @returns L'ID de l'item inséré/màj.
    */
   async insertItemIntoApp(itemData: ItemAPP): Promise<number> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const dbObject: any = itemData.toDBObject();
-
+    const client = await pgClientDestination.getClient();
     try {
-      // Vérifier si l'article existe déjà par sa référence
-      if (itemData.reference) {
-        const checkRefQuery = `SELECT id FROM materials WHERE reference = $1`;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const existingItemResult = (await pgClientDestination.query(
-          checkRefQuery,
-          [itemData.reference],
-        )) as QueryResult<{ id: number }>;
+      await client.query('BEGIN');
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (existingItemResult?.rows?.[0]?.id) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          const existingItemId = existingItemResult.rows[0].id;
-          // Mise à jour de l'article existant
-          const updateQuery = `
-            UPDATE materials
-            SET
-              name = $1,
-              description = $2,
-              unit = $3,
-              price = $4,
-              stock_quantity = $5,
-              minimum_stock = $6,
-              supplier = $7,
-              supplier_reference = $8,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $9
-            RETURNING id`;
+      // D'abord, vérifier si l'article existe déjà
+      const checkItemQuery = `
+        SELECT id FROM materials
+        WHERE "ebp_id" = $1
+      `;
 
-          const updateValues = [
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.name,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.description,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.unit,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.price,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.stock_quantity,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.minimum_stock,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.supplier,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            dbObject.supplier_reference,
-            existingItemId,
-          ];
+      const checkResult: QueryResult<{
+        id: number;
+      }> = await client.query<{
+        id: number;
+      }>(checkItemQuery, [itemData.ebp_id]); // Utiliser ebp_id
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          const updateResult = (await pgClientDestination.query(
-            updateQuery,
-            updateValues,
-          )) as QueryResult<{ id: number }>;
+      let itemResult: QueryResult<{ id: number }>;
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          if (!updateResult?.rows?.[0]?.id) {
-            throw new Error(
-              "La mise à jour de l'article a échoué, pas d'ID retourné.",
-            );
-          }
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-          return updateResult.rows[0].id;
-        }
-      }
+      if (checkResult.rows && checkResult.rows.length > 0) {
+        // L'article existe déjà, faire un UPDATE
+        const updateItemQuery = `
+            UPDATE materials SET
+              "name" = $2,
+              "description" = $3,
+              "reference" = $4,
+              "unit" = $5,
+              "price" = $6,
+              "stock_quantity" = $7,
+              "minimum_stock" = $8,
+              "supplier" = $9,
+              "supplier_reference" = $10,
+              "updated_at" = NOW()
+            WHERE "ebp_id" = $1
+            RETURNING id
+          `;
 
-      // Insertion d'un nouvel article
-      const insertQuery = `
-        INSERT INTO materials (
-          name,
-          description,
-          reference,
-          unit,
-          price,
-          stock_quantity,
-          minimum_stock,
-          supplier,
-          supplier_reference
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id`;
+        const updateValues = [
+          itemData.ebp_id, // $1
+          itemData.name, // $2
+          itemData.description, // $3 // Utiliser description au lieu de notes
+          itemData.reference, // $4
+          itemData.unit, // $5
+          itemData.price, // $6 // Utiliser price au lieu de unit_price
+          itemData.stock_quantity, // $7
+          itemData.minimum_stock, // $8
+          itemData.supplier, // $9
+          itemData.supplier_reference, // $10
+        ];
 
-      const insertValues = [
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.name,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.description,
-        itemData.reference,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.unit,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.price,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.stock_quantity,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.minimum_stock,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.supplier,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        dbObject.supplier_reference,
-      ];
+        itemResult = await client.query<{ id: number }>(
+          updateItemQuery,
+          updateValues,
+        );
+      } else {
+        // L'article n'existe pas, faire un INSERT
+        const insertItemQuery = `
+            INSERT INTO materials (
+              "ebp_id", "name", "description", "reference", "unit", "price",
+              "stock_quantity", "minimum_stock", "supplier", "supplier_reference",
+              "created_at", "updated_at"
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+            RETURNING id
+          `;
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const insertResult = (await pgClientDestination.query(
-        insertQuery,
-        insertValues,
-      )) as QueryResult<{ id: number }>;
+        const insertValues = [
+          itemData.ebp_id, // $1 // Utiliser ebp_id au lieu de material_id ou external_ebp_id
+          itemData.name, // $2
+          itemData.description, // $3 // Utiliser description au lieu de notes
+          itemData.reference, // $4
+          itemData.unit, // $5
+          itemData.price, // $6 // Utiliser price au lieu de unit_price
+          itemData.stock_quantity, // $7
+          itemData.minimum_stock, // $8
+          itemData.supplier, // $9
+          itemData.supplier_reference, // $10
+        ];
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (!insertResult?.rows?.[0]?.id) {
-        throw new Error(
-          "L'insertion de l'article a échoué, pas d'ID retourné.",
+        itemResult = await client.query<{ id: number }>(
+          insertItemQuery,
+          insertValues,
         );
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-      return insertResult.rows[0].id;
+
+      if (!itemResult.rows || itemResult.rows.length === 0) {
+        throw new Error(
+          "Échec de l'insertion ou de la mise à jour de l'article",
+        );
+      }
+
+      await client.query('COMMIT');
+      return itemResult.rows[0].id;
     } catch (error) {
-      console.error("Erreur lors de l'insertion de l'article:", error);
-      throw error;
+      await client.query('ROLLBACK');
+      this.logger.error(
+        `Erreur lors de l'insertion/mise à jour de l'article: ${itemData.reference}`,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      // Log de l'erreur détaillée si possible
+      if (error instanceof Error) {
+        this.logger.error(`Détails de l'erreur: ${error.message}`, error.stack);
+      } else {
+        this.logger.error(`Détails de l'erreur: ${String(error)}`);
+      }
+      throw error; // Relancer l'erreur après logging
+    } finally {
+      // Libérer le client après utilisation
+      if (client && typeof client.release === 'function') {
+        client.release();
+      }
     }
   }
 
   /**
-   * Récupère tous les sites de construction depuis la base EBP
+   * Récupère tous les projets (sites de construction) EBP depuis la base de données source
    */
-  async getAllConstructionSitesFromEBP(): Promise<any[] | undefined> {
-    console.log('[EBPClient] Début de getAllConstructionSitesFromEBP');
+  async getAllConstructionSitesFromEBP(): Promise<
+    ConstructionsiteInterface[] | undefined
+  > {
     try {
-      const query = `SELECT * FROM "ConstructionSite"`;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const result = await pgClientSource.executeQuery(query);
-      console.log(
-        '[EBPClient] getAllConstructionSitesFromEBP - Requête réussie, résultat:',
-        result,
+      // Utiliser le client source pour interroger la base EBP
+      const result = await pgClientSource.executeQuery(
+        'SELECT * FROM "ConstructionSite"',
       );
 
-      if (!Array.isArray(result)) {
-        console.error(
-          "[EBPClient] Erreur: executeQuery pour getAllConstructionSitesFromEBP n'a pas retourné un tableau.",
-          result,
+      if (!Array.isArray(result) || result.length === 0) {
+        this.logger.warn(
+          'La requête getAllConstructionSitesFromEBP a retourné un résultat vide ou indéfini.',
         );
         return undefined;
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return result;
+      return result; // executeQuery retourne déjà un tableau
     } catch (error) {
-      console.error(
-        '[EBPClient] Erreur dans getAllConstructionSitesFromEBP',
-        error,
+      this.logger.error(
+        'Erreur lors de la récupération de tous les sites de construction depuis EBP',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
       );
-      throw error;
+      throw error; // Rethrow the error
     }
   }
 
   /**
-   * Récupère tous les documents de référence des sites de construction depuis la base EBP
+   * Récupère un site de construction EBP par son ID
+   * @param id L'ID du site de construction EBP (format PRJxxxxx)
+   */
+  async getConstructionSiteByIdFromEBP(
+    id: string,
+  ): Promise<ConstructionsiteInterface | null> {
+    try {
+      // Utiliser le client source pour interroger la base EBP
+      const result = await pgClientSource.executeQuery(
+        'SELECT * FROM "ConstructionSite" WHERE "Id" = $1',
+        [id],
+      );
+
+      // Vérifier si un résultat a été trouvé
+      if (!Array.isArray(result) || result.length === 0) {
+        return null;
+      }
+      return result[0]; // Retourner le premier élément du tableau
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la récupération du site de construction par ID: ${id}`,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error; // Rethrow the error
+    }
+  }
+
+  /**
+   * Récupère tous les documents de référence des sites de construction EBP
    */
   async getAllConstructionSiteReferenceDocumentsFromEBP(): Promise<any[]> {
-    console.log(
-      '[EBPClient] Début de getAllConstructionSiteReferenceDocumentsFromEBP',
-    );
     try {
-      const query = `SELECT * FROM "ConstructionSiteReferenceDocument"`;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const result = await pgClientSource.executeQuery(query);
+      // Utiliser le client source pour interroger la base EBP
+      const result = await pgClientSource.executeQuery(
+        'SELECT * FROM "ConstructionSiteReferenceDocument"',
+      );
 
+      // Vérifier si un résultat a été trouvé
       if (!Array.isArray(result)) {
-        console.error(
-          "[EBPClient] Erreur: executeQuery pour getAllConstructionSiteReferenceDocumentsFromEBP n'a pas retourné un tableau.",
-          result,
+        this.logger.warn(
+          'La requête getAllConstructionSiteReferenceDocumentsFromEBP a retourné un résultat vide ou indéfini.',
         );
         return [];
       }
-      return result;
+      return result; // executeQuery retourne déjà un tableau
     } catch (error) {
-      console.error(
-        'Erreur lors de la récupération des documents de référence',
-        error,
+      this.logger.error(
+        'Erreur lors de la récupération de tous les documents de référence des sites de construction depuis EBP',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
       );
-      throw error;
+      throw error; // Rethrow the error
     }
   }
 
   /**
-   * Synchronise un client spécifique par son ID customer_id.
-   * @param customer_id ID du client dans la base EBP
-   * @returns L'ID du client dans l'application ou null en cas d'erreur.
+   * Synchronise un client spécifique depuis EBP vers la base de données de destination en utilisant son customer_id EBP.
+   * @param customer_id L'ID du client dans EBP.
+   * @returns L'ID du client dans la base de données de destination ou null si le client EBP n'est pas trouvé.
    */
   async syncClientByCustomerId(customer_id: string): Promise<number | null> {
     try {
-      const query = `SELECT * FROM "Customer" WHERE "Id" = $1`;
-      const result: any = await pgClientSource.executeQuery(query, [
-        customer_id,
-      ]);
+      const query = `
+        SELECT "Id", "Name", "MainInvoicingAddress_Address1", "MainInvoicingAddress_ZipCode", "MainInvoicingAddress_City"
+        FROM "Customer"
+        WHERE "Id" = $1
+      `;
 
-      if (!result || !Array.isArray(result.rows) || result.rows.length === 0) {
+      // Utiliser le client source pour interroger la base EBP
+      const result = (await pgClientSource.executeQuery(query, [customer_id])) as ClientEBP[];
+
+      if (!Array.isArray(result) || result.length === 0) {
         this.logger.warn(
-          `Aucun client trouvé dans EBP avec l'ID: ${customer_id}`,
+          `Client avec EBP ID ${customer_id} non trouvé dans la base source.`,
         );
         return null;
       }
 
-      const clientsEBP = result.rows as ClientEBP[];
+      const clientEBP = result[0];
+      const clientApp = convertEBPtoAppClient(clientEBP);
+      const clientId = await this.insertClientIntoApp(clientApp);
 
-      if (clientsEBP.length > 1) {
-        this.logger.warn(
-          `Plusieurs clients trouvés dans EBP pour l'ID ${customer_id}. Utilisation du premier.`,
-        );
-      }
-      const clientEBP = clientsEBP[0];
-
-      if (!clientEBP) {
-        this.logger.error(
-          `Client EBP est indéfini après la requête pour l'ID ${customer_id}.`,
-        );
-        return null;
-      }
-
-      const clientAppDto = this.convertToAppClient(clientEBP);
-
-      const insertedClientId = await this.insertClientIntoApp(clientAppDto);
-
-      if (insertedClientId !== null) {
-        this.logger.log(
-          `Client ${customer_id} synchronisé avec succès (ID App: ${insertedClientId}).`,
-        );
-      } else {
-        this.logger.error(
-          `Échec de la synchronisation pour le client ${customer_id}.`,
-        );
-      }
-
-      return insertedClientId;
+      return clientId;
     } catch (error) {
-      if (error instanceof Error) {
-        this.logger.error(
-          `Erreur lors de la synchronisation du client ${customer_id}: ${error.message}`,
-          error.stack ?? 'Pas de stack trace',
-        );
-      } else {
-        this.logger.error(
-          `Erreur inconnue lors de la synchronisation du client ${customer_id}:`,
-          error,
-        );
-      }
-
-      return null;
+      this.logger.error(
+        `Erreur lors de la synchronisation du client par ID: ${customer_id}`,
+        error,
+      );
+      throw error; // Rethrow the error
     }
   }
 }

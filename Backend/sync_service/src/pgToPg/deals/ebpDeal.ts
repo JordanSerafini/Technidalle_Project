@@ -5,6 +5,23 @@ import * as pgClientSource from '../../clients/PgClient';
 import { ProjectAPP } from '../../interfaces/projects/projectAPP';
 import { QueryService } from '../../services/query.service';
 import { ClientSyncService } from '../../services/client-sync.service';
+import { Customer } from '../../interfaces/clients/clientEBP';
+import { Client } from '../../interfaces/clients/clientApp';
+
+// Interfaces pour typer les résultats des requêtes SQL
+interface SchemaResultRow {
+  nspname: string;
+}
+
+interface TableResultRow {
+  table_schema: string;
+  table_name: string;
+}
+
+interface ClientResultRow {
+  id: string;
+  customer_id: string;
+}
 
 export default class EBPDeal {
   private readonly logger = new Logger(EBPDeal.name);
@@ -116,24 +133,23 @@ export default class EBPDeal {
       await this.queryService.executeQuery('BEGIN');
 
       try {
-        const schemasResult = await this.queryService.executeQuery(
-          'SELECT nspname FROM pg_catalog.pg_namespace',
-        );
+        const schemasResult =
+          await this.queryService.executeQuery<SchemaResultRow>(
+            `SELECT nspname FROM pg_catalog.pg_namespace`,
+          );
 
-        const schemaNames =
-          schemasResult.rows?.map((r) => r.nspname as string) || [];
+        const schemaNames = schemasResult.rows?.map((r) => r.nspname) || [];
 
         this.logger.log(`Schémas disponibles: ${JSON.stringify(schemaNames)}`);
 
-        const tablesResult = await this.queryService.executeQuery(
-          "SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE'",
-        );
+        const tablesResult =
+          await this.queryService.executeQuery<TableResultRow>(
+            "SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE'",
+          );
 
         const relevantTables =
           tablesResult.rows?.filter(
-            (r) =>
-              (r.table_name as string) === 'clients' ||
-              (r.table_name as string) === 'projects',
+            (r) => r.table_name === 'clients' || r.table_name === 'projects',
           ) || [];
 
         this.logger.log(
@@ -150,233 +166,212 @@ export default class EBPDeal {
 
       // 1. Récupérer ou créer le client
       let clientId: number | null = null;
+      const ebpClientId = dealData.xx_Client
+        ? String(dealData.xx_Client).trim()
+        : null;
 
-      // Essayer de trouver le client existant par client_id (xx_Client au lieu de EbpClientReference)
-      if (dealData.xx_Client) {
+      if (ebpClientId !== null && ebpClientId !== '') {
+        // Procéder seulement si xx_Client a une valeur non nulle et non vide après trim
+        // Log de la valeur recherchée
+        this.logger.log(`Recherche du client avec xx_Client = ${ebpClientId}`);
+
+        // Essayer de trouver le client existant par customer_id
+        const searchClientQuery = `
+          SELECT "id" FROM public."clients"
+          WHERE "customer_id" = $1
+          LIMIT 1
+        `;
+
         try {
-          const clientIdToSearch = dealData.xx_Client
-            ? String(dealData.xx_Client).trim()
-            : null;
-
-          // Log de la valeur recherchée
-          this.logger.log(
-            `Recherche du client avec xx_Client = ${clientIdToSearch}`,
-          );
-
-          // Requête complète qui utilise différentes stratégies de recherche
-          const searchClientQuery = `
-            SELECT "id" FROM public."clients" 
-            WHERE LOWER("external_ebp_customer_id") = LOWER($1)
-            OR "external_ebp_customer_id" LIKE $2
-            OR "external_ebp_customer_id" = $3
-            LIMIT 1
-          `;
-
           const clientResult = await this.queryService
-            .executeQuery<{
-              id: string;
-            }>(searchClientQuery, [
-              clientIdToSearch, // Recherche exacte insensible à la casse
-              `%${clientIdToSearch}%`, // Recherche partielle
-              clientIdToSearch, // Recherche exacte
-            ])
+            .executeQuery<{ id: number }>(searchClientQuery, [ebpClientId])
             .catch((err) => {
               const errorMessage =
                 err instanceof Error ? err.message : String(err);
               this.logger.error(
-                `Erreur lors de la recherche du client: ${errorMessage}`,
+                `Erreur lors de la recherche du client ${ebpClientId}: ${errorMessage}`,
               );
               return { rows: [] };
             });
 
           if (clientResult.rows && clientResult.rows.length > 0) {
-            clientId = parseInt(clientResult.rows[0].id, 10);
+            clientId = clientResult.rows[0].id;
             this.logger.log(
               `Client trouvé avec ID: ${clientId} pour l'affaire ${dealData.Id}`,
             );
           } else {
             this.logger.warn(
-              `Client ${dealData.xx_Client} non trouvé, tentative de récupération depuis EBP`,
+              `Client ${ebpClientId} non trouvé, tentative de création.`,
             );
 
+            // Tenter de récupérer les informations complètes du client depuis EBP
             try {
-              // Essayer de récupérer directement depuis la table Customer d'EBP
-              const custResult = await pgClientSource.executeQuery(
-                'SELECT "Id" FROM "Customer" WHERE "Id" = $1',
+              const ebpClientResult = await pgClientSource.executeQuery(
+                'SELECT * FROM "Customer" WHERE "Id" = $1',
                 [dealData.xx_Client],
               );
 
-              if (custResult.length > 0) {
-                clientId = parseInt(dealData.xx_Client, 10) || null;
-                this.logger.log(
-                  `Client EBP utilisé directement avec ID: ${clientId}`,
+              if (ebpClientResult.length > 0) {
+                const ebpClient = ebpClientResult[0] as Customer;
+
+                // Préparer les données du nouveau client pour l'insertion
+                // Assurez-vous que customer_id est une string non-null ici
+                const newClientData: Partial<Client> = {
+                  customer_id: ebpClientId,
+                  company_name: ebpClient.Name,
+                  firstname:
+                    ebpClient.MainInvoicingContact_Firstname ?? undefined,
+                  lastname: ebpClient.MainInvoicingContact_Name ?? undefined,
+                  email:
+                    ebpClient.MainInvoicingContact_Email ||
+                    `no-email-${ebpClientId}@example.com`,
+                  phone: ebpClient.MainInvoicingContact_Phone || null,
+                  siret: ebpClient.Siren || null,
+                  notes: ebpClient.NotesClear || ebpClient.Notes || null,
+                };
+
+                // Insérer le nouveau client
+                const insertFields = Object.keys(newClientData)
+                  .filter(
+                    (key) =>
+                      newClientData[key as keyof typeof newClientData] !==
+                      undefined,
+                  )
+                  .map((key) => `"${key}"`)
+                  .join(', ');
+
+                const insertValuesPlaceholder = Object.keys(newClientData)
+                  .filter(
+                    (key) =>
+                      newClientData[key as keyof typeof newClientData] !==
+                      undefined,
+                  )
+                  .map((_, index) => `$${index + 1}`)
+                  .join(', ');
+
+                const insertValues = Object.values(newClientData).filter(
+                  (value) => value !== undefined,
                 );
+
+                if (insertFields.length > 0) {
+                  const insertClientQuery = `
+                    INSERT INTO public."clients" (
+                       ${insertFields},
+                       "created_at",
+                       "updated_at"
+                     ) VALUES (
+                       ${insertValuesPlaceholder},
+                       CURRENT_TIMESTAMP,
+                       CURRENT_TIMESTAMP
+                     ) RETURNING id; -- Retourner l'ID du nouvel enregistrement
+                  `;
+
+                  const newClientResult = await this.queryService.executeQuery<{
+                    id: number;
+                  }>(insertClientQuery, insertValues);
+                  if (newClientResult.rows && newClientResult.rows.length > 0) {
+                    clientId = newClientResult.rows[0].id;
+                    this.logger.log(
+                      `Nouveau client créé avec ID: ${clientId} pour l'affaire ${dealData.Id}`,
+                    );
+                  } else {
+                    this.logger.error(
+                      `Échec de la récupération de l'ID du nouveau client pour l'affaire ${dealData.Id}`,
+                    );
+                  }
+                } else {
+                  this.logger.warn(
+                    `Aucun champ valide pour créer un nouveau client EBP ${ebpClientId} pour l'affaire ${dealData.Id}`,
+                  );
+                }
               } else {
                 this.logger.warn(
-                  `Client EBP ${dealData.xx_Client} introuvable également.`,
+                  `Client EBP ${dealData.xx_Client} introuvable pour récupération des détails pour l'affaire ${dealData.Id}.`,
                 );
-                clientId = null;
               }
-            } catch (ebpError) {
+            } catch (createClientError) {
               this.logger.error(
-                `Erreur lors de la recherche du client EBP: ${ebpError instanceof Error ? ebpError.message : String(ebpError)}`,
+                `Erreur lors de la création du client pour l'affaire ${dealData.Id}: ${createClientError instanceof Error ? createClientError.message : String(createClientError)}`,
+                createClientError instanceof Error
+                  ? createClientError.stack
+                  : undefined,
               );
-              clientId = null;
             }
           }
-        } catch (error) {
+        } catch (searchClientError) {
           this.logger.error(
-            `Erreur lors de la recherche du client: ${error instanceof Error ? error.message : String(error)}`,
-            error instanceof Error ? error.stack : undefined,
+            `Erreur lors de la recherche initiale du client pour l'affaire ${dealData.Id}: ${searchClientError instanceof Error ? searchClientError.message : String(searchClientError)}`,
+            searchClientError instanceof Error
+              ? searchClientError.stack
+              : undefined,
           );
-
-          // En cas d'erreur grave, annuler la transaction et sortir
-          await this.queryService.executeQuery('ROLLBACK');
-          return null;
         }
       } else {
+        // Si xx_Client est nul ou vide dans l'affaire EBP
         this.logger.warn(
-          `L'affaire ${dealData.Id} n'a pas de client associé (xx_Client)`,
+          `L'affaire ${dealData.Id} n'a pas de client associé (xx_Client). L'affaire sera ignorée.`,
         );
-        clientId = null;
-      }
-
-      // 2. Convertir l'affaire en projet en forçant clientId à undefined si null
-      const projectData = this.dealMapper.map(dealData, clientId || undefined);
-
-      // Convertir client_id en string si c'est un nombre
-      if (typeof projectData.client_id === 'number') {
-        projectData.client_id = String(projectData.client_id);
-      }
-
-      // 3. Insérer/mettre à jour le projet
-      try {
-        // Vérifier si le projet existe déjà
-        const checkProjectQuery = `
-          SELECT "id" FROM public."projects"
-          WHERE "external_ebp_id" = $1
-        `;
-
-        const checkResult = await this.queryService
-          .executeQuery<{ id: string }>(checkProjectQuery, [dealData.Id])
-          .catch((err) => {
-            const errorMessage =
-              err instanceof Error ? err.message : String(err);
-            this.logger.error(
-              `Erreur lors de la vérification de l'existence du projet: ${errorMessage}`,
-            );
-            // En cas d'erreur, annuler la transaction et sortir
-            throw err; // Propager l'erreur pour être traitée dans le bloc catch externe
-          });
-
-        let projectResult;
-
-        if (checkResult.rows && checkResult.rows.length > 0) {
-          // Le projet existe déjà, faire un UPDATE
-          const updateFields: string[] = [];
-          const updateValues: any[] = [];
-          let paramIndex = 1;
-
-          Object.keys(projectData).forEach((key) => {
-            if (
-              key !== 'id' &&
-              key !== 'external_ebp_id' &&
-              projectData[key as keyof typeof projectData] !== undefined
-            ) {
-              updateFields.push(`"${key}" = $${paramIndex}`);
-              updateValues.push(projectData[key as keyof typeof projectData]);
-              paramIndex++;
-            }
-          });
-
-          if (updateFields.length > 0) {
-            const updateProjectQuery = `
-              UPDATE public."projects" SET
-              ${updateFields.join(', ')}
-              WHERE "external_ebp_id" = $${paramIndex}
-              RETURNING "external_ebp_id" as reference
-            `;
-
-            updateValues.push(dealData.Id);
-
-            projectResult = await this.queryService
-              .executeQuery<{
-                reference: string;
-              }>(updateProjectQuery, updateValues)
-              .catch((err) => {
-                const errorMessage =
-                  err instanceof Error ? err.message : String(err);
-                this.logger.error(
-                  `Erreur lors de la mise à jour du projet: ${errorMessage}`,
-                );
-                // En cas d'erreur, annuler la transaction et sortir
-                throw err; // Propager l'erreur pour être traitée dans le bloc catch externe
-              });
-          } else {
-            // Pas de champs à mettre à jour
-            projectResult = { rows: [{ reference: dealData.Id }] };
-          }
-        } else {
-          // Le projet n'existe pas, faire un INSERT
-          const insertProjectQuery = `
-            INSERT INTO public."projects" (
-              ${Object.keys(projectData)
-                .map((k) => `"${k}"`)
-                .join(', ')}
-            ) VALUES (
-              ${Object.keys(projectData)
-                .map((_, i) => `$${i + 1}`)
-                .join(', ')}
-            )
-            RETURNING "external_ebp_id" as reference
-          `;
-
-          projectResult = await this.queryService
-            .executeQuery<{
-              reference: string;
-            }>(insertProjectQuery, Object.values(projectData))
-            .catch((err) => {
-              const errorMessage =
-                err instanceof Error ? err.message : String(err);
-              this.logger.error(
-                `Erreur lors de l'insertion du projet: ${errorMessage}`,
-              );
-              // En cas d'erreur, annuler la transaction et sortir
-              throw err; // Propager l'erreur pour être traitée dans le bloc catch externe
-            });
-        }
-
-        // Utiliser une référence par défaut si quelque chose a mal tourné (mais cette ligne ne devrait jamais être atteinte en cas d'erreur maintenant)
-        const reference =
-          (projectResult?.rows?.[0]?.reference as string) || dealData.Id;
-
-        await this.queryService.executeQuery('COMMIT');
-        this.logger.log(`Affaire ${dealData.Id} synchronisée avec succès`);
-
-        return typeof reference === 'string' ? reference : String(reference);
-      } catch (error) {
-        this.logger.error(
-          `Erreur lors de l'opération sur le projet: ${error instanceof Error ? error.message : String(error)}`,
-          error instanceof Error ? error.stack : undefined,
-        );
-        // S'assurer que la transaction est annulée en cas d'erreur
+        // Annuler la transaction et retourner null car on ne peut pas insérer le projet sans client
         await this.queryService.executeQuery('ROLLBACK');
         return null;
       }
-    } catch (error) {
-      // S'assurer que toute erreur non gérée conduit à un ROLLBACK
-      try {
-        await this.queryService.executeQuery('ROLLBACK');
-      } catch (rollbackError) {
-        this.logger.error(
-          `Erreur lors du ROLLBACK: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+
+      // Si clientId est toujours null ici (client existant non trouvé ET création échouée),
+      // cela signifie que le client n'a pas pu être associé. Annuler la transaction et ignorer l'affaire.
+      if (clientId === null) {
+        this.logger.warn(
+          `Impossible de trouver ou créer un client pour l'affaire ${dealData.Id}. L'affaire sera ignorée.`,
         );
+        await this.queryService.executeQuery('ROLLBACK');
+        return null; // Ne pas insérer le projet
       }
 
+      // 2. Convertir l'affaire en projet en utilisant le clientId trouvé ou créé
+      const projectData = this.dealMapper.map(dealData, clientId);
+
+      // 3. Insérer ou mettre à jour le projet
+      const insertProjectQuery = `
+        INSERT INTO public."projects" (
+          "client_id", "name", "reference", "description", "start_date", "end_date",
+          "status", "deal_id", "created_at", "updated_at", "synced_at", "synced_by_device_id"
+        ) VALUES (
+          ${clientId},
+          '${projectData.name?.replace(/'/g, "''")}',
+          '${dealData.Id}',
+          ${projectData.description ? `'${projectData.description.replace(/'/g, "''")}'` : 'NULL'},
+          '${dealData.DealDate.toISOString()}',
+          ${dealData.xx_DateFin ? `'${dealData.xx_DateFin.toISOString()}'` : 'NULL'},
+          '${projectData.status || 'prospect'}',
+          '${dealData.Id}',
+          NOW(),
+          NOW(),
+          NOW(),
+          'sync_service'
+        )
+        ON CONFLICT ("deal_id") DO UPDATE SET
+          "client_id" = EXCLUDED."client_id",
+          "name" = EXCLUDED."name",
+          "reference" = EXCLUDED."reference",
+          "description" = EXCLUDED."description",
+          "start_date" = EXCLUDED."start_date",
+          "end_date" = EXCLUDED."end_date",
+          "status" = EXCLUDED."status",
+          "updated_at" = NOW(),
+          "synced_at" = NOW(),
+          "synced_by_device_id" = 'sync_service';
+      `;
+
+      await this.queryService.executeQuery(insertProjectQuery);
+
+      // Committer la transaction
+      await this.queryService.executeQuery('COMMIT');
+      this.logger.log(`Affaire ${dealData.Id} synchronisée avec succès`);
+      return dealData.Id;
+    } catch (transactionError) {
+      // Annuler la transaction en cas d'erreur
+      await this.queryService.executeQuery('ROLLBACK');
       this.logger.error(
-        `Erreur lors de l'insertion de l'affaire: ${dealData.Id}`,
-        error instanceof Error ? error.message : String(error),
-        error instanceof Error ? error.stack : undefined,
+        `Erreur de transaction lors de la synchronisation de l'affaire ${dealData.Id}: ${transactionError instanceof Error ? transactionError.message : String(transactionError)}`,
       );
       return null;
     }
@@ -392,7 +387,7 @@ export default class EBPDeal {
         CREATE TABLE IF NOT EXISTS public."clients" (
           "id" SERIAL PRIMARY KEY,
           "name" VARCHAR(255) NOT NULL,
-          "external_ebp_customer_id" VARCHAR(50) UNIQUE,
+          "customer_id" VARCHAR(50) UNIQUE,
           "email" VARCHAR(255),
           "phone" VARCHAR(50),
           "address" VARCHAR(255),
@@ -407,6 +402,7 @@ export default class EBPDeal {
       const createProjectsTable = `
         CREATE TABLE IF NOT EXISTS public."projects" (
           "id" SERIAL PRIMARY KEY,
+          "project_id" VARCHAR(255),
           "external_ebp_id" VARCHAR(50) UNIQUE,
           "name" VARCHAR(255) NOT NULL,
           "reference" VARCHAR(100),
@@ -441,444 +437,267 @@ export default class EBPDeal {
   }
 
   /**
-   * Synchronise les clients depuis EBP vers l'application
+   * Synchronise les clients depuis EBP vers la base App
+   *
+   * @returns boolean - True si la synchronisation s'est déroulée sans erreurs majeures, false sinon.
    */
   async syncClientsFromEBP(): Promise<boolean> {
+    this.logger.log('Début de syncClientsFromEBP');
+    let success = true;
     try {
-      // Vérifier que la table clients existe
-      const tablesReady = await this.createTablesIfNotExist();
-      if (!tablesReady) {
-        this.logger.error('Impossible de créer la table clients');
-        return false;
-      }
-
       // Récupérer tous les clients depuis EBP
-      const ebpClientsResult = await pgClientSource.executeQuery(`
-        SELECT * FROM "Customer"
-      `);
+      const ebpClientsResult = await pgClientSource.executeQuery(
+        `SELECT * FROM "Customer"`,
+      );
+
+      const ebpClients = ebpClientsResult as Customer[]; // Assertion de type pour travailler avec l'interface Customer
 
       this.logger.log(
-        `Récupération de ${ebpClientsResult.length} clients depuis EBP`,
+        `Récupération de ${ebpClients.length} clients depuis EBP`,
       );
 
       // Insérer ou mettre à jour chaque client dans la table clients
       let successCount = 0;
-      for (const ebpClient of ebpClientsResult) {
+      for (const ebpClient of ebpClients) {
         try {
           // Normaliser l'ID du client pour éviter les problèmes de casse
           const clientId = ebpClient.Id ? String(ebpClient.Id).trim() : null;
 
           if (!clientId) {
             this.logger.warn(`Client sans ID ignoré`);
-            continue;
+            continue; // Ignorer ce client et passer au suivant
           }
 
-          this.logger.log(`Traitement du client EBP: ${clientId}`);
+          // Log de l'ID du client EBP pour le suivi
+          this.logger.log(`Traitement du client EBP avec ID: ${clientId}`);
 
-          // Vérifier si le client existe déjà (recherche insensible à la casse)
-          const checkQuery = `
-            SELECT "id", "external_ebp_customer_id", "name" 
-            FROM public."clients" 
-            WHERE LOWER("external_ebp_customer_id") = LOWER($1)
-          `;
+          // Rechercher le client dans notre base par son customer_id
+          const existingClient =
+            await this.queryService.executeQuery<ClientResultRow>(
+              `SELECT "id", "customer_id" FROM public."clients" WHERE "customer_id" = $1`, // Ajout de customer_id dans SELECT
+              [clientId],
+            );
 
-          const existingClient = await this.queryService.executeQuery<{
-            id: string;
-            external_ebp_customer_id: string;
-            name: string;
-          }>(checkQuery, [clientId]);
-
-          // Préparer les données du client
-          const clientName = ebpClient.Name || clientId;
-          const clientEmail =
-            ebpClient.Email || `no-email-${clientId}@example.com`;
-          const clientPhone = ebpClient.Phone || null;
-          const clientAddress = ebpClient.FullAddress || null;
+          // Préparer les données du client pour la base App
+          const clientData: Partial<Client> = {
+            customer_id: clientId,
+            company_name: ebpClient.Name, // Mappe Name à company_name
+            firstname: ebpClient.MainInvoicingContact_Firstname ?? undefined,
+            lastname: ebpClient.MainInvoicingContact_Name ?? undefined,
+            email:
+              ebpClient.MainInvoicingContact_Email ||
+              `no-email-${clientId}@example.com`,
+            phone: ebpClient.MainInvoicingContact_Phone || null,
+            siret: ebpClient.Siren || null, // Mappe Siren à siret
+            notes: ebpClient.NotesClear || ebpClient.Notes || null, // Mappe NotesClear ou Notes à notes
+          };
 
           if (existingClient.rows && existingClient.rows.length > 0) {
             // Mettre à jour le client existant
             this.logger.log(
-              `Client trouvé dans la base: ${existingClient.rows[0].external_ebp_customer_id} (ID: ${existingClient.rows[0].id})`,
+              `Client trouvé dans la base: ${existingClient.rows[0].customer_id} (ID: ${existingClient.rows[0].id})`,
             );
 
-            await this.queryService.executeQuery(
-              `UPDATE public."clients" SET 
-                "name" = $1,
-                "email" = $2,
-                "phone" = $3,
-                "address" = $4,
-                "external_ebp_customer_id" = $5,
-                "updated_at" = CURRENT_TIMESTAMP
-              WHERE "id" = $6`,
-              [
-                clientName,
-                clientEmail,
-                clientPhone,
-                clientAddress,
-                clientId, // S'assurer que l'ID est exactement comme dans EBP
-                existingClient.rows[0].id,
-              ],
-            );
-            this.logger.log(`Client ${clientId} mis à jour`);
-          } else {
-            // Essayer une recherche par nom si l'ID ne correspond pas
-            const checkByNameQuery = `
-              SELECT "id", "external_ebp_customer_id", "name" 
-              FROM public."clients" 
-              WHERE LOWER("name") = LOWER($1)
-            `;
+            // Construire la requête UPDATE dynamiquement pour inclure seulement les champs définis
+            const updateFields = Object.keys(clientData)
+              .filter(
+                (key) =>
+                  clientData[key as keyof typeof clientData] !== undefined,
+              ) // Inclure seulement les champs définis
+              .map((key, index) => `"${key}" = $${index + 1}`)
+              .join(', ');
 
-            const existingByName = await this.queryService.executeQuery<{
-              id: string;
-              external_ebp_customer_id: string;
-              name: string;
-            }>(checkByNameQuery, [clientName]);
+            const updateValues = Object.values(clientData).filter(
+              (value) => value !== undefined,
+            ); // Inclure seulement les valeurs définies
 
-            if (existingByName.rows && existingByName.rows.length > 0) {
-              // Mettre à jour l'ID externe du client existant
-              this.logger.log(
-                `Client trouvé par nom: ${existingByName.rows[0].name} (ID: ${existingByName.rows[0].id})`,
-              );
-
+            if (updateFields.length > 0) {
               await this.queryService.executeQuery(
-                `UPDATE public."clients" SET 
-                  "external_ebp_customer_id" = $1,
-                  "email" = $2,
-                  "phone" = $3,
-                  "address" = $4,
+                `UPDATE public."clients" SET
+                  ${updateFields},
                   "updated_at" = CURRENT_TIMESTAMP
-                WHERE "id" = $5`,
-                [
-                  clientId,
-                  clientEmail,
-                  clientPhone,
-                  clientAddress,
-                  existingByName.rows[0].id,
-                ],
+                WHERE "id" = $${updateValues.length + 1}`,
+                [...updateValues, existingClient.rows[0].id],
               );
-              this.logger.log(
-                `Client ${clientName} mis à jour avec l'ID externe ${clientId}`,
-              );
+              successCount++;
             } else {
-              // Créer un nouveau client
+              this.logger.log(
+                `Aucun champ à mettre à jour pour le client ${clientId}`,
+              );
+              successCount++; // Compter comme succès même si pas de mise à jour
+            }
+          } else {
+            // Créer un nouveau client
+            this.logger.log(
+              `Client ${clientId} non trouvé dans la base, création...`,
+            );
+
+            // Construire la requête INSERT dynamiquement
+            const insertFields = Object.keys(clientData)
+              .filter(
+                (key) =>
+                  clientData[key as keyof typeof clientData] !== undefined,
+              ) // Inclure seulement les champs définis
+              .map((key) => `"${key}"`) // Mettre les noms de colonnes entre guillemets
+              .join(', ');
+
+            const insertValuesPlaceholder = Object.keys(clientData)
+              .filter(
+                (key) =>
+                  clientData[key as keyof typeof clientData] !== undefined,
+              ) // Inclure seulement les champs définis
+              .map((_, index) => `$${index + 1}`)
+              .join(', ');
+
+            const insertValues = Object.values(clientData).filter(
+              (value) => value !== undefined,
+            ); // Inclure seulement les valeurs définies
+
+            if (insertFields.length > 0) {
               await this.queryService.executeQuery(
                 `INSERT INTO public."clients" (
-                  "name",
-                  "external_ebp_customer_id",
-                  "email",
-                  "phone",
-                  "address"
-                ) VALUES ($1, $2, $3, $4, $5)`,
-                [clientName, clientId, clientEmail, clientPhone, clientAddress],
+                   ${insertFields},
+                   "created_at",
+                   "updated_at"
+                 ) VALUES (
+                   ${insertValuesPlaceholder},
+                   CURRENT_TIMESTAMP,
+                   CURRENT_TIMESTAMP
+                 )`,
+                insertValues,
               );
-              this.logger.log(
-                `Nouveau client créé: ${clientName} (ID externe: ${clientId})`,
+              successCount++;
+            } else {
+              this.logger.warn(
+                `Aucun champ valide pour créer un nouveau client avec ID ${clientId}`,
               );
+              success = false; // Marquer comme échec si pas de champs pour créer le client
             }
           }
-          successCount++;
         } catch (error) {
           this.logger.error(
             `Erreur lors de la synchronisation du client ${ebpClient.Id}: ${
+              // ebpClient est maintenant typé comme Customer
               error instanceof Error ? error.message : String(error)
             }`,
           );
+          success = false; // Marquer la synchronisation des clients comme échouée si une erreur se produit
         }
       }
 
       this.logger.log(
-        `Synchronisation des clients terminée: ${successCount}/${ebpClientsResult.length} réussis`,
+        `Synchronisation des clients terminée: ${successCount}/${ebpClients.length} réussis`,
       );
-      return true;
+      return success; // Retourner le statut global de succès
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la synchronisation des clients: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Erreur globale lors de la synchronisation des clients: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return false;
+      return false; // Retourner false en cas d'erreur globale
     }
   }
 
   /**
-   * Attend pendant un certain nombre de millisecondes
-   */
-  private async delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Synchronise toutes les affaires EBP vers l'application
-   */
-  async syncAllDeals(): Promise<{
-    processed: number;
-    succeeded: number;
-    failed: number;
-    details: string;
-  }> {
-    this.logger.log('Début de la synchronisation des affaires EBP');
-
-    // Vérifier et créer les tables si nécessaire
-    const tablesReady = await this.createTablesIfNotExist();
-    if (!tablesReady) {
-      return {
-        processed: 0,
-        succeeded: 0,
-        failed: 0,
-        details: 'Erreur: Impossible de créer les tables nécessaires',
-      };
-    }
-
-    // Synchroniser d'abord les clients depuis EBP
-    await this.syncClientsFromEBP();
-
-    try {
-      // Charger les deals depuis EBP
-      const deals = await this.getAllDealsFromEBP();
-
-      let processed = 0;
-      let succeeded = 0;
-      let failed = 0;
-      const errorMessages: string[] = [];
-
-      // Traitement par lots de 25 affaires (plus petit pour éviter les timeouts)
-      const batchSize = 10; // Réduire la taille du lot à 10 au lieu de 25
-      const delayBetweenBatches = 1500; // Augmenter le délai entre les lots à 1.5 secondes
-      this.logger.log(
-        `Traitement de ${deals.length} affaires par lots de ${batchSize} avec ${delayBetweenBatches}ms de délai entre les lots`,
-      );
-
-      // Diviser les affaires en lots
-      const batches: DealInterface[][] = [];
-      for (let i = 0; i < deals.length; i += batchSize) {
-        batches.push(deals.slice(i, i + batchSize));
-      }
-
-      this.logger.log(`Nombre total de lots: ${batches.length}`);
-
-      // Traiter chaque lot
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        this.logger.log(
-          `Début du traitement du lot ${batchIndex + 1}/${batches.length} (${batch.length} affaires)`,
-        );
-
-        // Traitement séquentiel des affaires dans le lot avec gestion des erreurs
-        for (const deal of batch) {
-          try {
-            processed++;
-
-            // Afficher des informations sur l'affaire en cours de traitement
-            this.logger.log(
-              `Traitement de l'affaire ${deal.Id || 'sans ID'} (${processed}/${deals.length})`,
-            );
-
-            // Traiter chaque affaire avec un timeout
-            const dealPromise = this.insertDealIntoApp(deal);
-
-            // Définir un timeout de 15 secondes pour chaque affaire (réduit de 30s)
-            const timeoutPromise = new Promise<null>((_, reject) => {
-              setTimeout(
-                () =>
-                  reject(
-                    new Error(
-                      `Timeout lors du traitement de l'affaire ${deal.Id}`,
-                    ),
-                  ),
-                15000,
-              );
-            });
-
-            // Attendre que l'une des promesses se termine
-            const result = await Promise.race([dealPromise, timeoutPromise]);
-
-            if (result) {
-              succeeded++;
-              this.logger.log(`Succès pour l'affaire ${deal.Id}`);
-            } else {
-              failed++;
-              errorMessages.push(`Échec pour l'affaire ${deal.Id}`);
-              this.logger.warn(`Échec pour l'affaire ${deal.Id}`);
-            }
-          } catch (error) {
-            failed++;
-            const errorMessage =
-              error instanceof Error ? error.message : 'Erreur inconnue';
-            this.logger.error(
-              `Erreur lors du traitement de l'affaire ${deal.Id}: ${errorMessage}`,
-            );
-            errorMessages.push(
-              `Erreur pour l'affaire ${deal.Id}: ${errorMessage}`,
-            );
-
-            // Continuer malgré l'erreur
-            continue;
-          }
-
-          // Log de progression
-          if (processed % 5 === 0 || processed === deals.length) {
-            this.logger.log(
-              `Progression: ${processed}/${deals.length} (${Math.round((processed / deals.length) * 100)}%)`,
-            );
-          }
-        }
-
-        // Log de fin de lot
-        this.logger.log(
-          `Lot ${batchIndex + 1}/${batches.length} terminé: ${succeeded} réussis, ${failed} échoués sur ${processed} traités`,
-        );
-
-        // Attendre un peu entre les lots pour réduire la charge
-        if (batchIndex < batches.length - 1) {
-          this.logger.log(
-            `Attente de ${delayBetweenBatches}ms avant le prochain lot...`,
-          );
-          await this.delay(delayBetweenBatches);
-        }
-      }
-
-      const details =
-        errorMessages.length > 0 ? `Erreurs: ${errorMessages.join('; ')}` : '';
-
-      return {
-        processed,
-        succeeded,
-        failed,
-        details,
-      };
-    } catch (error) {
-      // Attraper les erreurs globales pour éviter que tout le processus ne s'arrête
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Erreur globale lors de la synchronisation: ${errorMessage}`,
-      );
-
-      return {
-        processed: 0,
-        succeeded: 0,
-        failed: 0,
-        details: `Erreur globale: ${errorMessage}`,
-      };
-    }
-  }
-
-  /**
-   * Vérifie et corrige les problèmes de synchronisation des projets avec insertion forcée
+   * Vérifie l'état des projets et tente de corriger ceux qui n'ont pas de client_id
+   *
+   * @returns Promise<{ count: number; fixed: number; }>
    */
   async verifyProjects(): Promise<{
     count: number;
     fixed: number;
   }> {
+    this.logger.log('Début de verifyProjects');
+    let fixedCount = 0;
     try {
-      this.logger.log('Vérification des projets synchronisés');
+      // Récupérer tous les projets sans client_id mais avec deal_id ou external_ebp_id
+      const projectsToVerifyResult = await this.queryService.executeQuery<{
+        id: number;
+        deal_id?: string;
+        external_ebp_id?: string; // Garder pour compatibilité si la colonne existe toujours
+        reference?: string; // Ajouter pour vérification future si nécessaire
+        customer_id?: string; // Ajouter pour vérification future si nécessaire
+      }>(
+        `SELECT id, deal_id, external_ebp_id, reference, customer_id FROM public."projects" WHERE customer_id IS NULL AND (deal_id IS NOT NULL OR external_ebp_id IS NOT NULL)`,
+      );
 
-      // Vérifier le nombre de projets dans la table
-      const countResult = await this.queryService.executeQuery<{
-        count: string;
-      }>('SELECT COUNT(*) as count FROM public."projects"');
+      const projectsToVerify = projectsToVerifyResult.rows || [];
 
-      const projectCount = parseInt(countResult.rows?.[0]?.count || '0', 10);
-      this.logger.log(`Nombre de projets dans la table: ${projectCount}`);
+      this.logger.log(
+        `Trouvé ${projectsToVerify.length} projets à vérifier pour le client_id manquant`,
+      );
 
-      // Si table vide ou presque vide
-      if (projectCount < 100) {
-        this.logger.log('Pas assez de projets, exécution insertion forcée');
+      for (const project of projectsToVerify) {
+        // Déterminer l'ID EBP à utiliser pour la recherche du client
+        const ebpId = project.deal_id || project.external_ebp_id;
 
-        // Récupérer toutes les affaires depuis la base EBP
-        const deals = await this.getAllDealsFromEBP();
-        this.logger.log(
-          `Récupération de ${deals.length} affaires pour insertion forcée`,
-        );
-
-        // Créer un script SQL pour une insertion massive
-        let sqlScript = 'BEGIN;\n';
-        let fixedCount = 0;
-        const batchSize = 50; // Traiter par lots de 50
-
-        for (let i = 0; i < Math.min(deals.length, 500); i++) {
-          const deal = deals[i];
-
-          if (!deal.Id) {
-            continue; // Ignorer les affaires sans ID
-          }
-
-          // Créer des valeurs sécurisées pour l'insertion SQL
-          const name = (deal as any).Name
-            ? (deal as any).Name.replace(/'/g, "''")
-            : `Projet ${deal.Id}`;
-
-          const clientId = deal.xx_Client
-            ? String(deal.xx_Client).replace(/'/g, "''")
-            : null;
-
-          const status = 'PROSPECT';
-
-          // Ajouter l'instruction INSERT
-          sqlScript += `
-INSERT INTO public."projects" ("external_ebp_id", "name", "client_id", "status")
-VALUES ('${deal.Id.replace(/'/g, "''")}', '${name}', ${clientId ? `'${clientId}'` : 'NULL'}, '${status}')
-ON CONFLICT ("external_ebp_id") DO NOTHING;
-`;
-
-          fixedCount++;
-
-          // Exécuter par lots pour éviter des scripts trop volumineux
-          if (
-            fixedCount % batchSize === 0 ||
-            i === Math.min(deals.length, 500) - 1
-          ) {
-            sqlScript += 'COMMIT;';
-
-            this.logger.log(
-              `Exécution du lot ${Math.ceil(fixedCount / batchSize)}/${Math.ceil(Math.min(deals.length, 500) / batchSize)}`,
-            );
-
-            try {
-              await this.queryService.executeQuery(sqlScript);
-              this.logger.log(
-                `Lot inséré avec succès: ${fixedCount} affaires traitées`,
-              );
-            } catch (error) {
-              this.logger.error(
-                `Erreur lors de l'exécution du script SQL: ${error instanceof Error ? error.message : String(error)}`,
-              );
-            }
-
-            // Réinitialiser le script pour le prochain lot
-            sqlScript = 'BEGIN;\n';
-          }
+        if (!ebpId) {
+          this.logger.warn(
+            `Projet ${project.id} sans deal_id ou external_ebp_id, impossible de vérifier le client.`,
+          );
+          continue;
         }
 
-        // Vérifier à nouveau le nombre de projets
-        const newCountResult = await this.queryService.executeQuery<{
-          count: string;
-        }>('SELECT COUNT(*) as count FROM public."projects"');
+        try {
+          // Récupérer l'affaire EBP correspondante
+          const dealEBP = await this.getDealByIdFromEBP(ebpId);
 
-        const newProjectCount = parseInt(
-          newCountResult.rows?.[0]?.count || '0',
-          10,
-        );
+          if (dealEBP && dealEBP.xx_Client) {
+            const clientIdToSearch = String(dealEBP.xx_Client).trim();
 
-        this.logger.log(
-          `Nombre de projets après insertion forcée: ${newProjectCount}`,
-        );
+            // Rechercher le client dans notre base par son customer_id
+            const clientResult =
+              await this.queryService.executeQuery<ClientResultRow>(
+                `SELECT "id", "customer_id" FROM public."clients" WHERE "customer_id" = $1`, // Ajout de customer_id dans SELECT
+                [clientIdToSearch],
+              );
 
-        return {
-          count: newProjectCount,
-          fixed: fixedCount,
-        };
+            if (clientResult.rows && clientResult.rows.length > 0) {
+              const foundClientId = parseInt(clientResult.rows[0].id, 10);
+              // Mettre à jour le projet avec le client_id trouvé
+              await this.queryService.executeQuery(
+                `UPDATE public."projects" SET "customer_id" = $1 WHERE "id" = $2`,
+                [foundClientId, project.id],
+              );
+              this.logger.log(
+                `Projet ${project.id} mis à jour avec le client_id ${foundClientId}.`,
+              );
+              fixedCount++;
+            } else {
+              this.logger.warn(
+                `Client ${clientIdToSearch} (EBP xx_Client) non trouvé dans notre base pour le projet ${project.id}.`,
+              );
+            }
+          } else {
+            this.logger.warn(
+              `Affaire EBP ${ebpId} introuvable ou sans client associé (xx_Client) pour le projet ${project.id}.`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Erreur lors de la vérification du projet ${project.id}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
 
+      const totalProjects = await this.queryService.executeQuery<{
+        count: string;
+      }>(`SELECT COUNT(*) FROM public."projects"`);
+
+      const count = totalProjects.rows
+        ? parseInt(totalProjects.rows[0].count, 10)
+        : 0;
+
+      this.logger.log(
+        `Vérification des projets terminée: ${fixedCount} projets corrigés.`,
+      );
+
       return {
-        count: projectCount,
-        fixed: 0,
+        count,
+        fixed: fixedCount,
       };
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la vérification des projets: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Erreur globale lors de la vérification des projets: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
         count: 0,
@@ -888,7 +707,10 @@ ON CONFLICT ("external_ebp_id") DO NOTHING;
   }
 
   /**
-   * Synchronise rapidement toutes les affaires EBP vers l'application avec des insertions SQL directes
+   * Synchronise rapidement toutes les affaires depuis EBP vers la base App en une seule transaction.
+   * Idéal pour les synchronisations initiales ou massives.
+   *
+   * @returns Promise<{ processed: number; succeeded: number; failed: number; details: string; }>
    */
   async fastSyncAllDeals(): Promise<{
     processed: number;
@@ -896,119 +718,198 @@ ON CONFLICT ("external_ebp_id") DO NOTHING;
     failed: number;
     details: string;
   }> {
-    this.logger.log('Début de la synchronisation rapide des affaires EBP');
+    this.logger.log('Début de fastSyncAllDeals');
+    let processed = 0;
+    let succeeded = 0;
+    let failed = 0;
+    const failedDeals: string[] = [];
 
-    // Vérifier et créer les tables si nécessaire
-    const tablesReady = await this.createTablesIfNotExist();
-    if (!tablesReady) {
-      return {
-        processed: 0,
-        succeeded: 0,
-        failed: 0,
-        details: 'Erreur: Impossible de créer les tables nécessaires',
-      };
-    }
+    // Créer un script SQL pour insérer toutes les affaires en une seule transaction
+    let sqlScript = `BEGIN;
+`;
 
     try {
-      // Charger les deals depuis EBP
-      const deals = await this.getAllDealsFromEBP();
+      // Récupérer toutes les affaires depuis EBP
+      const ebpDealsResult =
+        await pgClientSource.executeQuery(`SELECT * FROM "Deal"`);
+      const ebpDeals = ebpDealsResult as DealInterface[]; // Assertion de type
+      processed = ebpDeals.length;
       this.logger.log(
-        `Récupération de ${deals.length} affaires depuis EBP pour synchronisation rapide`,
+        `Récupération de ${processed} affaires depuis EBP pour fast sync`,
       );
 
-      let processed = 0;
-      let succeeded = 0;
-      let failed = 0;
-      
-      // Créer un script SQL pour insérer toutes les affaires en une seule transaction
-      let sqlScript = 'BEGIN;\n';
+      // Fetch app clients once to create a map for faster lookup
+      const appClientsResult = await this.queryService.executeQuery<{
+        id: number;
+        customer_id: string;
+      }>(`SELECT id, customer_id FROM public."clients"`);
+      const clientMap = new Map(
+        appClientsResult.rows?.map((c) => [c.customer_id.trim(), c.id]),
+      ); // Trim customer_id from DB too
 
-      for (const deal of deals) {
-        if (!deal.Id) {
-          failed++;
-          continue; // Ignorer les affaires sans ID
-        }
-
-        // Extraire les valeurs nécessaires avec échappement pour SQL
+      for (const deal of ebpDeals) {
         const dealId = String(deal.Id).replace(/'/g, "''");
-        const name = (deal as any).Name
-          ? String((deal as any).Name).replace(/'/g, "''")
+        const name = deal.Caption
+          ? String(deal.Caption).replace(/'/g, "''")
           : `Projet ${dealId}`;
 
-        const clientId = deal.xx_Client
-          ? String(deal.xx_Client).replace(/'/g, "''")
+        const ebpClientId = deal.xx_Client
+          ? String(deal.xx_Client).trim()
           : null;
 
-        const reference = (deal as any).Reference
-          ? String((deal as any).Reference).replace(/'/g, "''")
-          : dealId;
+        let internalClientId: number | null = null;
 
-        const description = (deal as any).Description
-          ? String((deal as any).Description).replace(/'/g, "''")
-          : null;
+        // Check if ebpClientId is valid and lookup client
+        if (ebpClientId && ebpClientId !== '') {
+          internalClientId = clientMap.get(ebpClientId) || null;
+          if (internalClientId === null) {
+            this.logger.warn(
+              `Client with customer_id ${ebpClientId} not found in app DB for deal ${dealId}. Skipping project insertion.`,
+            );
+            failed++;
+            failedDeals.push(dealId);
+            continue; // Skip to the next deal
+          }
+        } else {
+          this.logger.warn(
+            `Deal ${dealId} has no valid xx_Client. Skipping project insertion.`,
+          );
+          failed++;
+          failedDeals.push(dealId);
+          continue; // Skip to the next deal
+        }
 
-        // Construire l'instruction INSERT
+        // Mappage du statut EBP (numérique) vers le statut de l'application (enum string)
+        const projectStatus = this.mapEbpDealStateToProjectStatus(
+          deal.DealState,
+        );
+
+        const reference = dealId; // Use dealId for the reference column
+
+        const description =
+          deal.NotesClear || deal.Notes
+            ? String(deal.NotesClear || deal.Notes).replace(/'/g, "''")
+            : null;
+
+        // Calculate start and end dates, handle potential invalid end date
+        const startDateIso = deal.DealDate.toISOString();
+        let endDateValue = 'NULL';
+        if (
+          deal.xx_DateFin &&
+          new Date(deal.xx_DateFin) >= new Date(deal.DealDate)
+        ) {
+          endDateValue = `'${deal.xx_DateFin.toISOString()}'`;
+        } else if (deal.xx_DateFin) {
+          this.logger.warn(
+            `Deal ${dealId} has an end date (${deal.xx_DateFin.toISOString()}) before the start date (${startDateIso}). Setting end_date to NULL.`,
+          );
+        }
+
         sqlScript += `
-INSERT INTO public."projects" (
-  "external_ebp_id", "name", "reference", "description", "status", "client_id"
-) VALUES (
-  '${dealId}', '${name}', '${reference}', ${description ? `'${description}'` : 'NULL'}, 'PROSPECT', ${clientId ? `'${clientId}'` : 'NULL'}
-)
-ON CONFLICT ("external_ebp_id") 
-DO UPDATE SET 
-  "name" = EXCLUDED."name",
-  "reference" = EXCLUDED."reference", 
-  "description" = EXCLUDED."description",
-  "client_id" = EXCLUDED."client_id",
-  "updated_at" = CURRENT_TIMESTAMP;
-`;
-        processed++;
+          INSERT INTO public."projects" (
+            "client_id", "name", "reference", "description", "start_date", "end_date",
+            "status", "created_at", "updated_at" -- Removed synced_at, synced_by_device_id
+          ) VALUES (
+            ${internalClientId}, -- Use internalClientId (number)
+            '${name}',
+            '${reference}', -- Insert dealId into reference
+            ${description ? `'${description}'` : 'NULL'},
+            '${startDateIso}', -- Use calculated start date
+            ${endDateValue}, -- Use calculated end date value
+            '${projectStatus}', -- Utiliser 'prospect' comme état par défaut si null ou vide
+            NOW(),
+            NOW() -- Removed synced_at, synced_by_device_id
+          )
+          ON CONFLICT ("reference") DO UPDATE SET
+            "client_id" = EXCLUDED."client_id",
+            "name" = EXCLUDED."name",
+            "reference" = EXCLUDED."reference",
+            "description" = EXCLUDED."description",
+            "start_date" = EXCLUDED."start_date",
+            "end_date" = EXCLUDED."end_date", -- This will use the calculated end date from the INSERT part
+            "status" = EXCLUDED."status",
+            "updated_at" = NOW(); -- Removed synced_at, synced_by_device_id
+
+        `;
+        succeeded++; // Increment succeeded count as we are adding to the script
       }
 
-      sqlScript += 'COMMIT;';
+      sqlScript += `COMMIT;
+`;
 
       // Exécuter le script pour toutes les affaires en une seule transaction
-      try {
-        this.logger.log(`Exécution de la transaction pour ${processed} affaires`);
-        await this.queryService.executeQuery(sqlScript);
-        succeeded = processed;
-        this.logger.log(`Transaction terminée avec succès pour ${succeeded} affaires`);
-      } catch (error) {
-        failed = processed;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error(`Erreur lors de l'exécution de la transaction: ${errorMessage}`);
-        return {
-          processed,
-          succeeded: 0,
-          failed,
-          details: `Erreur globale: ${errorMessage}`,
-        };
+      if (succeeded > 0) {
+        // Only execute if there are projects to insert
+        try {
+          this.logger.log(
+            `Exécution de la transaction pour ${succeeded} affaires`,
+          );
+          await this.queryService.executeQuery(sqlScript);
+          this.logger.log(
+            `Transaction terminée avec succès pour ${succeeded} affaires`,
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Erreur lors de l'exécution de la transaction: ${errorMessage}`,
+          );
+          // Annuler la transaction en cas d'erreur
+          await this.queryService.executeQuery('ROLLBACK');
+          // If the transaction fails, all succeeded deals in this batch are actually failed
+          failed += succeeded;
+          succeeded = 0;
+
+          return {
+            processed,
+            succeeded: 0,
+            failed: processed, // Mark all as failed on transaction error
+            details: `Erreur lors de l'exécution de la transaction: ${errorMessage}`,
+          };
+        }
+      } else {
+        this.logger.log('No valid deals to insert into projects table.');
       }
 
       return {
         processed,
         succeeded,
         failed,
-        details: '',
+        details:
+          failedDeals.length > 0
+            ? `Failed to process deals: ${failedDeals.join(', ')}`
+            : 'Fast sync completed successfully',
       };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Erreur globale lors de la synchronisation rapide: ${errorMessage}`,
-      );
+      this.logger.error(`Erreur globale lors du fast sync: ${errorMessage}`);
+
+      // Attempt to rollback if BEGIN was executed but COMMIT failed
+      if (sqlScript.startsWith('BEGIN;') && !sqlScript.endsWith('COMMIT;\n')) {
+        try {
+          await this.queryService.executeQuery('ROLLBACK');
+          this.logger.log('Rolled back transaction due to global error.');
+        } catch (rollbackError) {
+          this.logger.error(
+            `Error during rollback: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+          );
+        }
+      }
 
       return {
-        processed: 0,
+        processed: 0, // Cannot determine how many were processed before the global error
         succeeded: 0,
-        failed: 0,
-        details: `Erreur globale: ${errorMessage}`,
+        failed: processed > 0 ? processed : 0, // Assume all processed failed if we know the count, else 0
+        details: `Erreur globale lors du fast sync: ${errorMessage}`,
       };
     }
   }
 
   /**
-   * Point d'entrée principal pour la synchronisation rapide des deals
+   * Exécute une synchronisation rapide de toutes les affaires et clients.
+   *
+   * @returns Promise<{ success: boolean; message: string; stats: { processed: number; succeeded: number; failed: number; }; }>
    */
   async runFastSync(): Promise<{
     success: boolean;
@@ -1019,72 +920,96 @@ DO UPDATE SET
       failed: number;
     };
   }> {
-    try {
-      this.logger.log('Démarrage de la synchronisation rapide des affaires');
+    this.logger.log('Début du fast sync');
 
-      // Synchroniser les clients en premier (cette étape est nécessaire)
-      const clientResult = await this.syncClientsFromEBP();
-      
-      if (!clientResult) {
-        this.logger.warn('Synchronisation des clients terminée avec des avertissements, mais on continue');
-      }
-
-      // Vérifier l'état des projets avant de commencer
-      const { count: projectCountBefore } = await this.verifyProjects();
-      this.logger.log(`Nombre de projets avant synchronisation: ${projectCountBefore}`);
-
-      // Utiliser la méthode rapide pour les deals
-      const startTime = Date.now();
-      const result = await this.fastSyncAllDeals();
-      const endTime = Date.now();
-
-      // Calculer des statistiques de performance
-      const durationSeconds = (endTime - startTime) / 1000;
-      const dealsPerSecond = result.processed > 0 ? (result.processed / durationSeconds).toFixed(2) : '0';
-      
-      // Vérifier si au moins 50% des affaires ont été synchronisées avec succès
-      const successRate =
-        result.processed > 0 ? (result.succeeded / result.processed) * 100 : 0;
-
-      this.logger.log(`Synchronisation terminée en ${durationSeconds.toFixed(2)}s (${dealsPerSecond} affaires/s)`);
-
-      if (successRate >= 50) {
-        return {
-          success: true,
-          message: `Synchronisation terminée avec succès à ${Math.round(successRate)}% en ${durationSeconds.toFixed(2)}s`,
-          stats: {
-            processed: result.processed,
-            succeeded: result.succeeded,
-            failed: result.failed,
-          },
-        };
-      } else {
-        return {
-          success: false,
-          message: `Synchronisation terminée avec un taux de succès faible: ${Math.round(successRate)}%`,
-          stats: {
-            processed: result.processed,
-            succeeded: result.succeeded,
-            failed: result.failed,
-          },
-        };
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Erreur lors de la synchronisation rapide: ${errorMessage}`,
+    // Synchroniser les clients en premier (cette étape est nécessaire)
+    // On ne vérifie plus le résultat ici car syncClientsFromEBP gère ses propres erreurs et logging
+    const clientSyncSuccess = await this.syncClientsFromEBP();
+    if (!clientSyncSuccess) {
+      this.logger.warn(
+        'Client synchronization failed. Proceeding with deal sync might result in more errors.',
       );
+    }
 
+    // Vérifier l'état des projets avant de commencer
+    // const { count: projectCountBefore } = await this.verifyProjects(); // Commented out for potential performance improvement during fast sync
+    // this.logger.log(
+    //   `Nombre de projets avant synchronisation: ${projectCountBefore}`,
+    // );
+
+    // Utiliser la méthode rapide pour les deals
+    const startTime = Date.now();
+    const result = await this.fastSyncAllDeals();
+    const endTime = Date.now();
+
+    // Calculer des statistiques de performance
+    const durationSeconds = (endTime - startTime) / 1000;
+    const dealsPerSecond =
+      result.processed > 0
+        ? (result.processed / durationSeconds).toFixed(2)
+        : '0';
+
+    this.logger.log(
+      `Synchronisation terminée en ${durationSeconds.toFixed(2)}s (${dealsPerSecond} affaires/s)`,
+    );
+
+    // // Vérifier l'état des projets après la synchronisation pour voir si de nouveaux projets ont été ajoutés
+    // const { count: projectCountAfter, fixed: projectsFixedAfter } = await this.verifyProjects(); // Re-run verifyProjects to fix any potential leftovers or inconsistencies
+    // this.logger.log(
+    //   `Nombre de projets après synchronisation: ${projectCountAfter}, ${projectsFixedAfter} corrigés par la vérification post-sync.`,
+    // );
+
+    if (result.failed === 0) {
       return {
-        success: false,
-        message: `Erreur: ${errorMessage}`,
+        success: true,
+        message: `Synchronisation terminée avec succès. ${result.succeeded}/${result.processed} affaires synchronisées en ${durationSeconds.toFixed(2)}s`,
         stats: {
-          processed: 0,
-          succeeded: 0,
-          failed: 0,
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
         },
       };
+    } else {
+      return {
+        success: false,
+        message: `Synchronisation terminée avec des erreurs: ${result.failed} échecs. Détails: ${result.details}`,
+        stats: {
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+        },
+      };
+    }
+  }
+
+  /**
+   * Mappe l'état numérique d'une affaire EBP vers le statut de projet de l'application.
+   * @param ebpDealState L'état numérique de l'affaire EBP.
+   * @returns Le statut de projet correspondant ou 'prospect' par défaut.
+   */
+  private mapEbpDealStateToProjectStatus(ebpDealState?: number): string {
+    switch (ebpDealState) {
+      case 0: // Supposition: Brouillon/Prospect dans EBP
+        return 'prospect';
+      case 1: // Supposition: Devis en cours dans EBP
+        return 'devis_en_cours';
+      case 2: // Supposition: Devis accepté dans EBP
+        return 'devis_accepte';
+      case 3: // Supposition: En préparation dans EBP
+        return 'en_preparation';
+      case 4: // Supposition: En cours dans EBP
+        return 'en_cours';
+      case 5: // Supposition: En pause dans EBP
+        return 'en_pause';
+      case 6: // Supposition: Terminé dans EBP
+        return 'termine';
+      case 7: // Supposition: Annulé dans EBP (basé sur l'erreur précédente)
+        return 'annule';
+      default:
+        this.logger.warn(
+          `Unknown EBP DealState: ${ebpDealState}. Mapping to 'prospect'.`,
+        );
+        return 'prospect'; // Statut par défaut pour les valeurs inconnues
     }
   }
 }

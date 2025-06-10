@@ -4,6 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '../../../hooks/useFetch';
 import { Document } from '@/app/utils/interfaces/document';
 import AccordionItem from '../../../components/AccordionItem';
+import { useRouter } from 'expo-router';
 
 interface ProjectDocumentsProps {
   projectId: string | number;
@@ -18,9 +19,10 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
   onToggle,
   onDocumentPress
 }) => {
+  const router = useRouter();
   // État pour le modal d'image
-  const [imageModalVisible, setImageModalVisible] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  // const [imageModalVisible, setImageModalVisible] = useState(false);
+  // const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   
   // Assurez-vous que le projectId est bien converti en nombre
   const endpoint = `documents/project/${Number(projectId)}`;
@@ -32,14 +34,9 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
 
   // Fonction pour gérer le clic sur un document
   const handleDocumentPress = (document: Document) => {
-    // Si c'est une photo, on ouvre le modal d'image
-    if (document.type === 'photo_chantier' && document.file_path) {
-      setSelectedDocument(document);
-      setImageModalVisible(true);
-    } else {
-      // Sinon, on utilise le comportement par défaut
-      onDocumentPress(document);
-    }
+    // Naviguer vers l'écran de détail du document
+    console.log(`Navigating to document details for ID: ${document.id}`);
+    router.push(`/documents/${document.id}`);
   };
 
   // Fonction pour obtenir l'icône selon le type de document
@@ -101,18 +98,18 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
       <Modal
         animationType="fade"
         transparent={true}
-        visible={imageModalVisible}
-        onRequestClose={() => setImageModalVisible(false)}
+        visible={false}
+        onRequestClose={() => {}}
       >
         <View className="flex-1 bg-black/80 justify-center items-center">
           <TouchableOpacity 
             className="absolute top-10 right-5 z-10"
-            onPress={() => setImageModalVisible(false)}
+            onPress={() => {}}
           >
             <Ionicons name="close-circle" size={40} color="white" />
           </TouchableOpacity>
           
-          {selectedDocument && selectedDocument.file_path && (
+          {/* selectedDocument && selectedDocument.file_path && (
             <View className="p-2 bg-white rounded-lg">
               <Image 
                 source={{ uri: selectedDocument.file_path }} 
@@ -127,7 +124,7 @@ export const ProjectDocuments: React.FC<ProjectDocumentsProps> = ({
                 {selectedDocument.notes || selectedDocument.reference}
               </Text>
             </View>
-          )}
+          ) */}
         </View>
       </Modal>
       

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Customer as ClientEBP } from '../interfaces/clients/clientEBP';
 import { CreateClientWithAddressDto } from '../interfaces/clients/clientApp';
-import EBPclient from './clients/ebpClient';
+import EBPclient, { convertEBPtoAppClient } from './clients/ebpClient';
 import { Item as ItemEBP } from '../interfaces/items/itemEBP';
 import { ItemAPP } from '../interfaces/items/itemAPP';
 import { ProjectEBP } from '../interfaces/projects/projectEBP';
@@ -17,17 +17,6 @@ import {
 } from '../../EBP_interface/ConstructionSite - Projets/constructionSite';
 import { QueryService } from '../services/query.service';
 import { ClientSyncService } from '../services/client-sync.service';
-
-// Interface pour les projets (utilisée par les deals)
-interface Project {
-  id?: number;
-  client_id?: number;
-  external_ebp_id?: string;
-  name?: string;
-  reference?: string;
-  status?: string;
-  [key: string]: any;
-}
 
 // Interface pour typer les erreurs de synchronisation
 export interface SyncErrorDetail {
@@ -45,7 +34,10 @@ export class PgSyncService {
   private queryService: QueryService;
   private clientSyncService: ClientSyncService;
 
-  constructor(queryService: QueryService, clientSyncService: ClientSyncService) {
+  constructor(
+    queryService: QueryService,
+    clientSyncService: ClientSyncService,
+  ) {
     this.queryService = queryService;
     this.clientSyncService = clientSyncService;
     this.ebpProject = new EBPProject(queryService, clientSyncService);
@@ -60,7 +52,7 @@ export class PgSyncService {
   convertEBPClientToAppClient(
     clientEBP: ClientEBP,
   ): CreateClientWithAddressDto {
-    return this.ebpClient.convertToAppClient(clientEBP);
+    return convertEBPtoAppClient(clientEBP);
   }
 
   /**
@@ -69,7 +61,7 @@ export class PgSyncService {
   convertMultipleEBPClientsToAppClients(
     clientsEBP: ClientEBP[],
   ): CreateClientWithAddressDto[] {
-    return this.ebpClient.convertMultipleToAppClient(clientsEBP);
+    return clientsEBP.map((client) => convertEBPtoAppClient(client));
   }
 
   /**
@@ -414,7 +406,9 @@ export class PgSyncService {
   /**
    * Convertit plusieurs affaires EBP en projets format application
    */
-  convertMultipleEBPDealsToAppProjects(dealsEBP: DealInterface[]): Partial<ProjectAPP>[] {
+  convertMultipleEBPDealsToAppProjects(
+    dealsEBP: DealInterface[],
+  ): Partial<ProjectAPP>[] {
     return this.ebpDeal.convertMultipleToAppProject(dealsEBP);
   }
 
@@ -427,6 +421,6 @@ export class PgSyncService {
     failed: number;
     details: string;
   }> {
-    return await this.ebpDeal.syncAllDeals();
+    return await this.ebpDeal.fastSyncAllDeals();
   }
 }
