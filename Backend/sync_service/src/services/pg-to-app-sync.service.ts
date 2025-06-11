@@ -134,9 +134,10 @@ export class PgToAppSyncService {
     const client = await pgClientApp.getClient();
     
     try {
-      await client.query('BEGIN');
+      // Ne pas utiliser de transaction globale pour éviter le rollback en cascade
+      // await client.query('BEGIN');
 
-      // Récupérer les clients depuis la base Sync
+      // Récupérer les clients depuis la base Sync avec gestion avancée des emails
       const syncClients = await pgClient.query(`
         SELECT 
           "Id" as id,
@@ -144,14 +145,26 @@ export class PgToAppSyncService {
           COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
           COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
           CASE
-            WHEN "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
-            THEN "MainInvoicingContact_Email"
-            WHEN "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
-            THEN "MainDeliveryContact_Email"
-            ELSE 'no-email-' || "Id" || '@technidalle.com'
+            WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                 AND TRIM("MainInvoicingContact_Email") != '' 
+                 AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+            THEN TRIM(LOWER("MainInvoicingContact_Email"))
+            WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                 AND TRIM("MainDeliveryContact_Email") != '' 
+                 AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+            THEN TRIM(LOWER("MainDeliveryContact_Email"))
+            ELSE 'no-email-' || REPLACE("Id", ' ', '-') || '@technidalle.com'
           END as email,
-          regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') as phone,
-          regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') as mobile,
+          CASE 
+            WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+            THEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g')
+            ELSE NULL
+          END as phone,
+          CASE 
+            WHEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+            THEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g')
+            ELSE NULL
+          END as mobile,
           "Siren" as siret,
           "NotesClear" as notes,
           "sysModifiedDate" as modified_date
@@ -163,9 +176,32 @@ export class PgToAppSyncService {
       processed = syncClients.rows.length;
       this.logger.log(`${processed} clients à synchroniser`);
 
-      // Insérer ou mettre à jour les clients dans la base App
+      // Map pour suivre les emails déjà traités et éviter les doublons
+      const emailTracker = new Map<string, string>(); // email -> customer_id
+      
+      // Traiter chaque client individuellement (sans transaction globale)
       for (const syncClient of syncClients.rows) {
+        // Transaction individuelle pour chaque client
+        const individualClient = await pgClientApp.getClient();
+        
         try {
+          await individualClient.query('BEGIN');
+
+          // Nettoyer et valider l'email
+          let processedEmail = this.processEmailForClient(syncClient, emailTracker);
+          
+          // Nettoyer et valider le SIRET/SIREN
+          let cleanSiret = null;
+          if (syncClient.siret && syncClient.siret.trim()) {
+            const siretClean = syncClient.siret.replace(/[^0-9]/g, '');
+            // Accepter SIREN (9 chiffres) ou SIRET (14 chiffres)
+            if (siretClean.length === 9 || siretClean.length === 14) {
+              cleanSiret = siretClean;
+            } else {
+              this.logger.warn(`SIRET/SIREN invalide pour client ${syncClient.id}: ${syncClient.siret}`);
+            }
+          }
+
           const insertQuery = `
             INSERT INTO clients (
               customer_id, company_name, firstname, lastname, email, phone, mobile, siret, notes, 
@@ -184,34 +220,35 @@ export class PgToAppSyncService {
             RETURNING id
           `;
 
-          const result = await client.query(insertQuery, [
+          const result = await individualClient.query(insertQuery, [
             syncClient.id,
             syncClient.name || '',
             syncClient.firstname || '',
             syncClient.lastname || '',
-            syncClient.email,
+            processedEmail,
             syncClient.phone || null,
             syncClient.mobile || null,
-            syncClient.siret || null,
+            cleanSiret,
             syncClient.notes || null,
           ]);
 
+          await individualClient.query('COMMIT');
           succeeded++;
           this.logger.debug(`Client ${syncClient.id} synchronisé → app_id: ${result.rows[0]?.id}`);
 
         } catch (error) {
+          await individualClient.query('ROLLBACK');
           failed++;
-          const errorMsg = `Erreur client ${syncClient.id}: ${error instanceof Error ? error.message : String(error)}`;
+          const errorMsg = `Erreur client ${syncClient.name || syncClient.id}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           this.logger.warn(errorMsg);
+        } finally {
+          individualClient.release();
         }
       }
-
-      await client.query('COMMIT');
       this.logger.log(`✅ Clients: ${succeeded}/${processed} synchronisés`);
 
     } catch (error) {
-      await client.query('ROLLBACK');
       const errorMsg = `Erreur lors de la synchronisation des clients: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
       this.logger.error(errorMsg);
@@ -229,6 +266,51 @@ export class PgToAppSyncService {
       errors,
       duration: Date.now() - startTime,
     };
+  }
+
+  /**
+   * Traite et valide l'email d'un client pour éviter les erreurs de contraintes
+   */
+  private processEmailForClient(syncClient: any, emailTracker: Map<string, string>): string {
+    let email = syncClient.email || '';
+
+    // 1. Valider le format de l'email avec une regex conforme à celle de la BD
+    const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+    
+    if (!emailRegex.test(email)) {
+      this.logger.warn(`Email invalide pour client ${syncClient.id}: ${email} → génération d'un email par défaut`);
+      // Nettoyer l'ID client pour l'email (remplacer espaces et caractères spéciaux)
+      const cleanId = syncClient.id.replace(/[^A-Za-z0-9]/g, '-').toLowerCase();
+      email = `no-email-${cleanId}@technidalle.com`;
+    }
+
+    // 2. Nettoyer l'email (supprimer espaces, convertir en minuscules)
+    email = email.trim().toLowerCase();
+
+    // 3. Re-valider après nettoyage
+    if (!emailRegex.test(email)) {
+      const cleanId = syncClient.id.replace(/[^A-Za-z0-9]/g, '-').toLowerCase();
+      email = `no-email-${cleanId}@technidalle.com`;
+      this.logger.warn(`Email re-généré après nettoyage pour client ${syncClient.id}: ${email}`);
+    }
+
+    // 4. Gérer les doublons d'emails
+    if (emailTracker.has(email)) {
+      const existingCustomerId = emailTracker.get(email);
+      this.logger.warn(`Email dupliqué détecté: ${email} (clients ${existingCustomerId} et ${syncClient.id})`);
+      
+      // Créer un email unique en ajoutant l'ID du client nettoyé
+      const [localPart, domain] = email.split('@');
+      const cleanId = syncClient.id.replace(/[^A-Za-z0-9]/g, '-').toLowerCase();
+      email = `${localPart}-${cleanId}@${domain}`;
+      
+      this.logger.log(`Nouvel email généré pour éviter le doublon: ${email}`);
+    }
+
+    // 5. Ajouter l'email au tracker
+    emailTracker.set(email, syncClient.id);
+
+    return email;
   }
 
   /**
@@ -946,6 +1028,295 @@ export class PgToAppSyncService {
     } catch (error) {
       this.logger.error('Erreur lors de la récupération du statut', error);
       throw error;
+    }
+  }
+
+  /**
+   * Nettoie les emails dupliqués et invalides dans la base de données App
+   */
+  async cleanupEmailDuplicates(): Promise<{
+    success: boolean;
+    duplicates_fixed: number;
+    invalid_emails_fixed: number;
+    invalid_phones_fixed: number;
+    normalized_count: number;
+    message: string;
+  }> {
+    const client = await pgClientApp.getClient();
+    
+    try {
+      await client.query('BEGIN');
+
+      this.logger.log('🧹 Début du nettoyage des données clients...');
+
+      // 1. Corriger les emails dupliqués
+      const duplicatesResult = await client.query(`
+        WITH duplicated_emails AS (
+          SELECT 
+            email,
+            COUNT(*) as email_count,
+            MIN(id) as keep_id
+          FROM clients 
+          WHERE email NOT LIKE 'no-email-%@technidalle.com'
+          GROUP BY email 
+          HAVING COUNT(*) > 1
+        ),
+        clients_to_update AS (
+          SELECT 
+            c.id,
+            c.email,
+            c.customer_id,
+            de.keep_id,
+            CASE 
+              WHEN POSITION('@' IN c.email) > 0 THEN
+                SUBSTRING(c.email FROM 1 FOR POSITION('@' IN c.email) - 1) || 
+                '-' || c.customer_id || 
+                SUBSTRING(c.email FROM POSITION('@' IN c.email))
+              ELSE
+                'no-email-' || c.customer_id || '@technidalle.com'
+            END as new_email
+          FROM clients c
+          INNER JOIN duplicated_emails de ON c.email = de.email
+          WHERE c.id != de.keep_id
+        )
+        UPDATE clients 
+        SET 
+          email = ctu.new_email,
+          updated_at = NOW()
+        FROM clients_to_update ctu
+        WHERE clients.id = ctu.id
+      `);
+
+      // 2. Corriger les emails invalides
+      const invalidEmailsResult = await client.query(`
+        UPDATE clients 
+        SET 
+          email = 'no-email-' || customer_id || '@technidalle.com',
+          updated_at = NOW()
+        WHERE email !~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'
+      `);
+
+      // 3. Corriger les numéros de téléphone invalides
+      const invalidPhonesResult = await client.query(`
+        UPDATE clients 
+        SET 
+          phone = CASE 
+            WHEN phone IS NOT NULL AND phone !~ '^[0-9+\\s]{10,15}$' THEN NULL
+            ELSE phone
+          END,
+          mobile = CASE 
+            WHEN mobile IS NOT NULL AND mobile !~ '^[0-9+\\s]{10,15}$' THEN NULL
+            ELSE mobile
+          END,
+          updated_at = NOW()
+        WHERE 
+          (phone IS NOT NULL AND phone !~ '^[0-9+\\s]{10,15}$') OR
+          (mobile IS NOT NULL AND mobile !~ '^[0-9+\\s]{10,15}$')
+      `);
+
+      // 4. Normaliser tous les emails
+      const normalizeResult = await client.query(`
+        UPDATE clients 
+        SET 
+          email = TRIM(LOWER(email)),
+          updated_at = NOW()
+        WHERE email != TRIM(LOWER(email))
+      `);
+
+      // 5. Compter les résultats
+      const countResult = await client.query('SELECT COUNT(*) as total FROM clients');
+
+      await client.query('COMMIT');
+
+      const result = {
+        success: true,
+        duplicates_fixed: duplicatesResult.rowCount || 0,
+        invalid_emails_fixed: invalidEmailsResult.rowCount || 0,
+        invalid_phones_fixed: invalidPhonesResult.rowCount || 0,
+        normalized_count: normalizeResult.rowCount || 0,
+        message: `Nettoyage terminé: ${duplicatesResult.rowCount || 0} doublons, ${invalidEmailsResult.rowCount || 0} emails invalides, ${invalidPhonesResult.rowCount || 0} téléphones invalides corrigés`
+      };
+
+      this.logger.log(`✅ ${result.message}`);
+      return result;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      this.logger.error('❌ Erreur lors du nettoyage des emails', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Validation complète et nettoyage des données avant synchronisation
+   */
+  async validateAndCleanupData(): Promise<{
+    success: boolean;
+    cleanup_performed: boolean;
+    issues_found: string[];
+    cleanup_results?: any;
+  }> {
+    const client = await pgClientApp.getClient();
+    const issues: string[] = [];
+    
+    try {
+      // Vérifier les emails dupliqués
+      const duplicatesCheck = await client.query(`
+        SELECT COUNT(*) as count FROM (
+          SELECT email, COUNT(*) 
+          FROM clients 
+          GROUP BY email 
+          HAVING COUNT(*) > 1
+        ) subq
+      `);
+
+      if (parseInt(duplicatesCheck.rows[0].count) > 0) {
+        issues.push(`${duplicatesCheck.rows[0].count} emails dupliqués détectés`);
+      }
+
+      // Vérifier les emails invalides
+      const invalidEmailsCheck = await client.query(`
+        SELECT COUNT(*) as count 
+        FROM clients 
+        WHERE email !~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'
+      `);
+
+      if (parseInt(invalidEmailsCheck.rows[0].count) > 0) {
+        issues.push(`${invalidEmailsCheck.rows[0].count} emails invalides détectés`);
+      }
+
+      // Vérifier les téléphones invalides
+      const invalidPhonesCheck = await client.query(`
+        SELECT COUNT(*) as count 
+        FROM clients 
+        WHERE 
+          (phone IS NOT NULL AND phone !~ '^[0-9+\\s]{10,15}$') OR
+          (mobile IS NOT NULL AND mobile !~ '^[0-9+\\s]{10,15}$')
+      `);
+
+      if (parseInt(invalidPhonesCheck.rows[0].count) > 0) {
+        issues.push(`${invalidPhonesCheck.rows[0].count} numéros de téléphone invalides détectés`);
+      }
+
+      // Si des problèmes sont détectés, effectuer le nettoyage
+      if (issues.length > 0) {
+        this.logger.warn(`⚠️ Problèmes détectés: ${issues.join(', ')}`);
+        const cleanupResults = await this.cleanupEmailDuplicates();
+        
+        return {
+          success: true,
+          cleanup_performed: true,
+          issues_found: issues,
+          cleanup_results: cleanupResults
+        };
+      }
+
+      return {
+        success: true,
+        cleanup_performed: false,
+        issues_found: [],
+      };
+
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la validation des données', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Synchronisation complète intelligente avec validation et nettoyage automatique
+   */
+  async syncCompleteWithValidation(): Promise<SyncResult> {
+    const startTime = Date.now();
+    let totalProcessed = 0;
+    let totalSucceeded = 0;
+    let totalFailed = 0;
+    const errors: string[] = [];
+
+    try {
+      this.logger.log('🚀 Démarrage de la synchronisation intelligente PostgreSQL Sync → App');
+
+      // 1. Validation et nettoyage préliminaire
+      this.logger.log('🔍 Étape 0: Validation et nettoyage des données existantes');
+      const validation = await this.validateAndCleanupData();
+      
+      if (validation.cleanup_performed) {
+        this.logger.log(`🧹 Nettoyage effectué: ${validation.cleanup_results?.message}`);
+      } else {
+        this.logger.log('✅ Aucun nettoyage nécessaire');
+      }
+
+      // 2. Synchroniser les clients
+      this.logger.log('📋 Étape 1: Synchronisation des clients');
+      const clientsResult = await this.syncClients();
+      totalProcessed += clientsResult.processed;
+      totalSucceeded += clientsResult.succeeded;
+      totalFailed += clientsResult.failed;
+      errors.push(...clientsResult.errors);
+
+      // 3. Synchroniser les adresses
+      this.logger.log('📍 Étape 2: Synchronisation des adresses');
+      const addressesResult = await this.syncAddresses();
+      totalProcessed += addressesResult.processed;
+      totalSucceeded += addressesResult.succeeded;
+      totalFailed += addressesResult.failed;
+      errors.push(...addressesResult.errors);
+
+      // 4. Synchroniser les projets
+      this.logger.log('🏗️ Étape 3: Synchronisation des projets');
+      const projectsResult = await this.syncProjects();
+      totalProcessed += projectsResult.processed;
+      totalSucceeded += projectsResult.succeeded;
+      totalFailed += projectsResult.failed;
+      errors.push(...projectsResult.errors);
+
+      // 5. Synchroniser les matériaux
+      this.logger.log('📦 Étape 4: Synchronisation des matériaux');
+      const materialsResult = await this.syncMaterials();
+      totalProcessed += materialsResult.processed;
+      totalSucceeded += materialsResult.succeeded;
+      totalFailed += materialsResult.failed;
+      errors.push(...materialsResult.errors);
+
+      // 6. Synchroniser les documents
+      this.logger.log('📄 Étape 5: Synchronisation des documents');
+      const documentsResult = await this.syncDocuments();
+      totalProcessed += documentsResult.processed;
+      totalSucceeded += documentsResult.succeeded;
+      totalFailed += documentsResult.failed;
+      errors.push(...documentsResult.errors);
+
+      const duration = Date.now() - startTime;
+      const successRate = totalProcessed > 0 ? Math.round((totalSucceeded / totalProcessed) * 100) : 0;
+
+      this.logger.log(`✅ Synchronisation terminée: ${totalSucceeded}/${totalProcessed} (${successRate}%) en ${duration}ms`);
+
+      return {
+        success: totalFailed === 0,
+        processed: totalProcessed,
+        succeeded: totalSucceeded,
+        failed: totalFailed,
+        errors,
+        duration,
+      };
+
+    } catch (error) {
+      const errorMsg = `Erreur lors de la synchronisation complète: ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(errorMsg);
+      this.logger.error(errorMsg);
+
+      return {
+        success: false,
+        processed: totalProcessed,
+        succeeded: totalSucceeded,
+        failed: totalProcessed - totalSucceeded,
+        errors,
+        duration: Date.now() - startTime,
+      };
     }
   }
 } 

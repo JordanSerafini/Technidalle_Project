@@ -18,6 +18,7 @@ import { SyncModule } from './sync/sync.module';
     AppService,
     QueryService,
     ClientSyncService,
+    PgToAppSyncService,
     PgSyncService,
     EbpDocumentsService,
   ],

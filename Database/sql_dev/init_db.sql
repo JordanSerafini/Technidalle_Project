@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS clients (
     phone VARCHAR(20) CHECK (phone ~ '^[0-9+\s]{10,15}$'),
     mobile VARCHAR(20) CHECK (mobile ~ '^[0-9+\s]{10,15}$'),
     address_id INTEGER, -- Adresse principale (obsolète mais conservée pour rétrocompatibilité)
-    siret VARCHAR(14) CHECK (siret ~ '^[0-9]{14}$'),
+    siret VARCHAR(14) CHECK (siret IS NULL OR siret ~ '^[0-9]{9,14}$'),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

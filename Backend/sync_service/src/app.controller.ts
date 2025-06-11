@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Param, Logger, Res, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { UnifiedSyncService } from './services/unified-sync.service';
+import { PgToAppSyncService } from './services/pg-to-app-sync.service';
 import { Response } from 'express';
 import { SyncOptions } from './interfaces/sync/unified-project.interface';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -18,7 +19,8 @@ export class AppController {
 
   constructor(
     private readonly appService: AppService,
-    private readonly unifiedSyncService: UnifiedSyncService
+    private readonly unifiedSyncService: UnifiedSyncService,
+    private readonly pgToAppSyncService: PgToAppSyncService,
   ) {}
 
   @Get()
@@ -520,6 +522,205 @@ export class AppController {
       return {
         success: false,
         message: 'Erreur lors de la récupération du statut de synchronisation',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  // ================================
+  // NOUVEAUX ENDPOINTS POSTGRES → APP
+  // ================================
+
+  @Post('sync/pg-to-app/complete')
+  @ApiOperation({ summary: 'Synchronisation complète intelligente PostgreSQL Sync → App (avec validation et nettoyage automatique)' })
+  @ApiResponse({ status: 200, description: 'Synchronisation réussie' })
+  @ApiResponse({ status: 500, description: 'Erreur lors de la synchronisation' })
+  async syncPgToAppComplete(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('🚀 Démarrage de la synchronisation complète intelligente PostgreSQL Sync → App');
+      
+      const result = await this.pgToAppSyncService.syncCompleteWithValidation();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Synchronisation PostgreSQL → App réussie: ${result.succeeded}/${result.processed} éléments en ${result.duration}ms`
+          : `❌ Synchronisation PostgreSQL → App échouée: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          summary: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            duration_ms: result.duration,
+            success_rate: result.processed > 0 ? Math.round((result.succeeded / result.processed) * 100) : 0
+          },
+          errors: result.errors.length > 0 ? result.errors.slice(0, 10) : []
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur fatale lors de la synchronisation PostgreSQL → App', error);
+      return {
+        success: false,
+        message: 'Erreur fatale lors de la synchronisation PostgreSQL → App',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/clients')
+  @ApiOperation({ summary: 'Synchronisation des clients PostgreSQL Sync → App' })
+  async syncPgToAppClients(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('📋 Synchronisation des clients PostgreSQL Sync → App');
+      
+      const result = await this.pgToAppSyncService.syncClients();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Clients synchronisés: ${result.succeeded}/${result.processed} en ${result.duration}ms`
+          : `❌ Erreur clients: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          duration_ms: result.duration,
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la synchronisation des clients', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des clients',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/projects')
+  @ApiOperation({ summary: 'Synchronisation des projets (Deals + ConstructionSite) PostgreSQL Sync → App' })
+  async syncPgToAppProjects(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('🏗️ Synchronisation des projets PostgreSQL Sync → App');
+      
+      const result = await this.pgToAppSyncService.syncProjects();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Projets synchronisés: ${result.succeeded}/${result.processed} en ${result.duration}ms`
+          : `❌ Erreur projets: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          duration_ms: result.duration,
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la synchronisation des projets', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des projets',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/documents')
+  @ApiOperation({ summary: 'Synchronisation des documents avec lignes PostgreSQL Sync → App' })
+  async syncPgToAppDocuments(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('📄 Synchronisation des documents avec lignes PostgreSQL Sync → App');
+      
+      const result = await this.pgToAppSyncService.syncDocuments();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Documents synchronisés: ${result.succeeded}/${result.processed} en ${result.duration}ms`
+          : `❌ Erreur documents: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          duration_ms: result.duration,
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la synchronisation des documents', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des documents',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/materials')
+  @ApiOperation({ summary: 'Synchronisation des matériaux PostgreSQL Sync → App' })
+  async syncPgToAppMaterials(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('📦 Synchronisation des matériaux PostgreSQL Sync → App');
+      
+      const result = await this.pgToAppSyncService.syncMaterials();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Matériaux synchronisés: ${result.succeeded}/${result.processed} en ${result.duration}ms`
+          : `❌ Erreur matériaux: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          duration_ms: result.duration,
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la synchronisation des matériaux', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation des matériaux',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Get('sync/pg-to-app/status')
+  @ApiOperation({ summary: 'Statut de la synchronisation PostgreSQL Sync → App' })
+  async getPgToAppSyncStatus(): Promise<SyncOperationResponse> {
+    try {
+      const status = await this.pgToAppSyncService.getSyncStatus();
+      
+      return {
+        success: true,
+        message: 'Statut de synchronisation PostgreSQL → App récupéré',
+        data: {
+          sync_status: status,
+          available_endpoints: [
+            'POST /sync/pg-to-app/complete',
+            'POST /sync/pg-to-app/clients',
+            'POST /sync/pg-to-app/projects',
+            'POST /sync/pg-to-app/documents',
+            'POST /sync/pg-to-app/materials'
+          ],
+          service_info: {
+            name: 'PostgreSQL Sync → App Service',
+            version: '2.0.0',
+            description: 'Service amélioré pour la synchronisation entre PostgreSQL Sync et PostgreSQL App'
+          }
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la récupération du statut PostgreSQL → App', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la récupération du statut',
         error: (error as Error).message,
       };
     }
