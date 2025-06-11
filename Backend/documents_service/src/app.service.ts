@@ -528,7 +528,7 @@ export class AppService {
           name: document.projects.name,
           description: document.projects.description,
           client_id: document.projects.client_id,
-          status: document.projects.status,
+          status: document.projects.status || 'prospect',
           start_date: document.projects.start_date,
           end_date: document.projects.end_date,
           estimated_duration: document.projects.estimated_duration,

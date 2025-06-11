@@ -7,6 +7,7 @@ import {
   ProjectMedia,
   CreateProjectMediaDto,
   UpdateProjectMediaDto,
+  DocumentDetails,
 } from './interfaces/document.interface';
 import { MessagePattern } from '@nestjs/microservices';
 
@@ -202,6 +203,19 @@ export class AppController {
         error,
       );
       return false;
+    }
+  }
+
+  @MessagePattern({ cmd: 'get_document_details' })
+  async getDocumentDetails(data: { id: number }): Promise<DocumentDetails | null> {
+    try {
+      return await this.appService.getDocumentDetails(data.id);
+    } catch (error) {
+      console.error(
+        `Erreur lors de la récupération des détails du document ${data.id}:`,
+        error,
+      );
+      return null;
     }
   }
 }
