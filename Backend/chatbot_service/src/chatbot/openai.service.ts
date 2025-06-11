@@ -50,12 +50,20 @@ ${tableSchema}
 
 MAPPINGS DE CONCEPTS MÉTIER:
 - "utilisateurs" peut référer aux tables: clients, staff
-- "projets" peut référer à: projects
+- "chantiers" ou "projets" peut référer à: projects
 - "véhicules" peut référer à: vehicles
 - "matériaux" peut référer à: materials
 - "tâches" peut référer à: tasks
 - "événements" peut référer à: events
 - "rapports" peut référer à: site_reports
+- "retard" souvent lié aux dates: regarder les colonnes de dates dans projects, tasks
+- "en cours" : chercher les statuts actifs dans projects ou project_stages
+
+VALEURS ENUM IMPORTANTES:
+- projects.status: 'prospect', 'devis_en_cours', 'devis_accepte', 'en_cours', 'termine', 'annule'
+- Pour les chantiers en retard: status = 'en_cours' AND end_date < CURRENT_DATE
+- Pour les chantiers en cours: status = 'en_cours'
+- Pour les chantiers terminés: status = 'termine'
 
 Règles importantes:
 - Génère uniquement des requêtes SELECT (lecture seule)

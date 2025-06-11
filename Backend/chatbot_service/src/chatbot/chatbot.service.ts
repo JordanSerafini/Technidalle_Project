@@ -51,7 +51,7 @@ Instructions importantes:
 Réponds toujours en français et sois professionnel mais accessible.`,
           },
         ],
-        database: request.database || 'sync', // Par défaut
+        database: request.database || 'app', // Par défaut
       };
       this.conversations.set(conversationId, conversation);
     }
@@ -157,7 +157,9 @@ Réponds toujours en français et sois professionnel mais accessible.`,
       'combien', 'nombre', 'count', 'liste', 'affiche', 'montre', 'trouve',
       'recherche', 'select', 'où', 'when', 'quand', 'données', 'data',
       'statistique', 'moyenne', 'maximum', 'minimum', 'total', 'somme',
-      'derniers', 'premiers', 'récents'
+      'derniers', 'premiers', 'récents', 'quel', 'quels', 'quelle', 'quelles',
+      'chantiers', 'projets', 'clients', 'véhicules', 'tâches', 'retard', 
+      'en cours', 'terminé', 'fini', 'avancement', 'état', 'statut'
     ];
 
     return queryKeywords.some(keyword => 
