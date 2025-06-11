@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { url as urlConfig } from '@/app/utils/url';
 
 export interface DocumentLine {
@@ -99,36 +99,97 @@ export interface DocumentDetails {
   total_ttc: number;
 }
 
-export const useDocumentDetails = (documentId: string | string[]) => {
-  const [document, setDocument] = useState<DocumentDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface DocumentDetailsState {
+  document: DocumentDetails | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+export const useDocumentDetails = (documentId: string | string[] | null) => {
+  const [state, setState] = useState<Omit<DocumentDetailsState, 'refetch'>>({
+    document: null,
+    loading: true,
+    error: null,
+  });
+
+  // Utiliser un refresh token pour forcer le rafraîchissement des données
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  const fetchDocumentDetails = useCallback(async () => {
+    // Si l'documentId est null, ne rien faire
+    if (!documentId) {
+      setState({ document: null, loading: false, error: null });
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+
+      // Construire l'URL avec le paramètre de rafraîchissement
+      const url = `${urlConfig.local}documents/${documentId}/details?refreshToken=${refreshToken}`;
+
+      console.log('Fetch Document Details URL:', url);
+
+      const requestOptions: RequestInit = {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'TechnidalleMobileApp/1.0',
+        },
+        signal: abortController.signal,
+      };
+
+      const response = await fetch(url, requestOptions);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Document details reçu:', data.reference || 'Pas de référence');
+      
+      if (!abortController.signal.aborted) {
+        setState({
+          document: data,
+          loading: false,
+          error: null,
+        });
+      }
+    } catch (error) {
+      console.error('Erreur de fetch document details:', error);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      if (!abortController.signal.aborted) {
+        setState({
+          document: null,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Une erreur est survenue',
+        });
+      }
+    }
+
+    return () => {
+      abortController.abort();
+    };
+  }, [documentId, refreshToken]);
 
   useEffect(() => {
-    const fetchDocumentDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    fetchDocumentDetails();
+  }, [fetchDocumentDetails]);
 
-        const response = await fetch(`${urlConfig.local}documents/${documentId}/details`);
-        
-        if (!response.ok) {
-          throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-        }
+  // Ajouter la fonction refetch pour forcer un nouveau chargement
+  const refetch = useCallback(() => {
+    setRefreshToken(prev => prev + 1);
+  }, []);
 
-        const data = await response.json();
-        setDocument(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Une erreur est survenue');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (documentId) {
-      fetchDocumentDetails();
-    }
-  }, [documentId]);
-
-  return { document, loading, error };
+  return {
+    ...state,
+    refetch
+  };
 }; 
