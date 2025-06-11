@@ -42,6 +42,31 @@ export class OpenaiService {
     }
   }
 
+  async generateSqlQueryWithPrompt(contextualPrompt: string, userQuestion: string): Promise<string> {
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: contextualPrompt
+          },
+          {
+            role: 'user',
+            content: userQuestion
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+      });
+
+      return completion.choices[0]?.message?.content?.trim() || 'ERREUR: Pas de réponse générée';
+    } catch (error) {
+      console.error('Erreur OpenAI:', error);
+      return 'ERREUR: Impossible de générer la requête SQL';
+    }
+  }
+
   async generateSqlQuery(userQuestion: string, tableSchema: string): Promise<string> {
     const systemPrompt = `Tu es un expert en SQL qui aide à générer des requêtes PostgreSQL précises.
     

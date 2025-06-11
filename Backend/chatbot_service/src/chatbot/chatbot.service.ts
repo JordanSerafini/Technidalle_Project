@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { OpenaiService } from './openai.service';
 import { DatabaseService } from './database.service';
+import { EnhancedPromptsService } from './enhanced-prompts.service';
+import { ConversationContextService } from './conversation-context.service';
+import { ResponseFormatterService } from './response-formatter.service';
 import { ChatRequest, ChatResponse } from './dto/chat.dto';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,41 +20,47 @@ export class ChatbotService {
   constructor(
     private openaiService: OpenaiService,
     private databaseService: DatabaseService,
+    private enhancedPromptsService: EnhancedPromptsService,
+    private conversationContextService: ConversationContextService,
+    private responseFormatterService: ResponseFormatterService,
   ) {}
 
   async processMessage(request: ChatRequest): Promise<ChatResponse> {
     const conversationId = request.conversationId || uuidv4();
-    let conversation = this.conversations.get(conversationId);
+    const startTime = Date.now();
+    
+    // Créer ou récupérer la session de conversation
+    let session = this.conversationContextService.getSession(conversationId);
+    if (!session) {
+      session = this.conversationContextService.createSession(request.userId || 'anonymous', conversationId);
+    }
 
+    // Détecter le type de question et suggérer la base de données
+    const queryType = this.enhancedPromptsService.detectQuestionType(request.message);
+    const suggestedDatabase = this.enhancedPromptsService.suggestDatabase(request.message);
+    const activeDatabase = request.database || suggestedDatabase;
+
+    // Ajouter le message utilisateur au contexte
+    this.conversationContextService.addMessage(conversationId, 'user', request.message, {
+      queryType,
+      database: activeDatabase
+    });
+
+    // Récupérer le contexte de conversation
+    const contextInfo = this.conversationContextService.getContextualInfo(conversationId);
+
+    // Maintenir la compatibilité avec l'ancien système
+    let conversation = this.conversations.get(conversationId);
     if (!conversation) {
       conversation = {
         id: conversationId,
         messages: [
           {
             role: 'system',
-            content: `Tu es un assistant intelligent qui aide les utilisateurs à interroger des bases de données PostgreSQL.
-
-Tu as accès à deux bases de données:
-- "sync": Base de données de synchronisation (postgres_sync)
-- "app": Base de données applicative (postgres_app)
-
-Tu peux:
-1. Répondre aux questions générales sur les données
-2. Générer et exécuter des requêtes SQL pour répondre aux questions spécifiques
-3. Analyser les données et fournir des statistiques
-4. Expliquer la structure des tables
-
-Instructions importantes:
-- Demande quelle base de données utiliser si ce n'est pas précisé
-- Génère uniquement des requêtes SELECT (lecture seule)
-- Explique tes réponses de manière claire et structurée
-- Si une requête échoue, propose une alternative ou demande des clarifications
-- Fournis du contexte sur les données quand c'est pertinent
-
-Réponds toujours en français et sois professionnel mais accessible.`,
+            content: this.enhancedPromptsService.getBusinessPrompt(),
           },
         ],
-        database: request.database || 'app', // Par défaut
+        database: activeDatabase,
       };
       this.conversations.set(conversationId, conversation);
     }
@@ -64,7 +73,7 @@ Réponds toujours en français et sois professionnel mais accessible.`,
     // Ajouter le message de l'utilisateur
     conversation.messages.push({
       role: 'user',
-      content: request.message,
+      content: request.message + (contextInfo ? `\n\nCONTEXTE:\n${contextInfo}` : ''),
     });
 
     try {
@@ -170,33 +179,98 @@ Réponds toujours en français et sois professionnel mais accessible.`,
   }
 
   private async handleDatabaseQuery(conversation: ConversationContext, userMessage: string): Promise<string> {
+    const startTime = Date.now();
+    const conversationId = conversation.id;
+    let success = false;
+    let queryType = 'general';
+
     try {
+      // Détecter le type de question pour un meilleur prompt
+      queryType = this.enhancedPromptsService.detectQuestionType(userMessage);
+      
       // Obtenir le schéma de la base de données
       const schema = await this.databaseService.getTableSchema(conversation.database);
 
-      // Générer la requête SQL avec OpenAI
-      const sqlQuery = await this.openaiService.generateSqlQuery(userMessage, schema);
+      // Générer un prompt contextuel amélioré
+      const contextualPrompt = this.enhancedPromptsService.generateContextualPrompt(userMessage, schema);
+
+      // Générer la requête SQL avec le prompt amélioré
+      const sqlQuery = await this.openaiService.generateSqlQueryWithPrompt(contextualPrompt, userMessage);
 
       if (sqlQuery.startsWith('ERREUR:')) {
-        return `Je n'ai pas pu comprendre votre question ou elle ne correspond pas aux données disponibles. ${sqlQuery}`;
+        const errorResponse = this.responseFormatterService.formatError(
+          `Je n'ai pas pu comprendre votre question: ${sqlQuery}`,
+          'Essayez de reformuler avec des termes plus précis ou donnez plus de contexte.'
+        );
+        return errorResponse.text;
       }
 
       // Nettoyer la requête SQL
       const cleanQuery = this.cleanSqlQuery(sqlQuery);
 
       if (!cleanQuery) {
-        return 'Je n\'ai pas pu générer une requête SQL valide pour votre question. Pouvez-vous reformuler ?';
+        const errorResponse = this.responseFormatterService.formatError(
+          'Je n\'ai pas pu générer une requête SQL valide',
+          'Pouvez-vous reformuler votre question plus clairement ?'
+        );
+        return errorResponse.text;
       }
 
       // Exécuter la requête
-      const result = await this.databaseService.executeQuery(cleanQuery, conversation.database, 50);
+      const result = await this.databaseService.executeQuery(cleanQuery, conversation.database, 100);
+      success = true;
 
-      // Formatter la réponse
-      return this.formatQueryResult(result, userMessage, cleanQuery);
+      // Utiliser le nouveau service de formatage
+      const formattedResponse = this.responseFormatterService.formatResponse(
+        queryType,
+        result.rows || [],
+        userMessage
+      );
+
+      // Ajouter des informations techniques en bas
+      let finalResponse = formattedResponse.text;
+      
+      if (formattedResponse.suggestions && formattedResponse.suggestions.length > 0) {
+        finalResponse += `\n\n**💡 Suggestions :**\n`;
+        formattedResponse.suggestions.forEach((suggestion, index) => {
+          finalResponse += `${index + 1}. ${suggestion}\n`;
+        });
+      }
+
+      finalResponse += `\n\n---\n*🔍 Requête SQL:* \`${cleanQuery}\`\n*💾 Base:* ${conversation.database}\n*⏱️ Temps:* ${Date.now() - startTime}ms`;
+
+      // Enregistrer dans le contexte si disponible
+      if (this.conversationContextService && conversationId) {
+        this.conversationContextService.addMessage(conversationId, 'assistant', finalResponse, {
+          queryType,
+          database: conversation.database,
+          sqlQuery: cleanQuery,
+          responseTime: Date.now() - startTime,
+          success: true
+        });
+      }
+
+      return finalResponse;
 
     } catch (error) {
       console.error('Erreur lors de la requête:', error);
-      return `Désolé, une erreur s'est produite lors de l'exécution de la requête: ${error.message}`;
+      
+      // Enregistrer l'erreur dans le contexte
+      if (this.conversationContextService && conversationId) {
+        this.conversationContextService.addMessage(conversationId, 'assistant', error.message, {
+          queryType,
+          database: conversation.database,
+          responseTime: Date.now() - startTime,
+          success: false
+        });
+      }
+
+      const errorResponse = this.responseFormatterService.formatError(
+        `Erreur lors de l'exécution: ${error.message}`,
+        'Vérifiez votre question ou contactez l\'administrateur si le problème persiste.'
+      );
+      
+      return errorResponse.text;
     }
   }
 

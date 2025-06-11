@@ -2,6 +2,7 @@ export interface ChatRequest {
   message: string;
   conversationId?: string;
   database?: 'sync' | 'app';
+  userId?: string;
 }
 
 export interface ChatResponse {
