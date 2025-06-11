@@ -690,22 +690,6 @@ model project_addresses {
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model sync_logs {
-  id              Int       @id @default(autoincrement())
-  sync_type       String    @db.VarChar(100)
-  run_at          DateTime? @default(now()) @db.Timestamptz(6)
-  status          String    @db.VarChar(50)
-  items_processed Int?      @default(0)
-  items_succeeded Int?      @default(0)
-  items_failed    Int?      @default(0)
-  source_entity   String?   @db.VarChar(255)
-  target_table    String?   @db.VarChar(255)
-  duration_ms     BigInt?
-  details         String?
-  error_details   String?
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model vector_embeddings {
   id          Int       @id @default(autoincrement())
   source_type String    @db.VarChar(50)

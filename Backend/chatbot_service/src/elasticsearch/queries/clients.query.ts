@@ -138,7 +138,7 @@ export const getClientsQueries = (prismaService: PrismaService) => ({
     ],
     prisma: async (client: string | number) => {
       try {
-        const whereClause: Prisma.clientsWhereInput =
+        const whereClause: Prisma.ClientsWhereInput =
           typeof client === 'number' || /^\d+$/.test(client as string)
             ? { id: Number(client) }
             : {
