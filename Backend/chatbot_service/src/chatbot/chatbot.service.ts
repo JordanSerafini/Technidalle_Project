@@ -211,11 +211,15 @@ export class ChatbotService {
         // Fallback : Obtenir le schéma de la base de données
         const schema = await this.databaseService.getTableSchema(conversation.database);
 
-        // Générer un prompt contextuel amélioré avec l'analyse
+        // NOUVEAU : Explorer les données pour guider l'IA
+        console.log('🔍 Exploration des données pour guider l\'IA...');
+        const explorationInfo = await this.exploreDataForQuery(userMessage, conversation.database);
+
+        // Générer un prompt contextuel amélioré avec l'analyse + exploration
         const contextualPrompt = this.enhancedPromptsService.generateContextualPrompt(
           questionAnalysis.clarifiedQuestion || userMessage, 
           schema
-        );
+        ) + `\n\n🔍 EXPLORATION DES DONNÉES DISPONIBLES:${explorationInfo}\n\nIMPORTANT: Adapte ta requête en fonction des données qui existent réellement. Si les colonnes attendues sont vides (comme margin), utilise les données disponibles (comme budget, actual_cost) pour répondre à la question.`;
 
         // Générer la requête SQL avec le prompt amélioré
         sqlQuery = await this.openaiService.generateSqlQueryWithPrompt(contextualPrompt, questionAnalysis.clarifiedQuestion || userMessage);
@@ -734,25 +738,14 @@ export class ChatbotService {
           p.status,
           p.budget,
           p.actual_cost,
-          p.margin,
-          ROUND((p.margin / NULLIF(p.actual_cost, 0) * 100), 2) as retour_sur_investissement_pct,
-          ROUND((p.margin / NULLIF(p.budget, 0) * 100), 2) as marge_budget_pct,
-          COALESCE(c.company_name, c.firstname || ' ' || c.lastname) as client_name,
-          CASE 
-            WHEN p.status = 'termine' THEN 'Terminé'
-            WHEN p.status = 'en_cours' THEN 'En cours'
-            WHEN p.status = 'en_pause' THEN 'En pause'
-            WHEN p.status = 'en_preparation' THEN 'En préparation'
-            WHEN p.status = 'devis_accepte' THEN 'Devis accepté'
-            WHEN p.status = 'devis_en_cours' THEN 'Devis en cours'
-            WHEN p.status = 'prospect' THEN 'Prospect'
-            WHEN p.status = 'annule' THEN 'Annulé'
-            ELSE p.status
-          END as statut_detail
+          (p.budget - COALESCE(p.actual_cost, 0)) as marge_calculee,
+          ROUND(((p.budget - COALESCE(p.actual_cost, 0)) / NULLIF(p.budget, 0) * 100), 2) as marge_pct,
+          ROUND(((p.budget - COALESCE(p.actual_cost, 0)) / NULLIF(p.actual_cost, 0) * 100), 2) as retour_sur_investissement_pct,
+          COALESCE(c.company_name, c.firstname || ' ' || c.lastname) as client_name
         FROM projects p
         LEFT JOIN clients c ON p.client_id = c.id
-        WHERE p.margin IS NOT NULL AND p.margin > 0
-        ORDER BY p.margin DESC
+        WHERE p.budget IS NOT NULL AND p.budget > 0
+        ORDER BY (p.budget - COALESCE(p.actual_cost, 0)) DESC
         LIMIT 15
       `;
     }
@@ -841,5 +834,120 @@ Réponds UNIQUEMENT en JSON :
         error: error.message
       };
     }
+  }
+
+  private async exploreDataForQuery(question: string, database: 'sync' | 'app'): Promise<string> {
+    try {
+      const questionLower = question.toLowerCase();
+      
+      // Analyser la question pour identifier les tables pertinentes
+      let relevantTables: string[] = [];
+      
+      if (questionLower.includes('projet') || questionLower.includes('chantier') || questionLower.includes('rentable')) {
+        relevantTables.push('projects');
+      }
+      if (questionLower.includes('client') || questionLower.includes('customer')) {
+        relevantTables.push('clients');
+      }
+      if (questionLower.includes('staff') || questionLower.includes('employé') || questionLower.includes('équipe')) {
+        relevantTables.push('staff');
+      }
+      if (questionLower.includes('planning') || questionLower.includes('événement')) {
+        relevantTables.push('events');
+      }
+      
+      let explorationInfo = '';
+      
+      // Explorer chaque table pertinente
+      for (const table of relevantTables) {
+        console.log(`🔍 Exploration de la table ${table}...`);
+        
+        try {
+          // Obtenir des statistiques sur la table
+          const statsQuery = await this.generateTableStatsQuery(table);
+          const stats = await this.databaseService.executeQuery(statsQuery, database, 10);
+          
+          explorationInfo += `\n📊 ANALYSE DE LA TABLE ${table.toUpperCase()}:\n`;
+          explorationInfo += this.formatTableStats(stats.rows, table);
+          
+          // Obtenir un échantillon des données
+          const sampleQuery = `SELECT * FROM ${table} LIMIT 3`;
+          const sample = await this.databaseService.executeQuery(sampleQuery, database, 3);
+          
+          if (sample.rows && sample.rows.length > 0) {
+            explorationInfo += `\n📋 ÉCHANTILLON DES DONNÉES:\n`;
+            sample.rows.forEach((row, index) => {
+              explorationInfo += `Ligne ${index + 1}: ${Object.keys(row).slice(0, 5).map(key => `${key}=${row[key]}`).join(', ')}\n`;
+            });
+          }
+          
+        } catch (error) {
+          console.warn(`Erreur exploration ${table}:`, error.message);
+        }
+      }
+      
+      return explorationInfo;
+      
+    } catch (error) {
+      console.error('Erreur exploration:', error);
+      return 'Exploration des données non disponible.';
+    }
+  }
+
+  private async generateTableStatsQuery(table: string): Promise<string> {
+    // Requêtes statistiques spécialisées par table
+    switch (table) {
+      case 'projects':
+        return `
+          SELECT 
+            COUNT(*) as total_projets,
+            COUNT(CASE WHEN budget IS NOT NULL THEN 1 END) as projets_avec_budget,
+            COUNT(CASE WHEN actual_cost IS NOT NULL THEN 1 END) as projets_avec_cout,
+            COUNT(CASE WHEN margin IS NOT NULL THEN 1 END) as projets_avec_marge,
+            string_agg(DISTINCT status, ', ') as statuts_disponibles,
+            AVG(budget) as budget_moyen,
+            MAX(budget) as budget_max
+        `;
+        
+      case 'clients':
+        return `
+          SELECT 
+            COUNT(*) as total_clients,
+            COUNT(CASE WHEN company_name IS NOT NULL THEN 1 END) as entreprises,
+            COUNT(CASE WHEN company_name IS NULL THEN 1 END) as particuliers
+        `;
+        
+      case 'staff':
+        return `
+          SELECT 
+            COUNT(*) as total_employes,
+            COUNT(CASE WHEN is_available = true THEN 1 END) as disponibles,
+            COUNT(CASE WHEN is_available = false THEN 1 END) as indisponibles
+        `;
+        
+      case 'events':
+        return `
+          SELECT 
+            COUNT(*) as total_evenements,
+            COUNT(CASE WHEN start_date >= CURRENT_DATE THEN 1 END) as evenements_futurs,
+            COUNT(DISTINCT staff_id) as employes_avec_planning
+        `;
+        
+      default:
+        return `SELECT COUNT(*) as total FROM ${table}`;
+    }
+  }
+
+  private formatTableStats(rows: any[], table: string): string {
+    if (!rows || rows.length === 0) return 'Aucune donnée trouvée.\n';
+    
+    const stats = rows[0];
+    let formatted = '';
+    
+    Object.entries(stats).forEach(([key, value]) => {
+      formatted += `  • ${key}: ${value}\n`;
+    });
+    
+    return formatted;
   }
 } 
