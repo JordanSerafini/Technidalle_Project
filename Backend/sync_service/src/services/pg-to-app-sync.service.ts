@@ -1139,7 +1139,7 @@ export class PgToAppSyncService {
             dpdl."ItemId" as item_id,
             dpdl."DescriptionClear" as description,
             dpdl."Quantity" as quantity,
-            dpdl."NetPriceVatExcluded" as unit_price,
+            dpdl."PurchasePrice" as unit_price,
             0 as discount_percent,
             dpdl."NetAmountVatExcludedWithDiscount" as total_ht,
             dpdl."LineOrder" as line_order,
