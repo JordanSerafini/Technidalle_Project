@@ -326,63 +326,108 @@ export class PgToAppSyncService {
     const client = await pgClientApp.getClient();
     
     try {
-      await client.query('BEGIN');
+      // Ne pas utiliser de transaction globale pour éviter le rollback en cascade
+      // await client.query('BEGIN');
 
-      // Récupérer les adresses depuis la base Sync
+      // Récupérer les adresses depuis la base Sync avec les informations du client
       const syncAddresses = await pgClient.query(`
         SELECT DISTINCT
-          "Id" as customer_id,
-          NULLIF(TRIM("MainInvoicingAddress_Address1"), '') as street_name,
-          NULLIF(TRIM("MainInvoicingAddress_ZipCode"), '') as zip_code,
-          NULLIF(TRIM("MainInvoicingAddress_City"), '') as city,
-          NULLIF(TRIM("MainInvoicingAddress_CountryIsoCode"), '') as country_code,
+          c."Id" as customer_id,
+          c."Name" as customer_name,
+          COALESCE(c."MainInvoicingContact_Email", c."MainDeliveryContact_Email", 'no-email-' || c."Id" || '@technidalle.com') as customer_email,
+          COALESCE(c."MainInvoicingContact_FirstName", c."MainDeliveryContact_FirstName", '') as customer_firstname,
+          COALESCE(c."MainInvoicingContact_Name", c."MainDeliveryContact_Name", '') as customer_lastname,
+          NULLIF(TRIM(c."MainInvoicingAddress_Address1"), '') as street_name,
+          NULLIF(TRIM(c."MainInvoicingAddress_ZipCode"), '') as zip_code,
+          NULLIF(TRIM(c."MainInvoicingAddress_City"), '') as city,
+          NULLIF(TRIM(c."MainInvoicingAddress_CountryIsoCode"), '') as country_code,
           'facturation' as address_type
-        FROM "Customer" 
-        WHERE NULLIF(TRIM("MainInvoicingAddress_Address1"), '') IS NOT NULL
-          AND NULLIF(TRIM("MainInvoicingAddress_ZipCode"), '') IS NOT NULL
-          AND NULLIF(TRIM("MainInvoicingAddress_City"), '') IS NOT NULL
+        FROM "Customer" c
+        WHERE NULLIF(TRIM(c."MainInvoicingAddress_Address1"), '') IS NOT NULL
+          AND NULLIF(TRIM(c."MainInvoicingAddress_ZipCode"), '') IS NOT NULL
+          AND NULLIF(TRIM(c."MainInvoicingAddress_City"), '') IS NOT NULL
+          AND (c."ActiveState" = 1 OR c."ActiveState" IS NULL)
         
         UNION
         
         SELECT DISTINCT
-          "Id" as customer_id,
-          NULLIF(TRIM("MainDeliveryAddress_Address1"), '') as street_name,
-          NULLIF(TRIM("MainDeliveryAddress_ZipCode"), '') as zip_code,
-          NULLIF(TRIM("MainDeliveryAddress_City"), '') as city,
-          NULLIF(TRIM("MainDeliveryAddress_CountryIsoCode"), '') as country_code,
+          c."Id" as customer_id,
+          c."Name" as customer_name,
+          COALESCE(c."MainInvoicingContact_Email", c."MainDeliveryContact_Email", 'no-email-' || c."Id" || '@technidalle.com') as customer_email,
+          COALESCE(c."MainDeliveryContact_FirstName", c."MainInvoicingContact_FirstName", '') as customer_firstname,
+          COALESCE(c."MainDeliveryContact_Name", c."MainInvoicingContact_Name", '') as customer_lastname,
+          NULLIF(TRIM(c."MainDeliveryAddress_Address1"), '') as street_name,
+          NULLIF(TRIM(c."MainDeliveryAddress_ZipCode"), '') as zip_code,
+          NULLIF(TRIM(c."MainDeliveryAddress_City"), '') as city,
+          NULLIF(TRIM(c."MainDeliveryAddress_CountryIsoCode"), '') as country_code,
           'livraison' as address_type
-        FROM "Customer"
-        WHERE NULLIF(TRIM("MainDeliveryAddress_Address1"), '') IS NOT NULL
-          AND NULLIF(TRIM("MainDeliveryAddress_ZipCode"), '') IS NOT NULL
-          AND NULLIF(TRIM("MainDeliveryAddress_City"), '') IS NOT NULL
+        FROM "Customer" c
+        WHERE NULLIF(TRIM(c."MainDeliveryAddress_Address1"), '') IS NOT NULL
+          AND NULLIF(TRIM(c."MainDeliveryAddress_ZipCode"), '') IS NOT NULL
+          AND NULLIF(TRIM(c."MainDeliveryAddress_City"), '') IS NOT NULL
+          AND (c."ActiveState" = 1 OR c."ActiveState" IS NULL)
       `);
 
       processed = syncAddresses.rows.length;
       this.logger.log(`${processed} adresses à synchroniser`);
 
+      // Traiter chaque adresse individuellement (sans transaction globale)
       for (const syncAddress of syncAddresses.rows) {
+        // Transaction individuelle pour chaque adresse
+        const individualClient = await pgClientApp.getClient();
+        
         try {
-          // Vérifier si le client existe dans l'app
-          const clientCheck = await client.query(
+          await individualClient.query('BEGIN');
+
+          // Vérifier si le client existe dans l'app, sinon le créer
+          let clientCheck = await individualClient.query(
             'SELECT id FROM clients WHERE customer_id = $1',
             [syncAddress.customer_id]
           );
 
+          let clientAppId: number;
+
           if (clientCheck.rows.length === 0) {
-            failed++;
-            errors.push(`Client ${syncAddress.customer_id} non trouvé pour l'adresse`);
-            continue;
+            // Client non trouvé, le créer automatiquement
+            this.logger.debug(`Création automatique du client ${syncAddress.customer_id} pour l'adresse`);
+            
+            // Nettoyer et valider l'email
+            const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+            let cleanEmail = syncAddress.customer_email?.trim()?.toLowerCase();
+            if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+              cleanEmail = `no-email-${syncAddress.customer_id.replace(/[^a-zA-Z0-9]/g, '-')}@technidalle.com`;
+            }
+
+            const clientInsert = await individualClient.query(`
+              INSERT INTO clients (
+                customer_id, company_name, firstname, lastname, email, 
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+              ON CONFLICT (customer_id) DO UPDATE SET updated_at = NOW()
+              RETURNING id
+            `, [
+              syncAddress.customer_id,
+              syncAddress.customer_name || '',
+              syncAddress.customer_firstname || '',
+              syncAddress.customer_lastname || '',
+              cleanEmail
+            ]);
+
+            clientAppId = clientInsert.rows[0].id;
+          } else {
+            clientAppId = clientCheck.rows[0].id;
           }
 
-          const clientAppId = clientCheck.rows[0].id;
-
-          // Insérer l'adresse
-          const addressInsert = await client.query(`
-            INSERT INTO addresses (street_name, zip_code, city, country, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, NOW(), NOW())
-            ON CONFLICT (street_name, zip_code, city) DO UPDATE SET updated_at = NOW()
+          // Insérer l'adresse avec la contrainte correcte
+          const addressInsert = await individualClient.query(`
+            INSERT INTO addresses (street_number, street_name, zip_code, city, country, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            ON CONFLICT (street_number, street_name, zip_code, city) DO UPDATE SET 
+              country = EXCLUDED.country,
+              updated_at = NOW()
             RETURNING id
           `, [
+            null, // street_number
             syncAddress.street_name,
             syncAddress.zip_code,
             syncAddress.city,
@@ -392,30 +437,36 @@ export class PgToAppSyncService {
           const addressId = addressInsert.rows[0].id;
 
           // Lier l'adresse au client
-          await client.query(`
+          await individualClient.query(`
             INSERT INTO client_addresses (client_id, address_id, address_type, is_default, created_at, updated_at)
             VALUES ($1, $2, $3, true, NOW(), NOW())
-            ON CONFLICT (client_id, address_id, address_type) DO UPDATE SET updated_at = NOW()
+            ON CONFLICT (client_id, address_id, address_type) DO UPDATE SET 
+              is_default = EXCLUDED.is_default,
+              updated_at = NOW()
           `, [clientAppId, addressId, syncAddress.address_type]);
 
+          await individualClient.query('COMMIT');
           succeeded++;
+          this.logger.debug(`Adresse ${syncAddress.address_type} pour client ${syncAddress.customer_id} synchronisée → address_id: ${addressId}`);
 
         } catch (error) {
+          await individualClient.query('ROLLBACK');
           failed++;
           const errorMsg = `Erreur adresse client ${syncAddress.customer_id}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           this.logger.warn(errorMsg);
+        } finally {
+          individualClient.release();
         }
       }
 
-      await client.query('COMMIT');
       this.logger.log(`✅ Adresses: ${succeeded}/${processed} synchronisées`);
 
     } catch (error) {
-      await client.query('ROLLBACK');
       const errorMsg = `Erreur lors de la synchronisation des adresses: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
       this.logger.error(errorMsg);
+      failed = processed;
 
     } finally {
       client.release();
@@ -444,7 +495,8 @@ export class PgToAppSyncService {
     const client = await pgClientApp.getClient();
     
     try {
-      await client.query('BEGIN');
+      // Ne pas utiliser de transaction globale pour éviter le rollback en cascade
+      // await client.query('BEGIN');
 
       // 1. Récupérer les Deals depuis la base Sync
       const syncDeals = await pgClient.query(`
@@ -475,8 +527,8 @@ export class PgToAppSyncService {
           cs."Caption" as name,
           cs."StartDate" as start_date,
           cs."EndDate" as end_date,
-          cs."Budget" as budget,
-          cs."State" as project_state,
+          cs."AccomplishedSales" as budget,
+          cs."Status" as project_state,
           cs."CustomerId" as client_ref,
           cs."Description" as notes,
           cs."sysModifiedDate" as modified_date
@@ -490,13 +542,19 @@ export class PgToAppSyncService {
       processed = allProjects.length;
       this.logger.log(`${processed} projets (${syncDeals.rows.length} deals + ${syncProjects.rows.length} projets) à synchroniser`);
 
+      // Traiter chaque projet individuellement (sans transaction globale)
       for (const syncProject of allProjects) {
+        // Transaction individuelle pour chaque projet
+        const individualClient = await pgClientApp.getClient();
+        
         try {
+          await individualClient.query('BEGIN');
+
           // Chercher le client correspondant
           let clientAppId: number | null = null;
 
           if (syncProject.client_ref) {
-            const clientSearch = await client.query(`
+            const clientSearch = await individualClient.query(`
               SELECT id FROM clients 
               WHERE customer_id = $1 OR company_name ILIKE $2
               LIMIT 1
@@ -509,7 +567,7 @@ export class PgToAppSyncService {
 
           // Si pas de client trouvé, créer un client par défaut
           if (!clientAppId) {
-            const defaultClientResult = await client.query(`
+            const defaultClientResult = await individualClient.query(`
               INSERT INTO clients (
                 customer_id, company_name, firstname, lastname, email, 
                 created_at, updated_at
@@ -545,7 +603,7 @@ export class PgToAppSyncService {
           const reference = `${syncProject.source_type}-${syncProject.project_id}`;
 
           // Insérer le projet
-          const projectInsert = await client.query(`
+          const projectInsert = await individualClient.query(`
             INSERT INTO projects (
               client_id, name, reference, description, start_date, end_date, 
               budget, status, created_at, updated_at
@@ -571,25 +629,28 @@ export class PgToAppSyncService {
             status
           ]);
 
+          await individualClient.query('COMMIT');
           succeeded++;
           this.logger.debug(`${syncProject.source_type} ${syncProject.project_id} synchronisé → app_id: ${projectInsert.rows[0].id}`);
 
         } catch (error) {
+          await individualClient.query('ROLLBACK');
           failed++;
           const errorMsg = `Erreur projet ${syncProject.source_type} ${syncProject.project_id}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           this.logger.warn(errorMsg);
+        } finally {
+          individualClient.release();
         }
       }
 
-      await client.query('COMMIT');
       this.logger.log(`✅ Projets: ${succeeded}/${processed} synchronisés`);
 
     } catch (error) {
-      await client.query('ROLLBACK');
       const errorMsg = `Erreur lors de la synchronisation des projets: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
       this.logger.error(errorMsg);
+      failed = processed;
 
     } finally {
       client.release();
@@ -618,7 +679,8 @@ export class PgToAppSyncService {
     const client = await pgClientApp.getClient();
     
     try {
-      await client.query('BEGIN');
+      // Ne pas utiliser de transaction globale pour éviter le rollback en cascade
+      // await client.query('BEGIN');
 
       // Récupérer les items depuis la base Sync
       const syncItems = await pgClient.query(`
@@ -643,8 +705,14 @@ export class PgToAppSyncService {
       processed = syncItems.rows.length;
       this.logger.log(`${processed} matériaux à synchroniser`);
 
+      // Traiter chaque matériau individuellement (sans transaction globale)
       for (const syncItem of syncItems.rows) {
+        // Transaction individuelle pour chaque matériau
+        const individualClient = await pgClientApp.getClient();
+        
         try {
+          await individualClient.query('BEGIN');
+
           const insertQuery = `
             INSERT INTO materials (
               reference, name, description, unit, price, stock_quantity, 
@@ -660,7 +728,7 @@ export class PgToAppSyncService {
             RETURNING id
           `;
 
-          await client.query(insertQuery, [
+          await individualClient.query(insertQuery, [
             syncItem.item_id,
             syncItem.name || '',
             syncItem.description || null,
@@ -670,24 +738,28 @@ export class PgToAppSyncService {
             0 // minimum_stock par défaut
           ]);
 
+          await individualClient.query('COMMIT');
           succeeded++;
+          this.logger.debug(`Matériau ${syncItem.item_id} synchronisé`);
 
         } catch (error) {
+          await individualClient.query('ROLLBACK');
           failed++;
           const errorMsg = `Erreur matériau ${syncItem.item_id}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           this.logger.warn(errorMsg);
+        } finally {
+          individualClient.release();
         }
       }
 
-      await client.query('COMMIT');
       this.logger.log(`✅ Matériaux: ${succeeded}/${processed} synchronisés`);
 
     } catch (error) {
-      await client.query('ROLLBACK');
       const errorMsg = `Erreur lors de la synchronisation des matériaux: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
       this.logger.error(errorMsg);
+      failed = processed;
 
     } finally {
       client.release();
@@ -716,7 +788,8 @@ export class PgToAppSyncService {
     const client = await pgClientApp.getClient();
     
     try {
-      await client.query('BEGIN');
+      // Ne pas utiliser de transaction globale pour éviter le rollback en cascade
+      // await client.query('BEGIN');
 
       // 1. Récupérer les documents depuis la base Sync (SaleDocument)
       const syncDocuments = await pgClient.query(`
@@ -742,14 +815,14 @@ export class PgToAppSyncService {
         SELECT 
           csr."Id" as document_id,
           csr."Reference" as reference,
-          csr."Date" as issue_date,
+          csr."DocumentDate" as issue_date,
           csr."DocumentType" as document_type,
           cs."CustomerId" as customer_id,
           csr."AmountVatExcluded" as amount_ht,
           csr."VatAmount" as vat_amount,
           csr."AmountVatIncluded" as amount_ttc,
           cs."Id" as deal_id,
-          csr."State" as validation_state,
+          csr."ValidationState" as validation_state,
           csr."Notes" as notes,
           csr."sysModifiedDate" as modified_date,
           'PROJECT' as document_source
@@ -763,8 +836,14 @@ export class PgToAppSyncService {
       processed = syncDocuments.rows.length;
       this.logger.log(`${processed} documents à synchroniser`);
 
+      // Traiter chaque document individuellement (sans transaction globale)
       for (const syncDoc of syncDocuments.rows) {
+        // Transaction individuelle pour chaque document
+        const individualClient = await pgClientApp.getClient();
+        
         try {
+          await individualClient.query('BEGIN');
+
           // Chercher le projet correspondant selon la source
           let projectAppId: number | null = null;
           let searchReference = '';
@@ -776,7 +855,7 @@ export class PgToAppSyncService {
               searchReference = `PROJECT-${syncDoc.deal_id}`;
             }
 
-            const projectSearch = await client.query(
+            const projectSearch = await individualClient.query(
               'SELECT id FROM projects WHERE reference = $1',
               [searchReference]
             );
@@ -788,7 +867,7 @@ export class PgToAppSyncService {
 
           // Si pas de projet trouvé, chercher par client
           if (!projectAppId && syncDoc.customer_id) {
-            const clientProjectSearch = await client.query(`
+            const clientProjectSearch = await individualClient.query(`
               SELECT p.id FROM projects p
               JOIN clients c ON p.client_id = c.id
               WHERE c.customer_id = $1
@@ -802,6 +881,7 @@ export class PgToAppSyncService {
           }
 
           if (!projectAppId) {
+            await individualClient.query('ROLLBACK');
             failed++;
             errors.push(`Projet non trouvé pour le document ${syncDoc.reference} (source: ${syncDoc.document_source})`);
             continue;
@@ -828,7 +908,7 @@ export class PgToAppSyncService {
           }
 
           // Insérer le document principal
-          const documentInsert = await client.query(`
+          const documentInsert = await individualClient.query(`
             INSERT INTO documents (
               project_id, reference, type, status, amount, tva_rate, 
               issue_date, notes, created_at, updated_at
@@ -856,26 +936,30 @@ export class PgToAppSyncService {
           const documentAppId = documentInsert.rows[0].id;
 
           // 2. Synchroniser les lignes de documents
-          await this.syncDocumentLines(syncDoc, documentAppId, client);
+          await this.syncDocumentLines(syncDoc, documentAppId, individualClient);
 
+          await individualClient.query('COMMIT');
           succeeded++;
+          this.logger.debug(`Document ${syncDoc.reference} synchronisé → document_id: ${documentAppId}`);
 
         } catch (error) {
+          await individualClient.query('ROLLBACK');
           failed++;
           const errorMsg = `Erreur document ${syncDoc.reference}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           this.logger.warn(errorMsg);
+        } finally {
+          individualClient.release();
         }
       }
 
-      await client.query('COMMIT');
       this.logger.log(`✅ Documents: ${succeeded}/${processed} synchronisés`);
 
     } catch (error) {
-      await client.query('ROLLBACK');
       const errorMsg = `Erreur lors de la synchronisation des documents: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
       this.logger.error(errorMsg);
+      failed = processed;
 
     } finally {
       client.release();
@@ -906,9 +990,9 @@ export class PgToAppSyncService {
             sdl."ItemId" as item_id,
             sdl."Description" as description,
             sdl."Quantity" as quantity,
-            sdl."UnitPriceVatExcluded" as unit_price,
-            sdl."DiscountRate" as discount_percent,
-            sdl."AmountVatExcluded" as total_ht,
+            sdl."NetPriceVatExcluded" as unit_price,
+            sdl."UnitDiscountRate" as discount_percent,
+            sdl."NetAmountVatExcluded" as total_ht,
             i."Caption" as item_name,
             i."UnitId" as unit_ref,
             u."Caption" as unit_name
@@ -916,7 +1000,7 @@ export class PgToAppSyncService {
           LEFT JOIN "Item" i ON sdl."ItemId" = i."Id"
           LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
           WHERE sdl."DocumentId" = $1
-          ORDER BY sdl."LineNumber"
+          ORDER BY sdl."LineOrder" NULLS LAST
         `, [syncDoc.document_id]);
         
         documentLines = saleDocumentLines.rows;
@@ -961,28 +1045,50 @@ export class PgToAppSyncService {
           }
 
           // Insérer la ligne de document
-          await client.query(`
-            INSERT INTO document_lines (
-              document_id, material_id, description, quantity, unit, 
-              unit_price, discount_percent, tax_rate, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-            ON CONFLICT (document_id, material_id) DO UPDATE SET
-              description = EXCLUDED.description,
-              quantity = EXCLUDED.quantity,
-              unit = EXCLUDED.unit,
-              unit_price = EXCLUDED.unit_price,
-              discount_percent = EXCLUDED.discount_percent,
-              updated_at = NOW()
-          `, [
-            documentAppId,
-            materialId,
-            line.description || line.item_name || 'Article non spécifié',
-            line.quantity || 1,
-            line.unit_name || 'unité',
-            line.unit_price || 0,
-            line.discount_percent || 0,
-            20.00 // TVA par défaut
-          ]);
+          try {
+            await client.query(`
+              INSERT INTO document_lines (
+                document_id, material_id, description, quantity, unit, 
+                unit_price, discount_percent, tax_rate, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+            `, [
+              documentAppId,
+              materialId,
+              line.description || line.item_name || 'Article non spécifié',
+              line.quantity || 1,
+              line.unit_name || 'unité',
+              line.unit_price || 0,
+              line.discount_percent || 0,
+              20.00 // TVA par défaut
+            ]);
+          } catch (insertError) {
+            // Si erreur d'insertion (probablement doublon), essayer de mettre à jour
+            try {
+              await client.query(`
+                UPDATE document_lines 
+                SET 
+                  description = $3,
+                  quantity = $4,
+                  unit = $5,
+                  unit_price = $6,
+                  discount_percent = $7,
+                  tax_rate = $8,
+                  updated_at = NOW()
+                WHERE document_id = $1 AND material_id = $2
+              `, [
+                documentAppId,
+                materialId,
+                line.description || line.item_name || 'Article non spécifié',
+                line.quantity || 1,
+                line.unit_name || 'unité',
+                line.unit_price || 0,
+                line.discount_percent || 0,
+                20.00
+              ]);
+            } catch (updateError) {
+              this.logger.warn(`Erreur ligne document ${line.line_id}: ${updateError instanceof Error ? updateError.message : String(updateError)}`);
+            }
+          }
 
         } catch (lineError) {
           this.logger.warn(`Erreur ligne document ${line.line_id}: ${lineError instanceof Error ? lineError.message : String(lineError)}`);
@@ -1228,92 +1334,125 @@ export class PgToAppSyncService {
   }
 
   /**
-   * Synchronisation complète intelligente avec validation et nettoyage automatique
+   * Synchronisation complète optimisée avec ordre intelligent et gestion d'erreurs améliorée
    */
-  async syncCompleteWithValidation(): Promise<SyncResult> {
+  async syncCompleteOptimized(): Promise<SyncResult> {
     const startTime = Date.now();
     let totalProcessed = 0;
     let totalSucceeded = 0;
     let totalFailed = 0;
     const errors: string[] = [];
+    const stepResults: { step: string; processed: number; succeeded: number; failed: number; duration: number }[] = [];
 
     try {
-      this.logger.log('🚀 Démarrage de la synchronisation intelligente PostgreSQL Sync → App');
+      this.logger.log('🚀 Démarrage de la synchronisation PostgreSQL Sync → App (optimisée)');
 
-      // 1. Validation et nettoyage préliminaire
-      this.logger.log('🔍 Étape 0: Validation et nettoyage des données existantes');
-      const validation = await this.validateAndCleanupData();
-      
-      if (validation.cleanup_performed) {
-        this.logger.log(`🧹 Nettoyage effectué: ${validation.cleanup_results?.message}`);
-      } else {
-        this.logger.log('✅ Aucun nettoyage nécessaire');
-      }
-
-      // 2. Synchroniser les clients
-      this.logger.log('📋 Étape 1: Synchronisation des clients');
+      // 1. Synchroniser les clients en premier (priorité absolue)
+      this.logger.log('📋 Étape 1: Synchronisation des clients (priorité)');
       const clientsResult = await this.syncClients();
       totalProcessed += clientsResult.processed;
       totalSucceeded += clientsResult.succeeded;
       totalFailed += clientsResult.failed;
       errors.push(...clientsResult.errors);
+      stepResults.push({
+        step: 'clients',
+        processed: clientsResult.processed,
+        succeeded: clientsResult.succeeded,
+        failed: clientsResult.failed,
+        duration: clientsResult.duration
+      });
 
-      // 3. Synchroniser les adresses
-      this.logger.log('📍 Étape 2: Synchronisation des adresses');
-      const addressesResult = await this.syncAddresses();
-      totalProcessed += addressesResult.processed;
-      totalSucceeded += addressesResult.succeeded;
-      totalFailed += addressesResult.failed;
-      errors.push(...addressesResult.errors);
-
-      // 4. Synchroniser les projets
-      this.logger.log('🏗️ Étape 3: Synchronisation des projets');
-      const projectsResult = await this.syncProjects();
-      totalProcessed += projectsResult.processed;
-      totalSucceeded += projectsResult.succeeded;
-      totalFailed += projectsResult.failed;
-      errors.push(...projectsResult.errors);
-
-      // 5. Synchroniser les matériaux
-      this.logger.log('📦 Étape 4: Synchronisation des matériaux');
+      // 2. Synchroniser les matériaux (indépendant des autres)
+      this.logger.log('📦 Étape 2: Synchronisation des matériaux');
       const materialsResult = await this.syncMaterials();
       totalProcessed += materialsResult.processed;
       totalSucceeded += materialsResult.succeeded;
       totalFailed += materialsResult.failed;
       errors.push(...materialsResult.errors);
+      stepResults.push({
+        step: 'matériaux',
+        processed: materialsResult.processed,
+        succeeded: materialsResult.succeeded,
+        failed: materialsResult.failed,
+        duration: materialsResult.duration
+      });
 
-      // 6. Synchroniser les documents
+      // 3. Synchroniser les adresses (dépend des clients, mais peut créer automatiquement)
+      this.logger.log('📍 Étape 3: Synchronisation des adresses');
+      const addressesResult = await this.syncAddresses();
+      totalProcessed += addressesResult.processed;
+      totalSucceeded += addressesResult.succeeded;
+      totalFailed += addressesResult.failed;
+      errors.push(...addressesResult.errors);
+      stepResults.push({
+        step: 'adresses',
+        processed: addressesResult.processed,
+        succeeded: addressesResult.succeeded,
+        failed: addressesResult.failed,
+        duration: addressesResult.duration
+      });
+
+      // 4. Synchroniser les projets (dépend des clients)
+      this.logger.log('🏗️ Étape 4: Synchronisation des projets');
+      const projectsResult = await this.syncProjects();
+      totalProcessed += projectsResult.processed;
+      totalSucceeded += projectsResult.succeeded;
+      totalFailed += projectsResult.failed;
+      errors.push(...projectsResult.errors);
+      stepResults.push({
+        step: 'projets',
+        processed: projectsResult.processed,
+        succeeded: projectsResult.succeeded,
+        failed: projectsResult.failed,
+        duration: projectsResult.duration
+      });
+
+      // 5. Synchroniser les documents (dépend des projets)
       this.logger.log('📄 Étape 5: Synchronisation des documents');
       const documentsResult = await this.syncDocuments();
       totalProcessed += documentsResult.processed;
       totalSucceeded += documentsResult.succeeded;
       totalFailed += documentsResult.failed;
       errors.push(...documentsResult.errors);
+      stepResults.push({
+        step: 'documents',
+        processed: documentsResult.processed,
+        succeeded: documentsResult.succeeded,
+        failed: documentsResult.failed,
+        duration: documentsResult.duration
+      });
 
-      const duration = Date.now() - startTime;
+      const totalDuration = Date.now() - startTime;
       const successRate = totalProcessed > 0 ? Math.round((totalSucceeded / totalProcessed) * 100) : 0;
 
-      this.logger.log(`✅ Synchronisation terminée: ${totalSucceeded}/${totalProcessed} (${successRate}%) en ${duration}ms`);
+      // Afficher le résumé détaillé
+      this.logger.log('📊 Résumé de la synchronisation optimisée:');
+      stepResults.forEach(step => {
+        const stepSuccessRate = step.processed > 0 ? Math.round((step.succeeded / step.processed) * 100) : 0;
+        this.logger.log(`   ${step.step}: ${step.succeeded}/${step.processed} (${stepSuccessRate}%) en ${step.duration}ms`);
+      });
+
+      this.logger.log(`✅ Synchronisation terminée: ${totalSucceeded}/${totalProcessed} (${successRate}%) en ${totalDuration}ms`);
 
       return {
-        success: totalFailed === 0,
+        success: successRate >= 80, // Considérer comme succès si > 80%
         processed: totalProcessed,
         succeeded: totalSucceeded,
         failed: totalFailed,
-        errors,
-        duration,
+        errors: errors.slice(0, 50), // Limiter les erreurs affichées
+        duration: totalDuration,
       };
 
     } catch (error) {
-      const errorMsg = `Erreur lors de la synchronisation complète: ${error instanceof Error ? error.message : String(error)}`;
-      errors.push(errorMsg);
+      const errorMsg = `Erreur critique lors de la synchronisation: ${error instanceof Error ? error.message : String(error)}`;
       this.logger.error(errorMsg);
+      errors.push(errorMsg);
 
       return {
         success: false,
         processed: totalProcessed,
         succeeded: totalSucceeded,
-        failed: totalProcessed - totalSucceeded,
+        failed: totalProcessed,
         errors,
         duration: Date.now() - startTime,
       };

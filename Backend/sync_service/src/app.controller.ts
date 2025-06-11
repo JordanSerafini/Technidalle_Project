@@ -539,7 +539,7 @@ export class AppController {
     try {
       this.logger.log('🚀 Démarrage de la synchronisation complète intelligente PostgreSQL Sync → App');
       
-      const result = await this.pgToAppSyncService.syncCompleteWithValidation();
+      const result = await this.pgToAppSyncService.syncComplete();
       
       return {
         success: result.success,
@@ -562,6 +562,42 @@ export class AppController {
       return {
         success: false,
         message: 'Erreur fatale lors de la synchronisation PostgreSQL → App',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/optimized')
+  @ApiOperation({ summary: 'Synchronisation optimisée PostgreSQL Sync → App (ordre intelligent, gestion d\'erreurs améliorée)' })
+  @ApiResponse({ status: 200, description: 'Synchronisation réussie' })
+  @ApiResponse({ status: 500, description: 'Erreur lors de la synchronisation' })
+  async syncPgToAppOptimized(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('🚀 Démarrage de la synchronisation optimisée PostgreSQL Sync → App');
+      
+      const result = await this.pgToAppSyncService.syncCompleteOptimized();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Synchronisation PostgreSQL → App réussie: ${result.succeeded}/${result.processed} éléments en ${result.duration}ms`
+          : `❌ Synchronisation PostgreSQL → App échouée: ${result.failed}/${result.processed} erreurs`,
+        data: {
+          summary: {
+            processed: result.processed,
+            succeeded: result.succeeded,
+            failed: result.failed,
+            duration_ms: result.duration,
+            success_rate: result.processed > 0 ? Math.round((result.succeeded / result.processed) * 100) : 0
+          },
+          errors: result.errors.length > 0 ? result.errors.slice(0, 10) : []
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur fatale lors de la synchronisation optimisée PostgreSQL → App', error);
+      return {
+        success: false,
+        message: 'Erreur fatale lors de la synchronisation optimisée PostgreSQL → App',
         error: (error as Error).message,
       };
     }
