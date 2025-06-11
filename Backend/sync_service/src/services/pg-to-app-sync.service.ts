@@ -1605,6 +1605,7 @@ export class PgToAppSyncService {
 
   /**
    * Synchronisation complète optimisée avec ordre intelligent et gestion d'erreurs améliorée
+   * TOUT-EN-UN : Nettoyage, validation, création, mise à jour automatique
    */
   async syncCompleteOptimized(): Promise<SyncResult> {
     const startTime = Date.now();
@@ -1615,7 +1616,18 @@ export class PgToAppSyncService {
     const stepResults: { step: string; processed: number; succeeded: number; failed: number; duration: number }[] = [];
 
     try {
-      this.logger.log('🚀 Démarrage de la synchronisation PostgreSQL Sync → App (optimisée)');
+      this.logger.log('🚀 Démarrage de la synchronisation PostgreSQL Sync → App (optimisée & complète)');
+
+      // 0. NETTOYAGE PRÉALABLE : Nettoyer les clients factices et emails dupliqués
+      this.logger.log('🧹 Étape 0: Nettoyage préalable des données');
+      try {
+        const cleanupResult = await this.cleanupFakeClients();
+        const emailCleanupResult = await this.cleanupEmailDuplicates();
+        this.logger.log(`📊 Nettoyage: ${cleanupResult.clients_corrected + cleanupResult.clients_merged} clients factices corrigés, ${emailCleanupResult.duplicates_fixed} emails dupliqués résolus`);
+      } catch (cleanupError) {
+        this.logger.warn('⚠️ Erreur lors du nettoyage préalable (non bloquant)', cleanupError);
+        errors.push(`Nettoyage préalable: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+      }
 
       // 1. Synchroniser les clients en premier (priorité absolue)
       this.logger.log('📋 Étape 1: Synchronisation des clients (priorité)');
@@ -1692,17 +1704,33 @@ export class PgToAppSyncService {
         duration: documentsResult.duration
       });
 
+      // 6. NETTOYAGE POST-SYNCHRONISATION : Réparer les documents sans lignes
+      this.logger.log('🔧 Étape 6: Réparation des documents sans lignes');
+      try {
+        const repairResult = await this.repairDocumentsWithoutLines();
+        this.logger.log(`🔧 Réparation: ${repairResult.documents_repaired}/${repairResult.documents_analyzed} documents réparés`);
+        
+        // Ne pas compter dans les totaux car c'est une correction, pas une synchronisation
+        if (repairResult.errors.length > 0) {
+          errors.push(...repairResult.errors.slice(0, 5)); // Limiter les erreurs de réparation
+        }
+      } catch (repairError) {
+        this.logger.warn('⚠️ Erreur lors de la réparation des documents (non bloquant)', repairError);
+        errors.push(`Réparation documents: ${repairError instanceof Error ? repairError.message : String(repairError)}`);
+      }
+
       const totalDuration = Date.now() - startTime;
       const successRate = totalProcessed > 0 ? Math.round((totalSucceeded / totalProcessed) * 100) : 0;
 
       // Afficher le résumé détaillé
-      this.logger.log('📊 Résumé de la synchronisation optimisée:');
+      this.logger.log('📊 Résumé de la synchronisation optimisée COMPLÈTE:');
       stepResults.forEach(step => {
         const stepSuccessRate = step.processed > 0 ? Math.round((step.succeeded / step.processed) * 100) : 0;
         this.logger.log(`   ${step.step}: ${step.succeeded}/${step.processed} (${stepSuccessRate}%) en ${step.duration}ms`);
       });
 
-      this.logger.log(`✅ Synchronisation terminée: ${totalSucceeded}/${totalProcessed} (${successRate}%) en ${totalDuration}ms`);
+      this.logger.log(`✅ Synchronisation COMPLÈTE terminée: ${totalSucceeded}/${totalProcessed} (${successRate}%) en ${totalDuration}ms`);
+      this.logger.log(`🎯 Endpoint TOUT-EN-UN : Nettoyage + Validation + Synchronisation + Réparation effectués`);
 
       return {
         success: successRate >= 80, // Considérer comme succès si > 80%
@@ -2007,8 +2035,8 @@ export class PgToAppSyncService {
       for (const fakeClient of fakeClients.rows) {
         try {
           // Extraire les informations du customer_id pour retrouver la source
-          let sourceRef = null;
-          let searchTerm = null;
+          let sourceRef: string | null = null;
+          let searchTerm: string | null = null;
 
           if (fakeClient.customer_id.startsWith('deal-') || fakeClient.customer_id.startsWith('project-')) {
             // Récupérer l'ID original depuis les tables Deal ou ConstructionSite
@@ -2042,8 +2070,10 @@ export class PgToAppSyncService {
             }
           }
 
-          // Rechercher le vrai client dans la base sync
+          // Rechercher le vrai client dans la base sync avec une approche élargie
           let realClient: any = null;
+          
+          // 1. Recherche directe par ID
           if (sourceRef) {
             const realClientQuery = await pgClient.query(`
               SELECT 
@@ -2075,17 +2105,20 @@ export class PgToAppSyncService {
                 "Siren" as siret,
                 "NotesClear" as notes
               FROM "Customer" 
-              WHERE ("Id" = $1 OR "Name" ILIKE $2)
+              WHERE "Id" = $1
                 AND ("ActiveState" = 1 OR "ActiveState" IS NULL)
               LIMIT 1
-            `, [sourceRef, `%${sourceRef}%`]);
+            `, [sourceRef]);
 
             if (realClientQuery.rows.length > 0) {
               realClient = realClientQuery.rows[0];
+              this.logger.debug(`✅ Client trouvé par ID direct: ${sourceRef} → ${realClient.name}`);
             }
-          } else if (searchTerm) {
-            // Recherche par nom de société
-            const realClientQuery = await pgClient.query(`
+          }
+
+          // 2. Si pas trouvé, recherche par nom partiel (cas des noms tronqués)
+          if (!realClient && searchTerm) {
+            const partialNameQuery = await pgClient.query(`
               SELECT 
                 "Id" as id,
                 "Name" as name,
@@ -2100,7 +2133,63 @@ export class PgToAppSyncService {
                        AND TRIM("MainDeliveryContact_Email") != '' 
                        AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
                   THEN TRIM(LOWER("MainDeliveryContact_Email"))
-                  ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@technidalle.com'
+                  ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@inconnu.com'
+                END as email,
+                CASE 
+                  WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                  THEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g')
+                  ELSE NULL
+                END as phone,
+                CASE 
+                  WHEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                  THEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g')
+                  ELSE NULL
+                END as mobile,
+                "Siren" as siret,
+                "NotesClear" as notes,
+                -- Score de similarité pour trier les résultats
+                CASE 
+                  WHEN UPPER("Name") = UPPER($1) THEN 1
+                  WHEN "Name" ILIKE $2 THEN 2
+                  WHEN "Name" ILIKE $3 THEN 3
+                  ELSE 4
+                END as similarity_score
+              FROM "Customer" 
+              WHERE (
+                "Name" ILIKE $2
+                OR "Name" ILIKE $3
+                OR UPPER(REPLACE("Name", ' ', '')) LIKE UPPER(REPLACE($1, ' ', '')) || '%'
+                OR UPPER(REPLACE($1, ' ', '')) LIKE UPPER(REPLACE("Name", ' ', '')) || '%'
+              )
+              AND ("ActiveState" = 1 OR "ActiveState" IS NULL)
+              ORDER BY similarity_score, LENGTH("Name")
+              LIMIT 1
+            `, [searchTerm, `%${searchTerm}%`, `${searchTerm}%`]);
+
+            if (partialNameQuery.rows.length > 0) {
+              realClient = partialNameQuery.rows[0];
+              this.logger.debug(`✅ Client trouvé par nom partiel: ${searchTerm} → ${realClient.name}`);
+            }
+          }
+
+          // 3. Si toujours pas trouvé, essayer une recherche par mots-clés
+          if (!realClient && searchTerm && searchTerm.length > 3) {
+            const keywordQuery = await pgClient.query(`
+              SELECT 
+                "Id" as id,
+                "Name" as name,
+                COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
+                COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
+                CASE
+                  WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                       AND TRIM("MainInvoicingContact_Email") != '' 
+                       AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                  THEN TRIM(LOWER("MainInvoicingContact_Email"))
+                  WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                       AND TRIM("MainDeliveryContact_Email") != '' 
+                       AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                  THEN TRIM(LOWER("MainDeliveryContact_Email"))
+                  ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@inconnu.com'
                 END as email,
                 CASE 
                   WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
@@ -2114,19 +2203,16 @@ export class PgToAppSyncService {
                 END as mobile,
                 "Siren" as siret,
                 "NotesClear" as notes
-                             FROM "Customer" 
-               WHERE "Name" ILIKE $1
-              ORDER BY 
-                CASE 
-                  WHEN "Name" = $2 THEN 1
-                  WHEN "Name" ILIKE $1 THEN 2
-                  ELSE 3
-                END
+              FROM "Customer" 
+              WHERE to_tsvector('french', "Name") @@ plainto_tsquery('french', $1)
+                AND ("ActiveState" = 1 OR "ActiveState" IS NULL)
+              ORDER BY ts_rank(to_tsvector('french', "Name"), plainto_tsquery('french', $1)) DESC
               LIMIT 1
-            `, [`%${searchTerm}%`, searchTerm]);
+            `, [searchTerm]);
 
-            if (realClientQuery.rows.length > 0) {
-              realClient = realClientQuery.rows[0];
+            if (keywordQuery.rows.length > 0) {
+              realClient = keywordQuery.rows[0];
+              this.logger.debug(`✅ Client trouvé par recherche textuelle: ${searchTerm} → ${realClient.name}`);
             }
           }
 
@@ -2143,30 +2229,35 @@ export class PgToAppSyncService {
               
               await client.query('BEGIN');
               
-              // Transférer les projets du faux client vers le vrai client
-              await client.query(
-                'UPDATE projects SET client_id = $1 WHERE client_id = $2',
-                [realClientId, fakeClient.id]
-              );
-              
-              // Transférer les adresses
-              await client.query(`
-                UPDATE client_addresses 
-                SET client_id = $1 
-                WHERE client_id = $2 
-                  AND NOT EXISTS (
-                    SELECT 1 FROM client_addresses ca2 
-                    WHERE ca2.client_id = $1 AND ca2.address_id = client_addresses.address_id
-                  )
-              `, [realClientId, fakeClient.id]);
-              
-              // Supprimer le faux client
-              await client.query('DELETE FROM clients WHERE id = $1', [fakeClient.id]);
-              
-              await client.query('COMMIT');
-              clientsMerged++;
-              
-              this.logger.log(`🔀 Client factice ${fakeClient.customer_id} fusionné avec le vrai client ${realClient.id}`);
+              try {
+                // Transférer les projets du faux client vers le vrai client
+                await client.query(
+                  'UPDATE projects SET client_id = $1 WHERE client_id = $2',
+                  [realClientId, fakeClient.id]
+                );
+                
+                // Transférer les adresses
+                await client.query(`
+                  UPDATE client_addresses 
+                  SET client_id = $1 
+                  WHERE client_id = $2 
+                    AND NOT EXISTS (
+                      SELECT 1 FROM client_addresses ca2 
+                      WHERE ca2.client_id = $1 AND ca2.address_id = client_addresses.address_id
+                    )
+                `, [realClientId, fakeClient.id]);
+                
+                // Supprimer le faux client
+                await client.query('DELETE FROM clients WHERE id = $1', [fakeClient.id]);
+                
+                await client.query('COMMIT');
+                clientsMerged++;
+                
+                this.logger.log(`🔀 Client factice ${fakeClient.customer_id} fusionné avec le vrai client ${realClient.id}`);
+              } catch (mergeError) {
+                await client.query('ROLLBACK');
+                throw mergeError;
+              }
             } else {
               // Corriger le faux client avec les vraies données
               await client.query(`
@@ -2204,7 +2295,6 @@ export class PgToAppSyncService {
           }
 
         } catch (error) {
-          await client.query('ROLLBACK');
           const errorMsg = `Erreur lors de la correction du client ${fakeClient.customer_id}: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
           this.logger.error(errorMsg);
@@ -2265,5 +2355,167 @@ export class PgToAppSyncService {
       this.logger.error(`Erreur lors du test client ${clientId}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Force la synchronisation de clients spécifiques depuis la base sync vers l'app
+   */
+  async forceSyncSpecificClients(clientIds: string[]): Promise<{
+    success: boolean;
+    clients_processed: number;
+    clients_synchronized: number;
+    clients_updated: number;
+    errors: string[];
+  }> {
+    const startTime = Date.now();
+    let clientsProcessed = 0;
+    let clientsSynchronized = 0;
+    let clientsUpdated = 0;
+    const errors: string[] = [];
+
+    const client = await pgClientApp.getClient();
+
+    try {
+      this.logger.log(`🔄 Début de la synchronisation forcée de ${clientIds.length} clients spécifiques`);
+
+      for (const clientId of clientIds) {
+        try {
+          clientsProcessed++;
+
+          // 1. Récupérer le client depuis la base sync
+          const syncClientQuery = await pgClient.query(`
+            SELECT 
+              "Id" as id,
+              "Name" as name,
+              COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
+              COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
+              CASE
+                WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                     AND TRIM("MainInvoicingContact_Email") != '' 
+                     AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                THEN TRIM(LOWER("MainInvoicingContact_Email"))
+                WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                     AND TRIM("MainDeliveryContact_Email") != '' 
+                     AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                THEN TRIM(LOWER("MainDeliveryContact_Email"))
+                ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@technidalle.com'
+              END as email,
+              CASE 
+                WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                THEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g')
+                ELSE NULL
+              END as phone,
+              CASE 
+                WHEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                THEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g')
+                ELSE NULL
+              END as mobile,
+              "Siren" as siret,
+              "NotesClear" as notes,
+              "ActiveState" as active_state,
+              "sysModifiedDate" as modified_date
+            FROM "Customer" 
+            WHERE "Id" = $1
+            LIMIT 1
+          `, [clientId]);
+
+          if (syncClientQuery.rows.length === 0) {
+            const errorMsg = `Client ${clientId} non trouvé dans la base sync`;
+            errors.push(errorMsg);
+            this.logger.warn(`⚠️  ${errorMsg}`);
+            continue;
+          }
+
+          const syncClient = syncClientQuery.rows[0];
+
+          // 2. Vérifier si le client existe déjà dans l'app
+          const existingClientQuery = await client.query(
+            'SELECT id, customer_id, email FROM clients WHERE customer_id = $1',
+            [clientId]
+          );
+
+          if (existingClientQuery.rows.length > 0) {
+            // Le client existe, le mettre à jour
+            const updateQuery = `
+              UPDATE clients 
+              SET 
+                company_name = $1,
+                firstname = $2,
+                lastname = $3,
+                email = $4,
+                phone = $5,
+                mobile = $6,
+                siret = $7,
+                notes = $8,
+                updated_at = NOW()
+              WHERE customer_id = $9
+              RETURNING id
+            `;
+
+            await client.query(updateQuery, [
+              syncClient.name || '',
+              syncClient.firstname || '',
+              syncClient.lastname || '',
+              syncClient.email,
+              syncClient.phone || null,
+              syncClient.mobile || null,
+              syncClient.siret || null,
+              syncClient.notes || null,
+              clientId
+            ]);
+
+            clientsUpdated++;
+            this.logger.log(`🔄 Client ${clientId} mis à jour: ${syncClient.name}`);
+          } else {
+            // Le client n'existe pas, le créer
+            const insertQuery = `
+              INSERT INTO clients (
+                customer_id, company_name, firstname, lastname, email, phone, mobile, siret, notes, 
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+              RETURNING id
+            `;
+
+            const result = await client.query(insertQuery, [
+              clientId,
+              syncClient.name || '',
+              syncClient.firstname || '',
+              syncClient.lastname || '',
+              syncClient.email,
+              syncClient.phone || null,
+              syncClient.mobile || null,
+              syncClient.siret || null,
+              syncClient.notes || null
+            ]);
+
+            clientsSynchronized++;
+            this.logger.log(`✅ Client ${clientId} créé: ${syncClient.name} → app_id: ${result.rows[0].id}`);
+          }
+
+        } catch (error) {
+          const errorMsg = `Erreur lors de la synchronisation du client ${clientId}: ${error instanceof Error ? error.message : String(error)}`;
+          errors.push(errorMsg);
+          this.logger.error(errorMsg);
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      this.logger.log(`✅ Synchronisation forcée terminée en ${duration}ms: ${clientsSynchronized} créés, ${clientsUpdated} mis à jour`);
+
+    } catch (error) {
+      const errorMsg = `Erreur fatale lors de la synchronisation forcée: ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(errorMsg);
+      this.logger.error(errorMsg);
+    } finally {
+      client.release();
+    }
+
+    return {
+      success: errors.length === 0,
+      clients_processed: clientsProcessed,
+      clients_synchronized: clientsSynchronized,
+      clients_updated: clientsUpdated,
+      errors
+    };
   }
 } 

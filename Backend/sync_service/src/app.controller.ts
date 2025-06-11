@@ -913,6 +913,50 @@ export class AppController {
     }
   }
 
+  @Post('sync/pg-to-app/force-sync-clients')
+  @ApiOperation({ summary: 'Force la synchronisation de clients spécifiques depuis la base sync' })
+  @ApiResponse({ status: 200, description: 'Synchronisation forcée effectuée' })
+  @ApiResponse({ status: 500, description: 'Erreur lors de la synchronisation' })
+  async forceSyncSpecificClients(@Body() body: { clientIds: string[] }): Promise<SyncOperationResponse> {
+    try {
+      const clientIds = body?.clientIds || [];
+      this.logger.log(`🔄 Démarrage de la synchronisation forcée de ${clientIds.length} clients`);
+      
+      if (!clientIds || clientIds.length === 0) {
+        return {
+          success: false,
+          message: '❌ Aucun ID de client fourni',
+          error: 'Le paramètre clientIds est requis et ne peut pas être vide'
+        };
+      }
+      
+      const result = await this.pgToAppSyncService.forceSyncSpecificClients(clientIds);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Synchronisation forcée terminée: ${result.clients_synchronized} créés, ${result.clients_updated} mis à jour`
+          : `❌ Erreur lors de la synchronisation: ${result.errors.length} erreurs`,
+        data: {
+          sync_stats: {
+            clients_processed: result.clients_processed,
+            clients_synchronized: result.clients_synchronized,
+            clients_updated: result.clients_updated,
+            total_processed: result.clients_synchronized + result.clients_updated
+          },
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de la synchronisation forcée', error);
+      return {
+        success: false,
+        message: 'Erreur lors de la synchronisation forcée',
+        error: (error as Error).message,
+      };
+    }
+  }
+
   @Get('sync/pg-to-app/test-client/:clientId')
   @ApiOperation({ summary: 'Tester si un client existe dans la base sync' })
   async testClientInSync(@Param('clientId') clientId: string): Promise<SyncOperationResponse> {
