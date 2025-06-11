@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Image, Dimensions, Share, Alert, Linking, SafeAreaView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useFetch } from '@/app/hooks/useFetch';
-import { Document, DocumentStatus, DocumentType } from '@/app/utils/interfaces/document';
+import { useDocumentDetails, DocumentLine } from '@/app/hooks/useDocumentDetails';
+import { DocumentStatus, DocumentType } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
 import { url as urlConfig } from '@/app/utils/url';
 import * as WebBrowser from 'expo-web-browser';
@@ -13,8 +13,8 @@ export default function DocumentDetailsScreen() {
   const router = useRouter();
   const [imageExpanded, setImageExpanded] = useState(false);
   
-  // Récupérer les détails du document
-  const { data: document, loading, error } = useFetch<Document>(`documents/${id}`);
+  // Récupérer les détails complets du document avec lignes
+  const { document, loading, error } = useDocumentDetails(id);
   
   // Dimensions de l'écran pour l'affichage des images
   const screenWidth = Dimensions.get('window').width;
@@ -27,7 +27,7 @@ export default function DocumentDetailsScreen() {
     try {
       await Share.share({
         title: `Document: ${document.reference}`,
-        message: `Référence: ${document.reference}\nType: ${document.type}\nDate: ${formatDate(document.issue_date)}`,
+        message: `Référence: ${document.reference}\nType: ${document.type}\nDate: ${formatDate(document.issue_date)}\nMontant: ${document.total_ttc?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || 'N/A'}`,
         url: document.file_path || '',
       });
     } catch (error) {
@@ -145,7 +145,7 @@ export default function DocumentDetailsScreen() {
   };
   
   // Fonction pour obtenir la couleur en fonction du statut
-  const getStatusColor = (status: DocumentStatus | null) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'valide': return 'bg-green-100 text-green-800';
       case 'en_attente': return 'bg-yellow-100 text-yellow-800';
@@ -156,7 +156,7 @@ export default function DocumentDetailsScreen() {
   };
   
   // Fonction pour obtenir l'icône en fonction du type de document
-  const getDocumentIcon = (type: DocumentType) => {
+  const getDocumentIcon = (type: string) => {
     switch (type) {
       case 'devis': return 'description';
       case 'facture': return 'receipt';
@@ -167,6 +167,57 @@ export default function DocumentDetailsScreen() {
       case 'plan': return 'map';
       default: return 'insert-drive-file';
     }
+  };
+
+  // Composant pour afficher une ligne de document
+  const DocumentLineItem = ({ line, index }: { line: DocumentLine; index: number }) => {
+    const lineTotal = line.total_ht || (line.quantity * line.unit_price - line.discount_amount);
+    
+    return (
+      <View className="bg-gray-50 p-4 rounded-lg mb-3">
+        <View className="flex-row justify-between items-start mb-2">
+          <Text className="font-semibold text-gray-800 flex-1 mr-2">
+            {line.material?.name || line.description}
+          </Text>
+          <Text className="font-bold text-gray-900">
+            {lineTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+          </Text>
+        </View>
+        
+        {line.material?.name && line.description !== line.material.name && (
+          <Text className="text-gray-600 text-sm mb-2">{line.description}</Text>
+        )}
+        
+        <View className="flex-row flex-wrap gap-2 mb-2">
+          <View className="bg-blue-100 px-2 py-1 rounded">
+            <Text className="text-blue-800 text-xs">
+              Qté: {line.quantity} {line.unit}
+            </Text>
+          </View>
+          <View className="bg-blue-100 px-2 py-1 rounded">
+            <Text className="text-blue-800 text-xs">
+              P.U.: {line.unit_price.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            </Text>
+          </View>
+          {line.discount_percent > 0 && (
+            <View className="bg-orange-100 px-2 py-1 rounded">
+              <Text className="text-orange-800 text-xs">
+                Remise: {line.discount_percent}%
+              </Text>
+            </View>
+          )}
+          <View className="bg-green-100 px-2 py-1 rounded">
+            <Text className="text-green-800 text-xs">
+              TVA: {line.tax_rate}%
+            </Text>
+          </View>
+        </View>
+        
+        {line.material?.reference && (
+          <Text className="text-gray-500 text-xs">Réf: {line.material.reference}</Text>
+        )}
+      </View>
+    );
   };
   
   // Rendu du contenu principal
@@ -227,10 +278,79 @@ export default function DocumentDetailsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Informations client */}
+        {document.client && (
+          <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
+            <Text className="text-lg font-semibold text-gray-800 mb-3">Client</Text>
+            
+            <View className="mb-2">
+              <Text className="text-gray-800 font-medium">
+                {document.client.company_name || `${document.client.firstname} ${document.client.lastname}`}
+              </Text>
+              {document.client.company_name && (
+                <Text className="text-gray-600">
+                  {document.client.firstname} {document.client.lastname}
+                </Text>
+              )}
+            </View>
+            
+            <View className="mb-2">
+              <Text className="text-gray-600">{document.client.email}</Text>
+            </View>
+            
+            {(document.client.phone || document.client.mobile) && (
+              <View className="mb-2">
+                <Text className="text-gray-600">
+                  {document.client.phone || document.client.mobile}
+                </Text>
+              </View>
+            )}
+            
+            {document.client.siret && (
+              <View className="mb-2">
+                <Text className="text-gray-500">SIRET: {document.client.siret}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Informations projet */}
+        {document.project && (
+          <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
+            <Text className="text-lg font-semibold text-gray-800 mb-3">Projet</Text>
+            
+            <View className="mb-2">
+              <Text className="text-gray-800 font-medium">{document.project.name}</Text>
+              <Text className="text-gray-600">{document.project.reference}</Text>
+            </View>
+            
+            {document.project.description && (
+              <View className="mb-2">
+                <Text className="text-gray-600">{document.project.description}</Text>
+              </View>
+            )}
+            
+            <View className="flex-row flex-wrap gap-2">
+              <View className="bg-blue-100 px-2 py-1 rounded">
+                <Text className="text-blue-800 text-xs">
+                  Statut: {document.project.status}
+                </Text>
+              </View>
+              {document.project.budget && (
+                <View className="bg-green-100 px-2 py-1 rounded">
+                  <Text className="text-green-800 text-xs">
+                    Budget: {document.project.budget.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
         
-        {/* Informations du document */}
+        {/* Informations générales du document */}
         <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Informations</Text>
+          <Text className="text-lg font-semibold text-gray-800 mb-3">Informations générales</Text>
           
           <View className="mb-3">
             <Text className="text-gray-500">Date d'émission</Text>
@@ -244,19 +364,17 @@ export default function DocumentDetailsScreen() {
             </View>
           )}
           
-          {document.amount !== null && (
+          {document.validity_period && (
             <View className="mb-3">
-              <Text className="text-gray-500">Montant</Text>
-              <Text className="text-gray-800 font-medium">
-                {document.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-              </Text>
+              <Text className="text-gray-500">Période de validité</Text>
+              <Text className="text-gray-800 font-medium">{document.validity_period} jours</Text>
             </View>
           )}
           
-          {document.tva_rate !== null && (
+          {document.payment_terms && (
             <View className="mb-3">
-              <Text className="text-gray-500">Taux TVA</Text>
-              <Text className="text-gray-800 font-medium">{document.tva_rate}%</Text>
+              <Text className="text-gray-500">Conditions de paiement</Text>
+              <Text className="text-gray-800 font-medium">{document.payment_terms}</Text>
             </View>
           )}
           
@@ -274,12 +392,105 @@ export default function DocumentDetailsScreen() {
             </View>
           )}
         </View>
+
+        {/* Lignes du document */}
+        {document.lines && document.lines.length > 0 && (
+          <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
+            <Text className="text-lg font-semibold text-gray-800 mb-3">
+              Détail des prestations ({document.lines.length} ligne{document.lines.length > 1 ? 's' : ''})
+            </Text>
+            
+            {document.lines.map((line, index) => (
+              <DocumentLineItem key={line.id} line={line} index={index} />
+            ))}
+          </View>
+        )}
+
+        {/* Récapitulatif financier */}
+        <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
+          <Text className="text-lg font-semibold text-gray-800 mb-3">Récapitulatif financier</Text>
+          
+          <View className="space-y-2">
+            <View className="flex-row justify-between">
+              <Text className="text-gray-600">Sous-total HT</Text>
+              <Text className="text-gray-800 font-medium">
+                {document.subtotal_ht?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || 'N/A'}
+              </Text>
+            </View>
+            
+            {document.discount_rate > 0 && (
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Remise ({document.discount_rate}%)</Text>
+                <Text className="text-orange-600 font-medium">
+                  -{document.total_discount?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || '0 €'}
+                </Text>
+              </View>
+            )}
+            
+            {document.shipping_costs > 0 && (
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Frais de livraison</Text>
+                <Text className="text-gray-800 font-medium">
+                  {document.shipping_costs.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                </Text>
+              </View>
+            )}
+            
+            <View className="flex-row justify-between">
+              <Text className="text-gray-600">TVA ({document.tva_rate}%)</Text>
+              <Text className="text-gray-800 font-medium">
+                {document.total_tax?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || 'N/A'}
+              </Text>
+            </View>
+            
+            <View className="border-t border-gray-200 pt-2 mt-2">
+              <View className="flex-row justify-between">
+                <Text className="text-lg font-bold text-gray-800">Total TTC</Text>
+                <Text className="text-lg font-bold text-gray-800">
+                  {document.total_ttc?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || 
+                   document.amount?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || 'N/A'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Informations de paiement */}
+            {(document.amount_paid > 0 || document.balance_due) && (
+              <>
+                <View className="border-t border-gray-200 pt-2 mt-2">
+                  <View className="flex-row justify-between">
+                    <Text className="text-gray-600">Montant payé</Text>
+                    <Text className="text-green-600 font-medium">
+                      {document.amount_paid.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                    </Text>
+                  </View>
+                  
+                  {document.balance_due && (
+                    <View className="flex-row justify-between">
+                      <Text className="text-gray-600">Solde restant</Text>
+                      <Text className="text-red-600 font-medium">
+                        {document.balance_due.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            )}
+          </View>
+        </View>
         
         {/* Notes */}
         {document.notes && (
           <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Notes</Text>
             <Text className="text-gray-700">{document.notes}</Text>
+          </View>
+        )}
+
+        {/* Mentions légales */}
+        {document.legal_mentions && (
+          <View className="bg-white p-5 rounded-lg shadow-sm mb-4">
+            <Text className="text-lg font-semibold text-gray-800 mb-3">Mentions légales</Text>
+            <Text className="text-gray-700 text-sm">{document.legal_mentions}</Text>
           </View>
         )}
         
@@ -357,6 +568,21 @@ export default function DocumentDetailsScreen() {
               <Text className="ml-3 flex-1 text-blue-800">Consulter le document</Text>
               <Ionicons name="open-outline" size={20} color="#3b82f6" />
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Informations de signature */}
+        {document.signed_by_client && (
+          <View className="bg-green-50 p-5 rounded-lg shadow-sm mb-4 border border-green-200">
+            <View className="flex-row items-center mb-2">
+              <Ionicons name="checkmark-circle" size={24} color="#16a34a" />
+              <Text className="ml-2 text-lg font-semibold text-green-800">Document signé</Text>
+            </View>
+            {document.signed_date && (
+              <Text className="text-green-700">
+                Signé le {formatDate(document.signed_date)}
+              </Text>
+            )}
           </View>
         )}
 

@@ -9,6 +9,7 @@ import {
   UpdateProjectMediaDto,
   DocumentType,
   DocumentStatus,
+  DocumentDetails,
 } from './interfaces/document.interface';
 import { Prisma } from '@prisma/client';
 
@@ -398,6 +399,156 @@ export class AppService {
     } catch (error) {
       console.error(error);
       return false;
+    }
+  }
+
+  async getDocumentDetails(id: number): Promise<DocumentDetails | null> {
+    try {
+      const document = await this.prisma.documents.findUnique({
+        where: { id },
+        include: {
+          document_lines: {
+            include: {
+              materials: true,
+            },
+            orderBy: {
+              sort_order: 'asc',
+            },
+          },
+          clients: true,
+          projects: true,
+        },
+      });
+
+      if (!document) {
+        return null;
+      }
+
+      // Calculer les totaux
+      let subtotal_ht = 0;
+      let total_discount = 0;
+      let total_tax = 0;
+
+      document.document_lines.forEach((line) => {
+        const lineTotal = line.total_ht ? Number(line.total_ht) : 0;
+        subtotal_ht += lineTotal;
+        
+        const lineDiscountAmount = line.discount_amount ? Number(line.discount_amount) : 0;
+        total_discount += lineDiscountAmount;
+        
+        const lineTax = (lineTotal * Number(line.tax_rate)) / 100;
+        total_tax += lineTax;
+      });
+
+      // Ajouter les frais de livraison au sous-total
+      const shipping_costs = document.shipping_costs ? Number(document.shipping_costs) : 0;
+      subtotal_ht += shipping_costs;
+
+      // Appliquer la remise globale du document
+      const document_discount = document.discount_amount ? Number(document.discount_amount) : 0;
+      total_discount += document_discount;
+
+      const total_ttc = subtotal_ht - document_discount + total_tax;
+
+      // Transformer les données
+      const documentDetails: DocumentDetails = {
+        id: document.id,
+        document_id: document.document_id,
+        project_id: document.project_id,
+        client_id: document.client_id,
+        type: document.type as DocumentType,
+        reference: document.reference,
+        status: document.status as DocumentStatus | null,
+        amount: document.amount ? Number(document.amount) : null,
+        tva_rate: document.tva_rate ? Number(document.tva_rate) : 20,
+        issue_date: document.issue_date,
+        due_date: document.due_date,
+        payment_date: document.payment_date,
+        payment_method: document.payment_method,
+        payment_terms: document.payment_terms,
+        discount_rate: document.discount_rate ? Number(document.discount_rate) : 0,
+        discount_amount: document.discount_amount ? Number(document.discount_amount) : 0,
+        payment_status: document.payment_status || 'non_payé',
+        amount_paid: document.amount_paid ? Number(document.amount_paid) : 0,
+        balance_due: document.balance_due ? Number(document.balance_due) : null,
+        legal_mentions: document.legal_mentions,
+        validity_period: document.validity_period,
+        signed_by_client: document.signed_by_client || false,
+        signed_date: document.signed_date,
+        shipping_costs: shipping_costs,
+        notes: document.notes,
+        file_path: document.file_path,
+        created_at: document.created_at,
+        updated_at: document.updated_at,
+        // Relations
+        lines: document.document_lines.map((line) => ({
+          id: line.id,
+          document_id: line.document_id,
+          material_id: line.material_id,
+          description: line.description,
+          quantity: Number(line.quantity),
+          unit: line.unit,
+          unit_price: Number(line.unit_price),
+          discount_percent: Number(line.discount_percent) || 0,
+          discount_amount: Number(line.discount_amount) || 0,
+          tax_rate: Number(line.tax_rate) || 20,
+          total_ht: Number(line.total_ht) || 0,
+          sort_order: line.sort_order || 0,
+          created_at: line.created_at,
+          updated_at: line.updated_at,
+          material: line.materials ? {
+            id: line.materials.id,
+            name: line.materials.name,
+            description: line.materials.description,
+            reference: line.materials.reference,
+            unit: line.materials.unit,
+            price: line.materials.price ? Number(line.materials.price) : null,
+            stock_quantity: line.materials.stock_quantity || 0,
+            minimum_stock: line.materials.minimum_stock || 0,
+            supplier: line.materials.supplier,
+            supplier_reference: line.materials.supplier_reference,
+          } : null,
+        })),
+        client: document.clients ? {
+          id: document.clients.id,
+          customer_id: document.clients.customer_id,
+          company_name: document.clients.company_name,
+          firstname: document.clients.firstname,
+          lastname: document.clients.lastname,
+          email: document.clients.email,
+          phone: document.clients.phone,
+          mobile: document.clients.mobile,
+          siret: document.clients.siret,
+          notes: document.clients.notes,
+        } : null,
+        project: document.projects ? {
+          id: document.projects.id,
+          project_id: document.projects.project_id,
+          reference: document.projects.reference,
+          name: document.projects.name,
+          description: document.projects.description,
+          client_id: document.projects.client_id,
+          status: document.projects.status,
+          start_date: document.projects.start_date,
+          end_date: document.projects.end_date,
+          estimated_duration: document.projects.estimated_duration,
+          budget: document.projects.budget ? Number(document.projects.budget) : null,
+          actual_cost: document.projects.actual_cost ? Number(document.projects.actual_cost) : null,
+          margin: document.projects.margin ? Number(document.projects.margin) : null,
+          priority: document.projects.priority,
+          notes: document.projects.notes,
+        } : null,
+        // Totaux calculés
+        subtotal_ht,
+        total_discount,
+        total_tax,
+        total_ttc,
+      };
+
+      return documentDetails;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des détails du document ${id}:`, error);
+      return null;
     }
   }
 }
