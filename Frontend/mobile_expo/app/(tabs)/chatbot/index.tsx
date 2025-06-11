@@ -8,7 +8,15 @@ import { Message, Attachment } from '@/app/components/chatbot/types';
 import QuickReply from '@/app/components/chatbot/QuickReply';
 import AttachmentButton from '@/app/components/chatbot/AttachmentButton';
 import SpeechButton from '@/app/components/chatbot/SpeechButton';
-import { sendConversationMessage, formatChatbotResponse, checkChatbotHealth } from '@/app/utils/functions/chatbot/chatbot.function';
+import { 
+  sendConversationMessage, 
+  formatChatbotResponse, 
+  checkChatbotHealth,
+  getGatewayInfo,
+  getDatabaseStatus,
+  clearConversation,
+  switchDatabase
+} from '@/app/utils/functions/chatbot/chatbot.function';
 import DataCards from '@/app/components/chatbot/DataCards';
 
 // Suggestions de démarrage pour la conversation
@@ -26,7 +34,7 @@ export default function ChatbotScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Bonjour ! Je suis TechniAssistant, votre assistant virtuel. Comment puis-je vous aider aujourd\'hui ?',
+      text: 'Bonjour ! Je suis TechniAssistant via l\'API Gateway. Comment puis-je vous aider aujourd\'hui ?',
       isUser: false,
       timestamp: new Date(),
     },
@@ -36,6 +44,8 @@ export default function ChatbotScreen() {
   const [currentAttachments, setCurrentAttachments] = useState<Attachment[]>([]);
   const [quickReplies, setQuickReplies] = useState<string[]>(INITIAL_SUGGESTIONS);
   const [isServiceAvailable, setIsServiceAvailable] = useState<boolean>(true);
+  const [currentDatabase, setCurrentDatabase] = useState<'sync' | 'app'>('sync');
+  const [gatewayInfo, setGatewayInfo] = useState<any>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const router = useRouter();
 
@@ -46,22 +56,47 @@ export default function ChatbotScreen() {
     }, 100);
   }, [messages]);
 
-  // Vérifier l'état de santé du service chatbot au chargement
+  // Vérifier l'état de santé du service et obtenir les infos au chargement
   useEffect(() => {
-    const checkHealth = async () => {
+    const initializeService = async () => {
       try {
-        await checkChatbotHealth();
-        setIsServiceAvailable(true);
-      } catch (error) {
-        console.error('Erreur lors de la vérification du service chatbot:', error);
-        setIsServiceAvailable(false);
+        console.log('🚀 Initialisation du service chatbot via API Gateway...');
         
-        // Ajouter un message système pour informer l'utilisateur
+        // Vérifier la santé du service
+        const healthStatus = await checkChatbotHealth();
+        console.log('✅ Service accessible:', healthStatus);
+        setIsServiceAvailable(true);
+        
+        // Obtenir les informations sur l'API Gateway
+        try {
+          const info = await getGatewayInfo();
+          setGatewayInfo(info);
+          console.log('ℹ️ Informations API Gateway:', info);
+        } catch (infoError) {
+          console.log('⚠️ Impossible d\'obtenir les infos de l\'API Gateway (normal si endpoint non disponible)');
+        }
+        
+        // Ajouter un message système avec les informations
         setMessages(prev => [
           ...prev,
           {
             id: Date.now().toString(),
-            text: 'Le service de chatbot est actuellement indisponible. Veuillez réessayer plus tard.',
+            text: `✅ Connexion établie via l'API Gateway (port 3000)\n🗄️ Base de données active: ${currentDatabase}\n\nToutes les requêtes passent maintenant par l'API Gateway.`,
+            isUser: false,
+            timestamp: new Date(),
+          }
+        ]);
+        
+      } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation:', error);
+        setIsServiceAvailable(false);
+        
+        // Ajouter un message d'erreur
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            text: `❌ Le service chatbot est actuellement indisponible via l'API Gateway.\n\nVeuillez vérifier que :\n- L'API Gateway est démarré sur le port 3000\n- Le service chatbot est accessible\n\nErreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
             isUser: false,
             timestamp: new Date(),
           }
@@ -69,8 +104,8 @@ export default function ChatbotScreen() {
       }
     };
     
-    checkHealth();
-  }, []);
+    initializeService();
+  }, [currentDatabase]);
 
   const handleAttachment = (uri: string, type: string, name: string) => {
     setCurrentAttachments([...currentAttachments, { uri, type, name }]);
@@ -88,10 +123,11 @@ export default function ChatbotScreen() {
 
   const sendMessage = async () => {
     if (inputText.trim() === '' && currentAttachments.length === 0) return;
+    
     if (!isServiceAvailable) {
       Alert.alert(
         "Service indisponible",
-        "Le service de chatbot est actuellement indisponible. Veuillez réessayer plus tard."
+        "Le service chatbot est actuellement indisponible via l'API Gateway. Veuillez réessayer plus tard."
       );
       return;
     }
@@ -110,8 +146,12 @@ export default function ChatbotScreen() {
     setIsLoading(true);
 
     try {
-      // Appel à l'API du chatbot avec gestion de conversation
-      const response = await sendConversationMessage(userMessage.text);
+      console.log(`💬 Envoi du message via API Gateway (base: ${currentDatabase})`);
+      
+      // Appel à l'API du chatbot via l'API Gateway
+      const response = await sendConversationMessage(userMessage.text, currentDatabase);
+      console.log('📦 Réponse reçue:', response);
+      
       const formattedResponse = formatChatbotResponse(response);
       
       // Vérifier si des données structurées sont disponibles
@@ -120,11 +160,9 @@ export default function ChatbotScreen() {
       // Création du message de réponse avec données structurées si disponibles
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        // N'afficher le texte que s'il n'y a pas de données structurées ou si le format nécessite le texte
         text: hasStructuredData ? "" : formattedResponse,
         isUser: false,
         timestamp: new Date(),
-        // Ajouter les données structurées si disponibles
         data: Array.isArray(response.data) ? response.data : undefined,
         responseFormat: response.response_format,
         queryDescription: response.query_description,
@@ -143,20 +181,27 @@ export default function ChatbotScreen() {
         } else {
           setQuickReplies([
             "Pouvez-vous m'en dire plus ?",
-            "Comment configurer mon compte ?",
-            "Quelles sont les prochaines étapes ?"
+            "Afficher les statistiques",
+            "Changer de base de données"
           ]);
         }
+      } else {
+        setQuickReplies([
+          "Pouvez-vous m'en dire plus ?",
+          "Afficher les statistiques", 
+          "Changer de base de données"
+        ]);
       }
+      
     } catch (error) {
-      console.error('Erreur lors de l\'envoi du message:', error);
+      console.error('❌ Erreur lors de l\'envoi du message:', error);
       
       // Ajouter un message d'erreur
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: error instanceof Error 
-          ? `Désolé, une erreur s'est produite : ${error.message}` 
-          : "Désolé, une erreur s'est produite lors du traitement de votre demande.",
+          ? `❌ Erreur via API Gateway : ${error.message}\n\nVeuillez vérifier que l'API Gateway est accessible sur le port 3000.` 
+          : "❌ Erreur inconnue lors du traitement via l'API Gateway.",
         isUser: false,
         timestamp: new Date(),
       };
@@ -167,43 +212,75 @@ export default function ChatbotScreen() {
     }
   };
 
-  // Fonction pour gérer les clics sur les éléments de données (clients, projets, etc.)
+  // Fonction pour changer de base de données
+  const handleDatabaseSwitch = async () => {
+    try {
+      const newDatabase = currentDatabase === 'sync' ? 'app' : 'sync';
+      await switchDatabase(newDatabase);
+      setCurrentDatabase(newDatabase);
+      
+      const switchMessage: Message = {
+        id: Date.now().toString(),
+        text: `🔄 Base de données changée vers: ${newDatabase}\n\nUne nouvelle conversation a été créée.`,
+        isUser: false,
+        timestamp: new Date(),
+      };
+      
+      setMessages((prevMessages) => [...prevMessages, switchMessage]);
+    } catch (error) {
+      console.error('Erreur lors du changement de base:', error);
+      Alert.alert("Erreur", "Impossible de changer de base de données");
+    }
+  };
+
+  // Fonction pour effacer la conversation
+  const handleClearConversation = async () => {
+    try {
+      await clearConversation();
+      setMessages([
+        {
+          id: '1',
+          text: 'Nouvelle conversation démarrée via l\'API Gateway. Comment puis-je vous aider ?',
+          isUser: false,
+          timestamp: new Date(),
+        },
+      ]);
+      setQuickReplies(INITIAL_SUGGESTIONS);
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      Alert.alert("Erreur", "Impossible de supprimer la conversation");
+    }
+  };
+
+  // Fonction pour gérer les clics sur les éléments de données
   const handleItemPress = (item: any) => {
-    // Déterminer le type d'élément et rediriger vers la page appropriée
     if ('firstname' in item && 'lastname' in item) {
-      // C'est un client
       router.push({
         pathname: "/(tabs)/clients/[id]",
         params: { id: item.id.toString() }
       });
     } else if ('reference' in item && 'start_date' in item) {
-      // C'est un projet
       router.push({
         pathname: "/(tabs)/projects/[id]",
         params: { id: item.id.toString() }
       });
     } else if ('reference' in item && 'issue_date' in item) {
-      // C'est un document
       router.push({
         pathname: "/(tabs)/documents/[id]",
         params: { id: item.id.toString() }
       });
     } else if (item.id && item.title && 'type' in item && (item.type === 'event' || item.type === 'assignment')) {
-      // C'est un élément de planning
       if (item.project?.id) {
-        // Si c'est lié à un projet, on redirige vers le projet
         router.push({
           pathname: "/(tabs)/projects/[id]",
           params: { id: item.project.id.toString() }
         });
       } else {
-        // Sinon, on redirige vers la page de planning
         router.push({
           pathname: "/(tabs)/planning"
         });
       }
     } else {
-      // Type d'élément non pris en charge, afficher une alerte
       Alert.alert(
         "Information",
         "Désolé, je ne peux pas ouvrir les détails de cet élément."
@@ -218,13 +295,41 @@ export default function ChatbotScreen() {
         <TouchableOpacity onPress={() => router.back()} className="mr-4">
           <Ionicons name="chevron-back" size={24} color="#2563eb" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold">TechniAssistant</Text>
-        {!isServiceAvailable && (
-          <View className="ml-auto flex-row items-center">
-            <Ionicons name="cloud-offline-outline" size={18} color="#ef4444" />
-            <Text className="text-red-500 ml-1 text-xs">Hors ligne</Text>
-          </View>
-        )}
+        <View className="flex-1">
+          <Text className="text-xl font-bold">TechniAssistant</Text>
+          <Text className="text-xs text-gray-500">via API Gateway - Base: {currentDatabase}</Text>
+        </View>
+        
+        <View className="flex-row items-center space-x-2">
+          {/* Bouton pour changer de base */}
+          <TouchableOpacity 
+            onPress={handleDatabaseSwitch}
+            className="bg-blue-100 px-2 py-1 rounded"
+          >
+            <Text className="text-blue-600 text-xs font-medium">{currentDatabase.toUpperCase()}</Text>
+          </TouchableOpacity>
+          
+          {/* Bouton pour effacer la conversation */}
+          <TouchableOpacity 
+            onPress={handleClearConversation}
+            className="p-2"
+          >
+            <Ionicons name="refresh" size={18} color="#6b7280" />
+          </TouchableOpacity>
+          
+          {/* Indicateur de statut */}
+          {!isServiceAvailable ? (
+            <View className="flex-row items-center">
+              <Ionicons name="cloud-offline-outline" size={18} color="#ef4444" />
+              <Text className="text-red-500 ml-1 text-xs">Hors ligne</Text>
+            </View>
+          ) : (
+            <View className="flex-row items-center">
+              <Ionicons name="cloud-done-outline" size={18} color="#10b981" />
+              <Text className="text-green-500 ml-1 text-xs">Port 3000</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -271,9 +376,7 @@ export default function ChatbotScreen() {
           />
 
           <View className="flex-row items-end mt-2">
-            {/* Conteneur principal pour la zone de saisie et les boutons */}
             <View className="flex-1 flex-col mr-2">
-              {/* Champ de texte et boutons d'action */}
               <View className="flex-row items-center bg-gray-100 rounded-2xl px-4 py-3">
                 <TextInput
                   value={inputText}
@@ -282,14 +385,12 @@ export default function ChatbotScreen() {
                   className="flex-1 mr-2 text-base"
                   multiline
                   maxLength={500}
-                  // Ajustement pour le défilement si le texte dépasse une seule ligne
                   scrollEnabled={true}
                 />
                 <AttachmentButton onFileSelected={handleAttachment} />
                 <SpeechButton onSpeechResult={setInputText} />
               </View>
 
-              {/* Affichage des aperçus de pièces jointes */}
               {currentAttachments.length > 0 && (
                 <View className="mt-2 flex-row flex-wrap items-center justify-start">
                   {currentAttachments.map((attachment, index) => (
@@ -298,7 +399,7 @@ export default function ChatbotScreen() {
                         <View className="relative">
                           <Image
                             source={{ uri: attachment.uri }}
-                            className="w-16 h-16 rounded-lg" // Taille légèrement réduite et coins arrondis
+                            className="w-16 h-16 rounded-lg"
                             resizeMode="cover"
                           />
                           <TouchableOpacity
@@ -310,7 +411,6 @@ export default function ChatbotScreen() {
                         </View>
                       ) : (
                         <View className="relative bg-gray-200 rounded-lg p-2 flex-row items-center">
-                           {/* Icône pour fichier */}
                            <Ionicons name="document-outline" size={20} color="#4b5563" className="mr-1"/>
                           <Text className="text-sm text-gray-700 max-w-[100px]" numberOfLines={1}>
                             {attachment.name}
@@ -329,7 +429,6 @@ export default function ChatbotScreen() {
               )}
             </View>
 
-            {/* Bouton d'envoi */}
             <TouchableOpacity
               onPress={sendMessage}
               disabled={isLoading || (!inputText.trim() && currentAttachments.length === 0)}
