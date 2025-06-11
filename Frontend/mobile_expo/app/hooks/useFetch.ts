@@ -107,6 +107,8 @@ export function useFetch<T>(endpoint: string | null, options: FetchOptions = {})
         headers: {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'TechnidalleMobileApp/1.0',
           ...(options.method !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
           ...(options.headers || {}),
         },

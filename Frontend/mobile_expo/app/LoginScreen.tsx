@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import { secureStoreWrapper } from './utils/secureStoreWrapper';
 import { useRouter } from 'expo-router';
 import url from './utils/url';
 
@@ -22,7 +22,7 @@ export default function LoginScreen() {
         throw new Error('Invalid credentials');
       }
       const data = await response.json();
-      await SecureStore.setItemAsync('accessToken', data.access_token);
+      await secureStoreWrapper.setItemAsync('accessToken', data.access_token);
       router.replace('/(tabs)/dashboard');
     } catch (err) {
       setError('Erreur de connexion');

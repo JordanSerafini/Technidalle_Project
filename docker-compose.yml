@@ -199,31 +199,38 @@ services:
       - ./Backend/planning_service:/app
       - /app/generated/prisma       
 
- # chatbot:
- #   build:
- #     context: ./Backend/chatbot_service
- #     dockerfile: Dockerfile
- #   container_name: chatbot
- #   ports:
- #     - "5599:5599"
- #   environment:
- #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
- #     - PORT=5599
- #     - OPENAI_API_KEY=${OPENAI_API_KEY}
- #     - ELASTICSEARCH_NODE=http://elasticsearch:9200
- #     - ELASTICSEARCH_USERNAME=elastic
- #     - ELASTICSEARCH_PASSWORD=elastic
- #   depends_on:
- #     postgres:
- #       condition: service_healthy
- #     elasticsearch:
- #       condition: service_healthy
- #   networks:
- #     - app-network
- #   volumes:
- #     - ./Backend/chatbot_service:/app
- #     - /app/node_modules
- #     - /app/generated/prisma
+  chatbot:
+    build:
+      context: ./Backend/chatbot_service
+      dockerfile: Dockerfile
+    container_name: chatbot
+    ports:
+      - "6655:6655"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - PORT=6655
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      # Configuration pour postgres_app
+      - POSTGRES_APP_HOST=postgres
+      - POSTGRES_APP_PORT=5432
+      - POSTGRES_APP_USER=postgres
+      - POSTGRES_APP_PASSWORD=postgres
+      - POSTGRES_APP_DATABASE=postgres
+      # Configuration pour postgres_sync
+      - POSTGRES_SYNC_HOST=postgres_sync
+      - POSTGRES_SYNC_PORT=5432
+      - POSTGRES_SYNC_USER=sync_user
+      - POSTGRES_SYNC_PASSWORD=sync_password
+      - POSTGRES_SYNC_DATABASE=sync_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres_sync:
+        condition: service_healthy
+    networks:
+      - app-network
 
   # email-modules:
   #   build:
@@ -263,6 +270,8 @@ services:
       client:
         condition: service_started
       documents:
+        condition: service_started
+      chatbot:
         condition: service_started
     networks:
       - app-network

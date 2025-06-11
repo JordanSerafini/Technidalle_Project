@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
-interface ConversationMessageDto {
-  userId: string;
+interface ChatRequest {
   message: string;
+  conversationId?: string;
+  database?: string;
+  userId?: string;
 }
 
 @Controller('chatbot')
@@ -19,10 +21,34 @@ export class ChatbotController {
     return data;
   }
 
-  @Post('message')
-  async sendMessage(@Body() body: ConversationMessageDto) {
+  @Post('chat')
+  async sendMessage(@Body() body: ChatRequest) {
     const { data } = await firstValueFrom(
-      this.httpService.post('/chatbot/message', body),
+      this.httpService.post('/chatbot/chat', body),
+    );
+    return data;
+  }
+
+  @Get('conversation/:id/history')
+  async getConversationHistory(@Param('id') conversationId: string) {
+    const { data } = await firstValueFrom(
+      this.httpService.get(`/chatbot/conversation/${conversationId}/history`),
+    );
+    return data;
+  }
+
+  @Delete('conversation/:id')
+  async clearConversation(@Param('id') conversationId: string) {
+    const { data } = await firstValueFrom(
+      this.httpService.delete(`/chatbot/conversation/${conversationId}`),
+    );
+    return data;
+  }
+
+  @Get('databases/status')
+  async getDatabaseStatus() {
+    const { data } = await firstValueFrom(
+      this.httpService.get('/chatbot/databases/status'),
     );
     return data;
   }

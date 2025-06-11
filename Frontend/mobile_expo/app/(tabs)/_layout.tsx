@@ -1,39 +1,20 @@
-import { Tabs, Redirect } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import { Platform, View, Text } from 'react-native';
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const tintColor = '#2f95dc';
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-/*
-  useEffect(() => {
-    SecureStore.getItemAsync('accessToken').then((value) => {
-      setToken(value);
-      setLoading(false);
-    });
-  }, []);
 
-  if (loading) {
-    return null;
-  }
-
-  if (!token) {
-    return <Redirect href="/LoginScreen" />;
-  }
-*/
+  // Authentification désactivée pour le développement
   return (
     <Tabs
       initialRouteName="dashboard"
       screenOptions={{
         tabBarActiveTintColor: tintColor,
         headerShown: false,
-        // Suppression des options personnalisées qui causent des erreurs
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
             backgroundColor: 'rgba(255, 255, 255, 0.8)',
           },

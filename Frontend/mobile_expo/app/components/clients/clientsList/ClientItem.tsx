@@ -1,10 +1,15 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Client } from '@/app/utils/interfaces/client.interface';
 import { formatClientData } from '@/app/utils/formatClientData';
-import { MotiView } from 'moti';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withTiming,
+  withDelay 
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -53,16 +58,22 @@ const ClientItem = React.memo(({
     transform: [{ scale: scale.value }],
   }));
 
+  // Animation d'entrée
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(24);
+
+  useEffect(() => {
+    opacity.value = withDelay(index * 60, withTiming(1, { duration: 400 }));
+    translateY.value = withDelay(index * 60, withTiming(0, { duration: 400 }));
+  }, [index]);
+
+  const entryAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
   return (
-    <MotiView
-      from={{ opacity: 0, translateY: 24 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{
-        delay: index * 60,
-        type: 'timing',
-        duration: 400,
-      }}
-    >
+    <Animated.View style={entryAnimatedStyle}>
       <Animated.View style={animatedStyle}>
         <TouchableOpacity 
           key={client.id} 
@@ -119,7 +130,7 @@ const ClientItem = React.memo(({
           </View>
         </TouchableOpacity>
       </Animated.View>
-    </MotiView>
+    </Animated.View>
   );
 }, (prevProps, nextProps) => {
   // Optimisation: ne re-rendre que si le client a changé

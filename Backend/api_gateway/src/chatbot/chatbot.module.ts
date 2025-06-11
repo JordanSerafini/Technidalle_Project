@@ -6,7 +6,7 @@ import { AnalyzeController } from './analyze.controller';
 @Module({
   imports: [
     HttpModule.register({
-      baseURL: 'http://chatbot:5599',
+      baseURL: 'http://chatbot:6655',
     }),
   ],
   controllers: [ChatbotController, AnalyzeController],

@@ -27,6 +27,7 @@ import {
   Document,
   CreateDocumentDto,
   UpdateDocumentDto,
+  DocumentDetails,
 } from '../interfaces/document.interface';
 import { firstValueFrom } from 'rxjs';
 
@@ -253,6 +254,32 @@ export class DocumentsController {
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         'Erreur lors de la récupération du document',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id/details')
+  @ApiOperation({ summary: 'Détails complets d\'un document avec ses lignes, client et projet' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'Détails complets du document' })
+  async getDocumentDetails(@Param('id') id: number): Promise<DocumentDetails> {
+    try {
+      const documentDetails = await firstValueFrom(
+        this.documentsService.send({ cmd: 'get_document_details' }, { id }),
+      );
+      if (!documentDetails) {
+        throw new HttpException('Document non trouvé', HttpStatus.NOT_FOUND);
+      }
+      return documentDetails;
+    } catch (error) {
+      console.error(
+        `Erreur lors de la récupération des détails du document ${id}:`,
+        error,
+      );
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Erreur lors de la récupération des détails du document',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
