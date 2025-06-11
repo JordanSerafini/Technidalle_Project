@@ -9,6 +9,7 @@ import { useProjectStore } from '../../store/projectStore';
 import ProjectsFab from '../../components/FAB/projects/projects.fab';
 import { FlashList } from '@shopify/flash-list';
 import AddProjectModal from '../../components/projects/add_project/addProjectsModal';
+import { formatTextForDisplay } from '../../utils/textUtils';
 
 // Étendre l'interface FetchState pour inclure refetch
 interface FetchState<T> {
@@ -141,7 +142,9 @@ const ProjectItemComponent = React.memo(({ project, onPress }: { project: Projec
       </View>
       
       {project.description && (
-        <Text className="text-gray-600 mt-2" numberOfLines={2}>{project.description}</Text>
+        <Text className="text-gray-600 mt-2" numberOfLines={2}>
+          {formatTextForDisplay(project.description, 100)}
+        </Text>
       )}
       
       <View className="flex-row justify-between mt-3 border-t border-gray-100 pt-2">

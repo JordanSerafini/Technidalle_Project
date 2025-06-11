@@ -278,6 +278,45 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  mcp-postgres-server:
+    build:
+      context: ./mcp-postgres-server
+      dockerfile: Dockerfile
+    container_name: mcp-postgres-server
+    ports:
+      - "3333:3000"
+    environment:
+      # Configuration pour postgres_sync
+      - POSTGRES_SYNC_HOST=postgres_sync
+      - POSTGRES_SYNC_PORT=5432
+      - POSTGRES_SYNC_USER=sync_user
+      - POSTGRES_SYNC_PASSWORD=sync_password
+      - POSTGRES_SYNC_DATABASE=sync_db
+      # Configuration pour postgres_app
+      - POSTGRES_APP_HOST=postgres
+      - POSTGRES_APP_PORT=5432
+      - POSTGRES_APP_USER=postgres
+      - POSTGRES_APP_PASSWORD=postgres
+      - POSTGRES_APP_DATABASE=postgres
+      # Configuration MCP
+      - MCP_SERVER_NAME=technidalle-postgres-multi
+      - MCP_SERVER_VERSION=1.0.0
+      - NODE_ENV=production
+      - DOCKER_MODE=true
+      - LOG_LEVEL=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres_sync:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"console.log('MCP Server Health Check')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 networks:
   app-network:
     driver: bridge

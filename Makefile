@@ -2,7 +2,7 @@
 #  Makefile docker compose + Swarm
 ############################################
 
-.PHONY: up down prismaUp test test-watch test-e2e test-cov test-load test-load-report
+.PHONY: up down build buildd prismaUp test test-watch test-e2e test-cov test-load test-load-report build-mcp start-mcp clean-mcp check-mcp build-all up-all
 
 up:
 	@echo "Lancement de l'application en utilisant docker compose..."
@@ -14,10 +14,15 @@ upd:
 	docker compose up -d
 	@echo "Application demarree detachée."
 
-build:
-	@echo "Lancement de l'application en utilisant docker compose..."
+build: build-mcp
+	@echo "🏗️ Construction du serveur MCP et lancement de l'application..."
 	docker compose build && docker compose up
-	@echo "Application build and up."
+	@echo "✅ Application et serveur MCP construits et démarrés."
+
+buildd: build-mcp
+	@echo "🏗️ Construction du serveur MCP et lancement de l'application en mode détaché..."
+	docker compose build && docker compose up -d
+	@echo "✅ Application et serveur MCP construits et démarrés en arrière-plan."
 
 down:
 	@echo "Arret de l'application en utilisant docker compose..."
@@ -72,3 +77,35 @@ test-load:
 test-load-report:
 	npx artillery run artillery.yaml --output report.json
 	npx artillery report --output report.html report.json
+
+# MCP Server commands
+build-mcp:
+	@echo "🏗️ Construction du serveur MCP PostgreSQL..."
+	cd mcp-postgres-server && npm install && npm run build
+	@echo "✅ Serveur MCP PostgreSQL construit avec succès!"
+
+clean-mcp:
+	@echo "🧹 Nettoyage du serveur MCP PostgreSQL..."
+	cd mcp-postgres-server && npm run clean
+
+start-mcp: build-mcp
+	@echo "🚀 Démarrage du serveur MCP PostgreSQL..."
+	cd mcp-postgres-server && npm start
+
+check-mcp:
+	@echo "🔍 Vérification de l'état du serveur MCP..."
+	@if [ -f "mcp-postgres-server/dist/index.js" ]; then \
+		echo "✅ Serveur MCP compilé et prêt"; \
+	else \
+		echo "❌ Serveur MCP non compilé. Exécutez 'make build-mcp'"; \
+		exit 1; \
+	fi
+
+# Updated docker commands to include MCP server
+build-all: build-mcp
+	@echo "🏗️ Construction de tous les services..."
+	docker-compose build
+
+up-all: build-mcp
+	@echo "🚀 Démarrage de tous les services (incluant MCP)..."
+	docker-compose up -d

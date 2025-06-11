@@ -7,6 +7,7 @@ import { DocumentStatus, DocumentType } from '@/app/utils/interfaces/document';
 import { formatDate } from '@/app/utils/dateFormatter';
 import { url as urlConfig } from '@/app/utils/url';
 import * as WebBrowser from 'expo-web-browser';
+import { formatTextForDisplay } from '@/app/utils/textUtils';
 
 export default function DocumentDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -327,7 +328,9 @@ export default function DocumentDetailsScreen() {
             
             {document.project.description && (
               <View className="mb-2">
-                <Text className="text-gray-600">{document.project.description}</Text>
+                <Text className="text-gray-600">
+                  {formatTextForDisplay(document.project.description, 150)}
+                </Text>
               </View>
             )}
             

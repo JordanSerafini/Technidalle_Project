@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { project_status } from '../../../utils/interfaces/project.interface';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AccordionItem from '../../../components/AccordionItem';
+import { formatTextForDisplay, formatProjectTimeline } from '../../../utils/textUtils';
 
 const statusLabels: Record<project_status, string> = {
   prospect: 'Prospect',
@@ -156,7 +157,30 @@ export const ProjectInfo = memo(({
           {description && (
             <View style={styles.descriptionContainer}>
               <Text style={styles.descriptionLabel}>Description:</Text>
-              <Text style={styles.descriptionText}>{description}</Text>
+              {(() => {
+                const timeline = formatProjectTimeline(description);
+                const cleanDescription = formatTextForDisplay(description);
+                
+                // Si on détecte un format chronologique avec des dates
+                if (timeline.length > 0) {
+                  return (
+                    <View>
+                      {timeline.map((entry, index) => (
+                        <View key={index} style={styles.timelineEntry}>
+                          <View style={styles.timelineHeader}>
+                            <MaterialIcons name="event" size={16} color="#2563eb" />
+                            <Text style={styles.timelineDate}>{entry.dateStr}</Text>
+                          </View>
+                          <Text style={styles.timelineDescription}>{entry.description}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                } else {
+                  // Affichage normal pour les descriptions sans format chronologique
+                  return <Text style={styles.descriptionText}>{cleanDescription}</Text>;
+                }
+              })()}
             </View>
           )}
         </View>
@@ -252,7 +276,30 @@ const styles = StyleSheet.create({
   descriptionText: {
     color: '#333',
     lineHeight: 20,
-  }
+  },
+  timelineEntry: {
+    marginBottom: 12,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#e0e7ff',
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  timelineDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+    marginLeft: 6,
+  },
+  timelineDescription: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+    marginLeft: 22,
+  },
 });
 
 export default ProjectInfo;

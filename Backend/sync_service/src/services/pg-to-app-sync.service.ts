@@ -167,7 +167,8 @@ export class PgToAppSyncService {
           END as mobile,
           "Siren" as siret,
           "NotesClear" as notes,
-                      "sysModifiedDate" as modified_date
+          "TechnicalSheetClear" as technical_sheet,
+          "sysModifiedDate" as modified_date
         FROM "Customer" 
         WHERE "ActiveState" = 1 OR "ActiveState" IS NULL
         ORDER BY "sysModifiedDate" DESC NULLS LAST
@@ -512,7 +513,7 @@ export class PgToAppSyncService {
           d."AccomplishedSales" as budget,
           d."DealState" as deal_state,
           d."xx_Client" as client_ref,
-          d."Notes" as notes,
+          d."NotesClear" as notes,
           d."sysModifiedDate" as modified_date
         FROM "Deal" d
         WHERE d."Caption" IS NOT NULL
@@ -530,7 +531,7 @@ export class PgToAppSyncService {
           cs."AccomplishedSales" as budget,
           cs."Status" as project_state,
           cs."CustomerId" as client_ref,
-          cs."Description" as notes,
+          cs."DescriptionClear" as notes,
           cs."sysModifiedDate" as modified_date
         FROM "ConstructionSite" cs
         WHERE cs."Caption" IS NOT NULL
@@ -715,7 +716,7 @@ export class PgToAppSyncService {
         SELECT 
           i."Id" as item_id,
           i."Caption" as name,
-          i."DesCom" as description,
+          i."DesComClear" as description,
           i."SalePriceVatExcluded" as sale_price,
           i."PurchasePrice" as purchase_price,
           i."RealStock" as stock_quantity,
@@ -839,7 +840,7 @@ export class PgToAppSyncService {
           sd."AmountVatIncluded" as amount_ttc,
           sd."DealId" as deal_id,
           sd."ValidationState" as validation_state,
-          sd."Notes" as notes,
+          sd."NotesClear" as notes,
           sd."sysModifiedDate" as modified_date,
           'SALE' as document_source
         FROM "SaleDocument" sd
@@ -1093,7 +1094,7 @@ export class PgToAppSyncService {
           SELECT 
             sdl."Id" as line_id,
             sdl."ItemId" as item_id,
-            sdl."Description" as description,
+            sdl."DescriptionClear" as description,
             sdl."Quantity" as quantity,
             sdl."NetPriceVatExcluded" as unit_price,
             sdl."UnitDiscountRate" as discount_percent,
@@ -1159,7 +1160,7 @@ export class PgToAppSyncService {
           SELECT 
             csrl."Id" as line_id,
             csrl."ItemId" as item_id,
-            csrl."Description" as description,
+            csrl."DescriptionClear" as description,
             csrl."Quantity" as quantity,
             csrl."UnitPrice" as unit_price,
             csrl."DiscountRate" as discount_percent,
