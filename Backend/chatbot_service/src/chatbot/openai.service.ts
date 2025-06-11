@@ -48,12 +48,24 @@ export class OpenaiService {
 Voici le schéma de la base de données:
 ${tableSchema}
 
+MAPPINGS DE CONCEPTS MÉTIER:
+- "utilisateurs" peut référer aux tables: clients, staff
+- "projets" peut référer à: projects
+- "véhicules" peut référer à: vehicles
+- "matériaux" peut référer à: materials
+- "tâches" peut référer à: tasks
+- "événements" peut référer à: events
+- "rapports" peut référer à: site_reports
+
 Règles importantes:
 - Génère uniquement des requêtes SELECT (lecture seule)
-- Utilise la syntaxe PostgreSQL
-- Limite les résultats avec LIMIT si approprié
+- Utilise la syntaxe PostgreSQL correcte
+- Pour COUNT, utilise COUNT(*) ou COUNT(id) si il y a une colonne id
+- Limite les résultats avec LIMIT si approprié (max 50)
+- Si la question mentionne "utilisateurs" sans précision, privilégie la table 'clients'
 - Réponds uniquement avec la requête SQL, sans explication supplémentaire
-- Si la question n'est pas claire ou ne correspond pas aux tables disponibles, réponds "ERREUR: Question non comprise ou hors périmètre"`;
+- Si tu n'es pas sûr de quelle table utiliser, choisis la plus probable selon le contexte
+- Ne réponds "ERREUR" que si vraiment aucune table ne correspond`;
 
     const messages = [
       { role: 'system' as const, content: systemPrompt },
