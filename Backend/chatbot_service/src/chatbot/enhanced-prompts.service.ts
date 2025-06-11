@@ -31,11 +31,38 @@ export class EnhancedPromptsService {
         LEFT JOIN projects p ON e.project_id = p.id
         LEFT JOIN clients c ON e.client_id = c.id
         LEFT JOIN staff s ON e.staff_id = s.id
-        WHERE e.start_date::date = '{date}'
+        WHERE e.start_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
         AND (s.firstname ILIKE '%{staff_name}%' OR s.lastname ILIKE '%{staff_name}%')
         ORDER BY e.start_date
       `,
-      description: 'Récupère le planning d\'un employé pour une date donnée'
+      description: 'Récupère le planning d\'un employé pour une période donnée'
+    },
+
+    // Disponibilité et absences
+    {
+      keywords: ['disponible', 'absent', 'travaille', 'travail', 'libre', 'occupé', 'congé', 'vacances'],
+      queryType: 'staff',
+      database: 'app',
+      sqlTemplate: `
+        -- Disponibilité des employés pour la semaine prochaine
+        SELECT 
+          s.firstname || ' ' || s.lastname as employe,
+          s.is_available,
+          CASE 
+            WHEN s.is_available = false THEN 'Indisponible'
+            WHEN COUNT(e.id) = 0 THEN 'Disponible'
+            ELSE 'Partiellement occupé'
+          END as statut_semaine_prochaine,
+          COUNT(e.id) as nb_evenements_prevus,
+          STRING_AGG(DISTINCT p.name, ', ') as projets_assignes
+        FROM staff s
+        LEFT JOIN events e ON s.id = e.staff_id 
+          AND e.start_date::date BETWEEN CURRENT_DATE + INTERVAL '7 days' AND CURRENT_DATE + INTERVAL '14 days'
+        LEFT JOIN projects p ON e.project_id = p.id
+        GROUP BY s.id, s.firstname, s.lastname, s.is_available
+        ORDER BY s.lastname, s.firstname
+      `,
+      description: 'Analyse la disponibilité des employés pour la semaine prochaine'
     },
 
     // Projets en cours et chantiers
@@ -152,7 +179,7 @@ export class EnhancedPromptsService {
 
     // Staff et équipes
     {
-      keywords: ['employé', 'staff', 'équipe', 'disponible', 'absent', 'congé'],
+      keywords: ['employé', 'staff', 'équipe', 'qui', 'personne', 'gens', 'team'],
       queryType: 'staff',
       database: 'app',
       sqlTemplate: `
@@ -200,9 +227,11 @@ Tu as accès à deux bases de données PostgreSQL :
 
 🎯 QUESTIONS TYPES MÉTIER :
 
-📅 PLANNING :
+📅 PLANNING & DISPONIBILITÉ :
 - "Quel est mon planning de demain ?"
 - "Qui travaille sur le chantier X cette semaine ?"
+- "Qui ne travaille pas la semaine prochaine ?"
+- "Qui est disponible demain ?"
 - "Quels sont mes RDV client ?"
 
 🏗️ PROJETS & CHANTIERS :
@@ -227,11 +256,16 @@ RÈGLES IMPORTANTES :
 4. Formate les résultats de manière claire et professionnelle
 5. Propose des analyses complémentaires pertinentes
 6. Pour les dates relatives (demain, cette semaine), calcule automatiquement
+7. ATTENTION AUX NÉGATIONS : "ne travaille pas" = recherche des disponibles
+8. "qui travaille" vs "qui ne travaille pas" sont des questions différentes
 
 DÉTECTION INTELLIGENTE :
 - "demain" → DATE = CURRENT_DATE + 1
 - "cette semaine" → BETWEEN CURRENT_DATE AND CURRENT_DATE + 7
+- "semaine prochaine" → BETWEEN CURRENT_DATE + 7 AND CURRENT_DATE + 14
 - "mois dernier" → WHERE EXTRACT(MONTH FROM date) = EXTRACT(MONTH FROM CURRENT_DATE - INTERVAL '1 month')
+- "ne travaille pas" / "pas de travail" → recherche des employés SANS événements planifiés
+- "disponible" / "libre" → employés sans planning ou is_available = true
 
 Réponds toujours en français, sois professionnel mais accessible.`;
   }
@@ -250,15 +284,30 @@ Réponds toujours en français, sois professionnel mais accessible.`;
 
   generateContextualPrompt(question: string, tableSchema: string): string {
     const template = this.getQueryTemplate(question);
+    const questionLower = question.toLowerCase();
+    
+    // Détection de négations
+    const hasNegation = questionLower.includes('ne ') || questionLower.includes('pas ') || 
+                       questionLower.includes('aucun') || questionLower.includes('sans');
     
     if (template) {
+      let contextualInfo = '';
+      
+      if (hasNegation && (questionLower.includes('travaille') || questionLower.includes('travail'))) {
+        contextualInfo = `
+ATTENTION : Question avec NÉGATION détectée !
+"ne travaille pas" = rechercher les employés SANS événements planifiés pour la période
+Utilise COUNT(events) = 0 ou LEFT JOIN avec WHERE events.id IS NULL
+`;
+      }
+      
       return `${this.getBusinessPrompt()}
 
 CONTEXTE SPÉCIALISÉ :
 Question type : ${template.queryType.toUpperCase()}
 Base recommandée : ${template.database}
 Description : ${template.description}
-
+${contextualInfo}
 SCHÉMA DES TABLES :
 ${tableSchema}
 
@@ -269,7 +318,8 @@ QUESTION UTILISATEUR : "${question}"
 
 Génère une requête SQL optimisée en utilisant le template comme guide, mais adapte-la précisément à la question posée.
 Si la question contient des références temporelles (demain, cette semaine, etc.), calcule les dates appropriées.
-Si la question mentionne un nom de personne, utilise ILIKE pour la recherche.`;
+Si la question mentionne un nom de personne, utilise ILIKE pour la recherche.
+IMPORTANT : Si c'est une négation, inverse la logique (cherche les absences au lieu des présences).`;
     }
 
     return `${this.getBusinessPrompt()}
@@ -279,7 +329,8 @@ ${tableSchema}
 
 QUESTION UTILISATEUR : "${question}"
 
-Génère une requête SQL appropriée pour répondre à cette question métier.`;
+Génère une requête SQL appropriée pour répondre à cette question métier.
+${hasNegation ? 'ATTENTION : Négation détectée dans la question - inverse la logique de recherche.' : ''}`;
   }
 
   detectQuestionType(question: string): 'planning' | 'projects' | 'analytics' | 'rentability' | 'staff' | 'general' {

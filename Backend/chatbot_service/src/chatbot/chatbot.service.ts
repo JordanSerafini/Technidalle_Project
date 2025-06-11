@@ -188,14 +188,38 @@ export class ChatbotService {
       // Détecter le type de question pour un meilleur prompt
       queryType = this.enhancedPromptsService.detectQuestionType(userMessage);
       
-      // Obtenir le schéma de la base de données
-      const schema = await this.databaseService.getTableSchema(conversation.database);
+      // NOUVELLE ÉTAPE : Analyser la question avec l'IA pour clarifier l'intention
+      const questionAnalysis = await this.analyzeQuestionWithAI(userMessage, conversation.database);
+      
+      if (questionAnalysis.error) {
+        const errorResponse = this.responseFormatterService.formatError(
+          `Je n'ai pas pu comprendre votre question: ${questionAnalysis.error}`,
+          'Essayez de reformuler avec des termes plus précis.'
+        );
+        return errorResponse.text;
+      }
 
-      // Générer un prompt contextuel amélioré
-      const contextualPrompt = this.enhancedPromptsService.generateContextualPrompt(userMessage, schema);
+      // ESSAYER D'ABORD UNE REQUÊTE PRÉDÉFINIE
+      const predefinedQuery = this.getPredefinedQuery(userMessage, questionAnalysis, conversation.database);
+      
+      let sqlQuery: string;
+      
+      if (predefinedQuery) {
+        console.log('Utilisation d\'une requête prédéfinie:', predefinedQuery);
+        sqlQuery = predefinedQuery;
+      } else {
+        // Fallback : Obtenir le schéma de la base de données
+        const schema = await this.databaseService.getTableSchema(conversation.database);
 
-      // Générer la requête SQL avec le prompt amélioré
-      const sqlQuery = await this.openaiService.generateSqlQueryWithPrompt(contextualPrompt, userMessage);
+        // Générer un prompt contextuel amélioré avec l'analyse
+        const contextualPrompt = this.enhancedPromptsService.generateContextualPrompt(
+          questionAnalysis.clarifiedQuestion || userMessage, 
+          schema
+        );
+
+        // Générer la requête SQL avec le prompt amélioré
+        sqlQuery = await this.openaiService.generateSqlQueryWithPrompt(contextualPrompt, questionAnalysis.clarifiedQuestion || userMessage);
+      }
 
       if (sqlQuery.startsWith('ERREUR:')) {
         const errorResponse = this.responseFormatterService.formatError(
@@ -206,9 +230,12 @@ export class ChatbotService {
       }
 
       // Nettoyer la requête SQL
+      console.log('🔍 SQL avant nettoyage:', sqlQuery);
       const cleanQuery = this.cleanSqlQuery(sqlQuery);
+      console.log('🔍 SQL après nettoyage:', cleanQuery);
 
       if (!cleanQuery) {
+        console.log('❌ Requête SQL vide après nettoyage');
         const errorResponse = this.responseFormatterService.formatError(
           'Je n\'ai pas pu générer une requête SQL valide',
           'Pouvez-vous reformuler votre question plus clairement ?'
@@ -278,8 +305,40 @@ export class ChatbotService {
     // Supprimer les backticks et autres formatages
     let cleanQuery = query.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
     
+    // Si la réponse contient du texte explicatif, extraire seulement la partie SQL
+    const lines = cleanQuery.split('\n');
+    let sqlLines: string[] = [];
+    let inSqlBlock = false;
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim().toLowerCase();
+      
+      // Détecter le début d'une requête SQL
+      if (trimmedLine.startsWith('select') || trimmedLine.startsWith('with')) {
+        inSqlBlock = true;
+        sqlLines.push(line);
+      } 
+      // Si on est dans un bloc SQL, continuer à collecter les lignes
+      else if (inSqlBlock) {
+        // Arrêter si on trouve une ligne qui ne fait clairement pas partie du SQL
+        if (trimmedLine.includes('cette requête') || 
+            trimmedLine.includes('pour') && !trimmedLine.includes('from') ||
+            trimmedLine.includes('résultat') ||
+            trimmedLine.startsWith('note:') ||
+            trimmedLine.startsWith('explication:')) {
+          break;
+        }
+        sqlLines.push(line);
+      }
+    }
+    
+    if (sqlLines.length > 0) {
+      cleanQuery = sqlLines.join('\n').trim();
+    }
+    
     // Vérifier que c'est bien une requête SELECT
-    if (!cleanQuery.toLowerCase().startsWith('select')) {
+    if (!cleanQuery.toLowerCase().startsWith('select') && !cleanQuery.toLowerCase().startsWith('with')) {
+      console.log('❌ Pas de requête SELECT trouvée dans:', query.substring(0, 200));
       return '';
     }
 
@@ -488,8 +547,8 @@ export class ChatbotService {
     const idColumn = allColumns.find(col => col.toLowerCase() === 'id' || col.endsWith('_id'));
     const priorityColumns = ['reference', 'name', 'status', 'start_date', 'end_date'];
     
-    // Commencer par l'ID puis les colonnes prioritaires
-    const important = [idColumn, ...priorityColumns].filter(col => col && allColumns.includes(col));
+    // Commencer par l'ID puis les colonnes prioritaires, en filtrant les valeurs undefined
+    const important = [idColumn, ...priorityColumns].filter((col): col is string => col !== undefined && allColumns.includes(col));
     
     // Ajouter d'autres colonnes importantes jusqu'à 6 max
     const remaining = allColumns
@@ -559,5 +618,228 @@ export class ChatbotService {
 
   async clearConversation(conversationId: string): Promise<boolean> {
     return this.conversations.delete(conversationId);
+  }
+
+  private getPredefinedQuery(question: string, analysis: any, database: 'sync' | 'app'): string | null {
+    const questionLower = question.toLowerCase();
+    console.log('🔍 getPredefinedQuery - Question analysée:', questionLower);
+    
+    // Questions de disponibilité - semaine prochaine
+    if ((questionLower.includes('disponible') || questionLower.includes('dispo') || questionLower.includes('libre') || 
+         (questionLower.includes('ne') && questionLower.includes('travaille'))) && 
+        questionLower.includes('semaine prochaine')) {
+      
+      console.log('✅ Requête prédéfinie détectée: disponibilité semaine prochaine');
+      
+      return `
+        SELECT 
+          s.firstname || ' ' || s.lastname as employe,
+          s.email,
+          s.is_available,
+          CASE 
+            WHEN s.is_available = false THEN 'Indisponible'
+            WHEN COUNT(e.id) = 0 THEN 'Totalement disponible'
+            ELSE CONCAT('Partiellement occupé (', COUNT(e.id), ' événements)')
+          END as statut_semaine_prochaine,
+          COUNT(e.id) as nb_evenements_prevus
+        FROM staff s
+        LEFT JOIN events e ON s.id = e.staff_id 
+          AND e.start_date::date BETWEEN CURRENT_DATE + INTERVAL '7 days' AND CURRENT_DATE + INTERVAL '14 days'
+        GROUP BY s.id, s.firstname, s.lastname, s.email, s.is_available
+        ORDER BY s.lastname, s.firstname
+      `;
+    }
+
+    // Questions de disponibilité - demain
+    if ((questionLower.includes('disponible') || questionLower.includes('dispo') || questionLower.includes('libre') || 
+         (questionLower.includes('ne') && questionLower.includes('travaille'))) && 
+        questionLower.includes('demain')) {
+      
+      console.log('✅ Requête prédéfinie détectée: disponibilité demain');
+      
+      return `
+        SELECT 
+          s.firstname || ' ' || s.lastname as employe,
+          s.email,
+          s.is_available,
+          CASE 
+            WHEN s.is_available = false THEN 'Indisponible'
+            WHEN COUNT(e.id) = 0 THEN 'Disponible'
+            ELSE 'Occupé'
+          END as statut_demain,
+          COUNT(e.id) as nb_evenements_demain
+        FROM staff s
+        LEFT JOIN events e ON s.id = e.staff_id 
+          AND e.start_date::date = CURRENT_DATE + INTERVAL '1 day'
+        GROUP BY s.id, s.firstname, s.lastname, s.email, s.is_available
+        ORDER BY s.lastname, s.firstname
+      `;
+    }
+
+    // Questions générales de disponibilité
+    if (questionLower.includes('disponible') || questionLower.includes('dispo') || questionLower.includes('libre') || 
+        (questionLower.includes('ne') && questionLower.includes('travaille'))) {
+      
+      console.log('✅ Requête prédéfinie détectée: disponibilité générale');
+      
+      return `
+        SELECT 
+          s.firstname || ' ' || s.lastname as employe,
+          s.email,
+          s.is_available as est_disponible,
+          CASE 
+            WHEN s.is_available = true THEN 'Disponible'
+            ELSE 'Indisponible'
+          END as statut
+        FROM staff s
+        ORDER BY s.lastname, s.firstname
+      `;
+    }
+
+    // Questions de planning général
+    if (questionLower.includes('planning') || questionLower.includes('agenda')) {
+      const timeCondition = questionLower.includes('semaine prochaine') 
+        ? "BETWEEN CURRENT_DATE + INTERVAL '7 days' AND CURRENT_DATE + INTERVAL '14 days'"
+        : questionLower.includes('demain')
+        ? "= CURRENT_DATE + INTERVAL '1 day'"
+        : "BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'";
+
+      return `
+        SELECT 
+          s.firstname || ' ' || s.lastname as employe,
+          e.title as evenement,
+          e.start_date,
+          e.end_date,
+          p.name as projet,
+          e.location
+        FROM staff s
+        LEFT JOIN events e ON s.id = e.staff_id 
+          AND e.start_date::date ${timeCondition}
+        LEFT JOIN projects p ON e.project_id = p.id
+        ORDER BY e.start_date, s.lastname
+      `;
+    }
+
+    // Questions de rentabilité et projets les plus rentables
+    if (questionLower.includes('rentable') || questionLower.includes('rentabilité') || 
+        (questionLower.includes('chantier') && (questionLower.includes('meilleur') || questionLower.includes('plus'))) ||
+        questionLower.includes('profitable') || questionLower.includes('marge')) {
+      
+      console.log('✅ Requête prédéfinie détectée: rentabilité des projets');
+      
+      return `
+        SELECT 
+          p.reference,
+          p.name,
+          p.status,
+          p.budget,
+          p.actual_cost,
+          p.margin,
+          ROUND((p.margin / NULLIF(p.actual_cost, 0) * 100), 2) as retour_sur_investissement_pct,
+          ROUND((p.margin / NULLIF(p.budget, 0) * 100), 2) as marge_budget_pct,
+          COALESCE(c.company_name, c.firstname || ' ' || c.lastname) as client_name,
+          CASE 
+            WHEN p.status = 'termine' THEN 'Terminé'
+            WHEN p.status = 'en_cours' THEN 'En cours'
+            WHEN p.status = 'en_pause' THEN 'En pause'
+            WHEN p.status = 'en_preparation' THEN 'En préparation'
+            WHEN p.status = 'devis_accepte' THEN 'Devis accepté'
+            WHEN p.status = 'devis_en_cours' THEN 'Devis en cours'
+            WHEN p.status = 'prospect' THEN 'Prospect'
+            WHEN p.status = 'annule' THEN 'Annulé'
+            ELSE p.status
+          END as statut_detail
+        FROM projects p
+        LEFT JOIN clients c ON p.client_id = c.id
+        WHERE p.margin IS NOT NULL AND p.margin > 0
+        ORDER BY p.margin DESC
+        LIMIT 15
+      `;
+    }
+
+    console.log('❌ Aucune requête prédéfinie trouvée');
+    return null; // Aucune requête prédéfinie trouvée
+  }
+
+  private async analyzeQuestionWithAI(question: string, database: 'sync' | 'app'): Promise<{
+    clarifiedQuestion?: string;
+    intent: string;
+    tables: string[];
+    timeRange?: string;
+    isNegation: boolean;
+    error?: string;
+  }> {
+    try {
+      const analysisPrompt = `Tu es un expert en analyse de questions métier pour une entreprise de BTP.
+
+ANALYSE CETTE QUESTION : "${question}"
+
+Tu dois identifier :
+1. L'INTENTION principale (planning, disponibilité, projets, équipe, etc.)
+2. Si c'est une NÉGATION ("ne travaille pas", "pas disponible", etc.)
+3. La PÉRIODE temporelle (demain, semaine prochaine, etc.)
+4. Les TABLES probablement nécessaires
+5. Une VERSION CLARIFIÉE de la question
+
+Base de données "${database}" disponible avec tables :
+- staff (employés)
+- events (planning)
+- projects (chantiers)
+- time_logs (pointage)
+- clients
+
+EXEMPLES :
+"qui ne travail pas la semaine prochaine" →
+INTENTION: disponibilité
+NÉGATION: true
+PÉRIODE: semaine prochaine (CURRENT_DATE + 7 à +14 jours)
+TABLES: staff, events
+CLARIFIÉE: "Quels employés n'ont aucun événement planifié entre le [date début] et [date fin] ?"
+
+"qui est dispo demain" →
+INTENTION: disponibilité
+NÉGATION: false
+PÉRIODE: demain (CURRENT_DATE + 1)
+TABLES: staff, events
+CLARIFIÉE: "Quels employés sont disponibles le [date] ?"
+
+Réponds UNIQUEMENT en JSON :
+{
+  "intent": "disponibilité|planning|projets|équipe|général",
+  "isNegation": true|false,
+  "timeRange": "demain|cette_semaine|semaine_prochaine|mois|autre",
+  "tables": ["staff", "events"],
+  "clarifiedQuestion": "Question reformulée clairement",
+  "error": null
+}`;
+
+      const response = await this.openaiService.generateResponse([
+        { role: 'system', content: analysisPrompt },
+        { role: 'user', content: question }
+      ]);
+      
+      // Tenter de parser la réponse JSON
+      try {
+        const analysis = JSON.parse(response);
+        return analysis;
+      } catch (parseError) {
+        console.error('Erreur parsing analyse question:', parseError, 'Réponse:', response);
+        return {
+          intent: 'général',
+          tables: ['staff'],
+          isNegation: false,
+          error: 'Impossible d\'analyser la question'
+        };
+      }
+
+    } catch (error) {
+      console.error('Erreur analyse question:', error);
+      return {
+        intent: 'général',
+        tables: ['staff'],
+        isNegation: false,
+        error: error.message
+      };
+    }
   }
 } 

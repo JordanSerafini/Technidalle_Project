@@ -45,7 +45,7 @@ export class OpenaiService {
   async generateSqlQueryWithPrompt(contextualPrompt: string, userQuestion: string): Promise<string> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini', // Utiliser le modèle plus rapide et efficace
         messages: [
           {
             role: 'system',
@@ -57,7 +57,7 @@ export class OpenaiService {
           }
         ],
         temperature: 0.1,
-        max_tokens: 500,
+        max_tokens: 1000, // Augmenter la limite de tokens
       });
 
       return completion.choices[0]?.message?.content?.trim() || 'ERREUR: Pas de réponse générée';

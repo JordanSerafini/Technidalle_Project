@@ -72,20 +72,50 @@ export class ResponseFormatterService {
       };
     }
 
+    // Vérifier si c'est une réponse de disponibilité (qui contient 'employe' et 'statut')
+    const isAvailabilityQuery = results.some(row => 
+      row.employe && (row.statut_semaine_prochaine || row.statut_demain || row.statut)
+    );
+    
+    if (isAvailabilityQuery) {
+      return this.formatStaffResponse(results, question);
+    }
+
     let text = `📅 **Planning demandé** :\n\n`;
     
     const events = results.map((event, index) => {
-      const startDate = new Date(event.start_date);
-      const endDate = new Date(event.end_date);
-      const timeFormat = new Intl.DateTimeFormat('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Vérifier si les dates sont valides avant de les traiter
+      let startDate, endDate, isValidDate = false;
       
-      text += `**${index + 1}. ${event.title}**\n`;
-      text += `⏰ ${timeFormat.format(startDate)} - ${timeFormat.format(endDate)}\n`;
+      try {
+        if (event.start_date) {
+          startDate = new Date(event.start_date);
+          isValidDate = !isNaN(startDate.getTime());
+        }
+        if (event.end_date) {
+          endDate = new Date(event.end_date);
+        }
+      } catch (error) {
+        console.warn('Date invalide détectée:', event.start_date, event.end_date);
+        isValidDate = false;
+      }
+      
+      text += `**${index + 1}. ${event.title || event.evenement || 'Événement'}**\n`;
+      
+      if (isValidDate && startDate) {
+        const timeFormat = new Intl.DateTimeFormat('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        text += `⏰ ${timeFormat.format(startDate)}`;
+        if (endDate && !isNaN(endDate.getTime())) {
+          text += ` - ${timeFormat.format(endDate)}`;
+        }
+        text += `\n`;
+      }
+      
       if (event.location) text += `📍 ${event.location}\n`;
-      if (event.project_name) text += `🏗️ Projet : ${event.project_name}\n`;
+      if (event.project_name || event.projet) text += `🏗️ Projet : ${event.project_name || event.projet}\n`;
       if (event.client_name) text += `👤 Client : ${event.client_name}\n`;
       if (event.description) text += `📝 ${event.description}\n`;
       text += `\n`;
@@ -99,15 +129,26 @@ export class ResponseFormatterService {
         title: "Planning détaillé",
         headers: ["Heure", "Événement", "Lieu", "Projet", "Client"],
         rows: results.map(event => {
-          const startTime = new Date(event.start_date).toLocaleTimeString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
+          let startTime = '-';
+          try {
+            if (event.start_date) {
+              const date = new Date(event.start_date);
+              if (!isNaN(date.getTime())) {
+                startTime = date.toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+              }
+            }
+          } catch (error) {
+            console.warn('Erreur de formatage de date:', event.start_date);
+          }
+          
           return [
             startTime,
-            event.title,
+            event.title || event.evenement || '-',
             event.location || '-',
-            event.project_name || '-',
+            event.project_name || event.projet || '-',
             event.client_name || '-'
           ];
         })
