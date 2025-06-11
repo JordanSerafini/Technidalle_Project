@@ -81,35 +81,50 @@ function isHeaderItem(item: ProjectListItem): item is SectionHeaderItem {
 
 // Optimisé avec memo pour éviter les rendus inutiles
 const SectionHeader = React.memo(({ title, count, isExpanded, onToggle }: SectionHeaderProps) => {
-  const badgeColor = '#3F51B5'; // Couleur fixe indigo
+  const badgeColor = getProjectCountColor(count);
   
   return (
     <TouchableOpacity 
-      className="flex-row items-center bg-white rounded-lg p-3 shadow-sm mb-2"
+      className="flex-row items-center bg-white rounded-xl p-4 shadow-sm mb-3 border border-gray-100"
       onPress={onToggle}
+      style={{
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+      }}
     >
       <View style={{ 
-        width: 40, 
-        height: 40, 
-        borderRadius: 20, 
+        width: 44, 
+        height: 44, 
+        borderRadius: 22, 
         backgroundColor: badgeColor,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2,
-      }} className="items-center justify-center mr-3">
+        shadowColor: badgeColor,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 4,
+      }} className="items-center justify-center mr-4">
         <Text className="font-bold text-white" style={{ fontSize: 16 }}>
           {count}
         </Text>
       </View>
       
-      <Text className="flex-1 text-lg font-medium text-gray-800">{title}</Text>
-      <Ionicons 
-        name={isExpanded ? "chevron-up" : "chevron-down"} 
-        size={20} 
-        color="#6b7280" 
-      />
+      <View className="flex-1">
+        <Text className="text-lg font-semibold text-gray-900">{title}</Text>
+        <Text className="text-sm text-gray-500 mt-0.5">
+          {count} projet{count > 1 ? 's' : ''} {isExpanded ? 'affichés' : 'masqués'}
+        </Text>
+      </View>
+      
+      <View className="bg-gray-50 p-2 rounded-full">
+        <Ionicons 
+          name={isExpanded ? "chevron-up" : "chevron-down"} 
+          size={20} 
+          color="#6B7280" 
+        />
+      </View>
     </TouchableOpacity>
   );
 });
@@ -120,44 +135,85 @@ const ProjectItemComponent = React.memo(({ project, onPress }: { project: Projec
     onPress(project.id);
   }, [project.id, onPress]);
 
+  // Calculer les jours depuis la création/début
+  const daysSinceStart = useMemo(() => {
+    const referenceDate = project.start_date ? new Date(project.start_date) : new Date(project.created_at || new Date());
+    const now = new Date();
+    const diffTime = now.getTime() - referenceDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [project.start_date, project.created_at]);
+
   return (
     <TouchableOpacity 
-      className="bg-white p-4 rounded-xl shadow-md mb-2 active:opacity-70"
+      className="bg-white p-4 rounded-xl shadow-sm mb-2 active:opacity-70 border border-gray-100"
       onPress={handlePress}
+      style={{
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+      }}
     >
       <View className="flex-row justify-between items-start">
-        <View className="flex-1">
-          <Text className="font-bold text-lg">{project.name}</Text>
+        <View className="flex-1 mr-3">
+          <Text className="font-bold text-lg text-gray-900" numberOfLines={1}>
+            {project.name}
+          </Text>
           
-          {project.reference && (
-            <Text className="text-gray-500 text-sm">Ref: {project.reference}</Text>
-          )}
+          <View className="flex-row items-center mt-1">
+            {project.reference && (
+              <View className="bg-gray-100 px-2 py-1 rounded-md mr-2">
+                <Text className="text-gray-600 text-xs font-medium">#{project.reference}</Text>
+              </View>
+            )}
+            {daysSinceStart >= 0 && daysSinceStart <= 7 && (
+              <View className="bg-green-100 px-2 py-1 rounded-md">
+                <Text className="text-green-700 text-xs font-medium">Récent</Text>
+              </View>
+            )}
+          </View>
         </View>
         
         {project.status && (
-          <View style={{backgroundColor: statusColors[project.status]}} className="py-1 px-3 rounded-full">
-            <Text className="text-white text-xs font-medium">{statusLabels[project.status]}</Text>
+          <View style={{backgroundColor: statusColors[project.status]}} className="py-1.5 px-3 rounded-full">
+            <Text className="text-white text-xs font-semibold">{statusLabels[project.status]}</Text>
           </View>
         )}
       </View>
       
       {project.description && (
-        <Text className="text-gray-600 mt-2" numberOfLines={2}>
-          {formatTextForDisplay(project.description, 100)}
+        <Text className="text-gray-600 mt-3 leading-5" numberOfLines={2}>
+          {formatTextForDisplay(project.description, 120)}
         </Text>
       )}
       
-      <View className="flex-row justify-between mt-3 border-t border-gray-100 pt-2">
+      <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-gray-50">
         <View className="flex-row items-center">
-          <Ionicons name="calendar-outline" size={16} color="#666" />
-          <Text className="text-gray-600 ml-1 text-xs">
-            {project.start_date ? new Date(project.start_date).toLocaleDateString('fr-FR') : 'Non défini'}
-            {project.end_date ? ` → ${new Date(project.end_date).toLocaleDateString('fr-FR')}` : ''}
+          <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+          <Text className="text-gray-500 ml-2 text-sm">
+            {project.start_date ? new Date(project.start_date).toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            }) : 'Date non définie'}
           </Text>
+          {project.end_date && (
+            <>
+              <Ionicons name="arrow-forward" size={12} color="#6B7280" className="mx-2" />
+              <Text className="text-gray-500 text-sm">
+                {new Date(project.end_date).toLocaleDateString('fr-FR', {
+                  day: 'numeric',
+                  month: 'short'
+                })}
+              </Text>
+            </>
+          )}
         </View>
         
         <View className="flex-row items-center">
-          <Ionicons name="chevron-forward" size={16} color="#666" />
+          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
         </View>
       </View>
     </TouchableOpacity>
@@ -172,6 +228,7 @@ export default function ProjetsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [flatListData, setFlatListData] = useState<ProjectListItem[]>([]);
+  const [isDefaultFilter, setIsDefaultFilter] = useState(true); // Nouveau state pour gérer le filtre par défaut
   
   // SIMPLIFIÉ: État pour la modale de création de projet
   const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -231,16 +288,63 @@ export default function ProjetsScreen() {
     }
   }) as FetchState<Project[]>;
 
-  // Mettre à jour le store quand les données sont chargées
+  // Fonction pour appliquer le filtre par défaut (mois courant ou 20 derniers)
+  const applyDefaultFilter = useCallback((projectsData: Project[]) => {
+    if (!projectsData || projectsData.length === 0) return [];
+
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Filtrer les projets du mois courant
+    const currentMonthProjects = projectsData.filter(project => {
+      if (!project.start_date) return false;
+      const startDate = new Date(project.start_date);
+      return startDate >= currentMonthStart && startDate <= currentMonthEnd;
+    });
+
+    // Si on a au moins 5 projets du mois courant, les retourner
+    if (currentMonthProjects.length >= 5) {
+      return currentMonthProjects.sort((a, b) => {
+        const dateA = new Date(a.start_date || a.created_at || 0);
+        const dateB = new Date(b.start_date || b.created_at || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+    }
+
+    // Sinon, retourner les 20 derniers projets par date
+    return [...projectsData]
+      .sort((a, b) => {
+        const dateA = new Date(a.start_date || a.created_at || 0);
+        const dateB = new Date(b.start_date || b.created_at || 0);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .slice(0, 20);
+  }, []);
+
+  // Mettre à jour le store quand les données sont chargées avec filtre par défaut
   useEffect(() => {
-    if (data) {
+    if (data && isDefaultFilter) {
+      const defaultFilteredData = applyDefaultFilter(data);
+      setProjects(defaultFilteredData);
+      
+      // Développer automatiquement le mois le plus récent
+      if (defaultFilteredData.length > 0) {
+        const mostRecentProject = defaultFilteredData[0];
+        const dateReference = mostRecentProject.start_date ? new Date(mostRecentProject.start_date) : new Date();
+        const monthYear = `${dateReference.getMonth() + 1}/${dateReference.getFullYear()}`;
+        setExpandedSections(new Set([monthYear]));
+      }
+    } else if (data && !isDefaultFilter) {
       setProjects(data);
     }
-  }, [data, setProjects]);
+  }, [data, setProjects, applyDefaultFilter, isDefaultFilter]);
   
   useEffect(() => {
     const handleApplyFilters = () => {
       handleCloseFilter();
+      // Désactiver le filtre par défaut quand on utilise les filtres avancés
+      setIsDefaultFilter(false);
     };
     
     if (addApplyListener) {
@@ -253,6 +357,20 @@ export default function ProjetsScreen() {
       }
     };
   }, [handleCloseFilter, addApplyListener, removeApplyListener]);
+
+  // Gestion de la recherche en temps réel
+  const searchFilteredProjects = useMemo(() => {
+    if (!filteredProjects) return [];
+    
+    if (!searchQuery.trim()) return filteredProjects;
+    
+    const query = searchQuery.toLowerCase();
+    return filteredProjects.filter(project => 
+      project.name?.toLowerCase().includes(query) ||
+      project.reference?.toLowerCase().includes(query) ||
+      project.description?.toLowerCase().includes(query)
+    );
+  }, [filteredProjects, searchQuery]);
 
   // Formatage du mois et de l'année pour affichage
   const formatMonthYear = useCallback((monthYear: string) => {
@@ -399,7 +517,7 @@ export default function ProjetsScreen() {
 
   // Préparation des données pour FlashList - structure applatie avec sections
   useEffect(() => {
-    if (!filteredProjects) {
+    if (!searchFilteredProjects) {
       setFlatListData([]);
       return;
     }
@@ -407,7 +525,7 @@ export default function ProjetsScreen() {
     // Regrouper les projets par mois/année
     const projectsByMonth: Record<string, Project[]> = {};
     
-    for (const project of filteredProjects) {
+    for (const project of searchFilteredProjects) {
       const dateReference = project.start_date ? new Date(project.start_date) : new Date();
       const monthYear = `${dateReference.getMonth() + 1}/${dateReference.getFullYear()}`;
       
@@ -452,7 +570,7 @@ export default function ProjetsScreen() {
     });
     
     setFlatListData(flattenedData);
-  }, [filteredProjects, expandedSections, formatMonthYear]);
+  }, [searchFilteredProjects, expandedSections, formatMonthYear]);
 
   // Rendu optimisé de chaque item (section ou projet)
   const renderItem = useCallback(({ item }: { item: ProjectListItem }) => {
@@ -488,6 +606,22 @@ export default function ProjetsScreen() {
     return 100; // Hauteur moyenne estimée en pixels
   }, []);
 
+  // Gestionnaire pour activer/désactiver le filtre par défaut
+  const toggleDefaultFilter = useCallback(() => {
+    setIsDefaultFilter(prev => {
+      const newValue = !prev;
+      if (newValue && data) {
+        // Réappliquer le filtre par défaut
+        const defaultFilteredData = applyDefaultFilter(data);
+        setProjects(defaultFilteredData);
+      } else if (!newValue && data) {
+        // Afficher tous les projets
+        setProjects(data);
+      }
+      return newValue;
+    });
+  }, [data, applyDefaultFilter, setProjects]);
+
   // Gestion du chargement et des erreurs
   if (error) {
     return (
@@ -501,10 +635,22 @@ export default function ProjetsScreen() {
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <Stack.Screen
         options={{
-          title: 'Projets',
+          title: `Projets${searchFilteredProjects ? ` (${searchFilteredProjects.length})` : ''}`,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerRight: () => (
+            <View className="flex-row items-center">
+              {isDefaultFilter && (
+                <View className="bg-blue-100 px-2 py-1 rounded-full mr-2">
+                  <Text className="text-blue-700 text-xs font-medium">Récents</Text>
+                </View>
+              )}
+              <TouchableOpacity onPress={refetch} className="p-1">
+                <Ionicons name="refresh" size={20} color="#3F51B5" />
+              </TouchableOpacity>
+            </View>
+          ),
         }}
       />
 
@@ -529,8 +675,23 @@ export default function ProjetsScreen() {
           />
         ) : (
           <View className="flex items-center justify-center p-8">
-            <Ionicons name="construct-outline" size={48} color="#ccc" />
-            <Text className="text-gray-500 mt-4 text-center">Aucun projet trouvé</Text>
+            <Ionicons name="construct-outline" size={64} color="#ccc" />
+            <Text className="text-gray-500 mt-4 text-center text-lg font-medium">
+              {searchQuery ? 'Aucun projet trouvé' : 'Aucun projet disponible'}
+            </Text>
+            {searchQuery && (
+              <Text className="text-gray-400 mt-2 text-center text-sm">
+                Essayez de modifier votre recherche ou vos filtres
+              </Text>
+            )}
+            {!searchQuery && !isDefaultFilter && (
+              <TouchableOpacity 
+                onPress={toggleDefaultFilter}
+                className="mt-4 bg-blue-50 px-4 py-2 rounded-full border border-blue-200"
+              >
+                <Text className="text-blue-700 font-medium">Voir les projets récents</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -545,6 +706,26 @@ export default function ProjetsScreen() {
       
       {/* Barre de recherche et filtres en bas de l'écran */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
+        {/* Indicateur de filtre actif */}
+        {isDefaultFilter && (
+          <View className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-2">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Ionicons name="funnel" size={16} color="#3B82F6" />
+                <Text className="text-blue-700 text-sm ml-2 font-medium">
+                  Projets récents (mois courant ou 20 derniers)
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={toggleDefaultFilter}
+                className="bg-blue-100 px-3 py-1 rounded-full"
+              >
+                <Text className="text-blue-700 text-xs font-medium">Voir tout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        
         {/* Barre de recherche */}
         <View className="flex-row items-center mb-4">
           <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
@@ -561,6 +742,19 @@ export default function ProjetsScreen() {
               </TouchableOpacity>
             )}
           </View>
+          
+          {!isDefaultFilter && (
+            <TouchableOpacity 
+              className="ml-2 bg-blue-50 p-2 rounded-lg border border-blue-200"
+              onPress={toggleDefaultFilter}
+            >
+              <Ionicons 
+                name="time" 
+                size={20} 
+                color="#3B82F6" 
+              />
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity 
             className="ml-2 bg-indigo-50 p-2 rounded-lg border border-indigo-200"
