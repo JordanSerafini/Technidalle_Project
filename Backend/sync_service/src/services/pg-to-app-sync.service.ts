@@ -788,11 +788,9 @@ export class PgToAppSyncService {
     const client = await pgClientApp.getClient();
     
     try {
-      // Ne pas utiliser de transaction globale pour éviter le rollback en cascade
-      // await client.query('BEGIN');
-
-      // 1. Récupérer les documents depuis la base Sync (SaleDocument)
+      // 1. Récupérer TOUS les documents depuis la base Sync
       const syncDocuments = await pgClient.query(`
+        -- Documents de vente généraux
         SELECT 
           sd."Id" as document_id,
           sd."DocumentNumber" as reference,
@@ -812,6 +810,49 @@ export class PgToAppSyncService {
         
         UNION ALL
         
+        -- Documents de vente Deal (affaires)
+        SELECT 
+          dsd."Id" as document_id,
+          dsd."DocumentNumber" as reference,
+          dsd."DocumentDate" as issue_date,
+          dsd."DocumentType" as document_type,
+          d."CustomerId" as customer_id,
+          dsd."AmountVatExcluded" as amount_ht,
+          dsd."VatAmount" as vat_amount,
+          dsd."AmountVatIncluded" as amount_ttc,
+          dsd."DealId" as deal_id,
+          dsd."ValidationState" as validation_state,
+          dsd."Notes" as notes,
+          dsd."sysModifiedDate" as modified_date,
+          'DEAL_SALE' as document_source
+        FROM "DealSaleDocument" dsd
+        JOIN "Deal" d ON dsd."DealId" = d."Id"
+        WHERE dsd."DocumentNumber" IS NOT NULL
+        
+        UNION ALL
+        
+        -- Documents d'achat Deal (affaires)
+        SELECT 
+          dpd."Id" as document_id,
+          dpd."DocumentNumber" as reference,
+          dpd."DocumentDate" as issue_date,
+          dpd."DocumentType" as document_type,
+          d."CustomerId" as customer_id,
+          dpd."AmountVatExcluded" as amount_ht,
+          dpd."VatAmount" as vat_amount,
+          dpd."AmountVatIncluded" as amount_ttc,
+          dpd."DealId" as deal_id,
+          dpd."ValidationState" as validation_state,
+          dpd."Notes" as notes,
+          dpd."sysModifiedDate" as modified_date,
+          'DEAL_PURCHASE' as document_source
+        FROM "DealPurchaseDocument" dpd
+        JOIN "Deal" d ON dpd."DealId" = d."Id"
+        WHERE dpd."DocumentNumber" IS NOT NULL
+        
+        UNION ALL
+        
+        -- Documents de projet/chantier
         SELECT 
           csr."Id" as document_id,
           csr."Reference" as reference,
@@ -836,7 +877,7 @@ export class PgToAppSyncService {
       processed = syncDocuments.rows.length;
       this.logger.log(`${processed} documents à synchroniser`);
 
-      // Traiter chaque document individuellement (sans transaction globale)
+      // Traiter chaque document individuellement (SANS transaction globale)
       for (const syncDoc of syncDocuments.rows) {
         // Transaction individuelle pour chaque document
         const individualClient = await pgClientApp.getClient();
@@ -850,6 +891,8 @@ export class PgToAppSyncService {
 
           if (syncDoc.deal_id) {
             if (syncDoc.document_source === 'SALE') {
+              searchReference = `DEAL-${syncDoc.deal_id}`;
+            } else if (syncDoc.document_source === 'DEAL_SALE' || syncDoc.document_source === 'DEAL_PURCHASE') {
               searchReference = `DEAL-${syncDoc.deal_id}`;
             } else {
               searchReference = `PROJECT-${syncDoc.deal_id}`;
@@ -907,6 +950,19 @@ export class PgToAppSyncService {
             default: status = 'brouillon';
           }
 
+          // Traitement des montants pour éviter les contraintes
+          let amount = parseFloat(syncDoc.amount_ht) || 0;
+          
+          // Pour les avoirs (documents de type 4), gérer les montants négatifs
+          if (docType === 'avoir' && amount < 0) {
+            // Pour les avoirs, convertir en valeur absolue
+            amount = Math.abs(amount);
+          } else if (amount < 0) {
+            // Pour les autres types, forcer à 0 si négatif pour éviter l'erreur de contrainte
+            amount = 0;
+            this.logger.warn(`Montant négatif forcé à 0 pour le document ${syncDoc.reference} (montant original: ${syncDoc.amount_ht})`);
+          }
+
           // Insérer le document principal
           const documentInsert = await individualClient.query(`
             INSERT INTO documents (
@@ -927,7 +983,7 @@ export class PgToAppSyncService {
             syncDoc.reference,
             docType,
             status,
-            syncDoc.amount_ht || 0,
+            amount, // Utiliser le montant traité
             20.00, // TVA par défaut
             syncDoc.issue_date || new Date(),
             syncDoc.notes || null
@@ -940,7 +996,7 @@ export class PgToAppSyncService {
 
           await individualClient.query('COMMIT');
           succeeded++;
-          this.logger.debug(`Document ${syncDoc.reference} synchronisé → document_id: ${documentAppId}`);
+          this.logger.debug(`Document ${syncDoc.reference} synchronisé → document_id: ${documentAppId} (montant: ${amount})`);
 
         } catch (error) {
           await individualClient.query('ROLLBACK');
@@ -1004,6 +1060,48 @@ export class PgToAppSyncService {
         `, [syncDoc.document_id]);
         
         documentLines = saleDocumentLines.rows;
+      } else if (syncDoc.document_source === 'DEAL_SALE') {
+        const dealSaleDocumentLines = await pgClient.query(`
+          SELECT 
+            dsdl."Id" as line_id,
+            dsdl."ItemId" as item_id,
+            dsdl."DescriptionClear" as description,
+            dsdl."Quantity" as quantity,
+            dsdl."PurchasePrice" as unit_price,
+            0 as discount_percent,
+            dsdl."NetAmountVatExcludedWithDiscount" as total_ht,
+            i."Caption" as item_name,
+            i."UnitId" as unit_ref,
+            u."Caption" as unit_name
+          FROM "DealSaleDocumentLine" dsdl
+          LEFT JOIN "Item" i ON dsdl."ItemId" = i."Id"
+          LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
+          WHERE dsdl."DocumentId" = $1
+          ORDER BY dsdl."LineOrder" NULLS LAST
+        `, [syncDoc.document_id]);
+        
+        documentLines = dealSaleDocumentLines.rows;
+      } else if (syncDoc.document_source === 'DEAL_PURCHASE') {
+        const dealPurchaseDocumentLines = await pgClient.query(`
+          SELECT 
+            dpdl."Id" as line_id,
+            dpdl."ItemId" as item_id,
+            dpdl."DescriptionClear" as description,
+            dpdl."Quantity" as quantity,
+            dpdl."NetPriceVatExcluded" as unit_price,
+            0 as discount_percent,
+            dpdl."NetAmountVatExcludedWithDiscount" as total_ht,
+            i."Caption" as item_name,
+            i."UnitId" as unit_ref,
+            u."Caption" as unit_name
+          FROM "DealPurchaseDocumentLine" dpdl
+          LEFT JOIN "Item" i ON dpdl."ItemId" = i."Id"
+          LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
+          WHERE dpdl."DocumentId" = $1
+          ORDER BY dpdl."LineOrder" NULLS LAST
+        `, [syncDoc.document_id]);
+        
+        documentLines = dealPurchaseDocumentLines.rows;
       } else {
         const projectDocumentLines = await pgClient.query(`
           SELECT 
@@ -1044,6 +1142,27 @@ export class PgToAppSyncService {
             }
           }
 
+          // Traitement des montants pour éviter les contraintes sur les lignes
+          let unitPrice = parseFloat(line.unit_price) || 0;
+          let quantity = parseFloat(line.quantity) || 1;
+          let discountPercent = parseFloat(line.discount_percent) || 0;
+
+          // Vérifier les contraintes de la base de données
+          if (unitPrice < 0) {
+            this.logger.warn(`Prix unitaire négatif forcé à 0 pour la ligne ${line.line_id} (prix original: ${line.unit_price})`);
+            unitPrice = 0;
+          }
+          
+          if (quantity <= 0) {
+            this.logger.warn(`Quantité invalide forcée à 1 pour la ligne ${line.line_id} (quantité originale: ${line.quantity})`);
+            quantity = 1;
+          }
+
+          if (discountPercent < 0 || discountPercent > 100) {
+            this.logger.warn(`Taux de remise invalide forcé à 0 pour la ligne ${line.line_id} (taux original: ${line.discount_percent})`);
+            discountPercent = 0;
+          }
+
           // Insérer la ligne de document
           try {
             await client.query(`
@@ -1055,13 +1174,13 @@ export class PgToAppSyncService {
               documentAppId,
               materialId,
               line.description || line.item_name || 'Article non spécifié',
-              line.quantity || 1,
+              quantity,
               line.unit_name || 'unité',
-              line.unit_price || 0,
-              line.discount_percent || 0,
+              unitPrice,
+              discountPercent,
               20.00 // TVA par défaut
             ]);
-          } catch (insertError) {
+                      } catch (insertError) {
             // Si erreur d'insertion (probablement doublon), essayer de mettre à jour
             try {
               await client.query(`
@@ -1079,10 +1198,10 @@ export class PgToAppSyncService {
                 documentAppId,
                 materialId,
                 line.description || line.item_name || 'Article non spécifié',
-                line.quantity || 1,
+                quantity,
                 line.unit_name || 'unité',
-                line.unit_price || 0,
-                line.discount_percent || 0,
+                unitPrice,
+                discountPercent,
                 20.00
               ]);
             } catch (updateError) {
