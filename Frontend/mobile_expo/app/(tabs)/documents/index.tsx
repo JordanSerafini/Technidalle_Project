@@ -460,7 +460,7 @@ export default function DocumentsScreen() {
     <SafeAreaView className="flex-1 bg-gray-50 pt-6">
       <Stack.Screen
         options={{
-          title: `Documents${flatListData ? ` (${flatListData.filter(i=>i.type==='doc').length})` : ''}`,
+          title: `Documents${flatListData ? ` (${flatListData.filter(i=>i.itemType==='doc').length})` : ''}`,
           headerTitleStyle: { fontWeight: 'bold' },
         }}
       />
