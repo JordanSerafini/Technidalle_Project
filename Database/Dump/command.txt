@@ -3,3 +3,6 @@ docker exec postgres_sync pg_dump -U sync_user -F c -b -v -f /tmp/sync_db_backup
 
 # Copiez le fichier dump depuis le conteneur vers votre machine locale
 docker cp postgres_sync:/tmp/sync_db_backup.dump C:/Users/j.serafini/Desktop/Jordan/Code/Technidalle_Project/Database/Dump/sync_db_backup.dump
+
+
+maintnant que tu as mes bdd en mcp server , améliorons mon freontend, je veux optmiser lui ux et navigation, fluidité, commencons par la liste ds projets, il faudrait ne display par default que ceux du mois (si pas assez nombreux, etablisons une liste de limit 20 dernier par date)@/projects 

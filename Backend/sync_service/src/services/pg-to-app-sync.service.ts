@@ -1162,10 +1162,10 @@ export class PgToAppSyncService {
             csrl."ItemId" as item_id,
             csrl."DescriptionClear" as description,
             csrl."Quantity" as quantity,
-            csrl."UnitPrice" as unit_price,
-            csrl."DiscountRate" as discount_percent,
-            csrl."Amount" as total_ht,
-            csrl."LineNumber" as line_order,
+            csrl."CostPrice" as unit_price,
+            COALESCE(csrl."Discounts0_UnitDiscountRate", 0) as discount_percent,
+            csrl."NetAmountVatExcluded" as total_ht,
+            csrl."LineOrder" as line_order,
             i."Caption" as item_name,
             i."UnitId" as unit_ref,
             u."Caption" as unit_name
@@ -1173,7 +1173,7 @@ export class PgToAppSyncService {
           LEFT JOIN "Item" i ON csrl."ItemId" = i."Id"
           LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
           WHERE csrl."DocumentId" = $1
-          ORDER BY csrl."LineNumber" NULLS LAST, csrl."Id"
+          ORDER BY csrl."LineOrder" NULLS LAST, csrl."Id"
         `, [syncDoc.document_id]);
         
         documentLines = projectDocumentLines.rows;
