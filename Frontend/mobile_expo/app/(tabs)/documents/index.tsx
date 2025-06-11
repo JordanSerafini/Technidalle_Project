@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, TextInput, ViewStyle, Animated, ScrollView, PanResponder } from "react-native";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, TextInput, ViewStyle, Animated, ScrollView, PanResponder, StyleSheet, Dimensions } from "react-native";
 import { useRouter, Stack, Link } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFetch } from '@/app/hooks/useFetch';
@@ -9,6 +9,12 @@ import DocumentsFAB from '@/app/components/FAB/documents/documents.fab';
 import DocumentsModal from '@/app/components/modals/documents/addDocuments.modal';
 import AccordionItem from '@/app/components/documents/AccordionItem';
 import { FilterType } from '@/app/utils/constants/documentConstants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { FlashList } from '@shopify/flash-list';
+
+type SectionItem = { itemType: 'section'; id: string; monthYear: string; count: number };
+type DocItem = Document & { itemType: 'doc'; section: string };
+type FlatListItem = SectionItem | DocItem;
 
 export default function DocumentsScreen() {
   const router = useRouter();
@@ -20,6 +26,10 @@ export default function DocumentsScreen() {
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
   const [documentsByMonth, setDocumentsByMonth] = useState<{ [key: string]: Document[] }>({});
   const [currentFilter, setCurrentFilter] = useState<FilterType>(FilterType.TYPE);
+  const [isDefaultFilter, setIsDefaultFilter] = useState(true);
+  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
   
   // État de la modale de document
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -64,106 +74,67 @@ export default function DocumentsScreen() {
   // Référence pour éviter les re-rendus en boucle
   const hasGroupedDocuments = useRef(false);
   
-  // Récupération des documents - utiliser refreshKey pour forcer un nouveau montage du hook
-  const { data: documents, loading, error } = useFetch<Document[]>(`documents?refresh=${refreshKey}`, {
-    searchQuery: searchQuery.length > 0 ? searchQuery : undefined
-  });
-  
-  // Reset hasGroupedDocuments when filters change to force regrouping
-  useEffect(() => {
-    hasGroupedDocuments.current = false;
-  }, [selectedType, selectedStatus, selectedDateFilter]);
-  
-  // Fonction pour passer au filtre suivant
-  const switchToNextFilter = () => {
-    switch (currentFilter) {
-      case FilterType.TYPE:
-        setCurrentFilter(FilterType.STATUS);
-        break;
-      case FilterType.STATUS:
-        setCurrentFilter(FilterType.DATE);
-        break;
-      case FilterType.DATE:
-        setCurrentFilter(FilterType.TYPE);
-        break;
-    }
-  };
-  
-  // Fonction pour passer au filtre précédent
-  const switchToPrevFilter = () => {
-    switch (currentFilter) {
-      case FilterType.TYPE:
-        setCurrentFilter(FilterType.DATE);
-        break;
-      case FilterType.STATUS:
-        setCurrentFilter(FilterType.TYPE);
-        break;
-      case FilterType.DATE:
-        setCurrentFilter(FilterType.STATUS);
-        break;
-    }
-  };
-  
-  // Filtrer les documents selon les critères sélectionnés avec useMemo pour éviter les recalculs inutiles
-  const filteredDocuments = useMemo(() => {
-    if (!documents) return [];
-    
-    return documents.filter(doc => {
-      // Filtre par type
-      const typeMatch = selectedType ? doc.type === selectedType : true;
-      
-      // Filtre par statut
-      const statusMatch = selectedStatus ? 
-        // Vérifier si le statut existe avant de comparer
-        doc.status && doc.status === selectedStatus : true;
-      
-      // Filtre par date
-      let dateMatch = true;
-      if (selectedDateFilter) {
-        const today = new Date();
-        const docDate = new Date(doc.issue_date);
-        
-        switch (selectedDateFilter) {
-          case 'today':
-            dateMatch = docDate.toDateString() === today.toDateString();
-            break;
-          case 'week':
-            const weekAgo = new Date();
-            weekAgo.setDate(today.getDate() - 7);
-            dateMatch = docDate >= weekAgo;
-            break;
-          case 'month':
-            const monthAgo = new Date();
-            monthAgo.setMonth(today.getMonth() - 1);
-            dateMatch = docDate >= monthAgo;
-            break;
-          case 'year':
-            const yearAgo = new Date();
-            yearAgo.setFullYear(today.getFullYear() - 1);
-            dateMatch = docDate >= yearAgo;
-            break;
-        }
-      }
-      
-      return typeMatch && statusMatch && dateMatch;
+  // Filtrage par défaut (mois courant ou 20 derniers)
+  const applyDefaultFilter = useCallback((docs: Document[]) => {
+    if (!docs || docs.length === 0) return [];
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Documents du mois courant
+    const currentMonthDocs = docs.filter(doc => {
+      if (!doc.issue_date) return false;
+      const d = new Date(doc.issue_date);
+      return d >= currentMonthStart && d <= currentMonthEnd;
     });
-  }, [documents, selectedType, selectedStatus, selectedDateFilter]);
-  
-  // Regrouper les documents par mois avec useMemo
+    if (currentMonthDocs.length >= 5) {
+      return currentMonthDocs.sort((a, b) => new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime());
+    }
+    // Sinon, 20 derniers
+    return [...docs].sort((a, b) => new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime()).slice(0, 50);
+  }, []);
+
+  // Fetch documents
+  const { data: documents, loading, error, refetch } = useFetch<Document[]>(`documents`, {});
+
+  // Appliquer le filtre par défaut à l'arrivée des données
+  useEffect(() => {
+    if (documents && isDefaultFilter) {
+      const filtered = applyDefaultFilter(documents);
+      setFilteredDocuments(filtered);
+      // Auto-expand section la plus récente
+      if (filtered.length > 0) {
+        const d = new Date(filtered[0].issue_date);
+        const monthYear = `${d.getMonth() + 1}/${d.getFullYear()}`;
+        setExpandedSections({ [monthYear]: true });
+      }
+    } else if (documents && !isDefaultFilter) {
+      setFilteredDocuments(documents);
+    }
+  }, [documents, isDefaultFilter, applyDefaultFilter]);
+
+  // Recherche en temps réel
+  const searchFilteredDocuments = useMemo(() => {
+    if (!filteredDocuments) return [];
+    if (!searchQuery.trim()) return filteredDocuments;
+    const query = searchQuery.toLowerCase();
+    return filteredDocuments.filter(doc =>
+      doc.reference?.toLowerCase().includes(query) ||
+      doc.type?.toLowerCase().includes(query) ||
+      doc.status?.toLowerCase().includes(query)
+    );
+  }, [filteredDocuments, searchQuery]);
+
+  // Regroupement par mois/année
   const sortedDocumentsByMonth = useMemo(() => {
-    if (!filteredDocuments.length) return {};
-    
-    const grouped = filteredDocuments.reduce((acc, doc) => {
+    if (!searchFilteredDocuments.length) return {};
+    const grouped = searchFilteredDocuments.reduce((acc, doc) => {
       const date = new Date(doc.issue_date);
       const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
-      if (!acc[monthYear]) {
-        acc[monthYear] = [];
-      }
+      if (!acc[monthYear]) acc[monthYear] = [];
       acc[monthYear].push(doc);
       return acc;
     }, {} as { [key: string]: Document[] });
-    
-    // Trier les mois par ordre chronologique inverse (plus récent d'abord)
+    // Trier les mois par ordre chronologique inverse
     return Object.keys(grouped)
       .sort((a, b) => {
         const [monthA, yearA] = a.split('/').map(Number);
@@ -174,7 +145,7 @@ export default function DocumentsScreen() {
         acc[key] = grouped[key];
         return acc;
       }, {} as { [key: string]: Document[] });
-  }, [filteredDocuments]);
+  }, [searchFilteredDocuments]);
   
   // Mettre à jour documentsByMonth et expandedSections quand sortedDocumentsByMonth change
   useEffect(() => {
@@ -270,64 +241,207 @@ export default function DocumentsScreen() {
     }));
   };
   
-  //? -------------------------------------------------------------------------------------  Rendu d'un élément de la liste
-  const renderItem = ({ item }: { item: Document }) => (
-    <TouchableOpacity
-      key={item.id}
-      className="bg-white shadow-sm rounded-lg mb-3 flex-row p-3"
-      onPress={() => navigateToDocument(item.id)}
-    >
-      <View className="w-12 h-12 rounded-full bg-blue-100 items-center justify-center mr-3">
-        <MaterialIcons name={getIconForType(item.type)} size={24} color="#1e40af" />
-      </View>
-      
-      <View className="flex-1 justify-center">
-        <Text className="text-lg font-semibold text-gray-800">{item.reference}</Text>
-        <Text className="text-sm text-gray-500">
-          {formatDocumentType(item.type)} • {formatDate(item.issue_date)}
-          {item.status && ` • ${formatDocumentStatus(item.status)}`}
-        </Text>
-        
-        {item.amount !== null && (
-          <Text className="text-sm text-blue-800 font-medium mt-1">
-            {item.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-          </Text>
-        )}
-      </View>
-      
-      <View className="justify-center">
-        <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-      </View>
-    </TouchableOpacity>
-  );
-  
-  //? -------------------------------------------------------------------------------------  Rendu des sections mensuelles
-  const renderMonthSections = () => {
-    return Object.entries(documentsByMonth).map(([monthYear, docs]) => (
-      <View key={monthYear} className="mb-4">
-        <TouchableOpacity 
-          className="flex-row items-center bg-white rounded-lg p-3 shadow-sm"
-          onPress={() => toggleSection(monthYear)}
-        >
-          <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
-            <Text className="font-bold text-blue-800">{docs.length}</Text>
-          </View>
-          <Text className="flex-1 text-lg font-medium text-gray-800">{formatMonthYear(monthYear)}</Text>
-          <Ionicons 
-            name={expandedSections[monthYear] ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#6b7280" 
-          />
-        </TouchableOpacity>
-        
-        <AccordionItem isExpanded={expandedSections[monthYear]}>
-          <View className="mt-2">
-            {docs.map(doc => renderItem({ item: doc }))}
-          </View>
-        </AccordionItem>
-      </View>
-    ));
+  // Palette de couleurs pour les badges de section (nombre de docs)
+  const getSectionBadgeColor = (count: number): string => {
+    if (count >= 15) return '#EF4444'; // Rouge
+    if (count >= 10) return '#F97316'; // Orange
+    if (count >= 5) return '#3B82F6'; // Bleu
+    return '#10B981'; // Vert
   };
+  
+  // Carte document moderne
+  const DocumentCard = React.memo(({ doc, onPress }: { doc: Document, onPress: (id: number) => void }) => {
+    const handlePress = useCallback(() => onPress(doc.id), [doc.id, onPress]);
+    const statusColors: Record<string, string> = {
+      brouillon: '#F3F4F6',
+      en_attente: '#FDE68A',
+      valide: '#BBF7D0',
+      refuse: '#FCA5A5',
+      annule: '#E0E7EF',
+    };
+    const statusColor = statusColors[doc.status ?? 'brouillon'] || '#E5E7EB';
+    return (
+      <TouchableOpacity onPress={handlePress} style={styles.card}>
+        <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.cardGradient}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconCircle}>
+              <MaterialIcons name={getIconForType(doc.type)} size={22} color="#2563eb" />
+            </View>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardRef}>{doc.reference}</Text>
+              <Text style={styles.cardType}>{formatDocumentType(doc.type)}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}> 
+              <Text style={styles.statusText}>{doc.status ? formatDocumentStatus(doc.status) : ''}</Text>
+            </View>
+          </View>
+          <View style={styles.cardFooter}>
+            <Text style={styles.cardDate}>{formatDate(doc.issue_date)}</Text>
+            {doc.amount !== null && (
+              <Text style={styles.cardAmount}>{doc.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</Text>
+            )}
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" style={{ marginLeft: 8 }} />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  });
+  
+  // Ajout d'une icône calendrier pour la bannière mois
+  const SectionBanner = React.memo(({ title, count, isExpanded, onToggle }: { title: string, count: number, isExpanded: boolean, onToggle: () => void }) => {
+    const badgeColor = getSectionBadgeColor(count);
+    return (
+      <TouchableOpacity onPress={onToggle} style={styles.sectionBanner} activeOpacity={0.85}>
+                        <LinearGradient colors={['#E2E8F0', '#CBD5E1']} style={styles.sectionBannerGradient}>
+          <View style={styles.sectionBannerIcon}>
+            <Ionicons name="calendar" size={22} color="#3B82F6" />
+          </View>
+          <View style={styles.sectionBannerTitleContainer}>
+            <Text style={styles.sectionBannerTitle}>{title}</Text>
+          </View>
+          <View style={[styles.sectionBannerBadge, { backgroundColor: badgeColor }]}> 
+            <Text style={styles.sectionBannerBadgeText}>{count}</Text>
+          </View>
+          <View style={styles.sectionBannerChevron}>
+            <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#64748B" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  });
+  
+  // Structure pour FlashList : sections et items
+  const buildFlatListData = (
+    docsByMonth: Record<string, Document[]>,
+    expandedSections: Record<string, boolean>
+  ): FlatListItem[] => {
+    const data: FlatListItem[] = [];
+    Object.entries(docsByMonth).forEach(([monthYear, docs]) => {
+      const sectionItem: SectionItem = { 
+        itemType: 'section', 
+        id: `section-${monthYear}`, 
+        monthYear, 
+        count: docs.length 
+      };
+      data.push(sectionItem);
+      if (expandedSections[monthYear]) {
+        docs.forEach((doc: Document) => {
+          const docItem: DocItem = { 
+            ...doc, 
+            itemType: 'doc', 
+            section: monthYear 
+          };
+          data.push(docItem);
+        });
+      }
+    });
+    return data;
+  };
+
+  const flatListData = useMemo(() => buildFlatListData(documentsByMonth, expandedSections), [documentsByMonth, expandedSections]);
+  
+  // Fonctions de navigation entre filtres
+  const switchToPrevFilter = useCallback(() => {
+    const filters = [FilterType.TYPE, FilterType.STATUS, FilterType.DATE];
+    const currentIndex = filters.indexOf(currentFilter);
+    const prevIndex = currentIndex === 0 ? filters.length - 1 : currentIndex - 1;
+    setCurrentFilter(filters[prevIndex]);
+  }, [currentFilter]);
+
+  const switchToNextFilter = useCallback(() => {
+    const filters = [FilterType.TYPE, FilterType.STATUS, FilterType.DATE];
+    const currentIndex = filters.indexOf(currentFilter);
+    const nextIndex = currentIndex === filters.length - 1 ? 0 : currentIndex + 1;
+    setCurrentFilter(filters[nextIndex]);
+  }, [currentFilter]);
+
+  // Fonction de chargement infini
+  const loadMoreDocuments = useCallback(() => {
+    if (!isLoadingMore && documents && documents.length >= page * 20) {
+      setIsLoadingMore(true);
+      setPage(prevPage => prevPage + 1);
+      setTimeout(() => setIsLoadingMore(false), 1000); // Simulation
+    }
+  }, [isLoadingMore, documents, page]);
+
+  // Fonction pour rafraîchir les documents
+  const refreshDocuments = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+    refetch();
+  }, [refetch]);
+
+  // Fonction pour gérer l'ouverture de la modale
+  const handleShowDocumentModal = useCallback(() => {
+    setShowDocumentModal(true);
+  }, []);
+
+  // Rendu du contenu des filtres
+  const renderFilterContent = useCallback(() => {
+    switch (currentFilter) {
+      case FilterType.TYPE:
+        return (
+          <View className="flex-row flex-wrap gap-2">
+            {documentTypes.map((type) => (
+              <TouchableOpacity
+                key={type}
+                className={`px-3 py-2 rounded-lg border ${
+                  selectedType === type 
+                    ? 'bg-blue-100 border-blue-300' 
+                    : 'bg-gray-100 border-gray-300'
+                }`}
+                onPress={() => setSelectedType(selectedType === type ? null : type)}
+              >
+                <Text className={selectedType === type ? 'text-blue-800' : 'text-gray-700'}>
+                  {formatDocumentType(type)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+      case FilterType.STATUS:
+        return (
+          <View className="flex-row flex-wrap gap-2">
+            {documentStatuses.map((status) => (
+              <TouchableOpacity
+                key={status}
+                className={`px-3 py-2 rounded-lg border ${
+                  selectedStatus === status 
+                    ? 'bg-blue-100 border-blue-300' 
+                    : 'bg-gray-100 border-gray-300'
+                }`}
+                onPress={() => setSelectedStatus(selectedStatus === status ? null : status)}
+              >
+                <Text className={selectedStatus === status ? 'text-blue-800' : 'text-gray-700'}>
+                  {formatDocumentStatus(status)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+      case FilterType.DATE:
+        return (
+          <View className="flex-row flex-wrap gap-2">
+            {dateFilters.map((filter) => (
+              <TouchableOpacity
+                key={filter.id}
+                className={`px-3 py-2 rounded-lg border ${
+                  selectedDateFilter === filter.id 
+                    ? 'bg-blue-100 border-blue-300' 
+                    : 'bg-gray-100 border-gray-300'
+                }`}
+                onPress={() => setSelectedDateFilter(selectedDateFilter === filter.id ? null : filter.id)}
+              >
+                <Text className={selectedDateFilter === filter.id ? 'text-blue-800' : 'text-gray-700'}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+      default:
+        return null;
+    }
+  }, [currentFilter, selectedType, selectedStatus, selectedDateFilter, documentTypes, documentStatuses, dateFilters]);
   
   // Titre du filtre actuel
   const getFilterTitle = () => {
@@ -341,129 +455,15 @@ export default function DocumentsScreen() {
     }
   };
   
-  // Rendu du contenu du filtre
-  const renderFilterContent = () => {
-    switch (currentFilter) {
-      case FilterType.TYPE:
-        return (
-          <ScrollView 
-            horizontal={true}
-            showsHorizontalScrollIndicator={true}
-            style={{ maxHeight: 75 }}
-            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' }}
-          >
-            <TouchableOpacity 
-              className="mx-1 px-3 py-1 rounded-full border"
-              style={{ backgroundColor: selectedType === null ? '#3b82f6' : '#f3f4f6', borderColor: selectedType === null ? '#2563eb' : '#e5e7eb' }}
-              onPress={() => setSelectedType(null)}
-            >
-              <Text style={{ color: selectedType === null ? '#ffffff' : '#1f2937' }}>Tous</Text>
-            </TouchableOpacity>
-            
-            {documentTypes.map(type => (
-              <TouchableOpacity 
-                key={type}
-                className="mx-1 px-3 py-1 rounded-full border"
-                style={{ backgroundColor: selectedType === type ? '#3b82f6' : '#f3f4f6', borderColor: selectedType === type ? '#2563eb' : '#e5e7eb' }}
-                onPress={() => setSelectedType(type)}
-              >
-                <Text style={{ color: selectedType === type ? '#ffffff' : '#1f2937' }}>
-                  {formatDocumentType(type)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        );
-      
-      case FilterType.STATUS:
-        return (
-          <ScrollView 
-            horizontal={true}
-            showsHorizontalScrollIndicator={true}
-            style={{ maxHeight: 75 }}
-            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' }}
-          >
-            <TouchableOpacity 
-              className="mx-1 px-3 py-1 rounded-full border"
-              style={{ backgroundColor: selectedStatus === null ? '#3b82f6' : '#f3f4f6', borderColor: selectedStatus === null ? '#2563eb' : '#e5e7eb' }}
-              onPress={() => setSelectedStatus(null)}
-            >
-              <Text style={{ color: selectedStatus === null ? '#ffffff' : '#1f2937' }}>Tous</Text>
-            </TouchableOpacity>
-            
-            {documentStatuses.map(status => (
-              <TouchableOpacity 
-                key={status}
-                className="mx-1 px-3 py-1 rounded-full border"
-                style={{ backgroundColor: selectedStatus === status ? '#3b82f6' : '#f3f4f6', borderColor: selectedStatus === status ? '#2563eb' : '#e5e7eb' }}
-                onPress={() => setSelectedStatus(status)}
-              >
-                <Text style={{ color: selectedStatus === status ? '#ffffff' : '#1f2937' }}>
-                  {formatDocumentStatus(status)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        );
-      
-      case FilterType.DATE:
-        return (
-          <ScrollView 
-            horizontal={true}
-            showsHorizontalScrollIndicator={true}
-            style={{ maxHeight: 75 }}
-            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' }}
-          >
-            <TouchableOpacity 
-              className="mx-1 px-3 py-1 rounded-full border"
-              style={{ backgroundColor: selectedDateFilter === null ? '#3b82f6' : '#f3f4f6', borderColor: selectedDateFilter === null ? '#2563eb' : '#e5e7eb' }}
-              onPress={() => setSelectedDateFilter(null)}
-            >
-              <Text style={{ color: selectedDateFilter === null ? '#ffffff' : '#1f2937' }}>Tous</Text>
-            </TouchableOpacity>
-            
-            {dateFilters.map(filter => (
-              <TouchableOpacity 
-                key={filter.id}
-                className="mx-1 px-3 py-1 rounded-full border"
-                style={{ backgroundColor: selectedDateFilter === filter.id ? '#3b82f6' : '#f3f4f6', borderColor: selectedDateFilter === filter.id ? '#2563eb' : '#e5e7eb' }}
-                onPress={() => setSelectedDateFilter(filter.id)}
-              >
-                <Text style={{ color: selectedDateFilter === filter.id ? '#ffffff' : '#1f2937' }}>
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        );
-    }
-  };
-  
-  // Fonction pour rafraîchir la liste des documents
-  const refreshDocuments = () => {
-    // Incrémenter la clé pour forcer un nouveau fetch
-    setRefreshKey(prev => prev + 1);
-  };
-  
-  // Gérer l'affichage de la modale de document
-  const handleShowDocumentModal = (show: boolean, projectId?: number, clientId?: number) => {
-    setShowDocumentModal(show);
-    setModalProjectId(projectId);
-    setModalClientId(clientId);
-  };
-  
+  // Rendu FlashList
   return (
     <SafeAreaView className="flex-1 bg-gray-50 pt-6">
       <Stack.Screen
         options={{
-          title: 'Documents',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          title: `Documents${flatListData ? ` (${flatListData.filter(i=>i.type==='doc').length})` : ''}`,
+          headerTitleStyle: { fontWeight: 'bold' },
         }}
       />
-      
-      {/* Liste des documents */}
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#3b82f6" />
@@ -475,10 +475,46 @@ export default function DocumentsScreen() {
           <Text className="mt-4 text-gray-800 font-medium">Erreur de chargement</Text>
           <Text className="mt-2 text-gray-600 text-center">{error}</Text>
         </View>
-      ) : filteredDocuments && filteredDocuments.length > 0 ? (
-        <ScrollView className="flex-1 px-4 pt-4 pb-32">
-          {renderMonthSections()}
-        </ScrollView>
+      ) : flatListData && flatListData.length > 0 ? (
+        <FlashList
+          data={flatListData}
+          renderItem={({ item }) => {
+            if ('itemType' in item && item.itemType === 'section') {
+              const section = item as SectionItem;
+              return (
+                <SectionBanner
+                  title={formatMonthYear(section.monthYear)}
+                  count={section.count}
+                  isExpanded={!!expandedSections[section.monthYear]}
+                  onToggle={() => toggleSection(section.monthYear)}
+                />
+              );
+            }
+            if ('itemType' in item && item.itemType === 'doc') {
+              const doc = item as DocItem;
+              return (
+                <View style={styles.docsListUnderBanner}>
+                  <DocumentCard doc={doc} onPress={navigateToDocument} />
+                </View>
+              );
+            }
+            return null;
+          }}
+          estimatedItemSize={120}
+          keyExtractor={(item, idx) => {
+            if ('itemType' in item && item.itemType === 'section' && 'id' in item) return (item as SectionItem).id;
+            if ('itemType' in item && item.itemType === 'doc' && 'id' in item) return `doc-${(item as DocItem).id}`;
+            return `item-${idx}`;
+          }}
+          onEndReached={loadMoreDocuments}
+          onEndReachedThreshold={0.2}
+          ListFooterComponent={isLoadingMore ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#3b82f6" />
+            </View>
+          ) : null}
+          contentContainerStyle={{ paddingBottom: 120, paddingTop: 8 }}
+        />
       ) : (
         <View className="flex-1 justify-center items-center p-4">
           <MaterialIcons name="folder-open" size={64} color="#d1d5db" />
@@ -575,3 +611,140 @@ export default function DocumentsScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  // Carte document
+  card: {
+    marginBottom: 14,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+  },
+  cardGradient: {
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cardInfo: {
+    flex: 1,
+  },
+  cardRef: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  cardType: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  cardDate: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+    marginRight: 12,
+  },
+  cardAmount: {
+    fontSize: 14,
+    color: '#2563eb',
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  // Section
+  sectionBanner: {
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginHorizontal: 0,
+    width: '100%',
+  },
+  sectionBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  sectionBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  sectionBannerTitleContainer: {
+    flex: 1,
+  },
+  sectionBannerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  sectionBannerBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionBannerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sectionBannerChevron: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  docsListUnderBanner: {
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+});

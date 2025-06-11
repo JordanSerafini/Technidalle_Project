@@ -10,6 +10,7 @@ import ProjectsFab from '../../components/FAB/projects/projects.fab';
 import { FlashList } from '@shopify/flash-list';
 import AddProjectModal from '../../components/projects/add_project/addProjectsModal';
 import { formatTextForDisplay } from '../../utils/textUtils';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Étendre l'interface FetchState pour inclure refetch
 interface FetchState<T> {
@@ -30,22 +31,22 @@ const statusLabels: Record<project_status, string> = {
   annule: 'Annulé'
 };
 
-const statusColors: Record<project_status, string> = {
-  prospect: '#FFC107',
-  devis_en_cours: '#FF9800',
-  devis_accepte: '#4CAF50',
-  en_preparation: '#2196F3',
-  en_cours: '#3F51B5',
-  en_pause: '#9C27B0',
-  termine: '#4CAF50',
-  annule: '#F44336'
+const statusColors: Record<project_status, { bg: string; text: string; border: string }> = {
+  prospect: { bg: '#FEF3C7', text: '#92400E', border: '#F59E0B' },
+  devis_en_cours: { bg: '#FED7AA', text: '#C2410C', border: '#F97316' },
+  devis_accepte: { bg: '#D1FAE5', text: '#065F46', border: '#10B981' },
+  en_preparation: { bg: '#DBEAFE', text: '#1E40AF', border: '#3B82F6' },
+  en_cours: { bg: '#E0E7FF', text: '#3730A3', border: '#6366F1' },
+  en_pause: { bg: '#F3E8FF', text: '#7C2D12', border: '#A855F7' },
+  termine: { bg: '#D1FAE5', text: '#065F46', border: '#10B981' },
+  annule: { bg: '#FEE2E2', text: '#991B1B', border: '#EF4444' }
 };
 
 const getProjectCountColor = (count: number): string => {
-  if (count >= 10) return '#F44336';
-  if (count >= 7) return '#FF9800';
-  if (count >= 4) return '#4CAF50'; 
-  return '#2196F3';                  
+  if (count >= 15) return '#EF4444'; // Red
+  if (count >= 10) return '#F97316'; // Orange  
+  if (count >= 5) return '#3B82F6';  // Blue
+  return '#10B981';                  // Green
 };
 
 // Type pour les items de section
@@ -79,62 +80,51 @@ function isHeaderItem(item: ProjectListItem): item is SectionHeaderItem {
   return item.type === 'header';
 }
 
-// Optimisé avec memo pour éviter les rendus inutiles
+// Header de section style documents
 const SectionHeader = React.memo(({ title, count, isExpanded, onToggle }: SectionHeaderProps) => {
-  const badgeColor = getProjectCountColor(count);
+  const primaryColor = getProjectCountColor(count);
   
   return (
     <TouchableOpacity 
-      className="flex-row items-center bg-white rounded-xl p-4 shadow-sm mb-3 border border-gray-100"
       onPress={onToggle}
-      style={{
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 3,
-      }}
+      style={styles.sectionHeader}
     >
-      <View style={{ 
-        width: 44, 
-        height: 44, 
-        borderRadius: 22, 
-        backgroundColor: badgeColor,
-        shadowColor: badgeColor,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 4,
-      }} className="items-center justify-center mr-4">
-        <Text className="font-bold text-white" style={{ fontSize: 16 }}>
-          {count}
-        </Text>
-      </View>
-      
-      <View className="flex-1">
-        <Text className="text-lg font-semibold text-gray-900">{title}</Text>
-        <Text className="text-sm text-gray-500 mt-0.5">
-          {count} projet{count > 1 ? 's' : ''} {isExpanded ? 'affichés' : 'masqués'}
-        </Text>
-      </View>
-      
-      <View className="bg-gray-50 p-2 rounded-full">
-        <Ionicons 
-          name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#6B7280" 
-        />
-      </View>
+      <LinearGradient
+        colors={['#E2E8F0', '#CBD5E1']}
+        style={styles.sectionGradient}
+      >
+        <View style={styles.sectionIcon}>
+          <Ionicons name="briefcase-outline" size={22} color={primaryColor} />
+        </View>
+        
+        <View style={styles.sectionInfo}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        
+        <View style={[styles.countBadge, { backgroundColor: primaryColor }]}>
+          <Text style={styles.countText}>{count}</Text>
+        </View>
+        
+        <View style={styles.expandIcon}>
+          <Ionicons 
+            name={isExpanded ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color="#64748B" 
+          />
+        </View>
+      </LinearGradient>
     </TouchableOpacity>
   );
 });
 
-// Composant de projet optimisé avec memo
+// Carte de projet moderne avec design SaaS
 const ProjectItemComponent = React.memo(({ project, onPress }: { project: Project, onPress: (id: number) => void }) => {
   const handlePress = useCallback(() => {
     onPress(project.id);
   }, [project.id, onPress]);
 
+  const statusConfig = project.status ? statusColors[project.status] : null;
+  
   // Calculer les jours depuis la création/début
   const daysSinceStart = useMemo(() => {
     const referenceDate = project.start_date ? new Date(project.start_date) : new Date(project.created_at || new Date());
@@ -144,78 +134,85 @@ const ProjectItemComponent = React.memo(({ project, onPress }: { project: Projec
     return diffDays;
   }, [project.start_date, project.created_at]);
 
+  const isNew = daysSinceStart >= 0 && daysSinceStart <= 7;
+
   return (
     <TouchableOpacity 
-      className="bg-white p-4 rounded-xl shadow-sm mb-2 active:opacity-70 border border-gray-100"
       onPress={handlePress}
-      style={{
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
-      }}
+      style={styles.projectCard}
     >
-      <View className="flex-row justify-between items-start">
-        <View className="flex-1 mr-3">
-          <Text className="font-bold text-lg text-gray-900" numberOfLines={1}>
-            {project.name}
-          </Text>
+      <LinearGradient
+        colors={['#FFFFFF', '#F8FAFC']}
+        style={styles.projectGradient}
+      >
+        {/* En-tête du projet */}
+        <View style={styles.projectHeader}>
+          <View style={styles.projectTitleContainer}>
+            <Text style={styles.projectTitle} numberOfLines={1}>
+              {project.name}
+            </Text>
+            <View style={styles.projectMeta}>
+              {project.reference && (
+                <View style={styles.referenceTag}>
+                  <Text style={styles.referenceText}>#{project.reference}</Text>
+                </View>
+              )}
+              {isNew && (
+                <View style={styles.newTag}>
+                  <Text style={styles.newTagText}>Nouveau</Text>
+                </View>
+              )}
+            </View>
+          </View>
           
-          <View className="flex-row items-center mt-1">
-            {project.reference && (
-              <View className="bg-gray-100 px-2 py-1 rounded-md mr-2">
-                <Text className="text-gray-600 text-xs font-medium">#{project.reference}</Text>
-              </View>
-            )}
-            {daysSinceStart >= 0 && daysSinceStart <= 7 && (
-              <View className="bg-green-100 px-2 py-1 rounded-md">
-                <Text className="text-green-700 text-xs font-medium">Récent</Text>
-              </View>
-            )}
-          </View>
-        </View>
-        
-        {project.status && (
-          <View style={{backgroundColor: statusColors[project.status]}} className="py-1.5 px-3 rounded-full">
-            <Text className="text-white text-xs font-semibold">{statusLabels[project.status]}</Text>
-          </View>
-        )}
-      </View>
-      
-      {project.description && (
-        <Text className="text-gray-600 mt-3 leading-5" numberOfLines={2}>
-          {formatTextForDisplay(project.description, 120)}
-        </Text>
-      )}
-      
-      <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-gray-50">
-        <View className="flex-row items-center">
-          <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-          <Text className="text-gray-500 ml-2 text-sm">
-            {project.start_date ? new Date(project.start_date).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric'
-            }) : 'Date non définie'}
-          </Text>
-          {project.end_date && (
-            <>
-              <Ionicons name="arrow-forward" size={12} color="#6B7280" className="mx-2" />
-              <Text className="text-gray-500 text-sm">
-                {new Date(project.end_date).toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'short'
-                })}
+          {statusConfig && (
+            <View style={[styles.statusBadge, { 
+              backgroundColor: statusConfig.bg,
+              borderColor: statusConfig.border 
+            }]}>
+              <Text style={[styles.statusText, { color: statusConfig.text }]}>
+                {statusLabels[project.status!]}
               </Text>
-            </>
+            </View>
           )}
         </View>
-        
-        <View className="flex-row items-center">
-          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+
+        {/* Description */}
+        {project.description && (
+          <Text style={styles.projectDescription} numberOfLines={2}>
+            {formatTextForDisplay(project.description, 120)}
+          </Text>
+        )}
+
+        {/* Footer avec dates */}
+        <View style={styles.projectFooter}>
+          <View style={styles.dateInfo}>
+            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+            <Text style={styles.dateText}>
+              {project.start_date ? new Date(project.start_date).toLocaleDateString('fr-FR', {
+                day: '2-digit',
+                month: 'short',
+                year: '2-digit'
+              }) : 'Date non définie'}
+            </Text>
+            {project.end_date && (
+              <>
+                <View style={styles.dateSeparator} />
+                <Text style={styles.dateText}>
+                  {new Date(project.end_date).toLocaleDateString('fr-FR', {
+                    day: '2-digit',
+                    month: 'short'
+                  })}
+                </Text>
+              </>
+            )}
+          </View>
+          
+          <View style={styles.actionIcon}>
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          </View>
         </View>
-      </View>
+      </LinearGradient>
     </TouchableOpacity>
   );
 });
@@ -228,7 +225,7 @@ export default function ProjetsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [flatListData, setFlatListData] = useState<ProjectListItem[]>([]);
-  const [isDefaultFilter, setIsDefaultFilter] = useState(true); // Nouveau state pour gérer le filtre par défaut
+  const [isDefaultFilter, setIsDefaultFilter] = useState(true);
   
   // SIMPLIFIÉ: État pour la modale de création de projet
   const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -586,10 +583,12 @@ export default function ProjetsScreen() {
     }
     
     return (
-      <ProjectItemComponent 
-        project={item}
-        onPress={navigateToProjectDetail}
-      />
+      <View style={styles.projectListUnderBanner}>
+        <ProjectItemComponent 
+          project={item}
+          onPress={navigateToProjectDetail}
+        />
+      </View>
     );
   }, [toggleSection, navigateToProjectDetail]);
   
@@ -632,22 +631,26 @@ export default function ProjetsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           title: `Projets${searchFilteredProjects ? ` (${searchFilteredProjects.length})` : ''}`,
           headerTitleStyle: {
-            fontWeight: 'bold',
+            fontWeight: '600',
+            fontSize: 18,
+          },
+          headerStyle: {
+            backgroundColor: '#FFFFFF',
           },
           headerRight: () => (
-            <View className="flex-row items-center">
+            <View style={styles.headerRight}>
               {isDefaultFilter && (
-                <View className="bg-blue-100 px-2 py-1 rounded-full mr-2">
-                  <Text className="text-blue-700 text-xs font-medium">Récents</Text>
+                <View style={styles.recentBadge}>
+                  <Text style={styles.recentBadgeText}>Récents</Text>
                 </View>
               )}
-              <TouchableOpacity onPress={refetch} className="p-1">
-                <Ionicons name="refresh" size={20} color="#3F51B5" />
+              <TouchableOpacity onPress={refetch} style={styles.refreshButton}>
+                <Ionicons name="refresh" size={20} color="#3B82F6" />
               </TouchableOpacity>
             </View>
           ),
@@ -704,76 +707,82 @@ export default function ProjetsScreen() {
         onOtherPress={handleOtherOptions}
       />
       
-      {/* Barre de recherche et filtres en bas de l'écran */}
-      <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg">
-        {/* Indicateur de filtre actif */}
-        {isDefaultFilter && (
-          <View className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-2">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Ionicons name="funnel" size={16} color="#3B82F6" />
-                <Text className="text-blue-700 text-sm ml-2 font-medium">
-                  Projets récents (mois courant ou 20 derniers)
-                </Text>
+      {/* Barre de recherche et filtres moderne */}
+      <View style={styles.searchContainer}>
+        <LinearGradient
+          colors={['#FFFFFF', '#F8FAFC']}
+          style={styles.searchGradient}
+        >
+          {/* Indicateur de filtre actif */}
+          {isDefaultFilter && (
+            <View style={styles.filterIndicator}>
+              <View style={styles.filterIndicatorContent}>
+                <View style={styles.filterIndicatorLeft}>
+                  <Ionicons name="funnel" size={16} color="#3B82F6" />
+                  <Text style={styles.filterIndicatorText}>
+                    Projets récents (mois courant ou 20 derniers)
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={toggleDefaultFilter}
+                  style={styles.viewAllButton}
+                >
+                  <Text style={styles.viewAllButtonText}>Voir tout</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity 
-                onPress={toggleDefaultFilter}
-                className="bg-blue-100 px-3 py-1 rounded-full"
-              >
-                <Text className="text-blue-700 text-xs font-medium">Voir tout</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        )}
-        
-        {/* Barre de recherche */}
-        <View className="flex-row items-center mb-4">
-          <View className="flex-1 flex-row bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 items-center">
-            <Ionicons name="search" size={20} color="#6b7280" />
-            <TextInput
-              className="flex-1 ml-2 text-gray-800"
-              placeholder="Rechercher un projet..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={clearSearch}>
-                <Ionicons name="close-circle" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          {!isDefaultFilter && (
-            <TouchableOpacity 
-              className="ml-2 bg-blue-50 p-2 rounded-lg border border-blue-200"
-              onPress={toggleDefaultFilter}
-            >
-              <Ionicons 
-                name="time" 
-                size={20} 
-                color="#3B82F6" 
-              />
-            </TouchableOpacity>
           )}
           
-          <TouchableOpacity 
-            className="ml-2 bg-indigo-50 p-2 rounded-lg border border-indigo-200"
-            onPress={handleFilterPress}
-          >
-            <MaterialIcons 
-              name="filter-list" 
-              size={24} 
-              color={showFilter ? "#3F51B5" : "#6b7280"} 
-            />
-          </TouchableOpacity>
-        </View>
-        
-        {/* Filtres */}
-        {showFilter && (
-          <View className="mb-2 bg-gray-50 p-3 rounded-lg">
-            <ProjectFilter />
+          {/* Barre de recherche */}
+          <View style={styles.searchRow}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#64748B" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher un projet..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                  <Ionicons name="close-circle" size={20} color="#64748B" />
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            {!isDefaultFilter && (
+              <TouchableOpacity 
+                style={styles.timeFilterButton}
+                onPress={toggleDefaultFilter}
+              >
+                <Ionicons 
+                  name="time" 
+                  size={20} 
+                  color="#3B82F6" 
+                />
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity 
+              style={[styles.filterButton, showFilter && styles.filterButtonActive]}
+              onPress={handleFilterPress}
+            >
+              <MaterialIcons 
+                name="filter-list" 
+                size={24} 
+                color={showFilter ? "#3B82F6" : "#64748B"} 
+              />
+            </TouchableOpacity>
           </View>
-        )}
+          
+          {/* Filtres */}
+          {showFilter && (
+            <View style={styles.filtersContainer}>
+              <ProjectFilter />
+            </View>
+          )}
+        </LinearGradient>
       </View>
       
       {/* Utiliser le nouveau composant de modale */}
@@ -786,8 +795,317 @@ export default function ProjetsScreen() {
   );
 }
 
-// Le StyleSheet peut être épuré car les styles de la modale sont maintenant dans le composant AddProjectModal
 const styles = StyleSheet.create({
-  // ... autres styles nécessaires ...
+  // Main Container
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  
+  // Header Styles
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  recentBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  recentBadgeText: {
+    color: '#1E40AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  refreshButton: {
+    padding: 4,
+  },
+  
+  // Section Header Styles (style documents)
+  sectionHeader: {
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginHorizontal: 0,
+    width: '100%',
+  },
+  sectionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  sectionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    marginRight: 16,
+  },
+  countBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sectionInfo: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  expandIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  
+  // Project Card Styles (style documents)
+  projectCard: {
+    marginBottom: 14,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+  },
+  projectGradient: {
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+  },
+  projectHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  projectTitleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  projectTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 8,
+  },
+  projectMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  referenceTag: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  referenceText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  newTag: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#22C55E',
+  },
+  newTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16A34A',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  projectDescription: {
+    fontSize: 15,
+    color: '#64748B',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  projectFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  dateSeparator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#CBD5E1',
+  },
+  actionIcon: {
+    padding: 4,
+  },
+  
+  // Search Container Styles
+  searchContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  searchGradient: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  
+  // Filter Indicator Styles
+  filterIndicator: {
+    backgroundColor: '#DBEAFE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+  },
+  filterIndicatorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterIndicatorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  filterIndicatorText: {
+    color: '#1E40AF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
+  },
+  viewAllButton: {
+    backgroundColor: '#BFDBFE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  viewAllButtonText: {
+    color: '#1E40AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Search Row Styles
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#1E293B',
+  },
+  clearButton: {
+    padding: 4,
+  },
+  timeFilterButton: {
+    backgroundColor: '#DBEAFE',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+  },
+  filterButton: {
+    backgroundColor: '#F1F5F9',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  filterButtonActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#3B82F6',
+  },
+  filtersContainer: {
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  projectListUnderBanner: {
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
 });
 
