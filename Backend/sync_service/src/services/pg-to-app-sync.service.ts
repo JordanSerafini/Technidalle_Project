@@ -564,36 +564,136 @@ export class PgToAppSyncService {
         try {
           await individualClient.query('BEGIN');
 
-          // Chercher le client correspondant
+          // Chercher le client correspondant avec une logique améliorée
           let clientAppId: number | null = null;
 
           if (syncProject.client_ref) {
-            const clientSearch = await individualClient.query(`
+            // 1. Recherche exacte par customer_id
+            let clientSearch = await individualClient.query(`
               SELECT id FROM clients 
-              WHERE customer_id = $1 OR company_name ILIKE $2
-              LIMIT 1
-            `, [syncProject.client_ref, `%${syncProject.client_ref}%`]);
+              WHERE customer_id = $1
+            `, [syncProject.client_ref]);
 
-            if (clientSearch.rows.length > 0) {
+            if (clientSearch.rows.length === 0) {
+              // 2. Recherche par nom de société (approximative)
+              clientSearch = await individualClient.query(`
+                SELECT id FROM clients 
+                WHERE company_name ILIKE $1
+                ORDER BY 
+                  CASE 
+                    WHEN company_name = $2 THEN 1
+                    WHEN company_name ILIKE $1 THEN 2
+                    ELSE 3
+                  END
+                LIMIT 1
+              `, [`%${syncProject.client_ref}%`, syncProject.client_ref]);
+            }
+
+            if (clientSearch.rows.length === 0) {
+              // 3. Recherche dans la base sync pour récupérer les vraies infos client
+              try {
+                const realClientData = await pgClient.query(`
+                  SELECT 
+                    "Id" as id,
+                    "Name" as name,
+                    COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
+                    COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
+                    CASE
+                      WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                           AND TRIM("MainInvoicingContact_Email") != '' 
+                           AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                      THEN TRIM(LOWER("MainInvoicingContact_Email"))
+                      WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                           AND TRIM("MainDeliveryContact_Email") != '' 
+                           AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                      THEN TRIM(LOWER("MainDeliveryContact_Email"))
+                      ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@technidalle.com'
+                    END as email,
+                    CASE 
+                      WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                      THEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g')
+                      ELSE NULL
+                    END as phone,
+                    CASE 
+                      WHEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                      THEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g')
+                      ELSE NULL
+                    END as mobile,
+                    "Siren" as siret,
+                    "NotesClear" as notes
+                                 FROM "Customer" 
+               WHERE ("Id" = $1 OR "Name" ILIKE $2)
+               LIMIT 1
+                `, [syncProject.client_ref, `%${syncProject.client_ref}%`]);
+
+                if (realClientData.rows.length > 0) {
+                  const realClient = realClientData.rows[0];
+                  this.logger.log(`✅ Client trouvé dans la base sync pour ${syncProject.client_ref}: ${realClient.name}`);
+                  
+                  // Créer le client avec les vraies informations
+                  const realClientInsert = await individualClient.query(`
+                    INSERT INTO clients (
+                      customer_id, company_name, firstname, lastname, email, phone, mobile, siret, notes,
+                      created_at, updated_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+                    ON CONFLICT (customer_id) DO UPDATE SET
+                      company_name = EXCLUDED.company_name,
+                      firstname = EXCLUDED.firstname,
+                      lastname = EXCLUDED.lastname,
+                      email = EXCLUDED.email,
+                      phone = EXCLUDED.phone,
+                      mobile = EXCLUDED.mobile,
+                      siret = EXCLUDED.siret,
+                      notes = EXCLUDED.notes,
+                      updated_at = NOW()
+                    RETURNING id
+                  `, [
+                    realClient.id,
+                    realClient.name || '',
+                    realClient.firstname || '',
+                    realClient.lastname || '',
+                    realClient.email,
+                    realClient.phone || null,
+                    realClient.mobile || null,
+                    realClient.siret || null,
+                    realClient.notes || null
+                  ]);
+                  
+                  clientAppId = realClientInsert.rows[0].id;
+                }
+              } catch (syncError) {
+                this.logger.warn(`Erreur lors de la recherche du client dans la base sync: ${syncError instanceof Error ? syncError.message : String(syncError)}`);
+              }
+            } else {
               clientAppId = clientSearch.rows[0].id;
             }
           }
 
-          // Si pas de client trouvé, créer un client par défaut
+          // Si toujours pas de client trouvé, créer un client par défaut (mais avec de meilleures informations)
           if (!clientAppId) {
+            // Essayer d'extraire plus d'informations du nom du projet
+            let companyName = syncProject.client_ref || `Projet ${syncProject.name}`;
+            let customerIdFallback = `missing-${syncProject.source_type.toLowerCase()}-${syncProject.project_id}`;
+            
+            this.logger.warn(`⚠️  Aucun client trouvé pour ${syncProject.client_ref}, création d'un client de fallback: ${companyName}`);
+            
             const defaultClientResult = await individualClient.query(`
               INSERT INTO clients (
                 customer_id, company_name, firstname, lastname, email, 
                 created_at, updated_at
               ) VALUES (
-                $1, $2, 'Client', 'Inconnu', $3, NOW(), NOW()
+                $1, $2, $3, $4, $5, NOW(), NOW()
               ) 
-              ON CONFLICT (customer_id) DO UPDATE SET updated_at = NOW()
+              ON CONFLICT (customer_id) DO UPDATE SET 
+                company_name = EXCLUDED.company_name,
+                updated_at = NOW()
               RETURNING id
             `, [
-              `${syncProject.source_type.toLowerCase()}-${syncProject.project_id}`,
-              syncProject.client_ref || `Client du projet ${syncProject.name}`,
-              `${syncProject.source_type.toLowerCase()}-${syncProject.project_id}@technidalle.com`
+              customerIdFallback,
+              companyName,
+              '', // Pas de firstname générique
+              '', // Pas de lastname générique
+              `${customerIdFallback.replace(/[^a-zA-Z0-9]/g, '-')}@technidalle.com`
             ]);
             
             clientAppId = defaultClientResult.rows[0].id;
@@ -1859,6 +1959,311 @@ export class PgToAppSyncService {
     } catch (error) {
       this.logger.error('Erreur lors de l\'analyse des échecs de synchronisation', error);
       throw error;
+    }
+  }
+
+  /**
+   * Nettoie et corrige les clients factices créés avec des données génériques
+   */
+  async cleanupFakeClients(): Promise<{
+    success: boolean;
+    fake_clients_found: number;
+    clients_corrected: number;
+    clients_merged: number;
+    errors: string[];
+  }> {
+    const startTime = Date.now();
+    let fakeClientsFound = 0;
+    let clientsCorrected = 0;
+    let clientsMerged = 0;
+    const errors: string[] = [];
+
+    const client = await pgClientApp.getClient();
+
+    try {
+      this.logger.log('🧹 Début du nettoyage des clients factices');
+
+      // 1. Identifier les clients factices (créés automatiquement)
+      const fakeClientsQuery = `
+        SELECT id, customer_id, company_name, firstname, lastname, email
+        FROM clients 
+        WHERE (
+          customer_id LIKE 'deal-%' 
+          OR customer_id LIKE 'project-%' 
+          OR customer_id LIKE 'missing-%'
+          OR (firstname = 'Client' AND lastname = 'Inconnu')
+          OR email LIKE 'deal-%@technidalle.com'
+          OR email LIKE 'project-%@technidalle.com'
+          OR email LIKE 'missing-%@technidalle.com'
+        )
+        ORDER BY id
+      `;
+      
+      const fakeClients = await client.query(fakeClientsQuery);
+      fakeClientsFound = fakeClients.rows.length;
+      
+      this.logger.log(`📊 ${fakeClientsFound} clients factices trouvés`);
+
+      for (const fakeClient of fakeClients.rows) {
+        try {
+          // Extraire les informations du customer_id pour retrouver la source
+          let sourceRef = null;
+          let searchTerm = null;
+
+          if (fakeClient.customer_id.startsWith('deal-') || fakeClient.customer_id.startsWith('project-')) {
+            // Récupérer l'ID original depuis les tables Deal ou ConstructionSite
+            const sourceId = fakeClient.customer_id.replace(/^(deal|project)-/, '');
+            
+            if (fakeClient.customer_id.startsWith('deal-')) {
+              const dealQuery = await pgClient.query(
+                'SELECT "xx_Client" as client_ref FROM "Deal" WHERE "Id" = $1',
+                [sourceId]
+              );
+              if (dealQuery.rows.length > 0) {
+                sourceRef = dealQuery.rows[0].client_ref;
+              }
+            } else {
+              const projectQuery = await pgClient.query(
+                'SELECT "CustomerId" as client_ref FROM "ConstructionSite" WHERE "Id" = $1',
+                [sourceId]
+              );
+              if (projectQuery.rows.length > 0) {
+                sourceRef = projectQuery.rows[0].client_ref;
+              }
+            }
+          } else if (fakeClient.company_name && !fakeClient.company_name.startsWith('Client du projet')) {
+            // Utiliser le nom de la société pour rechercher
+            searchTerm = fakeClient.company_name;
+            
+            // Si le company_name ressemble à un ID client EBP, l'utiliser directement
+            if (fakeClient.company_name.match(/^(CL|CE|FO|PR)[0-9A-Z]+$/i)) {
+              sourceRef = fakeClient.company_name;
+              this.logger.debug(`Company name ${fakeClient.company_name} détecté comme ID client EBP`);
+            }
+          }
+
+          // Rechercher le vrai client dans la base sync
+          let realClient: any = null;
+          if (sourceRef) {
+            const realClientQuery = await pgClient.query(`
+              SELECT 
+                "Id" as id,
+                "Name" as name,
+                COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
+                COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
+                CASE
+                  WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                       AND TRIM("MainInvoicingContact_Email") != '' 
+                       AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                  THEN TRIM(LOWER("MainInvoicingContact_Email"))
+                  WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                       AND TRIM("MainDeliveryContact_Email") != '' 
+                       AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                  THEN TRIM(LOWER("MainDeliveryContact_Email"))
+                  ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@technidalle.com'
+                END as email,
+                CASE 
+                  WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                  THEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g')
+                  ELSE NULL
+                END as phone,
+                CASE 
+                  WHEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                  THEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g')
+                  ELSE NULL
+                END as mobile,
+                "Siren" as siret,
+                "NotesClear" as notes
+              FROM "Customer" 
+              WHERE ("Id" = $1 OR "Name" ILIKE $2)
+                AND ("ActiveState" = 1 OR "ActiveState" IS NULL)
+              LIMIT 1
+            `, [sourceRef, `%${sourceRef}%`]);
+
+            if (realClientQuery.rows.length > 0) {
+              realClient = realClientQuery.rows[0];
+            }
+          } else if (searchTerm) {
+            // Recherche par nom de société
+            const realClientQuery = await pgClient.query(`
+              SELECT 
+                "Id" as id,
+                "Name" as name,
+                COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
+                COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
+                CASE
+                  WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                       AND TRIM("MainInvoicingContact_Email") != '' 
+                       AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                  THEN TRIM(LOWER("MainInvoicingContact_Email"))
+                  WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                       AND TRIM("MainDeliveryContact_Email") != '' 
+                       AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+                  THEN TRIM(LOWER("MainDeliveryContact_Email"))
+                  ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@technidalle.com'
+                END as email,
+                CASE 
+                  WHEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                  THEN regexp_replace(COALESCE("MainInvoicingContact_Phone", "MainDeliveryContact_Phone", ''), '[^0-9+]', '', 'g')
+                  ELSE NULL
+                END as phone,
+                CASE 
+                  WHEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g') ~ '^[0-9+]{10,15}$'
+                  THEN regexp_replace(COALESCE("MainInvoicingContact_CellPhone", "MainDeliveryContact_CellPhone", ''), '[^0-9+]', '', 'g')
+                  ELSE NULL
+                END as mobile,
+                "Siren" as siret,
+                "NotesClear" as notes
+                             FROM "Customer" 
+               WHERE "Name" ILIKE $1
+              ORDER BY 
+                CASE 
+                  WHEN "Name" = $2 THEN 1
+                  WHEN "Name" ILIKE $1 THEN 2
+                  ELSE 3
+                END
+              LIMIT 1
+            `, [`%${searchTerm}%`, searchTerm]);
+
+            if (realClientQuery.rows.length > 0) {
+              realClient = realClientQuery.rows[0];
+            }
+          }
+
+          if (realClient) {
+            // Vérifier si un client avec le vrai customer_id existe déjà
+            const existingRealClient = await client.query(
+              'SELECT id FROM clients WHERE customer_id = $1 AND id != $2',
+              [realClient.id, fakeClient.id]
+            );
+
+            if (existingRealClient.rows.length > 0) {
+              // Le vrai client existe déjà, on doit merger
+              const realClientId = existingRealClient.rows[0].id;
+              
+              await client.query('BEGIN');
+              
+              // Transférer les projets du faux client vers le vrai client
+              await client.query(
+                'UPDATE projects SET client_id = $1 WHERE client_id = $2',
+                [realClientId, fakeClient.id]
+              );
+              
+              // Transférer les adresses
+              await client.query(`
+                UPDATE client_addresses 
+                SET client_id = $1 
+                WHERE client_id = $2 
+                  AND NOT EXISTS (
+                    SELECT 1 FROM client_addresses ca2 
+                    WHERE ca2.client_id = $1 AND ca2.address_id = client_addresses.address_id
+                  )
+              `, [realClientId, fakeClient.id]);
+              
+              // Supprimer le faux client
+              await client.query('DELETE FROM clients WHERE id = $1', [fakeClient.id]);
+              
+              await client.query('COMMIT');
+              clientsMerged++;
+              
+              this.logger.log(`🔀 Client factice ${fakeClient.customer_id} fusionné avec le vrai client ${realClient.id}`);
+            } else {
+              // Corriger le faux client avec les vraies données
+              await client.query(`
+                UPDATE clients 
+                SET 
+                  customer_id = $1,
+                  company_name = $2,
+                  firstname = $3,
+                  lastname = $4,
+                  email = $5,
+                  phone = $6,
+                  mobile = $7,
+                  siret = $8,
+                  notes = $9,
+                  updated_at = NOW()
+                WHERE id = $10
+              `, [
+                realClient.id,
+                realClient.name || '',
+                realClient.firstname || '',
+                realClient.lastname || '',
+                realClient.email,
+                realClient.phone || null,
+                realClient.mobile || null,
+                realClient.siret || null,
+                realClient.notes || null,
+                fakeClient.id
+              ]);
+              
+              clientsCorrected++;
+              this.logger.log(`✅ Client factice ${fakeClient.customer_id} corrigé avec les données du client ${realClient.id}`);
+            }
+          } else {
+            this.logger.warn(`⚠️  Aucun vrai client trouvé pour ${fakeClient.customer_id} (sourceRef: ${sourceRef}, searchTerm: ${searchTerm})`);
+          }
+
+        } catch (error) {
+          await client.query('ROLLBACK');
+          const errorMsg = `Erreur lors de la correction du client ${fakeClient.customer_id}: ${error instanceof Error ? error.message : String(error)}`;
+          errors.push(errorMsg);
+          this.logger.error(errorMsg);
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      this.logger.log(`✅ Nettoyage terminé en ${duration}ms: ${clientsCorrected} corrigés, ${clientsMerged} fusionnés`);
+
+    } catch (error) {
+      const errorMsg = `Erreur fatale lors du nettoyage des clients factices: ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(errorMsg);
+      this.logger.error(errorMsg);
+    } finally {
+      client.release();
+    }
+
+    return {
+      success: errors.length === 0,
+      fake_clients_found: fakeClientsFound,
+      clients_corrected: clientsCorrected,
+      clients_merged: clientsMerged,
+      errors
+    };
+  }
+
+  /**
+   * Test simple : vérifier si un client existe dans la base sync
+   */
+  async testClientInSync(clientId: string): Promise<any> {
+    try {
+      const result = await pgClient.query(`
+        SELECT 
+          "Id" as id,
+          "Name" as name,
+          COALESCE("MainInvoicingContact_FirstName", "MainDeliveryContact_FirstName", '') as firstname,
+          COALESCE("MainInvoicingContact_Name", "MainDeliveryContact_Name", '') as lastname,
+          CASE
+            WHEN "MainInvoicingContact_Email" IS NOT NULL 
+                 AND TRIM("MainInvoicingContact_Email") != '' 
+                 AND "MainInvoicingContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+            THEN TRIM(LOWER("MainInvoicingContact_Email"))
+            WHEN "MainDeliveryContact_Email" IS NOT NULL 
+                 AND TRIM("MainDeliveryContact_Email") != '' 
+                 AND "MainDeliveryContact_Email" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' 
+            THEN TRIM(LOWER("MainDeliveryContact_Email"))
+            ELSE 'no-email-' || REPLACE(LOWER("Id"), ' ', '-') || '@technidalle.com'
+          END as email,
+          "ActiveState" as active_state,
+          "Siren" as siret
+        FROM "Customer" 
+        WHERE "Id" = $1
+        LIMIT 1
+      `, [clientId]);
+
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      this.logger.error(`Erreur lors du test client ${clientId}:`, error);
+      return null;
     }
   }
 } 

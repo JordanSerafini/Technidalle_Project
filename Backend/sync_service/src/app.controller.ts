@@ -877,4 +877,64 @@ export class AppController {
       };
     }
   }
+
+  @Post('sync/pg-to-app/cleanup-fake-clients')
+  @ApiOperation({ summary: 'Nettoie et corrige les clients factices avec des données génériques' })
+  @ApiResponse({ status: 200, description: 'Nettoyage des clients factices effectué' })
+  @ApiResponse({ status: 500, description: 'Erreur lors du nettoyage' })
+  async cleanupFakeClients(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('🧹 Démarrage du nettoyage des clients factices');
+      
+      const result = await this.pgToAppSyncService.cleanupFakeClients();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Nettoyage terminé: ${result.clients_corrected} clients corrigés, ${result.clients_merged} clients fusionnés`
+          : `❌ Erreur lors du nettoyage: ${result.errors.length} erreurs`,
+        data: {
+          cleanup_stats: {
+            fake_clients_found: result.fake_clients_found,
+            clients_corrected: result.clients_corrected,
+            clients_merged: result.clients_merged,
+            total_fixed: result.clients_corrected + result.clients_merged
+          },
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors du nettoyage des clients factices', error);
+      return {
+        success: false,
+        message: 'Erreur lors du nettoyage des clients factices',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Get('sync/pg-to-app/test-client/:clientId')
+  @ApiOperation({ summary: 'Tester si un client existe dans la base sync' })
+  async testClientInSync(@Param('clientId') clientId: string): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log(`🔍 Test du client ${clientId} dans la base sync`);
+      
+      const result = await this.pgToAppSyncService.testClientInSync(clientId);
+      
+      return {
+        success: true,
+        message: result 
+          ? `✅ Client ${clientId} trouvé dans la base sync`
+          : `❌ Client ${clientId} non trouvé dans la base sync`,
+        data: result
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors du test client', error);
+      return {
+        success: false,
+        message: 'Erreur lors du test client',
+        error: (error as Error).message,
+      };
+    }
+  }
 }
