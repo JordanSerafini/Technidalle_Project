@@ -8,6 +8,7 @@ import { EbpDocumentsService } from './services/ebpDocuments.service';
 import { TruncateModule } from './truncate/truncate.module';
 import { QueryService } from './services/query.service';
 import { ClientSyncService } from './services/client-sync.service';
+import { PgToAppSyncService } from './services/pg-to-app-sync.service';
 import { SyncModule } from './sync/sync.module';
 
 @Module({

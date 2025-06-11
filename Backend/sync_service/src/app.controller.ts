@@ -3,6 +3,7 @@ import { AppService } from './app.service';
 import { UnifiedSyncService } from './services/unified-sync.service';
 import { Response } from 'express';
 import { SyncOptions } from './interfaces/sync/unified-project.interface';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 interface SyncOperationResponse {
   success: boolean;
