@@ -167,7 +167,7 @@ export class PgToAppSyncService {
           END as mobile,
           "Siren" as siret,
           "NotesClear" as notes,
-          "sysModifiedDate" as modified_date
+                      "sysModifiedDate" as modified_date
         FROM "Customer" 
         WHERE "ActiveState" = 1 OR "ActiveState" IS NULL
         ORDER BY "sysModifiedDate" DESC NULLS LAST
@@ -1028,12 +1028,24 @@ export class PgToAppSyncService {
 
           const documentAppId = documentInsert.rows[0].id;
 
-          // 2. Synchroniser les lignes de documents
-          await this.syncDocumentLines(syncDoc, documentAppId, individualClient);
+          // 2. Synchroniser les lignes de documents avec gestion d'erreur tolérante
+          let linesSuccess = true;
+          try {
+            await this.syncDocumentLines(syncDoc, documentAppId, individualClient);
+          } catch (linesError) {
+            linesSuccess = false;
+            this.logger.warn(`Erreur lignes pour ${syncDoc.reference}: ${linesError instanceof Error ? linesError.message : String(linesError)}`);
+            // Continuer même si les lignes échouent - le document principal est valide
+          }
 
           await individualClient.query('COMMIT');
           succeeded++;
-          this.logger.debug(`Document ${syncDoc.reference} synchronisé → document_id: ${documentAppId} (montant: ${amount})`);
+          
+          if (linesSuccess) {
+            this.logger.debug(`Document ${syncDoc.reference} synchronisé complètement → document_id: ${documentAppId} (montant: ${amount})`);
+          } else {
+            this.logger.warn(`Document ${syncDoc.reference} synchronisé partiellement → document_id: ${documentAppId} (lignes échouées)`);
+          }
 
         } catch (error) {
           await individualClient.query('ROLLBACK');
@@ -1069,7 +1081,7 @@ export class PgToAppSyncService {
   }
 
   /**
-   * Synchronise les lignes d'un document avec les matériaux
+   * Synchronise les lignes d'un document avec les matériaux - Version optimisée
    */
   private async syncDocumentLines(syncDoc: any, documentAppId: number, client: any): Promise<void> {
     try {
@@ -1086,6 +1098,7 @@ export class PgToAppSyncService {
             sdl."NetPriceVatExcluded" as unit_price,
             sdl."UnitDiscountRate" as discount_percent,
             sdl."NetAmountVatExcluded" as total_ht,
+            sdl."LineOrder" as line_order,
             i."Caption" as item_name,
             i."UnitId" as unit_ref,
             u."Caption" as unit_name
@@ -1093,7 +1106,7 @@ export class PgToAppSyncService {
           LEFT JOIN "Item" i ON sdl."ItemId" = i."Id"
           LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
           WHERE sdl."DocumentId" = $1
-          ORDER BY sdl."LineOrder" NULLS LAST
+          ORDER BY sdl."LineOrder" NULLS LAST, sdl."Id"
         `, [syncDoc.document_id]);
         
         documentLines = saleDocumentLines.rows;
@@ -1107,6 +1120,7 @@ export class PgToAppSyncService {
             dsdl."PurchasePrice" as unit_price,
             0 as discount_percent,
             dsdl."NetAmountVatExcludedWithDiscount" as total_ht,
+            dsdl."LineOrder" as line_order,
             i."Caption" as item_name,
             i."UnitId" as unit_ref,
             u."Caption" as unit_name
@@ -1114,7 +1128,7 @@ export class PgToAppSyncService {
           LEFT JOIN "Item" i ON dsdl."ItemId" = i."Id"
           LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
           WHERE dsdl."DocumentId" = $1
-          ORDER BY dsdl."LineOrder" NULLS LAST
+          ORDER BY dsdl."LineOrder" NULLS LAST, dsdl."Id"
         `, [syncDoc.document_id]);
         
         documentLines = dealSaleDocumentLines.rows;
@@ -1128,6 +1142,7 @@ export class PgToAppSyncService {
             dpdl."NetPriceVatExcluded" as unit_price,
             0 as discount_percent,
             dpdl."NetAmountVatExcludedWithDiscount" as total_ht,
+            dpdl."LineOrder" as line_order,
             i."Caption" as item_name,
             i."UnitId" as unit_ref,
             u."Caption" as unit_name
@@ -1135,7 +1150,7 @@ export class PgToAppSyncService {
           LEFT JOIN "Item" i ON dpdl."ItemId" = i."Id"
           LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
           WHERE dpdl."DocumentId" = $1
-          ORDER BY dpdl."LineOrder" NULLS LAST
+          ORDER BY dpdl."LineOrder" NULLS LAST, dpdl."Id"
         `, [syncDoc.document_id]);
         
         documentLines = dealPurchaseDocumentLines.rows;
@@ -1149,6 +1164,7 @@ export class PgToAppSyncService {
             csrl."UnitPrice" as unit_price,
             csrl."DiscountRate" as discount_percent,
             csrl."Amount" as total_ht,
+            csrl."LineNumber" as line_order,
             i."Caption" as item_name,
             i."UnitId" as unit_ref,
             u."Caption" as unit_name
@@ -1156,105 +1172,102 @@ export class PgToAppSyncService {
           LEFT JOIN "Item" i ON csrl."ItemId" = i."Id"
           LEFT JOIN "Unit" u ON i."UnitId" = u."Id"
           WHERE csrl."DocumentId" = $1
-          ORDER BY csrl."LineNumber"
+          ORDER BY csrl."LineNumber" NULLS LAST, csrl."Id"
         `, [syncDoc.document_id]);
         
         documentLines = projectDocumentLines.rows;
       }
 
-      // Insérer chaque ligne de document
-      for (const line of documentLines) {
+      // Nettoyer d'abord les lignes existantes pour éviter les conflits
+      await client.query('DELETE FROM document_lines WHERE document_id = $1', [documentAppId]);
+
+      // Préparer le cache des matériaux pour éviter les requêtes répétées
+      const materialCache = new Map<string, number>();
+      const uniqueItemIds = [...new Set(documentLines.map(line => line.item_id).filter(Boolean))];
+      
+      if (uniqueItemIds.length > 0) {
+        const materialsResult = await client.query(
+          'SELECT id, reference FROM materials WHERE reference = ANY($1)',
+          [uniqueItemIds]
+        );
+        
+        materialsResult.rows.forEach(row => {
+          materialCache.set(row.reference, row.id);
+        });
+      }
+
+      let insertedLines = 0;
+      let skippedLines = 0;
+
+      // Insérer chaque ligne de document avec validation robuste
+      for (let index = 0; index < documentLines.length; index++) {
+        const line = documentLines[index];
+        
         try {
-          // Chercher le matériau correspondant
-          let materialId: number | null = null;
-          
-          if (line.item_id) {
-            const materialSearch = await client.query(
-              'SELECT id FROM materials WHERE reference = $1',
-              [line.item_id]
-            );
-            
-            if (materialSearch.rows.length > 0) {
-              materialId = materialSearch.rows[0].id;
-            }
+          // Récupérer le matériau depuis le cache
+          const materialId = line.item_id ? materialCache.get(line.item_id) || null : null;
+
+          // Validation et nettoyage des données
+          const unitPrice = Math.max(0, parseFloat(line.unit_price) || 0);
+          const quantity = Math.max(0.01, parseFloat(line.quantity) || 1); // Minimum 0.01
+          const discountPercent = Math.max(0, Math.min(100, parseFloat(line.discount_percent) || 0));
+          const sortOrder = parseInt(line.line_order) || (index + 1);
+
+          // Description avec fallback
+          const description = (line.description || line.item_name || 'Article non spécifié').trim();
+          if (!description || description.length === 0) {
+            this.logger.warn(`Description vide pour ligne ${line.line_id}, utilisation fallback`);
           }
 
-          // Traitement des montants pour éviter les contraintes sur les lignes
-          let unitPrice = parseFloat(line.unit_price) || 0;
-          let quantity = parseFloat(line.quantity) || 1;
-          let discountPercent = parseFloat(line.discount_percent) || 0;
+          // Unité avec fallback
+          const unit = (line.unit_name || 'unité').trim() || 'unité';
 
-          // Vérifier les contraintes de la base de données
-          if (unitPrice < 0) {
-            this.logger.warn(`Prix unitaire négatif forcé à 0 pour la ligne ${line.line_id} (prix original: ${line.unit_price})`);
-            unitPrice = 0;
-          }
-          
-          if (quantity <= 0) {
-            this.logger.warn(`Quantité invalide forcée à 1 pour la ligne ${line.line_id} (quantité originale: ${line.quantity})`);
-            quantity = 1;
-          }
+          // Insérer la ligne avec gestion d'erreur individuelle
+          const insertResult = await client.query(`
+            INSERT INTO document_lines (
+              document_id, material_id, description, quantity, unit, 
+              unit_price, discount_percent, tax_rate, sort_order, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING id
+          `, [
+            documentAppId,
+            materialId,
+            description,
+            quantity,
+            unit,
+            unitPrice,
+            discountPercent,
+            20.00, // TVA par défaut
+            sortOrder
+          ]);
 
-          if (discountPercent < 0 || discountPercent > 100) {
-            this.logger.warn(`Taux de remise invalide forcé à 0 pour la ligne ${line.line_id} (taux original: ${line.discount_percent})`);
-            discountPercent = 0;
-          }
-
-          // Insérer la ligne de document
-          try {
-            await client.query(`
-              INSERT INTO document_lines (
-                document_id, material_id, description, quantity, unit, 
-                unit_price, discount_percent, tax_rate, created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-            `, [
-              documentAppId,
-              materialId,
-              line.description || line.item_name || 'Article non spécifié',
-              quantity,
-              line.unit_name || 'unité',
-              unitPrice,
-              discountPercent,
-              20.00 // TVA par défaut
-            ]);
-                      } catch (insertError) {
-            // Si erreur d'insertion (probablement doublon), essayer de mettre à jour
-            try {
-              await client.query(`
-                UPDATE document_lines 
-                SET 
-                  description = $3,
-                  quantity = $4,
-                  unit = $5,
-                  unit_price = $6,
-                  discount_percent = $7,
-                  tax_rate = $8,
-                  updated_at = NOW()
-                WHERE document_id = $1 AND material_id = $2
-              `, [
-                documentAppId,
-                materialId,
-                line.description || line.item_name || 'Article non spécifié',
-                quantity,
-                line.unit_name || 'unité',
-                unitPrice,
-                discountPercent,
-                20.00
-              ]);
-            } catch (updateError) {
-              this.logger.warn(`Erreur ligne document ${line.line_id}: ${updateError instanceof Error ? updateError.message : String(updateError)}`);
+          if (insertResult.rows.length > 0) {
+            insertedLines++;
+            if (materialId) {
+              this.logger.debug(`Ligne ${line.line_id} → app_line_id: ${insertResult.rows[0].id} (matériau: ${materialId})`);
             }
           }
 
         } catch (lineError) {
-          this.logger.warn(`Erreur ligne document ${line.line_id}: ${lineError instanceof Error ? lineError.message : String(lineError)}`);
+          skippedLines++;
+          const errorMsg = lineError instanceof Error ? lineError.message : String(lineError);
+          this.logger.warn(`Ligne ${line.line_id} ignorée: ${errorMsg}`);
+          
+          // Ne pas faire échouer tout le document pour une ligne défaillante
+          // Continuer avec les autres lignes
         }
       }
 
-      this.logger.debug(`${documentLines.length} lignes synchronisées pour le document ${syncDoc.reference}`);
+      const successRate = documentLines.length > 0 ? Math.round((insertedLines / documentLines.length) * 100) : 100;
+      this.logger.debug(`Document ${syncDoc.reference}: ${insertedLines}/${documentLines.length} lignes (${successRate}%, ${skippedLines} ignorées)`);
+
+      // Considérer comme succès si au moins 70% des lignes sont synchronisées
+      if (successRate < 70 && documentLines.length > 0) {
+        this.logger.warn(`Taux de réussite faible pour ${syncDoc.reference}: ${successRate}%`);
+      }
 
     } catch (error) {
-      this.logger.error(`Erreur lors de la synchronisation des lignes du document ${syncDoc.reference}`, error);
+      this.logger.error(`Erreur critique lors de la synchronisation des lignes du document ${syncDoc.reference}`, error);
       throw error;
     }
   }
@@ -1612,6 +1625,239 @@ export class PgToAppSyncService {
         errors,
         duration: Date.now() - startTime,
       };
+    }
+  }
+
+  /**
+   * Répare les documents synchronisés sans lignes
+   */
+  async repairDocumentsWithoutLines(): Promise<{
+    success: boolean;
+    documents_analyzed: number;
+    documents_repaired: number;
+    lines_added: number;
+    errors: string[];
+  }> {
+    const startTime = Date.now();
+    let documentsAnalyzed = 0;
+    let documentsRepaired = 0;
+    let linesAdded = 0;
+    const errors: string[] = [];
+
+    const client = await pgClientApp.getClient();
+
+    try {
+      this.logger.log('🔧 Analyse et réparation des documents sans lignes...');
+
+      // Trouver les documents sans lignes
+      const documentsWithoutLines = await client.query(`
+        SELECT 
+          d.id,
+          d.reference,
+          d.project_id,
+          d.type,
+          d.amount
+        FROM documents d
+        LEFT JOIN document_lines dl ON d.id = dl.document_id
+        WHERE dl.id IS NULL
+        ORDER BY d.created_at DESC
+      `);
+
+      documentsAnalyzed = documentsWithoutLines.rows.length;
+      this.logger.log(`📊 ${documentsAnalyzed} documents sans lignes détectés`);
+
+      for (const document of documentsWithoutLines.rows) {
+        const individualClient = await pgClientApp.getClient();
+        
+        try {
+          await individualClient.query('BEGIN');
+
+          // Essayer de retrouver le document source
+          const sourceDocQuery = await pgClient.query(`
+            SELECT 
+              'SALE' as source_type,
+              sd."Id" as document_id
+            FROM "SaleDocument" sd
+            WHERE sd."DocumentNumber" = $1
+            
+            UNION ALL
+            
+            SELECT 
+              'DEAL_SALE' as source_type,
+              dsd."Id" as document_id
+            FROM "DealSaleDocument" dsd
+            WHERE dsd."DocumentNumber" = $1
+            
+            UNION ALL
+            
+            SELECT 
+              'DEAL_PURCHASE' as source_type,
+              dpd."Id" as document_id
+            FROM "DealPurchaseDocument" dpd
+            WHERE dpd."DocumentNumber" = $1
+            
+            UNION ALL
+            
+            SELECT 
+              'PROJECT' as source_type,
+              csr."Id" as document_id
+            FROM "ConstructionSiteReferenceDocument" csr
+            WHERE csr."Reference" = $1
+            
+            LIMIT 1
+          `, [document.reference]);
+
+          if (sourceDocQuery.rows.length > 0) {
+            const sourceDoc = sourceDocQuery.rows[0];
+            
+            // Créer un objet syncDoc pour réutiliser syncDocumentLines
+            const syncDoc = {
+              document_source: sourceDoc.source_type,
+              document_id: sourceDoc.document_id,
+              reference: document.reference
+            };
+
+            // Synchroniser les lignes
+            await this.syncDocumentLines(syncDoc, document.id, individualClient);
+
+            // Compter les lignes ajoutées
+            const linesCountResult = await individualClient.query(
+              'SELECT COUNT(*) as count FROM document_lines WHERE document_id = $1',
+              [document.id]
+            );
+
+            const addedLines = parseInt(linesCountResult.rows[0].count) || 0;
+            
+            if (addedLines > 0) {
+              documentsRepaired++;
+              linesAdded += addedLines;
+              this.logger.debug(`Document ${document.reference} réparé: ${addedLines} lignes ajoutées`);
+            }
+          }
+
+          await individualClient.query('COMMIT');
+
+        } catch (error) {
+          await individualClient.query('ROLLBACK');
+          const errorMsg = `Erreur réparation document ${document.reference}: ${error instanceof Error ? error.message : String(error)}`;
+          errors.push(errorMsg);
+          this.logger.warn(errorMsg);
+        } finally {
+          individualClient.release();
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      this.logger.log(`✅ Réparation terminée: ${documentsRepaired}/${documentsAnalyzed} documents réparés, ${linesAdded} lignes ajoutées en ${duration}ms`);
+
+      return {
+        success: errors.length === 0,
+        documents_analyzed: documentsAnalyzed,
+        documents_repaired: documentsRepaired,
+        lines_added: linesAdded,
+        errors: errors.slice(0, 10) // Limiter les erreurs affichées
+      };
+
+    } catch (error) {
+      const errorMsg = `Erreur lors de la réparation des documents: ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(errorMsg);
+      this.logger.error(errorMsg);
+
+      return {
+        success: false,
+        documents_analyzed: documentsAnalyzed,
+        documents_repaired: documentsRepaired,
+        lines_added: linesAdded,
+        errors
+      };
+
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Analyse détaillée des échecs de synchronisation des documents
+   */
+  async analyzeDocumentSyncFailures(): Promise<{
+    total_documents_in_sync: number;
+    total_documents_in_app: number;
+    sync_rate: number;
+    documents_without_lines: number;
+    documents_with_zero_amount: number;
+    missing_projects: number;
+    analysis: any[];
+  }> {
+    try {
+      // Compter les documents dans la base Sync
+      const syncDocCount = await pgClient.query(`
+        SELECT COUNT(*) as count FROM (
+          SELECT "DocumentNumber" FROM "SaleDocument" WHERE "DocumentNumber" IS NOT NULL
+          UNION
+          SELECT "DocumentNumber" FROM "DealSaleDocument" WHERE "DocumentNumber" IS NOT NULL
+          UNION
+          SELECT "DocumentNumber" FROM "DealPurchaseDocument" WHERE "DocumentNumber" IS NOT NULL
+          UNION
+          SELECT "Reference" FROM "ConstructionSiteReferenceDocument" WHERE "Reference" IS NOT NULL
+        ) all_docs
+      `);
+
+      // Compter les documents dans l'app
+      const appDocCount = await this.queryService.executeQuery('SELECT COUNT(*) as count FROM documents');
+
+      // Documents sans lignes
+      const docsWithoutLines = await this.queryService.executeQuery(`
+        SELECT COUNT(*) as count
+        FROM documents d
+        LEFT JOIN document_lines dl ON d.id = dl.document_id
+        WHERE dl.id IS NULL
+      `);
+
+      // Documents avec montant zéro
+      const docsWithZeroAmount = await this.queryService.executeQuery(`
+        SELECT COUNT(*) as count FROM documents WHERE amount = 0 OR amount IS NULL
+      `);
+
+      // Projets manquants
+      const missingProjects = await this.queryService.executeQuery(`
+        SELECT COUNT(*) as count FROM documents WHERE project_id IS NULL
+      `);
+
+      const totalSync = parseInt(syncDocCount.rows[0].count);
+      const totalApp = parseInt(appDocCount.rows[0].count);
+      const syncRate = totalSync > 0 ? Math.round((totalApp / totalSync) * 100) : 0;
+
+      const analysis = [
+        {
+          metric: 'Documents sans lignes',
+          count: parseInt(docsWithoutLines.rows[0].count),
+          percentage: totalApp > 0 ? Math.round((parseInt(docsWithoutLines.rows[0].count) / totalApp) * 100) : 0
+        },
+        {
+          metric: 'Documents avec montant zéro',
+          count: parseInt(docsWithZeroAmount.rows[0].count),
+          percentage: totalApp > 0 ? Math.round((parseInt(docsWithZeroAmount.rows[0].count) / totalApp) * 100) : 0
+        },
+        {
+          metric: 'Documents sans projet',
+          count: parseInt(missingProjects.rows[0].count),
+          percentage: totalApp > 0 ? Math.round((parseInt(missingProjects.rows[0].count) / totalApp) * 100) : 0
+        }
+      ];
+
+      return {
+        total_documents_in_sync: totalSync,
+        total_documents_in_app: totalApp,
+        sync_rate: syncRate,
+        documents_without_lines: parseInt(docsWithoutLines.rows[0].count),
+        documents_with_zero_amount: parseInt(docsWithZeroAmount.rows[0].count),
+        missing_projects: parseInt(missingProjects.rows[0].count),
+        analysis
+      };
+
+    } catch (error) {
+      this.logger.error('Erreur lors de l\'analyse des échecs de synchronisation', error);
+      throw error;
     }
   }
 } 

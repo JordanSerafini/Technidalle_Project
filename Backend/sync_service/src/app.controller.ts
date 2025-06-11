@@ -743,7 +743,9 @@ export class AppController {
             'POST /sync/pg-to-app/clients',
             'POST /sync/pg-to-app/projects',
             'POST /sync/pg-to-app/documents',
-            'POST /sync/pg-to-app/materials'
+            'POST /sync/pg-to-app/materials',
+            'POST /sync/pg-to-app/repair-documents',
+            'GET /sync/pg-to-app/analyze-failures'
           ],
           service_info: {
             name: 'PostgreSQL Sync → App Service',
@@ -757,6 +759,120 @@ export class AppController {
       return {
         success: false,
         message: 'Erreur lors de la récupération du statut',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/repair-documents')
+  @ApiOperation({ summary: 'Répare les documents synchronisés sans lignes' })
+  @ApiResponse({ status: 200, description: 'Réparation terminée' })
+  @ApiResponse({ status: 500, description: 'Erreur lors de la réparation' })
+  async repairDocumentsWithoutLines(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('🔧 Démarrage de la réparation des documents sans lignes');
+      
+      const result = await this.pgToAppSyncService.repairDocumentsWithoutLines();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ Réparation terminée: ${result.documents_repaired}/${result.documents_analyzed} documents réparés`
+          : `❌ Erreur lors de la réparation: ${result.errors.length} erreurs`,
+        data: {
+          summary: {
+            documents_analyzed: result.documents_analyzed,
+            documents_repaired: result.documents_repaired,
+            lines_added: result.lines_added,
+            success_rate: result.documents_analyzed > 0 
+              ? Math.round((result.documents_repaired / result.documents_analyzed) * 100) 
+              : 0
+          },
+          errors: result.errors
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur fatale lors de la réparation des documents', error);
+      return {
+        success: false,
+        message: 'Erreur fatale lors de la réparation des documents',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Get('sync/pg-to-app/analyze-failures')
+  @ApiOperation({ summary: 'Analyse détaillée des échecs de synchronisation des documents' })
+  @ApiResponse({ status: 200, description: 'Analyse complétée' })
+  @ApiResponse({ status: 500, description: 'Erreur lors de l\'analyse' })
+  async analyzeDocumentSyncFailures(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('📊 Analyse des échecs de synchronisation des documents');
+      
+      const analysis = await this.pgToAppSyncService.analyzeDocumentSyncFailures();
+      
+      return {
+        success: true,
+        message: `📊 Analyse terminée: ${analysis.sync_rate}% de documents synchronisés`,
+        data: {
+          global_stats: {
+            total_documents_in_sync: analysis.total_documents_in_sync,
+            total_documents_in_app: analysis.total_documents_in_app,
+            sync_rate: analysis.sync_rate,
+            missing_documents: analysis.total_documents_in_sync - analysis.total_documents_in_app
+          },
+          quality_issues: {
+            documents_without_lines: analysis.documents_without_lines,
+            documents_with_zero_amount: analysis.documents_with_zero_amount,
+            missing_projects: analysis.missing_projects
+          },
+          detailed_analysis: analysis.analysis,
+          recommendations: [
+            analysis.documents_without_lines > 0 ? 'Utiliser POST /sync/pg-to-app/repair-documents pour réparer les documents sans lignes' : null,
+            analysis.sync_rate < 90 ? 'Relancer POST /sync/pg-to-app/documents pour améliorer le taux de synchronisation' : null,
+            analysis.missing_projects > 0 ? 'Vérifier la synchronisation des projets avec POST /sync/pg-to-app/projects' : null
+          ].filter(Boolean)
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors de l\'analyse des échecs de synchronisation', error);
+      return {
+        success: false,
+        message: 'Erreur lors de l\'analyse des échecs de synchronisation',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  @Post('sync/pg-to-app/cleanup-emails')
+  @ApiOperation({ summary: 'Nettoyage et validation des emails clients' })
+  @ApiResponse({ status: 200, description: 'Nettoyage terminé' })
+  @ApiResponse({ status: 500, description: 'Erreur lors du nettoyage' })
+  async cleanupEmailDuplicates(): Promise<SyncOperationResponse> {
+    try {
+      this.logger.log('🧹 Nettoyage des emails dupliqués et invalides');
+      
+      const result = await this.pgToAppSyncService.cleanupEmailDuplicates();
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? `✅ ${result.message}`
+          : `❌ Erreur lors du nettoyage`,
+        data: {
+          cleanup_stats: {
+            duplicates_fixed: result.duplicates_fixed,
+            invalid_emails_fixed: result.invalid_emails_fixed,
+            invalid_phones_fixed: result.invalid_phones_fixed,
+            normalized_count: result.normalized_count
+          }
+        }
+      };
+    } catch (error) {
+      this.logger.error('❌ Erreur lors du nettoyage des emails', error);
+      return {
+        success: false,
+        message: 'Erreur lors du nettoyage des emails',
         error: (error as Error).message,
       };
     }
