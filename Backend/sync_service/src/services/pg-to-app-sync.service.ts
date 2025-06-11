@@ -537,10 +537,23 @@ export class PgToAppSyncService {
         ORDER BY cs."sysModifiedDate" DESC NULLS LAST
       `);
 
-      // Combiner tous les projets
+      // Détecter et éviter les doublons entre Deal et ConstructionSite
+      const dealIds = new Set(syncDeals.rows.map(d => d.project_id));
+      const projectsIds = new Set(syncProjects.rows.map(p => p.project_id));
+      const commonIds = [...dealIds].filter(id => projectsIds.has(id));
+      
+      if (commonIds.length > 0) {
+        this.logger.warn(`⚠️  ${commonIds.length} IDs communs détectés entre Deal et ConstructionSite - priorité donnée aux Deal`);
+        // Filtrer les ConstructionSite qui ont le même ID qu'un Deal
+        const filteredProjects = syncProjects.rows.filter(p => !dealIds.has(p.project_id));
+        this.logger.log(`Projets filtrés: ${syncProjects.rows.length} → ${filteredProjects.length}`);
+        syncProjects.rows = filteredProjects;
+      }
+
+      // Combiner tous les projets (maintenant sans doublons)
       const allProjects = [...syncDeals.rows, ...syncProjects.rows];
       processed = allProjects.length;
-      this.logger.log(`${processed} projets (${syncDeals.rows.length} deals + ${syncProjects.rows.length} projets) à synchroniser`);
+      this.logger.log(`${processed} projets uniques (${syncDeals.rows.length} deals + ${syncProjects.rows.length} projets) à synchroniser`);
 
       // Traiter chaque projet individuellement (sans transaction globale)
       for (const syncProject of allProjects) {
