@@ -160,10 +160,42 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
         body: JSON.stringify({ query, limit }),
       });
       
-      // Le résultat devrait déjà être dans le bon format
+      console.log('🔍 Debug MCP executeQuery result:', {
+        hasContent: !!result.content,
+        contentLength: result.content?.length,
+        firstContent: result.content?.[0],
+        resultKeys: Object.keys(result)
+      });
+      
+      // Extraire les données du format MCP
+      let rows = [];
+      let rowCount = 0;
+      
+      if (result.content && result.content[0] && result.content[0].text) {
+        const text = result.content[0].text;
+        
+        // Extraire le nombre de lignes
+        const rowCountMatch = text.match(/📊 Résultats: (\d+) lignes/);
+        if (rowCountMatch) {
+          rowCount = parseInt(rowCountMatch[1], 10);
+        }
+        
+        // Extraire les données JSON
+        const dataMatch = text.match(/📋 Données:\n(.+)/s);
+        if (dataMatch) {
+          try {
+            rows = JSON.parse(dataMatch[1].trim());
+            console.log('✅ Données MCP extraites:', { rowCount, rowsLength: rows.length });
+          } catch (parseError) {
+            console.error('❌ Erreur parsing des données MCP:', parseError.message);
+            rows = [];
+          }
+        }
+      }
+      
       return {
-        rows: result.rows || [],
-        rowCount: result.rowCount || 0,
+        rows: rows,
+        rowCount: rowCount,
         source: 'mcp',
         database: database
       };
