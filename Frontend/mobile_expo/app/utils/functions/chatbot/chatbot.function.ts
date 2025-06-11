@@ -91,8 +91,8 @@ export const createNewConversation = async (): Promise<string> => {
 // Fonction pour vérifier l'état de santé du service chatbot via l'API Gateway
 export const checkChatbotHealth = async (): Promise<{ status: string; gateway: string; message: string }> => {
   try {
-    console.log('🔍 Vérification de santé via API Gateway (port 3000)...');
-    const response = await fetch(`${url.chatbot}chatbot/health`, {
+    console.log('🔍 Vérification de santé via ngrok -> localhost:3000...');
+    const response = await fetch(`${url.local}chatbot/health`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -104,18 +104,18 @@ export const checkChatbotHealth = async (): Promise<{ status: string; gateway: s
     }
     
     const result = await response.json();
-    console.log('✅ Service chatbot accessible via API Gateway');
+    console.log('✅ Service chatbot accessible via ngrok -> API Gateway');
     return result;
   } catch (error) {
     console.error('❌ Erreur lors de la vérification de la santé du chatbot:', error);
-    throw new Error('Le service chatbot est indisponible via l\'API Gateway');
+    throw new Error('Le service chatbot est indisponible via ngrok -> API Gateway');
   }
 };
 
 // Fonction pour envoyer un message au chatbot via l'API Gateway
 export const sendConversationMessage = async (message: string, database?: string): Promise<ChatbotResponse> => {
   try {
-    console.log(`💬 Envoi du message via API Gateway: "${message.substring(0, 50)}..."`);
+    console.log(`💬 Envoi du message via ngrok -> API Gateway: "${message.substring(0, 50)}..."`);
     
     const userId = await getUserId();
     const conversationId = await getConversationId();
@@ -127,7 +127,7 @@ export const sendConversationMessage = async (message: string, database?: string
       userId,
     };
 
-    const response = await fetch(`${url.chatbot}chatbot/chat`, {
+    const response = await fetch(`${url.local}chatbot/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -142,7 +142,7 @@ export const sendConversationMessage = async (message: string, database?: string
     }
 
     const result = await response.json();
-    console.log('✅ Message traité avec succès via API Gateway');
+    console.log('✅ Message traité avec succès via ngrok -> API Gateway');
     return result;
   } catch (error: unknown) {
     console.error('❌ Erreur lors de l\'envoi du message de conversation:', error);
@@ -151,7 +151,7 @@ export const sendConversationMessage = async (message: string, database?: string
       throw error;
     }
     
-    throw new Error('Impossible de communiquer avec le service chatbot via l\'API Gateway');
+    throw new Error('Impossible de communiquer avec le service chatbot via ngrok -> API Gateway');
   }
 };
 
@@ -159,9 +159,9 @@ export const sendConversationMessage = async (message: string, database?: string
 export const getConversationHistory = async (conversationId?: string): Promise<ConversationHistory> => {
   try {
     const currentConversationId = conversationId || await getConversationId();
-    console.log(`📜 Récupération de l'historique via API Gateway: ${currentConversationId}`);
+    console.log(`📜 Récupération de l'historique via ngrok -> API Gateway: ${currentConversationId}`);
     
-    const response = await fetch(`${url.chatbot}chatbot/conversation/${currentConversationId}/history`, {
+    const response = await fetch(`${url.local}chatbot/conversation/${currentConversationId}/history`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -193,9 +193,9 @@ export const getConversationHistory = async (conversationId?: string): Promise<C
 export const clearConversation = async (conversationId?: string): Promise<{ success: boolean; message: string }> => {
   try {
     const currentConversationId = conversationId || await getConversationId();
-    console.log(`🗑️ Suppression de la conversation via API Gateway: ${currentConversationId}`);
+    console.log(`🗑️ Suppression de la conversation via ngrok -> API Gateway: ${currentConversationId}`);
     
-    const response = await fetch(`${url.chatbot}chatbot/conversation/${currentConversationId}`, {
+    const response = await fetch(`${url.local}chatbot/conversation/${currentConversationId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -227,9 +227,9 @@ export const clearConversation = async (conversationId?: string): Promise<{ succ
 // Fonction pour vérifier le statut des bases de données
 export const getDatabaseStatus = async (): Promise<any> => {
   try {
-    console.log('🗄️ Vérification du statut des bases de données via API Gateway');
+    console.log('🗄️ Vérification du statut des bases de données via ngrok -> API Gateway');
     
-    const response = await fetch(`${url.chatbot}chatbot/databases/status`, {
+    const response = await fetch(`${url.local}chatbot/databases/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -257,7 +257,7 @@ export const getDatabaseStatus = async (): Promise<any> => {
 // Fonction pour obtenir les informations sur l'API Gateway
 export const getGatewayInfo = async (): Promise<any> => {
   try {
-    const response = await fetch(`${url.chatbot}chatbot/info`, {
+    const response = await fetch(`${url.local}chatbot/info`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
