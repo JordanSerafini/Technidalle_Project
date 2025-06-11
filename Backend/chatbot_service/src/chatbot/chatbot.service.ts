@@ -159,7 +159,9 @@ Réponds toujours en français et sois professionnel mais accessible.`,
       'statistique', 'moyenne', 'maximum', 'minimum', 'total', 'somme',
       'derniers', 'premiers', 'récents', 'quel', 'quels', 'quelle', 'quelles',
       'chantiers', 'projets', 'clients', 'véhicules', 'tâches', 'retard', 
-      'en cours', 'terminé', 'fini', 'avancement', 'état', 'statut'
+      'en cours', 'terminé', 'fini', 'avancement', 'état', 'statut', 'qui',
+      'travail', 'travaille', 'employé', 'staff', 'équipe', 'congé', 'absence',
+      'disponible', 'occupé', 'libre', 'semaine', 'prochaine', 'planning'
     ];
 
     return queryKeywords.some(keyword => 
@@ -225,30 +227,21 @@ Réponds toujours en français et sois professionnel mais accessible.`,
       const value = Object.values(result.rows[0])[0];
       response += `**Résultat:** ${value}\n\n`;
     } else {
-      // Résultats multiples
+      // Résultats multiples - formatage spécialisé selon le type de données
       response += `**${result.rows.length} résultat(s) trouvé(s):**\n\n`;
       
       // Limiter l'affichage à 10 résultats pour la lisibilité
       const rowsToShow = result.rows.slice(0, 10);
       
-      if (result.rows.length <= 3) {
-        // Affichage détaillé pour peu de résultats
-        rowsToShow.forEach((row: any, index: number) => {
-          response += `**${index + 1}.** `;
-          Object.entries(row).forEach(([key, value]) => {
-            response += `${key}: ${value} | `;
-          });
-          response = response.slice(0, -3) + '\n';
-        });
+      // Formatage spécialisé pour les projets
+      if (this.isProjectQuery(sqlQuery)) {
+        response += this.formatProjectResults(rowsToShow);
+      } else if (this.isListQuery(originalQuestion)) {
+        // Formatage simple pour les listes
+        response += this.formatListResults(rowsToShow);
       } else {
-        // Affichage tabulaire pour plus de résultats
-        const columns = Object.keys(result.rows[0]);
-        response += `| ${columns.join(' | ')} |\n`;
-        response += `|${columns.map(() => '---').join('|')}|\n`;
-        
-        rowsToShow.forEach((row: any) => {
-          response += `| ${columns.map(col => row[col] || '').join(' | ')} |\n`;
-        });
+        // Formatage générique pour autres types
+        response += this.formatGenericResults(rowsToShow);
       }
 
       if (result.rows.length > 10) {
@@ -256,10 +249,181 @@ Réponds toujours en français et sois professionnel mais accessible.`,
       }
     }
 
-    response += `\n*Requête SQL exécutée:* \`${sqlQuery}\``;
-    response += `\n*Base de données:* ${result.database}`;
+    response += `\n\n---\n*Requête SQL:* \`${sqlQuery}\`\n*Base de données:* ${result.database}`;
 
     return response;
+  }
+
+  private isProjectQuery(sqlQuery: string): boolean {
+    return sqlQuery.toLowerCase().includes('from projects') || sqlQuery.toLowerCase().includes('projects.');
+  }
+
+  private isListQuery(question: string): boolean {
+    return question.toLowerCase().includes('liste') || question.toLowerCase().includes('combien');
+  }
+
+  private formatProjectResults(rows: any[]): string {
+    let output = '';
+    
+    rows.forEach((project: any, index: number) => {
+      output += `**${index + 1}. ${project.name || 'Projet sans nom'}**\n`;
+      output += `   📋 Référence: ${project.reference || 'N/A'}\n`;
+      output += `   📊 Statut: ${this.translateStatus(project.status)}\n`;
+      
+      if (project.client_id) {
+        output += `   👤 Client ID: ${project.client_id}\n`;
+      }
+      
+      if (project.start_date) {
+        const startDate = new Date(project.start_date).toLocaleDateString('fr-FR');
+        output += `   📅 Date début: ${startDate}\n`;
+      }
+      
+      if (project.end_date) {
+        const endDate = new Date(project.end_date).toLocaleDateString('fr-FR');
+        const isLate = new Date(project.end_date) < new Date();
+        output += `   🎯 Date fin: ${endDate}${isLate ? ' ⚠️ **EN RETARD**' : ''}\n`;
+      }
+      
+      if (project.budget && project.budget > 0) {
+        output += `   💰 Budget: ${project.budget}€\n`;
+      }
+      
+      if (project.actual_cost && project.actual_cost > 0) {
+        output += `   💸 Coût réel: ${project.actual_cost}€\n`;
+      }
+      
+      output += '\n';
+    });
+    
+    return output;
+  }
+
+  private formatListResults(rows: any[]): string {
+    let output = '';
+    
+    rows.forEach((row: any, index: number) => {
+      output += `${index + 1}. `;
+      
+      // Toujours afficher l'ID en premier s'il existe
+      const idField = Object.keys(row).find(key => key.toLowerCase() === 'id' || key.endsWith('_id'));
+      if (idField && row[idField]) {
+        output += `[ID: ${row[idField]}] `;
+      }
+      
+      // Afficher les colonnes les plus importantes en premier
+      const importantFields = ['name', 'reference', 'firstname', 'lastname', 'company_name'];
+      const displayedFields = new Set([idField]);
+      
+      // Afficher les champs importants
+      importantFields.forEach(field => {
+        if (row[field] && !displayedFields.has(field)) {
+          output += `${row[field]} `;
+          displayedFields.add(field);
+        }
+      });
+      
+      // Afficher les autres champs courts
+      Object.entries(row).forEach(([key, value]) => {
+        if (!displayedFields.has(key) && value && typeof value === 'string' && value.length < 50) {
+          output += `(${key}: ${value}) `;
+        }
+      });
+      
+      output += '\n';
+    });
+    
+    return output;
+  }
+
+  private formatGenericResults(rows: any[]): string {
+    let output = '';
+    
+    if (rows.length <= 3) {
+      // Affichage détaillé pour peu de résultats
+      rows.forEach((row: any, index: number) => {
+        output += `**${index + 1}.** `;
+        Object.entries(row).forEach(([key, value]) => {
+          if (this.shouldDisplayField(key, value)) {
+            output += `${key}: ${this.formatFieldValue(value)} | `;
+          }
+        });
+        output = output.slice(0, -3) + '\n';
+      });
+    } else {
+      // Affichage tabulaire pour plus de résultats
+      const importantColumns = this.getImportantColumns(rows[0]);
+      output += `| ${importantColumns.join(' | ')} |\n`;
+      output += `|${importantColumns.map(() => '---').join('|')}|\n`;
+      
+      rows.forEach((row: any) => {
+        output += `| ${importantColumns.map(col => this.formatFieldValue(row[col]) || '').join(' | ')} |\n`;
+      });
+    }
+    
+    return output;
+  }
+
+  private translateStatus(status: string): string {
+    const statusMap: { [key: string]: string } = {
+      'prospect': '🔍 Prospect',
+      'devis_en_cours': '📝 Devis en cours',
+      'devis_accepte': '✅ Devis accepté',
+      'en_cours': '🚧 En cours',
+      'termine': '✅ Terminé',
+      'annule': '❌ Annulé'
+    };
+    
+    return statusMap[status] || status;
+  }
+
+  private shouldDisplayField(key: string, value: any): boolean {
+    // Ignorer les champs très longs ou non informatifs
+    if (!value) return false;
+    if (key === 'description' && typeof value === 'string' && value.length > 100) return false;
+    if (key.includes('_at') && key !== 'created_at') return false;
+    if (typeof value === 'string' && value.startsWith('{\\rtf1')) return false;
+    
+    return true;
+  }
+
+  private formatFieldValue(value: any): string {
+    if (!value) return '';
+    
+    // Formatage des dates
+    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+      try {
+        return new Date(value).toLocaleDateString('fr-FR');
+      } catch {
+        return value;
+      }
+    }
+    
+    // Truncate les textes longs
+    if (typeof value === 'string' && value.length > 50) {
+      return value.substring(0, 47) + '...';
+    }
+    
+    return String(value);
+  }
+
+  private getImportantColumns(row: any): string[] {
+    const allColumns = Object.keys(row);
+    
+    // Toujours commencer par l'ID s'il existe
+    const idColumn = allColumns.find(col => col.toLowerCase() === 'id' || col.endsWith('_id'));
+    const priorityColumns = ['reference', 'name', 'status', 'start_date', 'end_date'];
+    
+    // Commencer par l'ID puis les colonnes prioritaires
+    const important = [idColumn, ...priorityColumns].filter(col => col && allColumns.includes(col));
+    
+    // Ajouter d'autres colonnes importantes jusqu'à 6 max
+    const remaining = allColumns
+      .filter(col => !important.includes(col))
+      .filter(col => this.shouldDisplayField(col, row[col]))
+      .slice(0, 6 - important.length);
+    
+    return [...important, ...remaining];
   }
 
   private async listTables(database: 'sync' | 'app'): Promise<string> {

@@ -70,7 +70,7 @@ Règles importantes:
 - Utilise la syntaxe PostgreSQL correcte
 - Pour COUNT, utilise COUNT(*) ou COUNT(id) si il y a une colonne id
 - Limite les résultats avec LIMIT si approprié (max 50)
-- Si la question mentionne "utilisateurs" sans précision, privilégie la table 'clients'
+- Si la question mentionne "utilisateurs" sans précision, privilégie la table 'staff'
 - Réponds uniquement avec la requête SQL, sans explication supplémentaire
 - Si tu n'es pas sûr de quelle table utiliser, choisis la plus probable selon le contexte
 - Ne réponds "ERREUR" que si vraiment aucune table ne correspond`;
