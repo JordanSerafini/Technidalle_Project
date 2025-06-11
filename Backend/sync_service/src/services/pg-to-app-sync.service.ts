@@ -602,6 +602,21 @@ export class PgToAppSyncService {
           // Créer la référence unique pour éviter les conflits
           const reference = `${syncProject.source_type}-${syncProject.project_id}`;
 
+          // Traitement des dates pour éviter les contraintes
+          let startDate = syncProject.start_date || syncProject.deal_date || null;
+          let endDate = syncProject.end_date || null;
+
+          // Vérifier la contrainte check_project_dates (end_date >= start_date)
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (end < start) {
+              this.logger.warn(`Date de fin antérieure à la date de début pour le projet ${reference}, date de fin ignorée`);
+              endDate = null;
+            }
+          }
+
           // Insérer le projet
           const projectInsert = await individualClient.query(`
             INSERT INTO projects (
@@ -623,8 +638,8 @@ export class PgToAppSyncService {
             syncProject.name || `Projet ${syncProject.project_id}`,
             reference,
             syncProject.notes || null,
-            syncProject.start_date || syncProject.deal_date || null,
-            syncProject.end_date || null,
+            startDate,
+            endDate, // Utiliser la date de fin validée
             syncProject.budget || syncProject.predicted_sales || null,
             status
           ]);
@@ -728,12 +743,21 @@ export class PgToAppSyncService {
             RETURNING id
           `;
 
+          // Traitement des prix pour éviter les contraintes
+          let price = parseFloat(syncItem.sale_price) || parseFloat(syncItem.purchase_price) || 0;
+          
+          // Vérifier la contrainte de prix
+          if (price < 0) {
+            this.logger.warn(`Prix négatif forcé à 0 pour le matériau ${syncItem.item_id} (prix original: ${price})`);
+            price = 0;
+          }
+
           await individualClient.query(insertQuery, [
             syncItem.item_id,
             syncItem.name || '',
             syncItem.description || null,
             syncItem.unit_name || 'unité',
-            syncItem.sale_price || syncItem.purchase_price || 0,
+            price,
             Math.max(0, syncItem.stock_quantity || 0),
             0 // minimum_stock par défaut
           ]);
@@ -816,13 +840,13 @@ export class PgToAppSyncService {
           dsd."DocumentNumber" as reference,
           dsd."DocumentDate" as issue_date,
           dsd."DocumentType" as document_type,
-          d."CustomerId" as customer_id,
+          d."xx_Client" as customer_id,
           dsd."AmountVatExcluded" as amount_ht,
-          dsd."VatAmount" as vat_amount,
-          dsd."AmountVatIncluded" as amount_ttc,
+          NULL as vat_amount,
+          dsd."NetAmountVatIncludedWithDiscount" as amount_ttc,
           dsd."DealId" as deal_id,
-          dsd."ValidationState" as validation_state,
-          dsd."Notes" as notes,
+          dsd."DocumentState" as validation_state,
+          NULL as notes,
           dsd."sysModifiedDate" as modified_date,
           'DEAL_SALE' as document_source
         FROM "DealSaleDocument" dsd
@@ -837,13 +861,13 @@ export class PgToAppSyncService {
           dpd."DocumentNumber" as reference,
           dpd."DocumentDate" as issue_date,
           dpd."DocumentType" as document_type,
-          d."CustomerId" as customer_id,
+          d."xx_Client" as customer_id,
           dpd."AmountVatExcluded" as amount_ht,
-          dpd."VatAmount" as vat_amount,
-          dpd."AmountVatIncluded" as amount_ttc,
+          NULL as vat_amount,
+          dpd."NetAmountVatIncludedWithDiscount" as amount_ttc,
           dpd."DealId" as deal_id,
-          dpd."ValidationState" as validation_state,
-          dpd."Notes" as notes,
+          dpd."DocumentState" as validation_state,
+          NULL as notes,
           dpd."sysModifiedDate" as modified_date,
           'DEAL_PURCHASE' as document_source
         FROM "DealPurchaseDocument" dpd
