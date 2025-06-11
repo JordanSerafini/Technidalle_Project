@@ -13,10 +13,15 @@ interface ChatRequest {
 
 // Interface pour la réponse du chatbot via l'API Gateway
 export interface ChatbotResponse {
-  response: string;
+  message: string;  // Champ principal avec la réponse formatée
   conversationId: string;
   database: string;
   timestamp: string;
+  queryType?: string;
+  suggestions?: string[];
+  context?: any;
+  // Champs optionnels pour compatibilité
+  response?: string;
   analysis?: any;
   query_executed?: string;
   query_description?: string;
@@ -92,7 +97,7 @@ export const createNewConversation = async (): Promise<string> => {
 export const checkChatbotHealth = async (): Promise<{ status: string; gateway: string; message: string }> => {
   try {
     console.log('🔍 Vérification de santé via ngrok -> localhost:3000...');
-    const response = await fetch(`${url.local}chatbot/health`, {
+    const response = await fetch(`${url.local}enhanced-chatbot/health`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -123,11 +128,11 @@ export const sendConversationMessage = async (message: string, database?: string
     const chatRequest: ChatRequest = {
       message,
       conversationId,
-      database: database || 'sync', // Base par défaut
+      database: database || 'app', // Base par défaut changée vers 'app'
       userId,
     };
 
-    const response = await fetch(`${url.local}chatbot/chat`, {
+    const response = await fetch(`${url.local}enhanced-chatbot/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -161,7 +166,7 @@ export const getConversationHistory = async (conversationId?: string): Promise<C
     const currentConversationId = conversationId || await getConversationId();
     console.log(`📜 Récupération de l'historique via ngrok -> API Gateway: ${currentConversationId}`);
     
-    const response = await fetch(`${url.local}chatbot/conversation/${currentConversationId}/history`, {
+    const response = await fetch(`${url.local}enhanced-chatbot/conversation/${currentConversationId}/context`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -195,7 +200,7 @@ export const clearConversation = async (conversationId?: string): Promise<{ succ
     const currentConversationId = conversationId || await getConversationId();
     console.log(`🗑️ Suppression de la conversation via ngrok -> API Gateway: ${currentConversationId}`);
     
-    const response = await fetch(`${url.local}chatbot/conversation/${currentConversationId}`, {
+    const response = await fetch(`${url.local}enhanced-chatbot/conversation/${currentConversationId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -229,7 +234,7 @@ export const getDatabaseStatus = async (): Promise<any> => {
   try {
     console.log('🗄️ Vérification du statut des bases de données via ngrok -> API Gateway');
     
-    const response = await fetch(`${url.local}chatbot/databases/status`, {
+    const response = await fetch(`${url.local}enhanced-chatbot/database/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -257,7 +262,7 @@ export const getDatabaseStatus = async (): Promise<any> => {
 // Fonction pour obtenir les informations sur l'API Gateway
 export const getGatewayInfo = async (): Promise<any> => {
   try {
-    const response = await fetch(`${url.local}chatbot/info`, {
+    const response = await fetch(`${url.local}enhanced-chatbot/query-templates`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -277,12 +282,17 @@ export const getGatewayInfo = async (): Promise<any> => {
 
 // Fonction pour formater la réponse du chatbot
 export const formatChatbotResponse = (response: ChatbotResponse): string => {
-  // Priorité 1: Utiliser le champ response s'il existe
-  if (response.response) {
+  // Priorité 1: Utiliser le champ message (nouveau format)
+  if (response.message && response.message.trim().length > 0) {
+    return response.message;
+  }
+  
+  // Priorité 2: Utiliser le champ response s'il existe (ancien format)
+  if (response.response && response.response.trim().length > 0) {
     return response.response;
   }
   
-  // Priorité 2: Utiliser les données si disponibles
+  // Priorité 3: Utiliser les données si disponibles
   if (response.data) {
     if (typeof response.data === 'object') {
       try {

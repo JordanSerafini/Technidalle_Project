@@ -11,6 +11,7 @@ import {
 import { Pool, PoolClient } from 'pg';
 import { config } from 'dotenv';
 
+
 // Charger les variables d'environnement
 config();
 
@@ -613,27 +614,15 @@ class TechnidalleMCPServer {
   }
 
   async run(): Promise<void> {
-    // En mode conteneur, on garde le serveur en vie sans stdio
-    if (process.env.NODE_ENV === 'production' || process.env.DOCKER_MODE === 'true') {
-      console.log('🚀 Serveur MCP Technidalle PostgreSQL démarré en mode conteneur');
-      console.log('📊 État des connexions:');
-      console.log(`  - postgres_sync: ${this.syncConnected ? '✅ connecté' : '❌ déconnecté'}`);
-      console.log(`  - postgres_app: ${this.appConnected ? '✅ connecté' : '❌ déconnecté'}`);
-      
-      // Garder le processus en vie en mode conteneur
-      setInterval(() => {
-        const timestamp = new Date().toISOString();
-        console.log(`💓 [${timestamp}] Serveur MCP en vie - Connexions: sync=${this.syncConnected}, app=${this.appConnected}`);
-      }, 60000); // Log toutes les minutes
-      
-      // Maintenir le processus en vie indéfiniment
-      await new Promise(() => {});
-    } else {
-      // Mode développement avec stdio
-      const transport = new StdioServerTransport();
-      await this.server.connect(transport);
-      console.log('🚀 Serveur MCP Technidalle PostgreSQL démarré en mode développement');
-    }
+    await this.initializeDatabases();
+    
+    // Mode STDIO standard
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    console.log('🚀 Serveur MCP Technidalle PostgreSQL démarré');
+    console.log('📊 État des connexions:');
+    console.log(`  - postgres_sync: ${this.syncConnected ? '✅ connecté' : '❌ déconnecté'}`);
+    console.log(`  - postgres_app: ${this.appConnected ? '✅ connecté' : '❌ déconnecté'}`);
   }
 
   async cleanup(): Promise<void> {

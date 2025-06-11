@@ -1,196 +1,221 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WebSocket } from 'ws';
-
-interface McpRequest {
-  id: string;
-  method: string;
-  params?: any;
-}
-
-interface McpResponse {
-  id: string;
-  result?: any;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
 
 @Injectable()
 export class McpService implements OnModuleInit, OnModuleDestroy {
-  private ws: WebSocket | null = null;
-  private requestId = 1;
-  private pendingRequests = new Map<string, {
-    resolve: (value: any) => void;
-    reject: (error: Error) => void;
-  }>();
+  private baseUrl: string;
+  private isEnabled: boolean = true;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) {
+    this.baseUrl = this.configService.get<string>('MCP_SERVER_URL') || 'http://mcp-postgres-server:3000';
+    // Supprimer ws:// si présent et remplacer par http://
+    this.baseUrl = this.baseUrl.replace('ws://', 'http://').replace('wss://', 'https://');
+  }
 
   async onModuleInit() {
-    await this.connect();
+    await this.initializeConnection();
+  }
+
+  private async initializeConnection(retries: number = 5): Promise<void> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        console.log(`🔄 Test de connexion MCP (tentative ${i + 1}/${retries}): ${this.baseUrl}`);
+        await this.healthCheck();
+        console.log('✅ Serveur MCP accessible');
+        this.isEnabled = true;
+        return;
+      } catch (error) {
+        console.log(`⚠️ Tentative ${i + 1} échouée:`, error.message);
+        if (i < retries - 1) {
+          console.log(`⏳ Nouvelle tentative dans 2 secondes...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    console.log('❌ Toutes les tentatives de connexion MCP ont échoué - service désactivé');
+    this.isEnabled = false;
   }
 
   onModuleDestroy() {
-    if (this.ws) {
-      this.ws.close();
-    }
+    // Rien à faire pour HTTP
   }
 
-  private async connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
+  /**
+   * Test de santé du serveur MCP
+   */
+  private async healthCheck(): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/health`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('🔧 État MCP:', data);
+  }
+
+  /**
+   * Appel HTTP générique
+   */
+  private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
+    if (!this.isEnabled) {
+      // Essayer de se reconnecter une fois
+      console.log('🔄 Tentative de reconnexion MCP...');
       try {
-        // Connexion au serveur MCP local (ajustez l'URL selon votre configuration)
-        const mcpUrl = this.configService.get<string>('MCP_SERVER_URL') || 'ws://localhost:8080';
-        this.ws = new WebSocket(mcpUrl);
-
-        this.ws.on('open', () => {
-          console.log('Connecté au serveur MCP');
-          resolve();
-        });
-
-        this.ws.on('message', (data) => {
-          try {
-            const response: McpResponse = JSON.parse(data.toString());
-            const pending = this.pendingRequests.get(response.id);
-            
-            if (pending) {
-              this.pendingRequests.delete(response.id);
-              if (response.error) {
-                pending.reject(new Error(response.error.message));
-              } else {
-                pending.resolve(response.result);
-              }
-            }
-          } catch (error) {
-            console.error('Erreur lors du parsing de la réponse MCP:', error);
-          }
-        });
-
-        this.ws.on('error', (error) => {
-          console.error('Erreur WebSocket MCP:', error);
-          reject(error);
-        });
-
-        this.ws.on('close', () => {
-          console.log('Connexion MCP fermée');
-          // Tentative de reconnexion après 5 secondes
-          setTimeout(() => this.connect(), 5000);
-        });
-
-      } catch (error) {
-        reject(error);
+        await this.healthCheck();
+        this.isEnabled = true;
+        console.log('✅ Reconnexion MCP réussie');
+      } catch (reconnectError) {
+        throw new Error('Service MCP désactivé - utilisation du fallback DatabaseService');
       }
-    });
-  }
-
-  private async sendRequest(method: string, params?: any): Promise<any> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Connexion MCP non disponible');
     }
 
-    const id = (this.requestId++).toString();
-    const request: McpRequest = { id, method, params };
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-      
-      this.ws!.send(JSON.stringify(request));
-      
-      // Timeout après 30 secondes
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id);
-          reject(new Error('Timeout de la requête MCP'));
-        }
-      }, 30000);
-    });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.log(`⚠️ Erreur appel MCP ${endpoint}:`, error.message);
+      // Si c'est une erreur de connexion, désactiver temporairement le service
+      if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+        console.log('⚠️ Connexion MCP perdue - désactivation temporaire');
+        this.isEnabled = false;
+      }
+      throw error;
+    }
   }
 
   async listTables(database: 'sync' | 'app' = 'sync'): Promise<any> {
     try {
-      const method = database === 'sync' 
-        ? 'mcp_technidalle-postgres-sync_list_tables_sync'
-        : 'mcp_technidalle-postgres-sync_list_tables_app';
+      const result = await this.makeRequest(`/api/${database}/tables`);
       
-      return await this.sendRequest(method);
+      // Transformer le résultat pour correspondre au format attendu
+      if (result.content && result.content[0] && result.content[0].text) {
+        const lines = result.content[0].text.split('\n').filter(line => line.includes('📋'));
+        return lines.map((line: string) => {
+          const tableName = line.split('📋')[1].split('(')[0].trim();
+          return { table_name: tableName };
+        });
+      }
+      
+      return result;
     } catch (error) {
-      console.error('Erreur lors de la liste des tables:', error);
+      console.log(`⚠️ MCP listTables échec pour ${database}:`, error.message);
       throw error;
     }
   }
 
   async describeTable(tableName: string, database: 'sync' | 'app' = 'sync'): Promise<any> {
     try {
-      const method = database === 'sync'
-        ? 'mcp_technidalle-postgres-sync_describe_table_sync'
-        : 'mcp_technidalle-postgres-sync_describe_table_app';
+      const result = await this.makeRequest(`/api/${database}/tables/${tableName}`);
       
-      return await this.sendRequest(method, { table_name: tableName });
+      // Transformer le format MCP en format attendu
+      if (result.content && result.content[0] && result.content[0].text) {
+        const text = result.content[0].text;
+        const lines = text.split('\n').filter(line => line.includes('📌'));
+        
+        const columns = lines.map((line: string) => {
+          const parts = line.split('📌')[1].trim().split(':');
+          const columnName = parts[0].trim();
+          const rest = parts[1] ? parts[1].trim() : '';
+          const dataTypePart = rest.split(' ')[0];
+          
+          return {
+            column_name: columnName,
+            data_type: dataTypePart,
+            is_nullable: rest.includes('NOT NULL') ? 'NO' : 'YES'
+          };
+        });
+        
+        return { columns };
+      }
+      
+      return result;
     } catch (error) {
-      console.error(`Erreur lors de la description de la table ${tableName}:`, error);
+      console.log(`⚠️ MCP describeTable échec pour ${tableName}:`, error.message);
       throw error;
     }
   }
 
   async executeQuery(query: string, database: 'sync' | 'app' = 'sync', limit: number = 100): Promise<any> {
     try {
-      const method = database === 'sync'
-        ? 'mcp_technidalle-postgres-sync_execute_query_sync'
-        : 'mcp_technidalle-postgres-sync_execute_query_app';
+      const result = await this.makeRequest(`/api/${database}/query`, {
+        method: 'POST',
+        body: JSON.stringify({ query, limit }),
+      });
       
-      return await this.sendRequest(method, { query, limit });
+      // Le résultat devrait déjà être dans le bon format
+      return {
+        rows: result.rows || [],
+        rowCount: result.rowCount || 0,
+        source: 'mcp',
+        database: database
+      };
     } catch (error) {
-      console.error('Erreur lors de l\'exécution de la requête:', error);
+      console.log(`⚠️ MCP executeQuery échec pour ${database}:`, error.message);
       throw error;
     }
   }
 
   async analyzeData(tableName: string, columns?: string[], database: 'sync' | 'app' = 'sync'): Promise<any> {
     try {
-      const method = database === 'sync'
-        ? 'mcp_technidalle-postgres-sync_analyze_data_sync'
-        : 'mcp_technidalle-postgres-sync_analyze_data_app';
+      const result = await this.makeRequest(`/api/${database}/analyze/${tableName}`, {
+        method: 'POST',
+        body: JSON.stringify({ columns }),
+      });
       
-      const params: any = { table_name: tableName };
-      if (columns && columns.length > 0) {
-        params.columns = columns;
-      }
-      
-      return await this.sendRequest(method, params);
+      return result;
     } catch (error) {
-      console.error(`Erreur lors de l'analyse de la table ${tableName}:`, error);
+      console.log(`⚠️ MCP analyzeData échec pour ${tableName}:`, error.message);
       throw error;
     }
   }
 
   async getTableSchema(database: 'sync' | 'app' = 'sync'): Promise<string> {
     try {
-      const tables = await this.listTables(database);
+      const result = await this.makeRequest(`/api/${database}/schema`);
+      
       let schema = `Base de données: ${database}\n\nTables disponibles:\n`;
       
-      for (const table of tables) {
-        const tableName = typeof table === 'string' ? table : table.table_name;
-        schema += `\n- ${tableName}\n`;
-        
-        try {
-          const description = await this.describeTable(tableName, database);
-          if (description && description.columns) {
+      if (result.tables && Array.isArray(result.tables)) {
+        for (const table of result.tables) {
+          schema += `\n- ${table.name}\n`;
+          if (table.description && table.description.columns) {
             schema += `  Colonnes:\n`;
-            description.columns.forEach((col: any) => {
+            table.description.columns.forEach((col: any) => {
               schema += `    - ${col.column_name} (${col.data_type})${col.is_nullable === 'NO' ? ' NOT NULL' : ''}\n`;
             });
           }
-        } catch (error) {
-          schema += `  (Erreur lors de la description de la table)\n`;
         }
       }
       
       return schema;
     } catch (error) {
-      console.error('Erreur lors de la récupération du schéma:', error);
-      return 'Erreur lors de la récupération du schéma de la base de données';
+      console.log(`⚠️ MCP getTableSchema échec pour ${database}:`, error.message);
+      throw new Error(`MCP Schema indisponible pour ${database}: ${error.message}`);
     }
+  }
+
+  /**
+   * Vérifier si le service MCP est disponible
+   */
+  isAvailable(): boolean {
+    return this.isEnabled;
   }
 } 

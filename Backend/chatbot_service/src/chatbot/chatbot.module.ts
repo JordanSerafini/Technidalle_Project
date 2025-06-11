@@ -3,6 +3,7 @@ import { ChatbotController } from './chatbot.controller';
 import { EnhancedChatbotController } from './enhanced-chatbot.controller';
 import { ChatbotService } from './chatbot.service';
 import { DatabaseService } from './database.service';
+import { McpService } from './mcp.service';
 import { OpenaiService } from './openai.service';
 import { EnhancedPromptsService } from './enhanced-prompts.service';
 import { ConversationContextService } from './conversation-context.service';
@@ -12,7 +13,8 @@ import { ResponseFormatterService } from './response-formatter.service';
   controllers: [ChatbotController, EnhancedChatbotController],
   providers: [
     ChatbotService, 
-    DatabaseService, 
+    DatabaseService,
+    McpService,
     OpenaiService,
     EnhancedPromptsService,
     ConversationContextService,

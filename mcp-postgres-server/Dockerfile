@@ -2,7 +2,10 @@ FROM node:18-alpine
 
 # Informations sur l'image
 LABEL maintainer="Technidalle Project"
-LABEL description="Serveur MCP PostgreSQL pour la base postgres_sync"
+LABEL description="Serveur HTTP MCP PostgreSQL pour les bases postgres_sync et postgres_app"
+
+# Installer curl pour le healthcheck
+RUN apk add --no-cache curl
 
 # Définir le répertoire de travail
 WORKDIR /app
@@ -16,9 +19,12 @@ RUN npm ci
 
 # Copier le code source
 COPY src/ ./src/
+COPY http-server.ts ./
 
 # Compiler le TypeScript
 RUN npm run build
+# Compiler également le serveur HTTP
+RUN npx tsc http-server.ts --outDir dist --target ES2022 --module ESNext --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck
 
 # Supprimer les devDependencies après compilation
 RUN npm ci --only=production && npm cache clean --force
@@ -33,7 +39,7 @@ RUN chown -R mcpuser:mcpuser /app
 # Changer vers l'utilisateur non-root
 USER mcpuser
 
-# Exposer le port pour les connexions externes (optionnel)
+# Exposer le port pour les connexions HTTP
 EXPOSE 3000
 
 # Variables d'environnement par défaut
@@ -44,5 +50,5 @@ ENV LOG_LEVEL=info
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "console.log('MCP Server is running')" || exit 1
 
-# Commande de démarrage
-CMD ["node", "dist/index.js"] 
+# Commande de démarrage du serveur HTTP MCP (pont HTTP vers MCP)
+CMD ["node", "dist/http-server.js"] 

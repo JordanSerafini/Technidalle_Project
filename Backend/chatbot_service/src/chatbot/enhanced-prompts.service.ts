@@ -86,7 +86,7 @@ export class EnhancedPromptsService {
           CASE 
             WHEN p.end_date < CURRENT_DATE AND p.status = 'en_cours' THEN 'EN RETARD'
             WHEN p.status = 'en_cours' THEN 'EN COURS'
-            ELSE UPPER(p.status)
+            ELSE UPPER(p.status::text)
           END as statut_detail
         FROM projects p
         JOIN clients c ON p.client_id = c.id
@@ -204,7 +204,18 @@ export class EnhancedPromptsService {
   ];
 
   getBusinessPrompt(): string {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.toLocaleString('fr-FR', { month: 'long' });
+    const currentDay = currentDate.getDate();
+    
     return `Tu es un assistant intelligent spécialisé dans la gestion d'entreprise de BTP/construction.
+
+⏰ CONTEXTE TEMPOREL ACTUEL :
+- Date du jour : ${currentDay} ${currentMonth} ${currentYear}
+- Année actuelle : ${currentYear}
+- IMPORTANT : "cette année" = ${currentYear}, "l'année en cours" = ${currentYear}
+
 Tu as accès à deux bases de données PostgreSQL :
 
 🏢 BASE "app" (Données opérationnelles) :
@@ -259,7 +270,9 @@ RÈGLES IMPORTANTES :
 7. ATTENTION AUX NÉGATIONS : "ne travaille pas" = recherche des disponibles
 8. "qui travaille" vs "qui ne travaille pas" sont des questions différentes
 
-DÉTECTION INTELLIGENTE :
+DÉTECTION INTELLIGENTE DES RÉFÉRENCES TEMPORELLES :
+- "cette année" → ${currentYear} → BETWEEN '${currentYear}-01-01' AND '${currentYear}-12-31'
+- "l'année en cours" → ${currentYear} → BETWEEN '${currentYear}-01-01' AND '${currentYear}-12-31'
 - "demain" → DATE = CURRENT_DATE + 1
 - "cette semaine" → BETWEEN CURRENT_DATE AND CURRENT_DATE + 7
 - "semaine prochaine" → BETWEEN CURRENT_DATE + 7 AND CURRENT_DATE + 14
@@ -344,10 +357,14 @@ ${hasNegation ? 'ATTENTION : Négation détectée dans la question - inverse la 
       return template.database;
     }
 
-    // Règles par défaut
+    // Règles par défaut - privilégier 'app' pour les questions opérationnelles
     if (question.toLowerCase().includes('planning') || 
         question.toLowerCase().includes('événement') ||
-        question.toLowerCase().includes('pointage')) {
+        question.toLowerCase().includes('pointage') ||
+        question.toLowerCase().includes('projet') ||
+        question.toLowerCase().includes('chantier') ||
+        question.toLowerCase().includes('devis') ||
+        question.toLowerCase().includes('facture')) {
       return 'app';
     }
 
@@ -358,6 +375,6 @@ ${hasNegation ? 'ATTENTION : Négation détectée dans la question - inverse la 
       return 'sync';
     }
 
-    return 'app'; // Par défaut
+    return 'app'; // Par défaut, utiliser 'app'
   }
 } 

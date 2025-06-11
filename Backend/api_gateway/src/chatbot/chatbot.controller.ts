@@ -1,204 +1,124 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Delete, 
-  HttpException, 
-  HttpStatus,
-  Logger 
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { ChatRequest, ChatResponse, ConversationHistory } from './dto/chat.dto';
+import { Controller, Post, Get, Body, Param, Delete, HttpException, HttpStatus, Query } from '@nestjs/common';
+import { ChatbotService } from './chatbot.service';
+import { ChatRequest, ChatResponse } from './dto/chat.dto';
 
-@Controller('chatbot')
+@Controller('enhanced-chatbot')
 export class ChatbotController {
-  private readonly logger = new Logger('ChatbotGateway');
-
-  constructor(private readonly httpService: HttpService) {}
-
-  @Get('health')
-  async getHealth() {
-    this.logger.log('🔍 Vérification de santé du service chatbot via API Gateway (port 3000)');
-    try {
-      const { data } = await firstValueFrom(
-        this.httpService.get('/chatbot/health').pipe(
-          catchError((error) => {
-            this.logger.error('❌ Service chatbot indisponible');
-            throw new HttpException(
-              'Service chatbot indisponible',
-              HttpStatus.SERVICE_UNAVAILABLE
-            );
-          })
-        )
-      );
-      this.logger.log('✅ Service chatbot opérationnel');
-      return {
-        ...data,
-        gateway: 'API Gateway - Port 3000',
-        message: 'Utilisez toujours le port 3000 pour accéder au chatbot'
-      };
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException(
-        'Erreur lors de la vérification de santé',
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
+  constructor(private readonly chatbotService: ChatbotService) {}
 
   @Post('chat')
-  async sendMessage(@Body() body: ChatRequest): Promise<ChatResponse> {
-    this.logger.log(`💬 Nouveau message reçu via API Gateway: "${body.message.substring(0, 50)}..."`);
-    
+  async sendMessage(@Body() request: ChatRequest): Promise<ChatResponse> {
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.post('/chatbot/chat', body).pipe(
-          catchError((error) => {
-            this.logger.error('❌ Erreur lors du traitement du message');
-            if (error.response?.status === 400) {
-              throw new HttpException(
-                error.response.data?.message || 'Requête invalide',
-                HttpStatus.BAD_REQUEST
-              );
-            }
-            throw new HttpException(
-              'Erreur lors du traitement du message',
-              HttpStatus.INTERNAL_SERVER_ERROR
-            );
-          })
-        )
-      );
-      
-      this.logger.log('✅ Message traité avec succès');
-      return data;
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
+      if (!request.message || request.message.trim().length === 0) {
+        throw new HttpException('Le message ne peut pas être vide', HttpStatus.BAD_REQUEST);
       }
-      this.logger.error('❌ Erreur inattendue');
+
+      return await this.chatbotService.sendMessage(request);
+    } catch (error) {
+      console.error('Erreur dans le contrôleur chatbot (API Gateway):', error);
       throw new HttpException(
-        'Erreur interne du serveur',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        error.message || 'Erreur interne du serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get('conversation/:id/history')
-  async getConversationHistory(@Param('id') conversationId: string): Promise<ConversationHistory> {
-    this.logger.log(`📜 Récupération historique conversation ${conversationId} via API Gateway`);
-    
+  @Get('conversation/:id/context')
+  async getConversationContext(@Param('id') conversationId: string) {
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.get(`/chatbot/conversation/${conversationId}/history`).pipe(
-          catchError((error) => {
-            if (error.response?.status === 404) {
-              throw new HttpException(
-                'Conversation non trouvée',
-                HttpStatus.NOT_FOUND
-              );
-            }
-            throw new HttpException(
-              'Erreur lors de la récupération de l\'historique',
-              HttpStatus.INTERNAL_SERVER_ERROR
-            );
-          })
-        )
-      );
-      
-      this.logger.log('✅ Historique récupéré avec succès');
-      return data;
+      return await this.chatbotService.getConversationHistory(conversationId);
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      console.error('Erreur lors de la récupération du contexte (API Gateway):', error);
       throw new HttpException(
-        'Erreur interne du serveur',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        error.message || 'Erreur interne du serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get('conversation/:id/export')
+  async exportConversation(@Param('id') conversationId: string) {
+    try {
+      return await this.chatbotService.exportConversation(conversationId);
+    } catch (error) {
+      console.error('Erreur lors de l\'export de la conversation (API Gateway):', error);
+      throw new HttpException(
+        error.message || 'Erreur interne du serveur',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
   @Delete('conversation/:id')
   async clearConversation(@Param('id') conversationId: string) {
-    this.logger.log(`🗑️ Suppression conversation ${conversationId} via API Gateway`);
-    
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.delete(`/chatbot/conversation/${conversationId}`).pipe(
-          catchError((error) => {
-            throw new HttpException(
-              'Erreur lors de la suppression de la conversation',
-              HttpStatus.INTERNAL_SERVER_ERROR
-            );
-          })
-        )
-      );
-      
-      this.logger.log('✅ Conversation supprimée avec succès');
-      return data;
+      return await this.chatbotService.clearConversation(conversationId);
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      console.error('Erreur lors de la suppression de la conversation (API Gateway):', error);
       throw new HttpException(
-        'Erreur interne du serveur',
+        'Erreur lors de la suppression de la conversation',
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get('databases/status')
-  async getDatabaseStatus() {
-    this.logger.log('🗄️ Vérification statut des bases de données via API Gateway');
-    
+  @Get('health')
+  async healthCheck() {
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.get('/chatbot/databases/status').pipe(
-          catchError((error) => {
-            throw new HttpException(
-              'Erreur lors de la vérification du statut des bases de données',
-              HttpStatus.INTERNAL_SERVER_ERROR
-            );
-          })
-        )
-      );
-      
+      return await this.chatbotService.healthCheck();
+    } catch (error) {
+      console.error('Erreur lors du health check (API Gateway):', error);
       return {
-        ...data,
-        gateway: 'API Gateway - Port 3000',
-        message: 'Statut des bases de données via API Gateway'
+        status: 'ERROR',
+        service: 'Enhanced Chatbot Service (via API Gateway)',
+        timestamp: new Date(),
+        message: 'Service chatbot indisponible via API Gateway',
+        error: error.message
       };
+    }
+  }
+
+  @Get('database/status')
+  async getDatabaseStatus() {
+    try {
+      return await this.chatbotService.getDatabaseStatus();
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      console.error('Erreur lors de la vérification du statut des bases de données (API Gateway):', error);
+      return {
+        app: { connected: false, error: error.message },
+        sync: { connected: false, error: error.message },
+        message: 'Erreur lors de la vérification du statut des bases de données via API Gateway'
+      };
+    }
+  }
+
+  @Get('query-templates')
+  async getQueryTemplates() {
+    try {
+      return await this.chatbotService.getQueryTemplates();
+    } catch (error) {
+      console.error('Erreur lors de la récupération des templates (API Gateway):', error);
       throw new HttpException(
-        'Erreur interne du serveur',
+        'Erreur lors de la récupération des templates',
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get('info')
-  async getGatewayInfo() {
-    return {
-      service: 'Chatbot via API Gateway',
-      port: 3000,
-      chatbot_service_port: 6655,
-      message: '🚀 Utilisez toujours le port 3000 pour accéder au chatbot',
-      routes: {
-        health: 'GET /chatbot/health',
-        chat: 'POST /chatbot/chat',
-        history: 'GET /chatbot/conversation/:id/history',
-        clear: 'DELETE /chatbot/conversation/:id',
-        databases: 'GET /chatbot/databases/status'
+  @Post('analyze/question')
+  async analyzeQuestion(@Body() { question }: { question: string }) {
+    try {
+      if (!question || question.trim().length === 0) {
+        throw new HttpException('La question ne peut pas être vide', HttpStatus.BAD_REQUEST);
       }
-    };
+
+      return await this.chatbotService.analyzeQuestion(question);
+    } catch (error) {
+      console.error('Erreur lors de l\'analyse de la question (API Gateway):', error);
+      throw new HttpException(
+        error.message || 'Erreur lors de l\'analyse de la question',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
-}
+} 

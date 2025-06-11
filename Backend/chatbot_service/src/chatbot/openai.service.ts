@@ -68,8 +68,17 @@ export class OpenaiService {
   }
 
   async generateSqlQuery(userQuestion: string, tableSchema: string): Promise<string> {
-    const systemPrompt = `Tu es un expert en SQL qui aide à générer des requêtes PostgreSQL précises.
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
     
+    const systemPrompt = `Tu es un expert en SQL qui aide à générer des requêtes PostgreSQL précises.
+
+⏰ CONTEXTE TEMPOREL IMPORTANT :
+- Nous sommes actuellement en ${currentYear}
+- "cette année" = ${currentYear}
+- "l'année en cours" = ${currentYear}
+- "l'année dernière" = ${currentYear - 1}
+
 Voici le schéma de la base de données:
 ${tableSchema}
 
@@ -90,6 +99,12 @@ VALEURS ENUM IMPORTANTES:
 - Pour les chantiers en cours: status = 'en_cours'
 - Pour les chantiers terminés: status = 'termine'
 
+TRAITEMENT DES RÉFÉRENCES TEMPORELLES :
+- "cette année" → WHERE EXTRACT(YEAR FROM date_column) = ${currentYear}
+- "l'année en cours" → WHERE EXTRACT(YEAR FROM date_column) = ${currentYear}
+- "devis cette année" → WHERE type = 'devis' AND EXTRACT(YEAR FROM issue_date) = ${currentYear}
+- "documents cette année" → WHERE EXTRACT(YEAR FROM issue_date) = ${currentYear}
+
 Règles importantes:
 - Génère uniquement des requêtes SELECT (lecture seule)
 - Utilise la syntaxe PostgreSQL correcte
@@ -98,7 +113,9 @@ Règles importantes:
 - Si la question mentionne "utilisateurs" sans précision, privilégie la table 'staff'
 - Réponds uniquement avec la requête SQL, sans explication supplémentaire
 - Si tu n'es pas sûr de quelle table utiliser, choisis la plus probable selon le contexte
-- Ne réponds "ERREUR" que si vraiment aucune table ne correspond`;
+- Ne réponds "ERREUR" que si vraiment aucune table ne correspond
+- TOUJOURS utiliser ${currentYear} pour "cette année", pas 2023 ou une autre année
+`;
 
     const messages = [
       { role: 'system' as const, content: systemPrompt },

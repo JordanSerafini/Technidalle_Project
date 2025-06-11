@@ -21,20 +21,22 @@ import DataCards from '@/app/components/chatbot/DataCards';
 
 // Suggestions de démarrage pour la conversation
 const INITIAL_SUGGESTIONS = [
-  "Quels sont les chantiers de cette année ?",
+  "Combien de devis ont été fait cette année ?",
+  "Quels sont les chantiers de cette année ?", 
   "Quels clients n'ont jamais payé une facture ?",
   "Quel sont les projets les plus rentables ?",
   "Personnel disponible demain",
   "Quels sont les prochains événements ?",
-  "Quelle est la timeline des projets en cours ?",
-  "Quel est le planning de travail du mois ?",
+  "Planning de travail de cette semaine",
 ];
 
 export default function ChatbotScreen() {
+  const currentYear = new Date().getFullYear();
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Bonjour ! Je suis TechniAssistant via l\'API Gateway. Comment puis-je vous aider aujourd\'hui ?',
+      text: `Bonjour ! Je suis TechniAssistant via l'API Gateway 🤖\n\n📅 **Nous sommes en ${currentYear}** - Je peux vous aider avec vos données métier !\n\n💡 **Exemples de questions :**\n• "Combien de devis cette année ?"\n• "Projets en retard"\n• "Personnel disponible demain"\n\nComment puis-je vous aider aujourd'hui ?`,
       isUser: false,
       timestamp: new Date(),
     },
@@ -44,7 +46,7 @@ export default function ChatbotScreen() {
   const [currentAttachments, setCurrentAttachments] = useState<Attachment[]>([]);
   const [quickReplies, setQuickReplies] = useState<string[]>(INITIAL_SUGGESTIONS);
   const [isServiceAvailable, setIsServiceAvailable] = useState<boolean>(true);
-  const [currentDatabase, setCurrentDatabase] = useState<'sync' | 'app'>('sync');
+  const [currentDatabase, setCurrentDatabase] = useState<'sync' | 'app'>('app');
   const [gatewayInfo, setGatewayInfo] = useState<any>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const router = useRouter();
@@ -81,7 +83,7 @@ export default function ChatbotScreen() {
           ...prev,
           {
             id: Date.now().toString(),
-            text: `✅ Connexion établie via l'API Gateway (port 3000)\n🗄️ Base de données active: ${currentDatabase}\n\nToutes les requêtes passent maintenant par l'API Gateway.`,
+            text: `✅ Connexion établie via l'API Gateway (port 3000)\n🗄️ Base de données active: ${currentDatabase} (recommandée)\n\nToutes les requêtes passent maintenant par l'API Gateway.\n\n💡 **Base "app"** : Projets, devis, planning, équipe\n📊 **Base "sync"** : Données comptables EBP`,
             isUser: false,
             timestamp: new Date(),
           }
@@ -200,8 +202,8 @@ export default function ChatbotScreen() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: error instanceof Error 
-          ? `❌ Erreur via API Gateway : ${error.message}\n\nVeuillez vérifier que l'API Gateway est accessible sur le port 3000.` 
-          : "❌ Erreur inconnue lors du traitement via l'API Gateway.",
+          ? `❌ Erreur via API Gateway : ${error.message}\n\n🔧 **Vérifications suggérées :**\n• L'API Gateway est-il démarré sur le port 3000 ?\n• Le service chatbot est-il accessible ?\n• Votre connexion internet est-elle stable ?\n\n💡 **Astuce :** Essayez de rafraîchir la conversation ou changer de base de données.` 
+          : "❌ Erreur inconnue lors du traitement via l'API Gateway.\n\n🔄 Veuillez réessayer dans quelques instants.",
         isUser: false,
         timestamp: new Date(),
       };

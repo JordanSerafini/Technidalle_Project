@@ -44,6 +44,14 @@ export interface ActionButton {
 export class ResponseFormatterService {
 
   formatResponse(queryType: string, sqlResults: any[], question: string): FormattedResponse {
+    console.log('🔍 Debug formatResponse:', {
+      queryType,
+      hasResults: !!sqlResults,
+      resultsLength: sqlResults?.length,
+      firstResult: sqlResults?.[0],
+      question: question.substring(0, 100)
+    });
+    
     switch (queryType) {
       case 'planning':
         return this.formatPlanningResponse(sqlResults, question);
@@ -514,13 +522,68 @@ export class ResponseFormatterService {
   }
 
   private formatGenericResponse(results: any[], question: string): FormattedResponse {
+    console.log('🔍 Debug formatGenericResponse:', {
+      hasResults: !!results,
+      resultsLength: results?.length,
+      firstResult: results?.[0],
+      resultKeys: results?.[0] ? Object.keys(results[0]) : 'no keys'
+    });
+    
     if (!results || results.length === 0) {
+      console.log('❌ Aucun résultat - returning "Aucun résultat trouvé"');
       return {
         text: "Aucun résultat trouvé pour votre recherche.",
         suggestions: [
           "Reformuler la question",
           "Vérifier la base de données",
           "Contacter l'administrateur"
+        ]
+      };
+    }
+
+    // Détecter les requêtes de comptage (COUNT, nombre_de_*)
+    const isCountQuery = results.length === 1 && results[0] && 
+      (Object.keys(results[0]).some(key => 
+        key.toLowerCase().includes('count') || 
+        key.toLowerCase().includes('nombre') ||
+        key.toLowerCase().includes('total')
+      ));
+
+    console.log('🔍 Debug count detection:', {
+      isCountQuery,
+      resultsLength: results.length,
+      firstResultKeys: results[0] ? Object.keys(results[0]) : 'no keys',
+      firstResult: results[0]
+    });
+
+    if (isCountQuery) {
+      const result = results[0];
+      const countKey = Object.keys(result)[0];
+      const countValue = Number(result[countKey]) || 0;
+      
+      console.log('✅ Count query détectée:', { countKey, countValue });
+      
+      // Extraire le type d'élément compté depuis la question
+      let itemType = 'éléments';
+      const lowerQuestion = question.toLowerCase();
+      if (lowerQuestion.includes('devis')) itemType = 'devis';
+      else if (lowerQuestion.includes('facture')) itemType = 'factures';
+      else if (lowerQuestion.includes('projet')) itemType = 'projets';
+      else if (lowerQuestion.includes('client')) itemType = 'clients';
+      else if (lowerQuestion.includes('document')) itemType = 'documents';
+      else if (lowerQuestion.includes('matériau')) itemType = 'matériaux';
+
+      return {
+        text: `📊 **Résultat** : ${countValue.toLocaleString('fr-FR')} ${itemType}${countValue > 1 ? '' : ''}\n\n${countValue === 0 ? '⚠️ Aucun élément trouvé pour cette période.' : '✅ Données trouvées avec succès.'}`,
+        data: { count: countValue, type: itemType },
+        suggestions: countValue > 0 ? [
+          `Voir le détail des ${itemType}`,
+          `Analyser les ${itemType} par période`,
+          `Comparer avec les années précédentes`
+        ] : [
+          "Vérifier les critères de recherche",
+          "Élargir la période",
+          "Voir toutes les données disponibles"
         ]
       };
     }

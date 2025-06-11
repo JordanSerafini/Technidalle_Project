@@ -1068,15 +1068,19 @@ export class PgToAppSyncService {
             continue;
           }
 
-          // Déterminer le type de document
+          // Déterminer le type de document selon le mapping EBP correct
           let docType = 'autre';
           switch (syncDoc.document_type) {
-            case 0: docType = 'devis'; break;
-            case 1: docType = 'bon_de_commande'; break;
-            case 2: docType = 'bon_de_livraison'; break;
-            case 3: docType = 'facture'; break;
-            case 4: docType = 'avoir'; break;
-            default: docType = 'autre';
+            case 1: docType = 'devis'; break;           // Devis EBP
+            case 2: docType = 'bon_de_commande'; break; // Commande EBP
+            case 3: docType = 'bon_de_livraison'; break; // Livraison EBP
+            case 6: docType = 'facture'; break;         // Facture EBP
+            case 7: docType = 'avoir'; break;           // Avoir EBP
+            case 8: docType = 'bon_de_livraison'; break; // Autre type de livraison EBP
+            case 10: docType = 'autre'; break;          // Autre document EBP
+            default: 
+              console.log(`Type de document EBP inconnu: ${syncDoc.document_type}`);
+              docType = 'autre';
           }
 
           // Déterminer le statut

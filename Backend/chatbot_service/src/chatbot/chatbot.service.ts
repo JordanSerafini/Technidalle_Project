@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OpenaiService } from './openai.service';
 import { DatabaseService } from './database.service';
+import { McpService } from './mcp.service';
 import { EnhancedPromptsService } from './enhanced-prompts.service';
 import { ConversationContextService } from './conversation-context.service';
 import { ResponseFormatterService } from './response-formatter.service';
@@ -20,6 +21,7 @@ export class ChatbotService {
   constructor(
     private openaiService: OpenaiService,
     private databaseService: DatabaseService,
+    private mcpService: McpService,
     private enhancedPromptsService: EnhancedPromptsService,
     private conversationContextService: ConversationContextService,
     private responseFormatterService: ResponseFormatterService,
@@ -123,7 +125,7 @@ export class ChatbotService {
     }
 
     if (lowerMessage.includes('aide') || lowerMessage.includes('help') || lowerMessage.includes('commande')) {
-      return this.getHelpMessage();
+      return await this.getHelpMessage();
     }
 
     // Vérifier si c'est une question nécessitant une requête SQL (priorité haute)
@@ -135,10 +137,16 @@ export class ChatbotService {
         conversation.database = 'sync';
       }
       
-      // Vérifier la connexion à la base de données
-      if (!this.databaseService.isConnected(conversation.database)) {
-        return `Désolé, la base de données "${conversation.database}" n'est pas disponible actuellement. Veuillez vérifier la configuration ou essayer l'autre base de données.`;
+      // Vérifier la disponibilité des services
+      const serviceAvailability = await this.checkServiceAvailability(conversation.database);
+      if (!serviceAvailability.mcp && !serviceAvailability.database) {
+        return `❌ Aucun service de base de données disponible pour "${conversation.database}". Veuillez vérifier la configuration.`;
       }
+      
+      const availableServices: string[] = [];
+      if (serviceAvailability.mcp) availableServices.push('MCP');
+      if (serviceAvailability.database) availableServices.push('Database');
+      console.log(`📊 Services disponibles pour ${conversation.database}: ${availableServices.join(', ')}`);
       
       return await this.handleDatabaseQuery(conversation, userMessage);
     }
@@ -208,18 +216,19 @@ export class ChatbotService {
         console.log('Utilisation d\'une requête prédéfinie:', predefinedQuery);
         sqlQuery = predefinedQuery;
       } else {
-        // Fallback : Obtenir le schéma de la base de données
-        const schema = await this.databaseService.getTableSchema(conversation.database);
+        // NOUVEAU : Interroger le MCP pour analyser les tables pertinentes AVANT de générer la requête
+        console.log('🔍 Analyse intelligente des tables pertinentes...');
+        const intelligentSchema = await this.analyzeRelevantTablesWithMcp(userMessage, conversation.database, questionAnalysis.tables);
 
-        // NOUVEAU : Explorer les données pour guider l'IA
-        console.log('🔍 Exploration des données pour guider l\'IA...');
-        const explorationInfo = await this.exploreDataForQuery(userMessage, conversation.database);
+        // NOUVEAU : Explorer les données pour guider l'IA avec MCP intelligent
+        console.log('🔍 Exploration intelligente des données...');
+        const explorationInfo = await this.exploreDataForQuerySmart(userMessage, conversation.database);
 
         // Générer un prompt contextuel amélioré avec l'analyse + exploration
         const contextualPrompt = this.enhancedPromptsService.generateContextualPrompt(
           questionAnalysis.clarifiedQuestion || userMessage, 
-          schema
-        ) + `\n\n🔍 EXPLORATION DES DONNÉES DISPONIBLES:${explorationInfo}\n\nIMPORTANT: Adapte ta requête en fonction des données qui existent réellement. Si les colonnes attendues sont vides (comme margin), utilise les données disponibles (comme budget, actual_cost) pour répondre à la question.`;
+          intelligentSchema
+        ) + `\n\n🔍 EXPLORATION DES DONNÉES DISPONIBLES:${explorationInfo}\n\nIMPORTANT: Utilise EXACTEMENT les noms de colonnes fournis dans le schéma détaillé ci-dessus. Par exemple, pour les documents, utilise 'issue_date' et PAS 'date'. Adapte ta requête en fonction des données qui existent réellement.`;
 
         // Générer la requête SQL avec le prompt amélioré
         sqlQuery = await this.openaiService.generateSqlQueryWithPrompt(contextualPrompt, questionAnalysis.clarifiedQuestion || userMessage);
@@ -247,9 +256,18 @@ export class ChatbotService {
         return errorResponse.text;
       }
 
-      // Exécuter la requête
-      const result = await this.databaseService.executeQuery(cleanQuery, conversation.database, 100);
+      // Exécuter la requête avec la méthode intelligente
+      const result = await this.executeQuerySmart(cleanQuery, conversation.database, 100);
       success = true;
+
+      // DEBUG: Ajouter des logs pour comprendre le problème
+      console.log('🔍 Debug result:', {
+        hasResult: !!result,
+        hasRows: !!result?.rows,
+        rowsLength: result?.rows?.length,
+        firstRow: result?.rows?.[0],
+        resultKeys: result ? Object.keys(result) : 'no result'
+      });
 
       // Utiliser le nouveau service de formatage
       const formattedResponse = this.responseFormatterService.formatResponse(
@@ -591,7 +609,7 @@ export class ChatbotService {
     }
   }
 
-  private getHelpMessage(): string {
+  private async getHelpMessage(): Promise<string> {
     return `**Guide d'utilisation du Chatbot de Base de Données**
 
 **Commandes disponibles:**
@@ -613,7 +631,10 @@ export class ChatbotService {
 
 **État des connexions:**
 - Base sync: ${this.databaseService.isConnected('sync') ? '🟢 Connectée' : '🔴 Déconnectée'}
-- Base app: ${this.databaseService.isConnected('app') ? '🟢 Connectée' : '🔴 Déconnectée'}`;
+- Base app: ${this.databaseService.isConnected('app') ? '🟢 Connectée' : '🔴 Déconnectée'}
+
+**Diagnostic des services disponibles:**
+${await this.getServicesDiagnostic()}`;
   }
 
   async getConversationHistory(conversationId: string): Promise<ConversationContext | null> {
@@ -836,7 +857,10 @@ Réponds UNIQUEMENT en JSON :
     }
   }
 
-  private async exploreDataForQuery(question: string, database: 'sync' | 'app'): Promise<string> {
+  /**
+   * Exploration intelligente des données avec MCP en priorité
+   */
+  private async exploreDataForQuerySmart(question: string, database: 'sync' | 'app'): Promise<string> {
     try {
       const questionLower = question.toLowerCase();
       
@@ -858,40 +882,78 @@ Réponds UNIQUEMENT en JSON :
       
       let explorationInfo = '';
       
-      // Explorer chaque table pertinente
+      // Explorer chaque table pertinente avec MCP intelligent
       for (const table of relevantTables) {
-        console.log(`🔍 Exploration de la table ${table}...`);
+        console.log(`🔍 Exploration intelligente de la table ${table}...`);
         
         try {
-          // Obtenir des statistiques sur la table
-          const statsQuery = await this.generateTableStatsQuery(table);
-          const stats = await this.databaseService.executeQuery(statsQuery, database, 10);
+          // 1. Essayer avec MCP analyze_data en premier
+          try {
+            console.log(`🔄 Tentative MCP analyze_data pour ${table}...`);
+            const mcpAnalysis = await this.mcpService.analyzeData(table, undefined, database);
+            explorationInfo += `\n📊 ANALYSE MCP DE LA TABLE ${table.toUpperCase()}:\n`;
+            explorationInfo += this.formatMcpAnalysis(mcpAnalysis, table);
+            console.log(`✅ Analyse MCP réussie pour ${table}`);
+          } catch (mcpError) {
+            console.log(`⚠️ MCP analyze_data échec pour ${table}:`, mcpError.message);
+            
+            // 2. Fallback sur requête statistique manuelle
+            try {
+              const statsQuery = await this.generateTableStatsQuery(table);
+              const stats = await this.executeQuerySmart(statsQuery, database, 10);
+              
+              explorationInfo += `\n📊 ANALYSE STATISTIQUE DE LA TABLE ${table.toUpperCase()}:\n`;
+              explorationInfo += this.formatTableStats(stats.rows, table);
+            } catch (statsError) {
+              console.log(`⚠️ Statistiques manuelles échec pour ${table}:`, statsError.message);
+            }
+          }
           
-          explorationInfo += `\n📊 ANALYSE DE LA TABLE ${table.toUpperCase()}:\n`;
-          explorationInfo += this.formatTableStats(stats.rows, table);
-          
-          // Obtenir un échantillon des données
-          const sampleQuery = `SELECT * FROM ${table} LIMIT 3`;
-          const sample = await this.databaseService.executeQuery(sampleQuery, database, 3);
-          
-          if (sample.rows && sample.rows.length > 0) {
-            explorationInfo += `\n📋 ÉCHANTILLON DES DONNÉES:\n`;
-            sample.rows.forEach((row, index) => {
-              explorationInfo += `Ligne ${index + 1}: ${Object.keys(row).slice(0, 5).map(key => `${key}=${row[key]}`).join(', ')}\n`;
-            });
+          // 3. Obtenir un échantillon des données
+          try {
+            const sampleQuery = `SELECT * FROM ${table} LIMIT 3`;
+            const sample = await this.executeQuerySmart(sampleQuery, database, 3);
+            
+            if (sample.rows && sample.rows.length > 0) {
+              explorationInfo += `\n📋 ÉCHANTILLON DES DONNÉES:\n`;
+              sample.rows.forEach((row, index) => {
+                explorationInfo += `Ligne ${index + 1}: ${Object.keys(row).slice(0, 5).map(key => `${key}=${row[key]}`).join(', ')}\n`;
+              });
+            }
+          } catch (sampleError) {
+            console.log(`⚠️ Échantillon échec pour ${table}:`, sampleError.message);
           }
           
         } catch (error) {
-          console.warn(`Erreur exploration ${table}:`, error.message);
+          console.warn(`Erreur exploration intelligente ${table}:`, error.message);
         }
       }
       
       return explorationInfo;
       
     } catch (error) {
-      console.error('Erreur exploration:', error);
+      console.error('Erreur exploration intelligente:', error);
       return 'Exploration des données non disponible.';
     }
+  }
+
+  /**
+   * Formater les résultats d'analyse MCP
+   */
+  private formatMcpAnalysis(analysis: any, table: string): string {
+    if (!analysis) return 'Aucune analyse disponible.\n';
+    
+    let formatted = '';
+    
+    if (typeof analysis === 'object') {
+      Object.entries(analysis).forEach(([key, value]) => {
+        formatted += `  • ${key}: ${value}\n`;
+      });
+    } else {
+      formatted = `  • Analyse: ${analysis}\n`;
+    }
+    
+    return formatted;
   }
 
   private async generateTableStatsQuery(table: string): Promise<string> {
@@ -904,9 +966,10 @@ Réponds UNIQUEMENT en JSON :
             COUNT(CASE WHEN budget IS NOT NULL THEN 1 END) as projets_avec_budget,
             COUNT(CASE WHEN actual_cost IS NOT NULL THEN 1 END) as projets_avec_cout,
             COUNT(CASE WHEN margin IS NOT NULL THEN 1 END) as projets_avec_marge,
-            string_agg(DISTINCT status, ', ') as statuts_disponibles,
+            string_agg(DISTINCT status::text, ', ') as statuts_disponibles,
             AVG(budget) as budget_moyen,
             MAX(budget) as budget_max
+          FROM projects
         `;
         
       case 'clients':
@@ -915,6 +978,7 @@ Réponds UNIQUEMENT en JSON :
             COUNT(*) as total_clients,
             COUNT(CASE WHEN company_name IS NOT NULL THEN 1 END) as entreprises,
             COUNT(CASE WHEN company_name IS NULL THEN 1 END) as particuliers
+          FROM clients
         `;
         
       case 'staff':
@@ -923,6 +987,7 @@ Réponds UNIQUEMENT en JSON :
             COUNT(*) as total_employes,
             COUNT(CASE WHEN is_available = true THEN 1 END) as disponibles,
             COUNT(CASE WHEN is_available = false THEN 1 END) as indisponibles
+          FROM staff
         `;
         
       case 'events':
@@ -949,5 +1014,256 @@ Réponds UNIQUEMENT en JSON :
     });
     
     return formatted;
+  }
+
+  /**
+   * Analyser les tables pertinentes avec le MCP pour obtenir la structure exacte
+   */
+  private async analyzeRelevantTablesWithMcp(question: string, database: 'sync' | 'app', suggestedTables: string[]): Promise<string> {
+    console.log(`🔍 Analyse MCP des tables pour: ${suggestedTables.join(', ')}`);
+    
+    let schema = `Base de données: ${database}\n\n`;
+    
+    // Déterminer les tables à analyser en priorité basées sur la question
+    const tablesToAnalyze = this.determineRelevantTables(question, suggestedTables, database);
+    
+    for (const tableName of tablesToAnalyze) {
+      try {
+        console.log(`🔍 Analyse MCP de la table: ${tableName}`);
+        
+        // Utiliser le MCP pour obtenir la structure détaillée
+        const tableStructure = await this.mcpService.describeTable(tableName, database);
+        
+        if (tableStructure && tableStructure.columns) {
+          schema += `📋 TABLE: ${tableName.toUpperCase()}\n`;
+          schema += `Colonnes disponibles:\n`;
+          
+          tableStructure.columns.forEach((col: any) => {
+            schema += `  - ${col.column_name} (${col.data_type})${col.is_nullable === 'NO' ? ' NOT NULL' : ''}\n`;
+          });
+          schema += '\n';
+        } else if (typeof tableStructure === 'object' && tableStructure.content) {
+          // Format MCP standard
+          schema += `📋 TABLE: ${tableName.toUpperCase()}\n`;
+          if (tableStructure.content[0] && tableStructure.content[0].text) {
+            const lines = tableStructure.content[0].text.split('\n');
+            const columnLines = lines.filter(line => line.includes('📌'));
+            
+            schema += `Colonnes disponibles:\n`;
+            columnLines.forEach(line => {
+              const match = line.match(/📌\s*([^:]+):\s*([^N]+)/);
+              if (match) {
+                const columnName = match[1].trim();
+                const dataType = match[2].trim();
+                schema += `  - ${columnName} (${dataType})\n`;
+              }
+            });
+          }
+          schema += '\n';
+        }
+      } catch (error) {
+        console.log(`⚠️ Erreur MCP pour la table ${tableName}:`, error.message);
+        
+        // Fallback : utiliser la méthode directe
+        try {
+          console.log(`🔄 Fallback DatabaseService pour table ${tableName}...`);
+          const fallbackResult = await this.databaseService.describeTable(tableName, database);
+          
+          if (fallbackResult && fallbackResult.columns) {
+            schema += `📋 TABLE: ${tableName.toUpperCase()} (via fallback)\n`;
+            schema += `Colonnes disponibles:\n`;
+            
+            fallbackResult.columns.forEach((col: any) => {
+              schema += `  - ${col.column_name} (${col.data_type})${col.is_nullable === 'NO' ? ' NOT NULL' : ''}\n`;
+            });
+            schema += '\n';
+          }
+        } catch (fallbackError) {
+          console.log(`❌ Erreur fallback pour table ${tableName}:`, fallbackError.message);
+          schema += `📋 TABLE: ${tableName.toUpperCase()} - Erreur lors de l'analyse\n\n`;
+        }
+      }
+    }
+    
+    console.log(`✅ Schéma intelligent généré pour ${tablesToAnalyze.length} table(s)`);
+    return schema;
+  }
+
+  /**
+   * Déterminer les tables les plus pertinentes à analyser en détail
+   */
+  private determineRelevantTables(question: string, suggestedTables: string[], database: 'sync' | 'app'): string[] {
+    const questionLower = question.toLowerCase();
+    
+    // Mappage intelligent basé sur les mots-clés
+    const keywordToTables = {
+      'devis': ['documents', 'projects'],
+      'facture': ['documents', 'projects'], 
+      'document': ['documents'],
+      'projet': ['projects', 'documents'],
+      'chantier': ['projects', 'documents'],
+      'planning': ['events', 'staff', 'projects'],
+      'employé': ['staff', 'events', 'time_logs'],
+      'staff': ['staff', 'events', 'time_logs'],
+      'client': ['clients', 'projects', 'documents'],
+      'temps': ['time_logs', 'events', 'staff'],
+      'heure': ['time_logs', 'events'],
+      'matériau': ['materials', 'project_materials'],
+      'véhicule': ['vehicles'],
+      'tâche': ['tasks', 'projects']
+    };
+    
+    const relevantTables = new Set<string>();
+    
+    // Ajouter les tables suggérées par l'analyse AI
+    suggestedTables.forEach(table => relevantTables.add(table));
+    
+    // Ajouter les tables basées sur les mots-clés
+    Object.entries(keywordToTables).forEach(([keyword, tables]) => {
+      if (questionLower.includes(keyword)) {
+        tables.forEach(table => relevantTables.add(table));
+      }
+    });
+    
+    // Si aucune table spécifique n'est trouvée, utiliser des tables par défaut
+    if (relevantTables.size === 0) {
+      if (database === 'app') {
+        relevantTables.add('documents');
+        relevantTables.add('projects');
+        relevantTables.add('clients');
+      } else {
+        relevantTables.add('Deal');
+        relevantTables.add('Customer');
+      }
+    }
+    
+    // Limiter le nombre de tables pour éviter un schéma trop long
+    const tablesArray = Array.from(relevantTables).slice(0, 5);
+    console.log(`🎯 Tables sélectionnées pour analyse: ${tablesArray.join(', ')}`);
+    
+    return tablesArray;
+  }
+
+  /**
+   * Méthode hybride intelligente : MCP en priorité, DatabaseService en fallback
+   */
+  private async executeQuerySmart(query: string, database: 'sync' | 'app', limit: number = 100): Promise<any> {
+    try {
+      // 1. Essayer avec MCP en premier
+      console.log(`🔄 Tentative MCP pour base ${database}...`);
+      const mcpResult = await this.mcpService.executeQuery(query, database, limit);
+      console.log(`✅ Succès MCP pour base ${database}`);
+      return {
+        ...mcpResult,
+        source: 'mcp',
+        database: database
+      };
+    } catch (mcpError) {
+      console.log(`⚠️ MCP échec pour base ${database}:`, mcpError.message);
+      
+      try {
+        // 2. Fallback sur DatabaseService
+        console.log(`🔄 Fallback DatabaseService pour base ${database}...`);
+        const dbResult = await this.databaseService.executeQuery(query, database, limit);
+        console.log(`✅ Succès DatabaseService pour base ${database}`);
+        return {
+          ...dbResult,
+          source: 'database',
+          database: database
+        };
+      } catch (dbError) {
+        console.error(`❌ Échec total pour base ${database}:`, dbError.message);
+        throw new Error(`Impossible d'exécuter la requête sur ${database}: MCP (${mcpError.message}) et Database (${dbError.message})`);
+      }
+    }
+  }
+
+  /**
+   * Obtenir le schéma de manière intelligente
+   */
+  private async getSchemaSmart(database: 'sync' | 'app'): Promise<string> {
+    try {
+      // 1. Essayer avec MCP
+      console.log(`🔄 Récupération schéma MCP pour ${database}...`);
+      const mcpSchema = await this.mcpService.getTableSchema(database);
+      console.log(`✅ Schéma MCP récupéré pour ${database}`);
+      return mcpSchema;
+    } catch (mcpError) {
+      console.log(`⚠️ MCP schéma échec pour ${database}:`, mcpError.message);
+      
+      try {
+        // 2. Fallback sur DatabaseService
+        console.log(`🔄 Fallback schéma DatabaseService pour ${database}...`);
+        const dbSchema = await this.databaseService.getTableSchema(database);
+        console.log(`✅ Schéma DatabaseService récupéré pour ${database}`);
+        return dbSchema;
+      } catch (dbError) {
+        console.error(`❌ Échec total schéma pour ${database}:`, dbError.message);
+        return `Erreur lors de la récupération du schéma pour ${database}`;
+      }
+    }
+  }
+
+  /**
+   * Vérifier la disponibilité des services
+   */
+  private async checkServiceAvailability(database: 'sync' | 'app'): Promise<{mcp: boolean, database: boolean}> {
+    const result = { mcp: false, database: false };
+    
+    try {
+      await this.mcpService.listTables(database);
+      result.mcp = true;
+    } catch (error) {
+      console.log(`MCP indisponible pour ${database}:`, error.message);
+    }
+    
+    try {
+      result.database = this.databaseService.isConnected(database);
+    } catch (error) {
+      console.log(`DatabaseService indisponible pour ${database}:`, error.message);
+    }
+    
+    return result;
+  }
+
+  /**
+   * Diagnostic des services disponibles
+   */
+  async getServicesDiagnostic(): Promise<string> {
+    let diagnostic = '🔧 **DIAGNOSTIC DES SERVICES**\n\n';
+    
+    for (const db of ['sync', 'app'] as const) {
+      diagnostic += `📊 **Base ${db.toUpperCase()}:**\n`;
+      
+      const availability = await this.checkServiceAvailability(db);
+      
+      if (availability.mcp) {
+        diagnostic += '   ✅ MCP Server: Connecté\n';
+        try {
+          const tables = await this.mcpService.listTables(db);
+          diagnostic += `   📋 Tables MCP: ${Array.isArray(tables) ? tables.length : 'N/A'} disponibles\n`;
+        } catch (error) {
+          diagnostic += `   ⚠️ Tables MCP: Erreur (${error.message})\n`;
+        }
+      } else {
+        diagnostic += '   ❌ MCP Server: Déconnecté\n';
+      }
+      
+      if (availability.database) {
+        diagnostic += '   ✅ Database Direct: Connecté\n';
+        try {
+          const tables = await this.databaseService.listTables(db);
+          diagnostic += `   📋 Tables Direct: ${tables.length} disponibles\n`;
+        } catch (error) {
+          diagnostic += `   ⚠️ Tables Direct: Erreur (${error.message})\n`;
+        }
+      } else {
+        diagnostic += '   ❌ Database Direct: Déconnecté\n';
+      }
+      
+      diagnostic += '\n';
+    }
+    
+    return diagnostic;
   }
 } 
