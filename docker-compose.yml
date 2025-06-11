@@ -199,31 +199,31 @@ services:
       - ./Backend/planning_service:/app
       - /app/generated/prisma       
 
-  chatbot:
-    build:
-      context: ./Backend/chatbot_service
-      dockerfile: Dockerfile
-    container_name: chatbot
-    ports:
-      - "5599:5599"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
-      - PORT=5599
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ELASTICSEARCH_NODE=http://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=elastic
-      - ELASTICSEARCH_PASSWORD=elastic
-    depends_on:
-      postgres:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - app-network
-    volumes:
-      - ./Backend/chatbot_service:/app
-      - /app/node_modules
-      - /app/generated/prisma
+ # chatbot:
+ #   build:
+ #     context: ./Backend/chatbot_service
+ #     dockerfile: Dockerfile
+ #   container_name: chatbot
+ #   ports:
+ #     - "5599:5599"
+ #   environment:
+ #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+ #     - PORT=5599
+ #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+ #     - ELASTICSEARCH_NODE=http://elasticsearch:9200
+ #     - ELASTICSEARCH_USERNAME=elastic
+ #     - ELASTICSEARCH_PASSWORD=elastic
+ #   depends_on:
+ #     postgres:
+ #       condition: service_healthy
+ #     elasticsearch:
+ #       condition: service_healthy
+ #   networks:
+ #     - app-network
+ #   volumes:
+ #     - ./Backend/chatbot_service:/app
+ #     - /app/node_modules
+ #     - /app/generated/prisma
 
   # email-modules:
   #   build:
