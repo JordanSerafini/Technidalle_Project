@@ -6,7 +6,7 @@ services:
     image: postgres:15
     container_name: postgres-sync
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - technidalle_project_postgres_sync_data:/var/lib/postgresql/data
     environment:
@@ -20,6 +20,37 @@ services:
       retries: 5
     networks:
       - technidalle-network
+
+
+  mcp-postgres-server:
+    build:
+      context: ./mcp-postgres-server
+      dockerfile: Dockerfile
+    container_name: mcp-postgres-server
+    ports:
+      - "3333:3000"
+    environment:
+      # Configuration pour postgres_sync
+      - POSTGRES_SYNC_HOST=postgres
+      - POSTGRES_SYNC_PORT=5432
+      - POSTGRES_SYNC_USER=postgres
+      - POSTGRES_SYNC_PASSWORD=postgres
+      - POSTGRES_SYNC_DATABASE=postgres
+      # Configuration serveur HTTP
+      - HTTP_PORT=3000
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres_sync:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # NATS Message Broker
   nats:
