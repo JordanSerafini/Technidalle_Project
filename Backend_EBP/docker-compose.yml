@@ -1,0 +1,492 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL (réutilisation du volume existant)
+  postgres-sync:
+    image: postgres:15
+    container_name: postgres-sync
+    ports:
+      - "5433:5432"
+    volumes:
+      - technidalle_project_postgres_sync_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - technidalle-network
+
+  # NATS Message Broker
+  nats:
+    image: nats:latest
+    container_name: technidalle-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["--http_port", "8222"]
+    healthcheck:
+      test: ["CMD", "nats", "server", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - technidalle-network
+
+  # Redis pour le cache
+  redis:
+    image: redis:7-alpine
+    container_name: technidalle-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - technidalle-network
+
+  # API Gateway - Port 3000
+  api-gateway:
+    build: ./api-gateway
+    container_name: technidalle-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=technidalle-jwt-secret-2024
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Auth Service - Port 3001
+  auth-service:
+    build: ./auth-service
+    container_name: technidalle-auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - JWT_SECRET=technidalle-jwt-secret-2024
+      - JWT_EXPIRES_IN=24h
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Clients Service - Port 3002
+  clients-service:
+    build: ./clients-service
+    container_name: technidalle-clients-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Suppliers Service - Port 3003
+  suppliers-service:
+    build: ./suppliers-service
+    container_name: technidalle-suppliers-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Projects Service - Port 3004
+  projects-service:
+    build: ./projects-service
+    container_name: technidalle-projects-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Planning Service - Port 3005
+  planning-service:
+    build: ./planning-service
+    container_name: technidalle-planning-service
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Documents Service - Port 3006
+  documents-service:
+    build: ./documents-service
+    container_name: technidalle-documents-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - UPLOAD_PATH=/app/uploads
+      - NODE_ENV=development
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Inventory Service - Port 3007
+  inventory-service:
+    build: ./inventory-service
+    container_name: technidalle-inventory-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Users Service - Port 3008
+  users-service:
+    build: ./users-service
+    container_name: technidalle-users-service
+    ports:
+      - "3008:3008"
+    environment:
+      - PORT=3008
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Equipment Service - Port 3009
+  equipment-service:
+    build: ./equipment-service
+    container_name: technidalle-equipment-service
+    ports:
+      - "3009:3009"
+    environment:
+      - PORT=3009
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Maintenance Service - Port 3010
+  maintenance-service:
+    build: ./maintenance-service
+    container_name: technidalle-maintenance-service
+    ports:
+      - "3010:3010"
+    environment:
+      - PORT=3010
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Incidents Service - Port 3011
+  incidents-service:
+    build: ./incidents-service
+    container_name: technidalle-incidents-service
+    ports:
+      - "3011:3011"
+    environment:
+      - PORT=3011
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Analytics Service - Port 3012
+  analytics-service:
+    build: ./analytics-service
+    container_name: technidalle-analytics-service
+    ports:
+      - "3012:3012"
+    environment:
+      - PORT=3012
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Finance Service - Port 3013
+  finance-service:
+    build: ./finance-service
+    container_name: technidalle-finance-service
+    ports:
+      - "3013:3013"
+    environment:
+      - PORT=3013
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Commercial Service - Port 3014
+  commercial-service:
+    build: ./commercial-service
+    container_name: technidalle-commercial-service
+    ports:
+      - "3014:3014"
+    environment:
+      - PORT=3014
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Controlling Service - Port 3015
+  controlling-service:
+    build: ./controlling-service
+    container_name: technidalle-controlling-service
+    ports:
+      - "3015:3015"
+    environment:
+      - PORT=3015
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # POS Service - Port 3016
+  pos-service:
+    build: ./pos-service
+    container_name: technidalle-pos-service
+    ports:
+      - "3016:3016"
+    environment:
+      - PORT=3016
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Loyalty Service - Port 3017
+  loyalty-service:
+    build: ./loyalty-service
+    container_name: technidalle-loyalty-service
+    ports:
+      - "3017:3017"
+    environment:
+      - PORT=3017
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Catalog Service - Port 3018
+  catalog-service:
+    build: ./catalog-service
+    container_name: technidalle-catalog-service
+    ports:
+      - "3018:3018"
+    environment:
+      - PORT=3018
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Ecommerce Service - Port 3019
+  ecommerce-service:
+    build: ./ecommerce-service
+    container_name: technidalle-ecommerce-service
+    ports:
+      - "3019:3019"
+    environment:
+      - PORT=3019
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+  # Workflow Service - Port 3020
+  workflow-service:
+    build: ./workflow-service
+    container_name: technidalle-workflow-service
+    ports:
+      - "3020:3020"
+    environment:
+      - PORT=3020
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres-sync:5432/postgres
+      - NATS_URL=nats://nats:4222
+      - NODE_ENV=development
+    depends_on:
+      postgres-sync:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - technidalle-network
+
+volumes:
+  technidalle_project_postgres_sync_data:
+    external: true
+
+networks:
+  technidalle-network:
+    driver: bridge 
