@@ -96,3 +96,138 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# Documents Service
+
+Service de gestion des documents pour l'application BTP Technidalle.
+
+## Fonctionnalités
+
+### Gestion des Documents
+- ✅ Création de documents avec upload de fichiers
+- ✅ Lecture, mise à jour et suppression de documents
+- ✅ Gestion des versions de documents
+- ✅ Téléchargement de fichiers et versions
+- ✅ Recherche dans les documents (titre, description, nom de fichier, tags)
+- ✅ Filtrage par type, statut, projet, client, fournisseur
+- ✅ Gestion des documents confidentiels
+- ✅ Gestion des dates d'expiration
+
+### Types de Documents Supportés
+- Devis
+- Factures
+- Plans techniques
+- Photos de chantier
+- Contrats
+- Rapports
+- Certificats
+- Autres documents
+
+### Catégorisation
+- ✅ Création et gestion des catégories
+- ✅ Organisation par couleurs et icônes
+- ✅ Tri personnalisé
+
+### Fonctionnalités Avancées
+- ✅ Système de versioning complet
+- ✅ Métadonnées JSON personnalisées
+- ✅ Système de tags
+- ✅ Statistiques d'utilisation
+- ✅ Documents récents pour mobile
+- ✅ Gestion des documents expirés
+
+## Installation
+
+```bash
+npm install
+```
+
+## Configuration
+
+Variables d'environnement requises :
+
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=password
+DB_NAME=documents_db
+
+# NATS
+NATS_URL=nats://localhost:4222
+
+# Upload configuration
+UPLOAD_DEST=./uploads
+MAX_FILE_SIZE=52428800
+
+# Application
+NODE_ENV=development
+PORT=3003
+```
+
+## Démarrage
+
+```bash
+# Mode développement
+npm run start:dev
+
+# Mode production
+npm run start:prod
+```
+
+## Architecture
+
+### Entités
+- **Document** : Entité principale pour les documents
+- **DocumentCategory** : Catégories de documents
+- **DocumentVersion** : Versions des documents
+
+### Patterns NATS Messages
+
+#### Documents
+- `documents.create` - Créer un document
+- `documents.findAll` - Lister les documents
+- `documents.findOne` - Obtenir un document
+- `documents.update` - Mettre à jour un document
+- `documents.delete` - Supprimer un document
+- `documents.search` - Rechercher des documents
+
+#### Versions
+- `documents.createVersion` - Créer une nouvelle version
+- `documents.getVersions` - Obtenir les versions d'un document
+
+#### Catégories
+- `documents.categories.create` - Créer une catégorie
+- `documents.categories.findAll` - Lister les catégories
+- `documents.categories.findOne` - Obtenir une catégorie
+- `documents.categories.update` - Mettre à jour une catégorie
+- `documents.categories.delete` - Supprimer une catégorie
+
+#### Filtres et Recherche
+- `documents.byProject` - Documents par projet
+- `documents.byClient` - Documents par client
+- `documents.byType` - Documents par type
+- `documents.byStatus` - Documents par statut
+- `documents.byTags` - Documents par tags
+- `documents.confidential` - Documents confidentiels
+- `documents.expired` - Documents expirés
+- `documents.recent` - Documents récents
+
+#### Fichiers
+- `documents.download` - Télécharger un fichier
+- `documents.statistics` - Statistiques d'utilisation
+
+## Sécurité
+
+- Validation des fichiers uploadés
+- Limitation de taille des fichiers (50MB par défaut)
+- Gestion des documents confidentiels
+- Contrôle d'accès par projet/client
+
+## Optimisations Mobile
+
+- Métadonnées calculées (taille formatée, URLs)
+- Documents récents
+- Miniatures pour les images
+- Chargement optimisé avec pagination
